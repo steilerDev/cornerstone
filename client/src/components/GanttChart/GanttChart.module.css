@@ -41,6 +41,7 @@
   flex: 1;
   overflow: auto;
   position: relative;
+  overscroll-behavior-x: contain;
 }
 
 /* ---- Skeleton states ---- */
@@ -139,5 +140,11 @@
   .sidebarSkeletonRow {
     padding: 0;
     justify-content: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .sidebarSkeleton {
+    width: 7.5rem;
   }
 }

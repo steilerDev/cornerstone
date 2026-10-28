@@ -4,6 +4,8 @@
  * EPIC-06: Story 6.2 — Scheduling Engine (CPM, Auto-Schedule, Conflict Detection)
  */
 
+import type { AttentionHoldsUp } from './attention.js';
+
 /**
  * Derived schedule signals shown next to a task's or purchase's stored status (glossary v1:
  * Late · n d, Held up, Critical). Derived from isLate / isHeldUp / critical-path membership;
@@ -15,6 +17,22 @@ export const SCHEDULE_SIGNALS = ['late', 'held_up', 'critical'] as const;
 /** A derived schedule signal. */
 export type ScheduleSignal = (typeof SCHEDULE_SIGNALS)[number];
 
+/** Most overrides one preview may carry (contract 3). */
+export const SCHEDULE_OVERRIDES_MAX = 50;
+/** Largest durationDays an override may set (contract 3). */
+export const SCHEDULE_DURATION_DAYS_MAX = 3650;
+
+/** An unsaved change previewed by POST /api/schedule (applied in memory, never persisted). */
+export interface ScheduleOverride {
+  workItemId: string;
+  /** YYYY-MM-DD */
+  startDate?: string;
+  /** YYYY-MM-DD */
+  endDate?: string;
+  /** Integer 0..SCHEDULE_DURATION_DAYS_MAX */
+  durationDays?: number;
+}
+
 /**
  * Request body for POST /api/schedule.
  */
@@ -22,6 +40,8 @@ export interface ScheduleRequest {
   mode: 'full' | 'cascade';
   /** Required when mode is 'cascade'. Ignored when mode is 'full'. */
   anchorWorkItemId?: string | null;
+  /** Optional, 1..SCHEDULE_OVERRIDES_MAX, unique workItemId (contract 3, #2247). */
+  overrides?: ScheduleOverride[];
 }
 
 /**
@@ -78,4 +98,37 @@ export interface ScheduleWarning {
   workItemId: string;
   type: ScheduleWarningType;
   message: string;
+}
+
+export interface ScheduleImpactItem {
+  workItemId: string;
+  previousEndDate: string;
+  newEndDate: string;
+  /** newEndDate - previousEndDate in days (negative = earlier). */
+  deltaDays: number;
+  /** Late in the previewed forecast. */
+  isLate: boolean;
+}
+
+export interface ScheduleImpactMilestone {
+  milestoneId: number;
+  previousProjectedDate: string;
+  newProjectedDate: string;
+  deltaDays: number;
+}
+
+export interface ScheduleImpact {
+  /** Unfinished tasks other than the overridden ones whose shown end changes; newEndDate asc, then id. */
+  movedItems: ScheduleImpactItem[];
+  /** Unreached milestones whose projected date changes; newProjectedDate asc, then id. */
+  milestones: ScheduleImpactMilestone[];
+  /** Latest shown end (actual ?? projected) over all tasks, before and after. */
+  projectEnd: { previousDate: string | null; newDate: string | null };
+  /** computeHoldsUp on the previewed projection: the union over the overridden tasks. */
+  holdsUp: AttentionHoldsUp;
+}
+
+/** POST /api/schedule response when `overrides` is present. */
+export interface SchedulePreviewResponse extends ScheduleResponse {
+  impact: ScheduleImpact;
 }

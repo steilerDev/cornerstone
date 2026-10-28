@@ -1,0 +1,96 @@
+.strip {
+  padding: var(--spacing-2) var(--spacing-6);
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2) var(--spacing-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.entry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.doneHidden {
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+.swatch {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.statusNotStarted {
+  fill: var(--color-gantt-bar-not-started);
+}
+
+.statusInProgress {
+  fill: var(--color-gantt-bar-in-progress);
+}
+
+.statusCompleted {
+  fill: var(--color-gantt-bar-completed);
+}
+
+.hatchLine {
+  stroke: var(--color-gantt-bar-late-hatch);
+  stroke-width: 2;
+}
+
+.lateOutline {
+  stroke: var(--color-danger);
+  stroke-width: 2;
+}
+
+.planned {
+  fill: none;
+  stroke: var(--color-gantt-bar-ghost-stroke);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.critical {
+  stroke: var(--color-gantt-bar-critical-border);
+  stroke-width: 2;
+}
+
+.milestone {
+  fill: var(--color-bg-primary);
+  stroke: var(--color-gantt-arrow-milestone);
+  stroke-width: 1.5;
+}
+
+.delivery {
+  fill: var(--color-gantt-hi-fill);
+  stroke: var(--color-gantt-hi-stroke);
+  stroke-width: 1.5;
+}
+
+.todayLine {
+  stroke: var(--color-gantt-today-marker);
+  stroke-width: 2;
+}
+
+@media (max-width: 767px) {
+  .list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    font-size: var(--font-size-sm);
+  }
+
+  .doneHidden {
+    margin-left: 0;
+  }
+}

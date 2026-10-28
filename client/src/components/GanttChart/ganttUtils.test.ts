@@ -29,7 +29,21 @@ import {
   TEXT_LABEL_MIN_WIDTH,
   type ZoomLevel,
   type ChartRange,
+  NO_AREA_GROUP_ID,
+  buildGanttRows,
+  ganttRowKey,
+  hoverIdOfKey,
+  lateSignalOf,
+  sortedDataRows,
+  type GanttRow,
 } from './ganttUtils.js';
+import {
+  makeArea,
+  makeMilestone,
+  makePurchase,
+  makeTask,
+  makeTimeline,
+} from '../../test/scheduleFixtures.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,22 +62,22 @@ describe('Constants', () => {
     expect(COLUMN_WIDTHS.month).toBe(260);
   });
 
-  it('ROW_HEIGHT is 40', () => {
-    expect(ROW_HEIGHT).toBe(40);
+  it('ROW_HEIGHT is 44 (touch target, two-line labels)', () => {
+    expect(ROW_HEIGHT).toBe(44);
   });
 
   it('BAR_HEIGHT is 32', () => {
     expect(BAR_HEIGHT).toBe(32);
   });
 
-  it('BAR_OFFSET_Y is 4', () => {
-    expect(BAR_OFFSET_Y).toBe(4);
+  it('BAR_OFFSET_Y is 6', () => {
+    expect(BAR_OFFSET_Y).toBe(6);
   });
 
   it('BAR_OFFSET_Y + BAR_HEIGHT is less than ROW_HEIGHT (leaving bottom padding)', () => {
-    // Bar has 4px top offset + 32px height = 36px; 4px bottom padding remains
+    // Bar has 6px top offset + 32px height = 38px; 6px bottom padding remains
     expect(BAR_OFFSET_Y + BAR_HEIGHT).toBeLessThan(ROW_HEIGHT);
-    expect(BAR_OFFSET_Y + BAR_HEIGHT).toBe(36);
+    expect(BAR_OFFSET_Y + BAR_HEIGHT).toBe(38);
   });
 
   it('HEADER_HEIGHT is 48', () => {
@@ -1554,5 +1568,170 @@ describe('computeBarPosition', () => {
       expect(pos.x).toBeGreaterThan(0);
       expect(pos.width).toBeGreaterThan(0);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rows (#2247)
+// ---------------------------------------------------------------------------
+
+describe('ganttRowKey / hoverIdOfKey', () => {
+  it('returns the key of a data row and null for a group header', () => {
+    const group: GanttRow = { kind: 'group', groupId: 'g', name: 'G', count: 0, collapsed: false };
+    expect(ganttRowKey(group)).toBeNull();
+    expect(ganttRowKey({ kind: 'workItem', key: 'task:a', item: makeTask('a') })).toBe('task:a');
+  });
+
+  it('maps keys to the hover ids: task id, milestone:<id>, hi:<id>', () => {
+    expect(hoverIdOfKey('task:a')).toBe('a');
+    expect(hoverIdOfKey('milestone:7')).toBe('milestone:7');
+    expect(hoverIdOfKey('purchase:p')).toBe('hi:p');
+  });
+});
+
+describe('lateSignalOf', () => {
+  it('reports Late with days and Held up, never for a completed task', () => {
+    expect(lateSignalOf(makeTask('a', { isLate: true, lateDays: 3 }))).toEqual({
+      signal: 'late',
+      days: 3,
+    });
+    expect(lateSignalOf(makeTask('a', { isHeldUp: true }))).toEqual({ signal: 'held_up' });
+    expect(lateSignalOf(makeTask('a'))).toBeNull();
+    expect(
+      lateSignalOf(makeTask('a', { status: 'completed', isLate: true, lateDays: 3 })),
+    ).toBeNull();
+  });
+});
+
+describe('sortedDataRows', () => {
+  it('interleaves tasks, milestones and purchases by date, undated last', () => {
+    const rows = sortedDataRows(
+      makeTimeline({
+        workItems: [
+          makeTask('late', { projectedStartDate: '2026-03-20' }),
+          makeTask('undated', { projectedStartDate: null, projectedEndDate: null }),
+          makeTask('early', { projectedStartDate: '2026-03-02' }),
+        ],
+        milestones: [makeMilestone(1, { projectedDate: '2026-03-10' })],
+        householdItems: [makePurchase('p', { earliestDeliveryDate: '2026-03-15' })],
+      }),
+    );
+    expect(rows.map((r) => r.key)).toEqual([
+      'task:early',
+      'milestone:1',
+      'purchase:p',
+      'task:late',
+      'task:undated',
+    ]);
+  });
+
+  it('uses the completion day for a reached milestone and the target when unprojected', () => {
+    const rows = sortedDataRows(
+      makeTimeline({
+        workItems: [makeTask('t', { projectedStartDate: '2026-03-06' })],
+        milestones: [
+          makeMilestone(1, {
+            isCompleted: true,
+            completedAt: '2026-03-04T12:00:00.000Z',
+            projectedDate: '2026-09-01',
+          }),
+          makeMilestone(2, { targetDate: '2026-03-08' }),
+        ],
+      }),
+    );
+    expect(rows.map((r) => r.key)).toEqual(['milestone:1', 'task:t', 'milestone:2']);
+  });
+
+  it('breaks date ties by kind (milestone, purchase, task) then longest first', () => {
+    const rows = sortedDataRows(
+      makeTimeline({
+        workItems: [
+          makeTask('short', { projectedStartDate: '2026-03-05', projectedEndDate: '2026-03-06' }),
+          makeTask('long', { projectedStartDate: '2026-03-05', projectedEndDate: '2026-03-20' }),
+          makeTask('open', { projectedStartDate: '2026-03-05', projectedEndDate: null }),
+        ],
+        milestones: [makeMilestone(1, { projectedDate: '2026-03-05' })],
+        householdItems: [
+          makePurchase('p', {
+            earliestDeliveryDate: '2026-03-05',
+            latestDeliveryDate: '2026-03-07',
+          }),
+        ],
+      }),
+    );
+    expect(rows.map((r) => r.key)).toEqual([
+      'milestone:1',
+      'purchase:p',
+      'task:long',
+      'task:short',
+      'task:open',
+    ]);
+  });
+
+  it('keeps two undated rows in input order', () => {
+    const rows = sortedDataRows(
+      makeTimeline({
+        workItems: [
+          makeTask('a', { projectedStartDate: null, projectedEndDate: null }),
+          makeTask('b', { projectedStartDate: null, projectedEndDate: null }),
+        ],
+      }),
+    );
+    expect(rows.map((r) => r.key)).toEqual(['task:a', 'task:b']);
+  });
+});
+
+describe('buildGanttRows', () => {
+  const data = makeTimeline({
+    workItems: [
+      makeTask('kitchen', { projectedStartDate: '2026-03-02', area: makeArea('k') }),
+      makeTask('bath', { projectedStartDate: '2026-03-03', area: makeArea('b') }),
+      makeTask('loose', { projectedStartDate: '2026-03-04' }),
+      makeTask('stranger', { projectedStartDate: '2026-03-05', area: makeArea('gone') }),
+    ],
+    milestones: [makeMilestone(1, { projectedDate: '2026-03-06' })],
+    householdItems: [
+      makePurchase('sofa', { earliestDeliveryDate: '2026-03-07', area: makeArea('k') }),
+      makePurchase('lamp', { earliestDeliveryDate: '2026-03-08' }),
+    ],
+  });
+
+  it('groups by time as the plain interleaved order with no headers', () => {
+    const rows = buildGanttRows(data, 'time', ['b', 'k'], new Set(), 'No area');
+    expect(rows.every((r) => r.kind !== 'group')).toBe(true);
+    expect(rows).toHaveLength(7);
+  });
+
+  it('groups by area in the given order, with milestones, unknown and missing areas in a final group', () => {
+    const rows = buildGanttRows(data, 'area', ['b', 'k'], new Set(), 'No area');
+    const shape = rows.map((r) => (r.kind === 'group' ? `# ${r.name} (${r.count})` : r.key));
+    expect(shape).toEqual([
+      '# Area b (1)',
+      'task:bath',
+      '# Area k (2)',
+      'task:kitchen',
+      'purchase:sofa',
+      '# No area (4)',
+      'task:loose',
+      'task:stranger',
+      'milestone:1',
+      'purchase:lamp',
+    ]);
+    expect(rows.find((r) => r.kind === 'group' && r.groupId === NO_AREA_GROUP_ID)).toBeDefined();
+  });
+
+  it('a collapsed group keeps only its header but still reports its count', () => {
+    const rows = buildGanttRows(data, 'area', ['b', 'k'], new Set(['k']), 'No area');
+    const k = rows.find((r) => r.kind === 'group' && r.groupId === 'k');
+    expect(k).toMatchObject({ collapsed: true, count: 2 });
+    expect(rows.map(ganttRowKey)).not.toContain('task:kitchen');
+    expect(rows.map(ganttRowKey)).toContain('task:bath');
+  });
+
+  it('omits groups with no rows', () => {
+    const rows = buildGanttRows(data, 'area', ['k', 'unused'], new Set(), 'Nothing');
+    expect(rows.some((r) => r.kind === 'group' && r.groupId === 'unused')).toBe(false);
+    const empty = buildGanttRows(makeTimeline(), 'area', ['k'], new Set(), 'Nothing');
+    expect(empty).toEqual([]);
   });
 });

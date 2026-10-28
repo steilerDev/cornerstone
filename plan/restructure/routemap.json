@@ -260,8 +260,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["filter", "zoom", "group"],
-    "note": "Tasks › Schedule (h1 'Schedule'); a view under Tasks in the sidebar (no sidebar entry of its own, no tab row). ?filter= kept."
+    "carries": ["filter", "zoom", "group", "show", "areaId"],
+    "note": "Tasks › Schedule (h1 'Schedule'); a view under Tasks in the sidebar (no sidebar entry of its own, no tab row). #2247: zoom/show/group/areaId in the URL and remembered per user (schedule.view); legacy filter converted to show."
   },
   {
     "from": "/schedule/calendar",
@@ -272,8 +272,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["calendarMode"],
-    "note": "Tasks › Calendar (h1 'Calendar'). ?calendarMode= kept."
+    "carries": ["calendarMode", "show", "filter"],
+    "note": "Tasks › Calendar (h1 'Calendar'). ?calendarMode= kept. #2247: Show menu (Tasks, Milestones, Purchases) in ?show=, shared with the Schedule; legacy filter converted to show."
   },
   {
     "from": "/diary",

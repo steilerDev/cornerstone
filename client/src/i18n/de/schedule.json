@@ -1,54 +1,14 @@
 {
   "timeline": {
-    "errors": {
-      "loadFailed": "Beim Laden des Zeitplans ist ein unerwarteter Fehler aufgetreten."
-    },
-    "toolbar": {
-      "entityFilter": "Entity-Filter",
-      "workItems": "Arbeitspakete",
-      "milestones": "Meilensteine",
-      "householdItems": "Haushaltsartikel",
-      "cannotHideLastType": "letzte Art kann nicht ausgeblendet werden",
-      "hideLabel": "Ausblenden",
-      "showLabel": "Anzeigen",
-      "dependencyArrows": "Abhängigkeitspfeile",
-      "hideDependencyArrows": "Abhängigkeitspfeile ausblenden",
-      "showDependencyArrows": "Abhängigkeitspfeile anzeigen",
-      "criticalPath": "Hervorhebung kritischer Pfad",
-      "hideCriticalPath": "Hervorhebung kritischer Pfad ausblenden",
-      "showCriticalPath": "Hervorhebung kritischer Pfad anzeigen",
-      "zoomLevel": "Zoomstufe",
-      "columnZoom": "Spalten-Zoom",
-      "zoomOutColumns": "Spalten verkleinern",
-      "zoomInColumns": "Spalten vergrößern",
-      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
-      "addButton": "Hinzufügen",
-      "addWorkItem": "Neues Arbeitspaket",
-      "addHouseholdItem": "Neuer Haushaltsartikel",
-      "addMilestone": "Neuer Meilenstein",
-      "zoomOutTitle": "Verkleinern (Strg+−)",
-      "zoomInTitle": "Vergrößern (Strg+=)"
-    },
     "zoomOptions": {
       "day": "Tag",
       "week": "Woche",
       "month": "Monat"
-    },
-    "errorBanner": {
-      "title": "Fehler beim Laden des Zeitplans. Bitte versuche es erneut.",
-      "tryAgain": "Erneut versuchen"
-    },
-    "emptyState": {
-      "noItems": "Keine Arbeitspakete zum Anzeigen",
-      "noItemsMessage": "Füge Arbeitspakete mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
-      "noScheduled": "Keine geplanten Arbeitspakete",
-      "noScheduledMessage": "Deine Arbeitspakete haben noch kein Start- und Enddatum. Lege Daten für deine Arbeitspakete fest, um sie im Zeitplan zu sehen.",
-      "goToWorkItems": "Zu Arbeitspaketen gehen"
     }
   },
   "ganttSidebar": {
     "header": "Elemente",
-    "ariaLabel": "Arbeitspakete, Meilensteine und Haushaltsartikel"
+    "ariaLabel": "Aufgaben, Meilensteine und Anschaffungen"
   },
   "gantt": {
     "aria": {
@@ -120,7 +80,7 @@
     "skeleton": {
       "loading": "Diagramm wird geladen..."
     },
-    "workItemBarsAriaLabel": "Arbeitspaket-Balken"
+    "workItemBarsAriaLabel": "Aufgabenbalken"
   },
   "calendar": {
     "milestone": {
@@ -292,5 +252,154 @@
       "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuche es erneut.",
       "deleteButton": "Meilenstein löschen"
     }
+  },
+  "view": {
+    "toolbar": {
+      "ariaLabel": "Werkzeuge für den Zeitplan",
+      "zoomLabel": "Zoomstufe",
+      "show": "Anzeigen",
+      "showChanged_one": "Anzeigen · {{count}} geändert",
+      "showChanged_other": "Anzeigen · {{count}} geändert",
+      "showItem": {
+        "tasks": "Aufgaben",
+        "milestones": "Meilensteine",
+        "purchases": "Anschaffungen",
+        "arrows": "Abhängigkeitspfeile",
+        "critical": "Kritischer Pfad",
+        "done": "Abgeschlossen"
+      },
+      "keepOneKind": "Aufgaben, Meilensteine oder Anschaffungen: Mindestens eine Art bleibt angezeigt.",
+      "group": "Gruppiert nach: {{value}}",
+      "groupBy": "Gruppieren nach",
+      "groupOption": {
+        "time": "Zeit",
+        "area": "Bereich"
+      },
+      "allAreas": "Alle Bereiche",
+      "chooseArea": "Nur einen Bereich anzeigen",
+      "today": "Heute",
+      "more": "Weitere Zeitplanaktionen",
+      "subscribe": "In der Kalender-App abonnieren",
+      "legend": "Legende"
+    },
+    "phoneView": {
+      "ariaLabel": "Ansicht",
+      "agenda": "Agenda",
+      "chart": "Diagramm"
+    },
+    "legend": {
+      "title": "Legende",
+      "late": "Verspätet oder aufgehalten: schraffiert und umrandet",
+      "planned": "Gestrichelte Umrandung: geplante Termine",
+      "critical": "Dicke orange Umrandung: kritischer Pfad",
+      "milestone": "Meilenstein",
+      "delivery": "Lieferung",
+      "today": "Heute",
+      "doneHidden_one": "{{count}} abgeschlossenes Element ausgeblendet",
+      "doneHidden_other": "{{count}} abgeschlossene Elemente ausgeblendet"
+    },
+    "empty": {
+      "title": "Noch nichts eingeplant",
+      "description": "Aufgaben erscheinen hier, sobald sie Termine haben.",
+      "action": "Zu den Aufgaben"
+    },
+    "noDates": {
+      "title": "Noch keine Aufgabe hat Termine",
+      "description": "Lege Start- und Enddatum für deine Aufgaben fest, um sie hier zu sehen.",
+      "action": "Zu den Aufgaben"
+    },
+    "filtered": {
+      "title": "Nichts zum Anzeigen",
+      "description": "Aktiviere unter „Anzeigen“ mehr oder wähle „Alle Bereiche“."
+    },
+    "error": {
+      "load": "Der Zeitplan konnte nicht geladen werden."
+    },
+    "gantt": {
+      "chartAriaLabel": "Zeitplan-Diagramm",
+      "todayChip": "Heute",
+      "noArea": "Kein Bereich",
+      "groupToggle": "{{name}}, {{count}} Zeilen"
+    },
+    "agenda": {
+      "ariaLabel": "Agenda",
+      "week": "Woche {{number}} · {{range}}"
+    },
+    "panel": {
+      "when": "Wann",
+      "durationDays_one": "{{count}} Tag",
+      "durationDays_other": "{{count}} Tage",
+      "plannedNowEnds": "Geplant {{planned}} – jetzt Ende {{end}}",
+      "noDates": "Noch keine Termine",
+      "delivery": "Lieferung {{date}}",
+      "deliveryWindow": "Lieferung zwischen {{start}} und {{end}}",
+      "delivered": "Geliefert {{date}}",
+      "target": "Zieldatum {{date}}",
+      "projected": "Voraussichtlich {{date}}",
+      "reached": "Erreicht {{date}}",
+      "who": "Wer",
+      "noCompany": "Noch keine Firma",
+      "waitsFor": "Wartet auf",
+      "waitsForNone": "Keine. Der Start ist jederzeit möglich.",
+      "holdsUp": "Hält auf",
+      "holdsUpNone": "Nichts wartet darauf.",
+      "open": {
+        "task": "Aufgabe öffnen",
+        "milestone": "Meilenstein öffnen",
+        "purchase": "Anschaffung öffnen"
+      },
+      "waitsForRelation": {
+        "finish_to_start": "Endet, bevor dies beginnt",
+        "start_to_start": "Startet, bevor dies startet",
+        "finish_to_finish": "Endet, bevor dies endet",
+        "start_to_finish": "Startet, bevor dies endet"
+      },
+      "holdsUpRelation": {
+        "finish_to_start": "Startet, nachdem dies endet",
+        "start_to_start": "Startet, nachdem dies startet",
+        "finish_to_finish": "Endet, nachdem dies endet",
+        "start_to_finish": "Endet, nachdem dies startet"
+      },
+      "relationMilestoneGate": "Startet, sobald er erreicht ist",
+      "relationCountsToward": "Zählt zu",
+      "relationWaitingForMilestone": "Wartet auf diesen Meilenstein",
+      "relationDelivery": "Lieferung wartet darauf",
+      "relationBeforeDelivery": "Muss vor der Lieferung abgeschlossen sein",
+      "reschedule": "Verschieben…"
+    }
+  },
+  "reschedule": {
+    "title": "{{title}} verschieben",
+    "start": "Start",
+    "end": "Enddatum",
+    "duration": "Dauer",
+    "days": "Tage",
+    "listLabel": "Was sich verschiebt",
+    "errors": {
+      "endBeforeStart": "Das Enddatum darf nicht vor dem Start liegen.",
+      "durationMin": "Die Dauer muss mindestens 1 Tag betragen.",
+      "durationMax": "Die Dauer darf höchstens {{max}} Tage betragen.",
+      "previewFailed": "Die Auswirkungen konnten nicht geprüft werden."
+    },
+    "checking": "Auswirkungen werden geprüft…",
+    "nothingMoves": "Nichts anderes verschiebt sich.",
+    "taskCount_one": "{{count}} Aufgabe",
+    "taskCount_other": "{{count}} Aufgaben",
+    "milestoneCount_one": "{{count}} Meilenstein",
+    "milestoneCount_other": "{{count}} Meilensteine",
+    "movesBoth": "Verschiebt {{tasks}} und {{milestones}}.",
+    "movesTasks": "Verschiebt {{tasks}}.",
+    "movesMilestones": "Verschiebt {{milestones}}.",
+    "completion": "Der Abschluss verschiebt sich von {{from}} auf {{to}}.",
+    "completionSame": "Der Abschluss bleibt am {{date}}.",
+    "later_one": "{{count}} Tag später",
+    "later_other": "{{count}} Tage später",
+    "earlier_one": "{{count}} Tag früher",
+    "earlier_other": "{{count}} Tage früher",
+    "itemEnds": "Endet {{to}} statt {{from}}, {{delta}}",
+    "milestoneProjected": "Voraussichtlich {{to}} statt {{from}}, {{delta}}",
+    "showAll": "Alle {{count}} anzeigen",
+    "saved": "{{title}} wurde verschoben.",
+    "saveFailed": "Die neuen Termine konnten nicht gespeichert werden."
   }
 }

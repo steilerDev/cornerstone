@@ -307,6 +307,7 @@
 
   --touch-target-min: 2.75rem; /* 44px — minimum touch target */
   --side-sheet-width: 30rem; /* 480px — Sheet variant="side" (Documents panel) */
+  --side-panel-width: 22rem; /* 352px — docked SidePanel (Schedule task panel, 1440px and wider) */
 
   /* ============================================================
    * LAYER 2 — BORDER RADIUS
@@ -451,9 +452,9 @@
    * ============================================================ */
 
   /* Bar fill colors by work item status */
-  --color-gantt-bar-not-started: var(--color-gray-400);
+  --color-gantt-bar-not-started: var(--color-gray-500);
   --color-gantt-bar-in-progress: var(--color-blue-500);
-  --color-gantt-bar-completed: var(--color-green-500);
+  --color-gantt-bar-completed: var(--color-green-600);
   --color-gantt-bar-blocked: var(--color-red-500);
 
   /* Today marker line */
@@ -469,12 +470,17 @@
 
   /* Dependency arrows */
   --color-gantt-arrow-default: var(--color-gray-500);
-  --color-gantt-arrow-critical: var(--color-orange-400);
+  --color-gantt-arrow-critical: var(--color-orange-700);
   /* Milestone linkage arrows (dashed, uses milestone accent color) */
   --color-gantt-arrow-milestone: var(--color-blue-500);
 
   /* Critical path bar border overlay */
-  --color-gantt-bar-critical-border: var(--color-orange-400);
+  --color-gantt-bar-critical-border: var(--color-orange-700);
+
+  /* Schedule: late-bar hatch stripe, planned ghost outline, reschedule preview outline */
+  --color-gantt-bar-late-hatch: var(--color-white);
+  --color-gantt-bar-ghost-stroke: var(--color-text-muted);
+  --color-gantt-bar-preview-stroke: var(--color-primary);
 
   /* ============================================================
    * LAYER 2 — GANTT TOOLTIP TOKENS
@@ -853,6 +859,9 @@
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */
   --color-gantt-bar-critical-border: var(--color-orange-300);
+  --color-gantt-bar-late-hatch: var(--color-slate-600);
+  --color-gantt-bar-ghost-stroke: var(--color-text-muted);
+  --color-gantt-bar-preview-stroke: var(--color-primary);
 
   /* --- Gantt tooltip tokens (dark mode) --- */
   --color-tooltip-subdued: rgba(0, 0, 0, 0.5);

@@ -32,7 +32,7 @@
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
-      "TimelinePage": { "destinations": 3, "primaryButtons": 9, "searchFields": 0 },
+      "TimelinePage": { "destinations": 1, "primaryButtons": 7, "searchFields": 0 },
       "UserManagementPage": { "destinations": 0, "primaryButtons": 8, "searchFields": 1 },
       "VendorDetailPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
       "VendorsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
@@ -40,7 +40,7 @@
       "WorkItemsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 102,
+      "count": 103,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -90,6 +90,7 @@
         "RapidCamera/RapidCamera",
         "ReferenceList/ReferenceList",
         "RelatedList/RelatedList",
+        "ReschedulePanel/ReschedulePanel",
         "SearchPicker/SearchPicker",
         "SectionCard/SectionCard",
         "SelectionActionBar/SelectionActionBar",
@@ -227,7 +228,7 @@
     "windowConfirm": 0,
     "handRolledDialogs": 2
   },
-  "allowedAdditions": { "sharedComponents": ["ReschedulePanel", "UndoToast"] },
+  "allowedAdditions": { "sharedComponents": ["UndoToast"] },
   "audited": {
     "createPatterns": {
       "count": 11,

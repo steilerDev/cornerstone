@@ -5,79 +5,75 @@ title: Calendar View
 
 # Calendar View
 
-The calendar view provides an alternative way to see your project schedule as a familiar calendar grid. It shows work items as colored bars spanning their date range and milestones as diamond markers on their target dates.
+The calendar shows your project schedule as a familiar calendar grid. It shows tasks as colored bars spanning their date range, milestones as diamond markers on their target dates, and purchases on their delivery dates.
 
-## Accessing the Calendar View
+## Accessing the Calendar
 
-Navigate to **Timeline** from the main navigation, then click the **Calendar** button in the view toggle at the top-right of the toolbar.
+Select **Calendar** under **Tasks** in the sidebar. The calendar has its own page, separate from the [Schedule chart](gantt-chart).
 
-The selected view (Gantt or Calendar) is persisted in the URL, so bookmarking or sharing the link preserves your view choice.
+The Calendar uses the **Show** menu from the Schedule. You can turn on or off **Tasks**, **Milestones**, and **Purchases**. At least one of the three stays on. The Calendar always keeps finished tasks visible, so the **Done** option applies only to the Schedule chart.
 
 ## Monthly View
 
-The monthly view displays a traditional calendar grid with seven columns (Monday through Sunday) and rows for each week of the month.
+The monthly view displays a calendar grid with seven columns (Monday through Sunday) and rows for each week of the month.
 
-- **Work items** appear as colored horizontal bars that span across the days of their duration
-- **Multi-week items** wrap across rows, appearing in each week they span
+- **Tasks** appear as colored horizontal bars that span across the days of their duration
+- **Multi-week tasks** wrap across rows, appearing in each week they span
 - **Milestones** appear as diamond markers on their target date
+- **Purchases** appear on their delivery dates
 - **Today** is highlighted with a distinct background color
 
 ### Navigation
 
-- Use the **left/right arrow** buttons to move to the previous or next month
-- Click **Today** to jump back to the current month
+- Use the **previous** and **next** arrow buttons to move to the previous or next month
+- Select **Today** to jump back to the current month
 - The current month and year are displayed in the toolbar header
 
 ## Weekly View
 
-The weekly view shows a single week with taller rows, giving more vertical space for work items that overlap on the same days.
+The weekly view shows a single week with taller rows, giving more vertical space for tasks that overlap on the same days.
 
-- Same visual treatment as the monthly view -- colored bars for work items, diamonds for milestones
-- Use the **left/right arrow** buttons to move to the previous or next week
-- Click **Today** to jump back to the current week
+- Same visual treatment as the monthly view: colored bars for tasks, diamonds for milestones
+- Use the **previous** and **next** arrow buttons to move to the previous or next week
+- Select **Today** to jump back to the current week
 
-Switch between monthly and weekly views using the **Month / Week** toggle in the calendar toolbar.
+Switch between the monthly and weekly views with the **Month** and **Week** buttons in the calendar toolbar.
 
-## Work Item Interactions
+## Task Interactions
 
 ### Tooltips
 
-Hover over a work item bar to see a tooltip with:
+Hover over a task bar to see a tooltip with:
 
 - Title and status
 - Start and end dates
 - Duration (planned and actual)
 - Assigned user
 - Dependency information
-- **Holds up n tasks**: how many unfinished tasks move if this one slips, counting the full chain of waiting tasks and milestone gates. This is the same count Home shows for the task
+- **Holds up n tasks**: how many unfinished tasks move if this one slips, counting the full chain of waiting tasks and milestone gates. This is the same count the Schedule shows for the task
 
 ### Cross-Cell Highlighting
 
-When you hover over a multi-day work item that spans multiple calendar cells, all cells belonging to that item are highlighted simultaneously, making it easy to see the full extent of a task.
+When you hover over a multi-day task that spans multiple calendar cells, all cells belonging to that task are highlighted simultaneously, making it easy to see the full extent of the task.
 
 ### Navigation to Detail
 
-Click a work item bar to navigate to its detail page. On touch devices, the [two-tap interaction](gantt-chart#touch-devices) applies -- first tap shows the tooltip, second tap navigates.
+Select a task bar to open its detail page.
 
 ## Milestone Interactions
 
-Click a milestone diamond on the calendar to open that [milestone's page](milestones#editing-a-milestone), where you can edit it.
+Select a milestone diamond on the calendar to open that [milestone's page](milestones#editing-a-milestone), where you can edit it.
 
 Hover over a milestone diamond to see a tooltip showing:
 
 - Title and target date
 - Projected completion date
-- Contributing and dependent work items
-- **Holds up n tasks**: the unfinished tasks that wait on this milestone, counted the same way as for work items
+- Contributing and dependent tasks
+- **Holds up n tasks**: the unfinished tasks that wait on this milestone, counted the same way as for tasks
 - Completion status
 
-## View Persistence
+## Adding Items
 
-Both the view mode (Gantt vs Calendar) and the calendar sub-mode (Month vs Week) are stored in URL search parameters:
-
-- `?view=calendar` -- switches to the calendar view
-- `?view=calendar&calendarMode=week` -- switches to the weekly calendar view
-
-This means your view preferences are preserved when bookmarking, sharing links, or using browser back/forward navigation.
+The Calendar has no **Add** menu. Use the global **New** button to add a task, milestone, or purchase.
 
 ![Calendar monthly view](/img/screenshots/timeline-calendar-light.png)

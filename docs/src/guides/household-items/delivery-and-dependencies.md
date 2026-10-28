@@ -38,9 +38,9 @@ On the household item detail page, use the **Dependencies** section to add prede
 3. Select the specific work item or milestone
 4. The target delivery date recalculates automatically
 
-### Viewing on the Gantt Chart
+### Viewing on the Schedule Chart
 
-Household items with dependencies appear on the [Gantt chart](/guides/timeline/gantt-chart) as diamond markers (similar to milestones). Dependency arrows connect predecessors to the household item, and the scheduling engine includes them in critical path calculations.
+Household items with dependencies appear on the [schedule chart](/guides/timeline/gantt-chart) as delivery markers (similar to milestones). Dependency arrows connect predecessors to the household item, and the scheduling engine includes them in critical path calculations.
 
 ### Example
 

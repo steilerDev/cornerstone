@@ -153,3 +153,113 @@ export function buildTimeline(parts: Partial<TimelineResponse> = {}): TimelineRe
     ...(parts.holdsUp ? { holdsUp: parts.holdsUp } : {}),
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Schedule scenario (#2247)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ids of the synthetic Schedule scenario, so specs address rows without string literals. */
+export const SCHEDULE_IDS = {
+  foundation: 'sched-foundation',
+  framing: 'sched-framing',
+  roofing: 'sched-roofing',
+  excavation: 'sched-excavation',
+  milestone: 101,
+  purchase: 'sched-island',
+} as const;
+
+const KITCHEN = { id: 'sched-area-kitchen', name: 'Kitchen', color: null, ancestors: [] };
+
+/**
+ * A small synthetic project around today:
+ * - Foundation (in progress, critical, has a company with a phone) holds up Framing and the
+ *   Kitchen island delivery;
+ * - Framing (not started) waits for Foundation and for the "Shell complete" milestone;
+ * - Roofing is late (planned dates earlier than the forecast: hatch + planned ghost), no area;
+ * - Excavation is completed (hidden until Show › Done is on);
+ * - the milestone counts Framing toward it.
+ * The holds-up counts are given for the two tasks that hold something up.
+ */
+export function buildScheduleScenario(): TimelineResponse {
+  const foundation = mockWorkItem({
+    id: SCHEDULE_IDS.foundation,
+    title: 'Sched Foundation',
+    status: 'in_progress',
+    startDate: daysFromToday(-8),
+    endDate: daysFromToday(6),
+    durationDays: 14,
+    area: KITCHEN,
+    assignedVendor: {
+      id: 'sched-company',
+      name: 'Sched Builders',
+      trade: null,
+      phone: '+49 30 1234567',
+    },
+  });
+  const framing = mockWorkItem({
+    id: SCHEDULE_IDS.framing,
+    title: 'Sched Framing',
+    status: 'not_started',
+    startDate: daysFromToday(7),
+    endDate: daysFromToday(14),
+    durationDays: 7,
+    area: { ...KITCHEN, id: 'sched-area-pantry', name: 'Pantry', ancestors: [KITCHEN] },
+    requiredMilestoneIds: [SCHEDULE_IDS.milestone],
+  });
+  const roofing = mockWorkItem({
+    id: SCHEDULE_IDS.roofing,
+    title: 'Sched Roofing',
+    status: 'in_progress',
+    startDate: daysFromToday(-12),
+    endDate: daysFromToday(-4),
+    durationDays: 8,
+    projectedStartDate: daysFromToday(-12),
+    projectedEndDate: daysFromToday(2),
+    isLate: true,
+    lateDays: 6,
+  });
+  const excavation = mockWorkItem({
+    id: SCHEDULE_IDS.excavation,
+    title: 'Sched Excavation',
+    status: 'completed',
+    startDate: daysFromToday(-30),
+    endDate: daysFromToday(-20),
+    actualStartDate: daysFromToday(-30),
+    actualEndDate: daysFromToday(-20),
+    durationDays: 10,
+  });
+  return buildTimeline({
+    workItems: [foundation, framing, roofing, excavation],
+    dependencies: [mockDependency(SCHEDULE_IDS.foundation, SCHEDULE_IDS.framing)],
+    milestones: [
+      mockMilestone({
+        id: SCHEDULE_IDS.milestone,
+        title: 'Sched Shell complete',
+        targetDate: daysFromToday(20),
+        projectedDate: daysFromToday(20),
+        workItemIds: [SCHEDULE_IDS.framing],
+      }),
+    ],
+    householdItems: [
+      mockPurchase({
+        id: SCHEDULE_IDS.purchase,
+        name: 'Sched Kitchen island',
+        status: 'scheduled',
+        latestDeliveryDate: daysFromToday(16),
+        earliestDeliveryDate: daysFromToday(16),
+        area: KITCHEN,
+        dependencyIds: [{ predecessorType: 'work_item', predecessorId: SCHEDULE_IDS.foundation }],
+      }),
+    ],
+    criticalPath: [SCHEDULE_IDS.foundation],
+    holdsUp: {
+      workItems: {
+        [SCHEDULE_IDS.foundation]: { count: 2, startingWithin14Days: 1 },
+        [SCHEDULE_IDS.framing]: { count: 0, startingWithin14Days: 0 },
+        [SCHEDULE_IDS.roofing]: { count: 0, startingWithin14Days: 0 },
+        [SCHEDULE_IDS.excavation]: { count: 0, startingWithin14Days: 0 },
+      },
+      milestones: { [String(SCHEDULE_IDS.milestone)]: { count: 1, startingWithin14Days: 1 } },
+    },
+  });
+}

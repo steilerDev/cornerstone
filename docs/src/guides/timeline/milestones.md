@@ -14,7 +14,7 @@ Milestones represent major checkpoints in your construction project -- moments l
 3. Enter a **title** and **target date**
 4. Save the milestone
 
-The milestone will appear as a diamond marker on both the [Gantt chart](gantt-chart) and [calendar view](calendar-view) at its target date.
+The milestone will appear as a diamond marker on both the [schedule chart](gantt-chart) and [calendar](calendar-view) at its target date.
 
 ## Editing a Milestone
 
@@ -23,7 +23,7 @@ The milestone will appear as a diamond marker on both the [Gantt chart](gantt-ch
 3. Update the title or target date
 4. Save your changes
 
-You can also click a milestone diamond directly on the Gantt chart or calendar to open that milestone's page.
+You can also click a milestone diamond directly on the schedule chart or calendar to open that milestone's page.
 
 ## Deleting a Milestone
 
@@ -62,7 +62,7 @@ To unlink a task of either type, select the remove button next to it on the mile
 
 ## Late Milestone Detection
 
-A milestone is considered **late** when its projected completion date (based on the end dates of its linked tasks) exceeds its target date. Late milestones are highlighted with a warning color on both the Gantt chart and on the Milestones list.
+A milestone is considered **late** when its projected completion date (based on the end dates of its linked tasks) exceeds its target date. Late milestones are highlighted with a warning color on both the schedule chart and on the Milestones list.
 
 The Milestones list shows both the **target date** and the **projected date** for each milestone, making it easy to identify schedule slippage.
 

@@ -21,7 +21,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
-import { TimelinePage } from '../../pages/TimelinePage.js';
+import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import {
   createWorkItemViaApi,
@@ -272,13 +272,14 @@ test.describe('Gantt sidebar — WI row compact breadcrumb (Scenario 4)', () => 
       const sidebarRow = timelinePage.ganttSidebarRow(workItemId);
       await sidebarRow.waitFor({ state: 'visible' });
 
-      // Compact breadcrumb inside sidebarRowContent div
-      const breadcrumbSpan = sidebarRow.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).toBeVisible();
+      // #2247: line 2 of the row names the area; its title attribute carries the full path
+      const subline = sidebarRow.locator('[class*="subline"]');
+      await expect(subline).toBeVisible();
+      await expect(subline).toContainText(childName);
 
-      const breadcrumbText = await breadcrumbSpan.textContent();
-      expect(breadcrumbText).toContain(rootName);
-      expect(breadcrumbText).toContain(childName);
+      const path = await subline.getAttribute('title');
+      expect(path).toContain(rootName);
+      expect(path).toContain(childName);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (childAreaId) await deleteAreaViaApi(page, childAreaId);
@@ -360,8 +361,8 @@ test.describe('Gantt bar hover — tooltip shows full area path (Scenario 5)', (
 // Scenario 6: Gantt sidebar — null area "No area" in sidebar row (desktop only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Gantt sidebar — null area shows "No area" (Scenario 6)', () => {
-  test('"No area" fallback visible in sidebar row when WI has no area and has dates', async ({
+test.describe('Gantt sidebar — null area is grouped under "No area" (Scenario 6)', () => {
+  test('A task without an area sits in the "No area" group when grouped by area', async ({
     page,
     testPrefix,
   }) => {
@@ -389,14 +390,15 @@ test.describe('Gantt sidebar — null area shows "No area" (Scenario 6)', () => 
         endDate,
       });
 
-      await timelinePage.goto();
+      // #2247: a row has no "No area" text any more (line 2 is the area and company, if any).
+      // Group by area collects area-less tasks under a final "No area" group.
+      await page.goto(`${TIMELINE_ROUTE}?group=area`);
       await timelinePage.waitForLoaded();
 
       const sidebarRow = timelinePage.ganttSidebarRow(workItemId);
       await sidebarRow.waitFor({ state: 'visible' });
-
-      // Null area renders <span class*="muted">No area</span>
-      await expect(sidebarRow.getByText('No area', { exact: true })).toBeVisible();
+      await expect(sidebarRow.getByText('No area', { exact: true })).toHaveCount(0);
+      await expect(timelinePage.groupHeader('none')).toContainText('No area');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }

@@ -251,10 +251,10 @@ describe('GanttMilestones', () => {
       expect(label).toContain('Jul 1, 2024');
     });
 
-    it('diamond is keyboard-focusable (tabIndex=0)', () => {
+    it('diamond is a pointer target only (tabIndex=-1; the sidebar row is the keyboard route)', () => {
       renderMilestones();
       const diamond = screen.getByTestId('gantt-milestone-diamond');
-      expect(diamond.getAttribute('tabindex')).toBe('0');
+      expect(diamond.getAttribute('tabindex')).toBe('-1');
     });
   });
 
@@ -331,24 +331,24 @@ describe('GanttMilestones', () => {
       expect(onMilestoneClick).toHaveBeenCalledWith(MILESTONE_COMPLETE.id);
     });
 
-    it('calls onMilestoneClick on Enter key press', () => {
+    it('does not call onMilestoneClick on Enter key press', () => {
       const onMilestoneClick = jest.fn();
       renderMilestones({ onMilestoneClick });
 
       const diamond = screen.getByTestId('gantt-milestone-diamond');
       fireEvent.keyDown(diamond, { key: 'Enter', code: 'Enter' });
 
-      expect(onMilestoneClick).toHaveBeenCalledWith(MILESTONE_INCOMPLETE.id);
+      expect(onMilestoneClick).not.toHaveBeenCalled();
     });
 
-    it('calls onMilestoneClick on Space key press', () => {
+    it('does not call onMilestoneClick on Space key press', () => {
       const onMilestoneClick = jest.fn();
       renderMilestones({ onMilestoneClick });
 
       const diamond = screen.getByTestId('gantt-milestone-diamond');
       fireEvent.keyDown(diamond, { key: ' ', code: 'Space' });
 
-      expect(onMilestoneClick).toHaveBeenCalledWith(MILESTONE_INCOMPLETE.id);
+      expect(onMilestoneClick).not.toHaveBeenCalled();
     });
 
     it('does not call onMilestoneClick on other key press (Tab)', () => {
@@ -1041,5 +1041,29 @@ describe('GanttMilestones — colour and label agree for every display state (#2
         expect(computeMilestoneStatus(ms)).toBe(expected);
       }
     }
+  });
+});
+
+describe('GanttMilestones critical connector (#2247)', () => {
+  it('draws a late critical milestone connector in the critical colour', () => {
+    const { container } = renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[3, 0]]),
+      criticalMilestoneIds: new Set([3]),
+      criticalConnectorColor: '#aa5500',
+    });
+    const connector = container.querySelector('line[stroke-dasharray="4 3"]')!;
+    expect(connector.getAttribute('stroke')).toBe('#aa5500');
+    expect(connector.getAttribute('stroke-width')).toBe('2');
+  });
+
+  it('keeps the late colour when the milestone is critical but no critical colour is given', () => {
+    const { container } = renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[3, 0]]),
+      criticalMilestoneIds: new Set([3]),
+    });
+    const connector = container.querySelector('line[stroke-dasharray="4 3"]')!;
+    expect(connector.getAttribute('stroke')).toBe(COLORS.lateStroke);
   });
 });

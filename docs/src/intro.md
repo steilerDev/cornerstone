@@ -35,7 +35,7 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 
 ### Plan the build
 
-Break the project into [work items](guides/work-items) organized by [area and trade](guides/work-items/areas-and-trades), link their dependencies, and let the [Gantt chart](guides/timeline/gantt-chart) compute the critical path and schedule everything for you. When one trade slips, you see exactly what moves with it. [Milestones](guides/timeline/milestones) and a [calendar view](guides/timeline/calendar-view) keep the big dates in sight.
+Break the project into [work items](guides/work-items) organized by [area and trade](guides/work-items/areas-and-trades), link their dependencies, and let the [schedule chart](guides/timeline/gantt-chart) compute the critical path and schedule everything for you. When one trade slips, you see exactly what moves with it. [Milestones](guides/timeline/milestones) and a [calendar view](guides/timeline/calendar-view) keep the big dates in sight.
 
 ### Know where every euro goes
 
@@ -64,7 +64,7 @@ Track [furniture, appliances, and fixtures](guides/household-items) alongside th
 - [Getting Started](getting-started) -- Deploy Cornerstone with Docker in minutes
 - [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
 - [Budget Guide](guides/budget) -- Track costs, invoices, financing, and grants
-- [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
+- [Schedule Guide](guides/timeline) -- schedule chart, calendar, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
 - [Diary Guide](guides/diary) -- Construction diary with manual entries and system events
 - [Home Guide](guides/home) -- What needs you, this week, and how to customize Home

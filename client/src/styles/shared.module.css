@@ -814,3 +814,59 @@
     gap: var(--spacing-1);
   }
 }
+
+/* Segmented toggle (Schedule zoom, phone view): one radio-like choice among a few. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.segmentedButton {
+  padding: var(--spacing-1-5) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 2.25rem;
+  line-height: 1;
+}
+
+.segmentedButton:last-child {
+  border-right: none;
+}
+
+.segmentedButton:hover:not(.segmentedButtonActive) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.segmentedButtonActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.segmentedButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+@media (pointer: coarse) {
+  .segmentedButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmentedButton {
+    transition: none;
+  }
+}

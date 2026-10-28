@@ -9,9 +9,13 @@
  * since milestones now have their own dedicated page at /project/milestones.
  */
 
-import { test, expect } from '../../fixtures/auth.js';
+// The phone shows the Agenda first; switching to the chart writes a per-user preference, so this
+// file runs as a dedicated user.
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import { buildTimeline, mockMilestone, mockWorkItem } from '../../fixtures/timelineMocks.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
+
+test.use({ isolatedUserPerWorker: { emailPrefix: 'sched-ms' } });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Milestone diamond markers on the Gantt chart
@@ -48,7 +52,7 @@ test.describe('Milestone diamond markers on Gantt', () => {
 
     try {
       await timelinePage.goto();
-      await timelinePage.waitForLoaded();
+      await timelinePage.showChart();
 
       // Milestones layer should exist
       await expect(timelinePage.ganttMilestonesLayer).toBeVisible();
@@ -86,7 +90,7 @@ test.describe('Milestone diamond markers on Gantt', () => {
 
     try {
       await timelinePage.goto();
-      await timelinePage.waitForLoaded();
+      await timelinePage.showChart();
 
       const diamond = timelinePage.ganttMilestoneDiamonds.first();
       await expect(diamond).toBeVisible();

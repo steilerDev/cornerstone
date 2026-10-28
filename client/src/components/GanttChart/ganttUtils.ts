@@ -5,6 +5,17 @@
  * and grid generation. All functions are side-effect free and memoization-friendly.
  */
 
+import type {
+  TimelineHouseholdItem,
+  TimelineMilestone,
+  TimelineResponse,
+  TimelineWorkItem,
+} from '@cornerstone/shared';
+import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
+import type { ScheduleSignalState } from '../../lib/scheduleDates.js';
+import { parseRowKey, rowKey } from '../../lib/scheduleView.js';
+import type { ScheduleGroup, ScheduleRowKey } from '../../lib/scheduleView.js';
+
 export type ZoomLevel = 'day' | 'week' | 'month';
 
 /** Column widths in pixels per zoom level. */
@@ -29,13 +40,13 @@ export const COLUMN_WIDTH_MAX: Record<ZoomLevel, number> = {
 };
 
 /** Row height in pixels — must match sidebar row height exactly for alignment. */
-export const ROW_HEIGHT = 40;
+export const ROW_HEIGHT = 44;
 
-/** Bar height within a row (centered with 4px padding top/bottom). */
+/** Bar height within a row (centered with 6px padding top/bottom). */
 export const BAR_HEIGHT = 32;
 
 /** BAR_OFFSET from row top. */
-export const BAR_OFFSET_Y = 4;
+export const BAR_OFFSET_Y = 6;
 
 /** Header height in pixels. */
 export const HEADER_HEIGHT = 48;
@@ -537,4 +548,140 @@ export function computeBarPosition(
   const y = rowY + BAR_OFFSET_Y;
 
   return { x, width, y, rowY };
+}
+
+// ---------------------------------------------------------------------------
+// Rows
+// ---------------------------------------------------------------------------
+
+/** A chart row: a group header, a task, a milestone or a purchase. */
+export type GanttRow =
+  | { kind: 'group'; groupId: string; name: string; count: number; collapsed: boolean }
+  | { kind: 'workItem'; key: ScheduleRowKey; item: TimelineWorkItem }
+  | { kind: 'milestone'; key: ScheduleRowKey; milestone: TimelineMilestone }
+  | { kind: 'householdItem'; key: ScheduleRowKey; item: TimelineHouseholdItem };
+
+/** Group id of the final "No area" group. */
+export const NO_AREA_GROUP_ID = 'none';
+
+/** The row's key, null for a group header. */
+export function ganttRowKey(row: GanttRow): ScheduleRowKey | null {
+  return row.kind === 'group' ? null : row.key;
+}
+
+/** Late: not completed and Late · n d or Held up (D7). */
+export function lateSignalOf(item: TimelineWorkItem): ScheduleSignalState | null {
+  return item.status === 'completed' ? null : scheduleSignalOf(item);
+}
+
+function milestoneSortDate(m: TimelineMilestone): string | null {
+  if (m.isCompleted && m.completedAt) return m.completedAt.slice(0, 10);
+  return m.projectedDate ?? m.targetDate;
+}
+
+type SortRow = Exclude<GanttRow, { kind: 'group' }>;
+
+function sortDateOf(row: SortRow): string | null {
+  if (row.kind === 'workItem') return barDates(row.item).start;
+  if (row.kind === 'milestone') return milestoneSortDate(row.milestone);
+  return row.item.earliestDeliveryDate;
+}
+
+function sortDurationOf(row: SortRow): number {
+  if (row.kind === 'milestone') return 0;
+  const start = row.kind === 'workItem' ? barDates(row.item).start : row.item.earliestDeliveryDate;
+  const end = row.kind === 'workItem' ? barDates(row.item).end : row.item.latestDeliveryDate;
+  if (!start || !end) return 0;
+  return new Date(end).getTime() - new Date(start).getTime();
+}
+
+const KIND_ORDER = { milestone: 0, householdItem: 1, workItem: 2 } as const;
+
+function compareRows(a: SortRow, b: SortRow): number {
+  const dateA = sortDateOf(a);
+  const dateB = sortDateOf(b);
+  if (dateA === null && dateB === null) return 0;
+  if (dateA === null) return 1;
+  if (dateB === null) return -1;
+  if (dateA < dateB) return -1;
+  if (dateA > dateB) return 1;
+  if (a.kind !== b.kind) return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+  return sortDurationOf(b) - sortDurationOf(a);
+}
+
+/** Tasks, milestones and purchases interleaved by date (nulls last, longest first on a tie). */
+export function sortedDataRows(data: TimelineResponse): SortRow[] {
+  const rows: SortRow[] = [
+    ...data.workItems.map((item): SortRow => ({
+      kind: 'workItem',
+      key: rowKey('task', item.id),
+      item,
+    })),
+    ...data.milestones.map((milestone): SortRow => ({
+      kind: 'milestone',
+      key: rowKey('milestone', milestone.id),
+      milestone,
+    })),
+    ...data.householdItems.map((item): SortRow => ({
+      kind: 'householdItem',
+      key: rowKey('purchase', item.id),
+      item,
+    })),
+  ];
+  return rows.sort(compareRows);
+}
+
+function ownAreaOf(row: SortRow): { id: string; name: string } | null {
+  if (row.kind === 'workItem') return row.item.area;
+  if (row.kind === 'householdItem') return row.item.area ?? null;
+  return null;
+}
+
+/**
+ * The chart's rows. Time grouping is the plain interleaved order; Area grouping follows
+ * `areaOrder` (an item's own area) with a final "No area" group, and a collapsed group keeps
+ * only its header (D15).
+ */
+export function buildGanttRows(
+  data: TimelineResponse,
+  groupBy: ScheduleGroup,
+  areaOrder: readonly string[],
+  collapsedGroups: ReadonlySet<string>,
+  noAreaName: string,
+): GanttRow[] {
+  const sorted = sortedDataRows(data);
+  if (groupBy !== 'area') return sorted;
+
+  const known = new Set(areaOrder);
+  const buckets = new Map<string, { name: string; rows: SortRow[] }>();
+  for (const row of sorted) {
+    const area = ownAreaOf(row);
+    const id = area && known.has(area.id) ? area.id : NO_AREA_GROUP_ID;
+    const bucket = buckets.get(id);
+    if (bucket) bucket.rows.push(row);
+    else buckets.set(id, { name: id === NO_AREA_GROUP_ID ? noAreaName : area!.name, rows: [row] });
+  }
+
+  const result: GanttRow[] = [];
+  for (const id of [...areaOrder, NO_AREA_GROUP_ID]) {
+    const bucket = buckets.get(id);
+    if (!bucket) continue;
+    const collapsed = collapsedGroups.has(id);
+    result.push({
+      kind: 'group',
+      groupId: id,
+      name: bucket.name,
+      count: bucket.rows.length,
+      collapsed,
+    });
+    if (!collapsed) result.push(...bucket.rows);
+  }
+  return result;
+}
+
+/** The hover-highlight id of a row: a task id, `milestone:<id>` or `hi:<id>`. */
+export function hoverIdOfKey(key: ScheduleRowKey): string {
+  const { kind, id } = parseRowKey(key);
+  if (kind === 'task') return id;
+  return kind === 'milestone' ? `milestone:${id}` : `hi:${id}`;
 }

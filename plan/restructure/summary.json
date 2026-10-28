@@ -68,7 +68,7 @@
       "Tasks": 94
     },
     "byDomain": { "household": 59, "journal": 87, "money": 130, "platform": 123, "work": 103 },
-    "clicksHistogram": { "0": 2, "1": 11, "2": 31 },
+    "clicksHistogram": { "0": 2, "1": 11, "2": 33 },
     "dailyWeeklyInSettings": 0
   },
   "routes": {

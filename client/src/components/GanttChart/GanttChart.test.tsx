@@ -23,6 +23,9 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { GanttChart as GanttChartType, GanttChartProps } from './GanttChart.js';
 import type { TimelineResponse } from '@cornerstone/shared';
+import { computeChartRange, dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
+import { dateAtX } from './ganttScroll.js';
+import type { GanttChartControl } from './GanttChart.js';
 
 // ─── Mock: LocaleContext — GanttHeader (rendered by GanttChart) uses useLocale() ──
 
@@ -705,38 +708,12 @@ describe('GanttChart — empty data', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GanttChart — onItemClick callback
+// GanttChart — onSelect (a bar, marker or row opens the panel, #2247)
 // ---------------------------------------------------------------------------
 
-describe('GanttChart — onItemClick integration', () => {
-  it('calls onItemClick with the correct work item id when a bar is clicked', () => {
-    const onItemClick = jest.fn<(id: string) => void>();
-    renderGanttChart({ onItemClick });
-
-    const bar1 = screen.getByTestId('gantt-bar-wi-1');
-    fireEvent.click(bar1);
-
-    expect(onItemClick).toHaveBeenCalledWith('wi-1');
-  });
-
-  it('calls onItemClick with the correct id for a different bar', () => {
-    const onItemClick = jest.fn<(id: string) => void>();
-    renderGanttChart({ onItemClick });
-
-    const bar3 = screen.getByTestId('gantt-bar-wi-3');
-    fireEvent.click(bar3);
-
-    expect(onItemClick).toHaveBeenCalledWith('wi-3');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GanttChart — onHouseholdItemClick integration (Issue #449)
-// ---------------------------------------------------------------------------
-
-describe('GanttChart — onHouseholdItemClick integration', () => {
-  it('renders household item circles when householdItems are present', () => {
-    const data = makeTimeline({
+describe('GanttChart — onSelect integration', () => {
+  const purchaseData = () =>
+    makeTimeline({
       householdItems: [
         {
           id: 'hi-1',
@@ -750,57 +727,8 @@ describe('GanttChart — onHouseholdItemClick integration', () => {
           isLate: false,
           dependencyIds: [],
         },
-      ],
-    });
-    renderGanttChart({ data });
-    expect(screen.getByTestId('gantt-hi-layer')).toBeInTheDocument();
-  });
-
-  it('clicking a household item circle calls onHouseholdItemClick with correct id — Issue #449', () => {
-    const onHouseholdItemClick = jest.fn<(id: string) => void>();
-    const data = makeTimeline({
-      householdItems: [
         {
-          id: 'hi-1',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-      ],
-    });
-    renderGanttChart({ data, onHouseholdItemClick });
-
-    const hiCircles = screen.getAllByTestId('gantt-hi-circle');
-    expect(hiCircles.length).toBeGreaterThan(0);
-    fireEvent.click(hiCircles[0]!);
-
-    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
-  });
-
-  it('clicking different household item circles calls onHouseholdItemClick with correct id', () => {
-    const onHouseholdItemClick = jest.fn<(id: string) => void>();
-    const data = makeTimeline({
-      householdItems: [
-        {
-          id: 'hi-kitchen',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-        {
-          id: 'hi-flooring',
+          id: 'hi-2',
           name: 'Flooring Materials',
           category: 'fixtures',
           status: 'planned',
@@ -813,117 +741,102 @@ describe('GanttChart — onHouseholdItemClick integration', () => {
         },
       ],
     });
-    renderGanttChart({ data, onHouseholdItemClick });
 
-    const hiCircles = screen.getAllByTestId('gantt-hi-circle');
-    expect(hiCircles.length).toBeGreaterThanOrEqual(2);
-    fireEvent.click(hiCircles[1]!);
+  it('clicking a bar selects its task with the sidebar row button as the opener', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ onSelect: onSelect as never });
 
-    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-flooring');
+    fireEvent.click(screen.getByTestId('gantt-bar-wi-1'));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect.mock.calls[0]![0]).toBe('task:wi-1');
+    expect(onSelect.mock.calls[0]![1]).toBe(screen.getByTestId('gantt-sidebar-row-wi-1'));
   });
 
-  it('does not throw when onHouseholdItemClick is not provided and HI circle is clicked', () => {
-    const data = makeTimeline({
-      householdItems: [
-        {
-          id: 'hi-1',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-      ],
-    });
-    renderGanttChart({ data });
+  it('clicking a different bar selects that task', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ onSelect: onSelect as never });
 
+    fireEvent.click(screen.getByTestId('gantt-bar-wi-3'));
+
+    expect(onSelect.mock.calls[0]![0]).toBe('task:wi-3');
+  });
+
+  it('clicking a sidebar row selects it', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ onSelect: onSelect as never });
+
+    fireEvent.click(screen.getByTestId('gantt-sidebar-row-wi-2'));
+
+    expect(onSelect.mock.calls[0]![0]).toBe('task:wi-2');
+    expect(onSelect.mock.calls[0]![1]).toBe(screen.getByTestId('gantt-sidebar-row-wi-2'));
+  });
+
+  it('clicking a purchase circle selects the purchase', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ data: purchaseData(), onSelect: onSelect as never });
+
+    fireEvent.click(screen.getAllByTestId('gantt-hi-circle')[1]!);
+
+    expect(onSelect.mock.calls[0]![0]).toBe('purchase:hi-2');
+    expect(onSelect.mock.calls[0]![1]).toBe(screen.getByTestId('gantt-sidebar-hi-hi-2'));
+  });
+
+  it('clicking a purchase sidebar row selects the purchase', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ data: purchaseData(), onSelect: onSelect as never });
+
+    fireEvent.click(screen.getByTestId('gantt-sidebar-hi-hi-1'));
+
+    expect(onSelect.mock.calls[0]![0]).toBe('purchase:hi-1');
+  });
+
+  it('clicking a milestone diamond selects the milestone', () => {
+    const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+    renderGanttChart({ data: makeTimelineWithMilestones(), onSelect: onSelect as never });
+
+    fireEvent.click(screen.getByTestId('gantt-milestone-diamond'));
+
+    expect(onSelect.mock.calls[0]![0]).toBe('milestone:1');
+    expect(onSelect.mock.calls[0]![1]).toBe(screen.getByTestId('gantt-sidebar-milestone-1'));
+  });
+
+  it('does not throw when no onSelect is given', () => {
+    renderGanttChart({ data: purchaseData() });
     expect(() => {
-      const hiCircles = screen.getAllByTestId('gantt-hi-circle');
-      if (hiCircles.length > 0) {
-        fireEvent.click(hiCircles[0]!);
-      }
+      fireEvent.click(screen.getByTestId('gantt-bar-wi-1'));
+      fireEvent.click(screen.getAllByTestId('gantt-hi-circle')[0]!);
+      fireEvent.click(screen.getByTestId('gantt-sidebar-hi-hi-1'));
     }).not.toThrow();
   });
 
-  it('calls onHouseholdItemClick when HI sidebar row is clicked — Issue #449', () => {
-    const onHouseholdItemClick = jest.fn<(id: string) => void>();
-    const data = makeTimeline({
-      householdItems: [
-        {
-          id: 'hi-1',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-      ],
-    });
-    renderGanttChart({ data, onHouseholdItemClick });
-
-    const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
-    fireEvent.click(hiSidebarRow);
-
-    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
+  it('marks the selected row in the sidebar', () => {
+    renderGanttChart({ selectedKey: 'task:wi-2' });
+    expect(screen.getByTestId('gantt-sidebar-row-wi-2')).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByTestId('gantt-sidebar-row-wi-1')).not.toHaveAttribute('aria-current');
   });
 
-  it('calls onHouseholdItemClick when Enter key is pressed on HI sidebar row', () => {
-    const onHouseholdItemClick = jest.fn<(id: string) => void>();
-    const data = makeTimeline({
-      householdItems: [
-        {
-          id: 'hi-1',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-      ],
-    });
-    renderGanttChart({ data, onHouseholdItemClick });
-
-    const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
-    fireEvent.keyDown(hiSidebarRow, { key: 'Enter' });
-
-    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
-  });
-
-  it('does not throw when onHouseholdItemClick is not provided and HI sidebar row is clicked', () => {
-    const data = makeTimeline({
-      householdItems: [
-        {
-          id: 'hi-1',
-          name: 'Kitchen Appliances',
-          category: 'appliances',
-          status: 'planned',
-          targetDeliveryDate: '2024-08-15',
-          earliestDeliveryDate: '2024-08-10',
-          latestDeliveryDate: '2024-08-20',
-          actualDeliveryDate: null,
-          isLate: false,
-          dependencyIds: [],
-        },
-      ],
-    });
-    renderGanttChart({ data });
-
-    expect(() => {
-      const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
-      fireEvent.click(hiSidebarRow);
-    }).not.toThrow();
+  it('a tap on a touch device selects directly and opens no tooltip (D9)', () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const onSelect = jest.fn<(key: string, opener: HTMLElement) => void>();
+      renderGanttChart({ onSelect: onSelect as never });
+      fireEvent.click(screen.getByTestId('gantt-bar-wi-1'));
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });
 
@@ -1243,27 +1156,6 @@ describe('GanttChart — keyboard focus and touch use the same tooltip builders 
       jest.useRealTimers();
     }
   });
-
-  it('the first touch tap on a purchase circle shows its tooltip with the area', async () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: query === '(pointer: coarse)',
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
-    try {
-      renderGanttChart({ data: makeTimeline({ householdItems: [purchase] }) });
-      fireEvent.click(screen.getByTestId('gantt-hi-circle'));
-      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Kitchen');
-    } finally {
-      window.matchMedia = original;
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1459,27 +1351,6 @@ describe('GanttChart — holds-up count from data.holdsUp (#2232)', () => {
     }
   });
 
-  it('the first touch tap on a task shows the server count', () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: query === '(pointer: coarse)',
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
-    try {
-      renderGanttChart({ data: timelineWith(true) });
-      fireEvent.click(screen.getByTestId('gantt-bar-wi-1'));
-      expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 4 tasks');
-    } finally {
-      window.matchMedia = original;
-    }
-  });
-
   it('hovering a milestone shows the server count for that milestone', async () => {
     jest.useFakeTimers();
     try {
@@ -1629,25 +1500,6 @@ describe('GanttChart — interactions and rich-data branches (#2232 coverage)', 
         },
       ],
     };
-  }
-
-  function withTouch<T>(fn: () => T): T {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: query === '(pointer: coarse)',
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
-    try {
-      return fn();
-    } finally {
-      window.matchMedia = original;
-    }
   }
 
   const advance = async (ms: number) => {
@@ -1960,101 +1812,6 @@ describe('GanttChart — interactions and rich-data branches (#2232 coverage)', 
     expect(chartScrolls).toHaveBeenCalledTimes(1);
     expect(rows.scrollTop).toBe(0);
   });
-
-  describe('touch two-tap on tasks', () => {
-    it('the second tap on the same task navigates and clears the tooltip', () => {
-      const onItemClick = jest.fn<(id: string) => void>();
-      withTouch(() => renderGanttChart({ data: richTimeline(), onItemClick }));
-      const bar = screen.getByTestId('gantt-bar-wi-1');
-
-      fireEvent.click(bar);
-      expect(onItemClick).not.toHaveBeenCalled();
-      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
-
-      fireEvent.click(bar);
-      expect(onItemClick).toHaveBeenCalledWith('wi-1');
-      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
-    });
-
-    it('tapping a different task shows that task instead of navigating', () => {
-      const onItemClick = jest.fn<(id: string) => void>();
-      withTouch(() => renderGanttChart({ data: richTimeline(), onItemClick }));
-
-      fireEvent.click(screen.getByTestId('gantt-bar-wi-1'));
-      fireEvent.click(screen.getByTestId('gantt-bar-wi-2'));
-
-      expect(onItemClick).not.toHaveBeenCalled();
-      expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Framing');
-    });
-
-    it('cancels a pending hover show and hide timer on the first tap and on the second tap', async () => {
-      jest.useFakeTimers();
-      try {
-        const onItemClick = jest.fn<(id: string) => void>();
-        withTouch(() => renderGanttChart({ data: richTimeline(), onItemClick }));
-        const bar = screen.getByTestId('gantt-bar-wi-1');
-
-        // First tap with a pending show timer, second tap with a pending show timer
-        fireEvent.mouseEnter(bar, { clientX: 300, clientY: 100 });
-        fireEvent.click(bar);
-        fireEvent.mouseEnter(bar, { clientX: 300, clientY: 100 });
-        fireEvent.click(bar);
-        expect(onItemClick).toHaveBeenCalledTimes(1);
-        await advance(200);
-        expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
-
-        // First tap with a pending hide timer, second tap with a pending hide timer
-        fireEvent.mouseEnter(bar, { clientX: 300, clientY: 100 });
-        fireEvent.mouseLeave(bar);
-        fireEvent.click(bar);
-        fireEvent.mouseLeave(bar);
-        fireEvent.click(bar);
-        expect(onItemClick).toHaveBeenCalledTimes(2);
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-  });
-
-  describe('touch two-tap on purchases', () => {
-    it('the second tap on the same purchase navigates and clears the tooltip', () => {
-      const onHouseholdItemClick = jest.fn<(id: string) => void>();
-      withTouch(() => renderGanttChart({ data: richTimeline(), onHouseholdItemClick }));
-      const [circle] = screen.getAllByTestId('gantt-hi-circle');
-
-      fireEvent.click(circle!);
-      expect(onHouseholdItemClick).not.toHaveBeenCalled();
-      expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test Sofa');
-
-      fireEvent.click(circle!);
-      expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-a');
-      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
-    });
-
-    it('cancels pending hover timers on the first and the second tap', () => {
-      jest.useFakeTimers();
-      try {
-        const onHouseholdItemClick = jest.fn<(id: string) => void>();
-        withTouch(() => renderGanttChart({ data: richTimeline(), onHouseholdItemClick }));
-        const [circle] = screen.getAllByTestId('gantt-hi-circle');
-
-        fireEvent.mouseEnter(circle!, { clientX: 300, clientY: 100 });
-        fireEvent.click(circle!);
-        fireEvent.mouseEnter(circle!, { clientX: 300, clientY: 100 });
-        fireEvent.click(circle!);
-        expect(onHouseholdItemClick).toHaveBeenCalledTimes(1);
-
-        fireEvent.mouseEnter(circle!, { clientX: 300, clientY: 100 });
-        fireEvent.mouseLeave(circle!);
-        fireEvent.click(circle!);
-        fireEvent.mouseLeave(circle!);
-        fireEvent.click(circle!);
-        expect(onHouseholdItemClick).toHaveBeenCalledTimes(2);
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-  });
 });
 
 describe('GanttChart — row order, tolerant data and dependency edge cases (#2232 coverage)', () => {
@@ -2362,5 +2119,375 @@ describe('GanttChart — row order, tolerant data and dependency edge cases (#22
     unmount();
 
     expect(() => frames.forEach((cb) => cb(0))).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schedule view (#2247): groups, late visuals, preview ghosts, scroll anchoring
+// ---------------------------------------------------------------------------
+
+describe('GanttChart — Schedule view (#2247)', () => {
+  const scroller = () => screen.getByTestId('gantt-svg').parentElement as HTMLElement;
+
+  function lateTask(id: string, o: Record<string, unknown> = {}) {
+    const base = makeTimeline().workItems[0]!;
+    return {
+      ...base,
+      id,
+      title: `Task ${id}`,
+      status: 'not_started' as const,
+      startDate: '2024-07-01',
+      endDate: '2024-07-10',
+      projectedStartDate: '2024-07-20',
+      projectedEndDate: '2024-07-30',
+      isLate: true,
+      lateDays: 19,
+      ...o,
+    };
+  }
+
+  describe('area groups', () => {
+    const area = (id: string) => ({ id, name: `Area ${id}`, color: null, ancestors: [] });
+    const grouped = () => {
+      const base = makeTimeline();
+      return {
+        ...base,
+        workItems: base.workItems.map((w, i) => (i < 2 ? { ...w, area: area('a1') } : w)),
+        dependencies: [],
+      };
+    };
+
+    it('renders group headers in the area order with a final No area group', () => {
+      renderGanttChart({ data: grouped(), groupBy: 'area', areaOrder: ['a1'] });
+      expect(screen.getByTestId('gantt-group-a1')).toHaveAccessibleName('Area a1, 2 rows');
+      expect(screen.getByTestId('gantt-group-none')).toHaveAccessibleName('No area, 1 rows');
+    });
+
+    it('collapsing a group hides its rows and expanding brings them back', () => {
+      renderGanttChart({ data: grouped(), groupBy: 'area', areaOrder: ['a1'] });
+      expect(screen.getByTestId('gantt-sidebar-row-wi-1')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('gantt-group-a1'));
+      expect(screen.queryByTestId('gantt-sidebar-row-wi-1')).toBeNull();
+      expect(screen.getByTestId('gantt-group-a1')).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(screen.getByTestId('gantt-group-a1'));
+      expect(screen.getByTestId('gantt-sidebar-row-wi-1')).toBeInTheDocument();
+    });
+
+    it('draws no group headers when grouped by time', () => {
+      renderGanttChart({ data: grouped(), groupBy: 'time' });
+      expect(screen.queryByTestId('gantt-group-a1')).toBeNull();
+    });
+  });
+
+  describe('late tasks', () => {
+    it('gets a hatch overlay, a planned ghost and the Late chip', () => {
+      renderGanttChart({ data: makeTimeline({ workItems: [lateTask('late')], dependencies: [] }) });
+      expect(screen.getByTestId('gantt-bar-late-late')).toBeInTheDocument();
+      expect(screen.getByTestId('gantt-ghost-late')).toBeInTheDocument();
+      expect(screen.getByTestId('gantt-late-late')).toBeInTheDocument();
+    });
+
+    it('a completed or on-time task gets none of them', () => {
+      renderGanttChart({
+        data: makeTimeline({
+          workItems: [
+            lateTask('done', { status: 'completed' }),
+            lateTask('ok', { isLate: false, lateDays: null }),
+          ],
+          dependencies: [],
+        }),
+      });
+      expect(screen.queryByTestId('gantt-bar-late-done')).toBeNull();
+      expect(screen.queryByTestId('gantt-ghost-done')).toBeNull();
+      expect(screen.queryByTestId('gantt-bar-late-ok')).toBeNull();
+    });
+
+    it('draws no planned ghost when the shown dates equal the planned ones, or the plan is unset', () => {
+      renderGanttChart({
+        data: makeTimeline({
+          workItems: [
+            lateTask('same', { startDate: '2024-07-20', endDate: '2024-07-30' }),
+            lateTask('noPlan', { startDate: null, endDate: null }),
+          ],
+          dependencies: [],
+        }),
+      });
+      expect(screen.getByTestId('gantt-bar-late-same')).toBeInTheDocument();
+      expect(screen.queryByTestId('gantt-ghost-same')).toBeNull();
+      expect(screen.queryByTestId('gantt-ghost-noPlan')).toBeNull();
+    });
+  });
+
+  describe('preview ghosts', () => {
+    it('draws dashed outlines for a task, a milestone and a purchase, and skips rows that are not shown', () => {
+      const data = {
+        ...makeTimelineWithMilestones(),
+        householdItems: [
+          {
+            id: 'hi-1',
+            name: 'Sofa',
+            category: 'furniture' as const,
+            status: 'planned' as const,
+            targetDeliveryDate: '2024-08-15',
+            earliestDeliveryDate: null,
+            latestDeliveryDate: null,
+            actualDeliveryDate: null,
+            isLate: false,
+            dependencyIds: [],
+          },
+        ],
+      };
+      renderGanttChart({
+        data,
+        previewGhosts: [
+          { rowKey: 'task:wi-2', start: '2024-08-05', end: '2024-09-20' },
+          { rowKey: 'milestone:1', start: null, end: '2024-08-10' },
+          { rowKey: 'purchase:hi-1', start: null, end: '2024-08-18' },
+          { rowKey: 'task:gone', start: '2024-08-05', end: '2024-09-20' },
+        ],
+      });
+      expect(screen.getByTestId('gantt-preview-ghost-task:wi-2').tagName.toLowerCase()).toBe(
+        'rect',
+      );
+      expect(screen.getByTestId('gantt-preview-ghost-milestone:1').tagName.toLowerCase()).toBe(
+        'polygon',
+      );
+      expect(screen.getByTestId('gantt-preview-ghost-purchase:hi-1')).toBeInTheDocument();
+      expect(screen.queryByTestId('gantt-preview-ghost-task:gone')).toBeNull();
+    });
+
+    it('draws none without ghosts', () => {
+      renderGanttChart();
+      expect(screen.queryByTestId('gantt-ghosts-preview')).toBeNull();
+    });
+  });
+
+  describe('row focus highlight', () => {
+    it('focusing a sidebar row highlights its links like hover and blurring clears it', () => {
+      renderGanttChart({ showArrows: true });
+      const before = getArrowGroups().map((g) => g.getAttribute('class'));
+      fireEvent.focus(screen.getByTestId('gantt-sidebar-row-wi-1'));
+      const during = getArrowGroups().map((g) => g.getAttribute('class'));
+      expect(during).not.toEqual(before);
+      expect(screen.queryByTestId('gantt-tooltip')).toBeNull();
+      fireEvent.blur(screen.getByTestId('gantt-sidebar-row-wi-1'));
+      expect(getArrowGroups().map((g) => g.getAttribute('class'))).toEqual(before);
+    });
+  });
+
+  describe('first positioning', () => {
+    it('places the first current row near the top with one row of context above', () => {
+      const base = makeTimeline().workItems[0]!;
+      const data = makeTimeline({
+        workItems: [
+          { ...base, id: 'p1', title: 'P1', status: 'completed' as const },
+          {
+            ...base,
+            id: 'p2',
+            title: 'P2',
+            status: 'completed' as const,
+            startDate: '2024-07-02',
+            projectedStartDate: '2024-07-02',
+          },
+          {
+            ...base,
+            id: 'p3',
+            title: 'P3',
+            status: 'completed' as const,
+            startDate: '2024-07-03',
+            projectedStartDate: '2024-07-03',
+          },
+          {
+            ...base,
+            id: 'cur',
+            title: 'Current',
+            status: 'in_progress' as const,
+            startDate: '2024-07-04',
+            projectedStartDate: '2024-07-04',
+          },
+        ],
+        dependencies: [],
+      });
+      renderGanttChart({ data });
+      expect(scroller().scrollTop).toBe(2 * ROW_HEIGHT);
+    });
+
+    it('restores a saved anchor (date and row) instead', () => {
+      const data = makeTimeline();
+      renderGanttChart({
+        data,
+        initialAnchor: { date: '2024-08-01', rowKey: 'task:wi-2', rowOffset: 5 },
+      });
+      const range = computeChartRange(data.dateRange!.earliest, data.dateRange!.latest, 'month');
+      const expectedLeft = dateToX(toUtcMidnight('2024-08-01'), range, 'month');
+      expect(scroller().scrollLeft).toBeCloseTo(expectedLeft, 0);
+      expect(scroller().scrollTop).toBe(ROW_HEIGHT + 5);
+    });
+
+    it('an anchor whose row is gone moves only the date', () => {
+      renderGanttChart({
+        initialAnchor: { date: '2024-08-01', rowKey: 'task:gone', rowOffset: 0 },
+      });
+      expect(scroller().scrollLeft).toBeGreaterThan(0);
+    });
+  });
+
+  describe('scroll anchoring (AC6)', () => {
+    it('emits the anchor 200 ms after scrolling, once for a burst', () => {
+      jest.useFakeTimers();
+      try {
+        const onAnchorChange = jest.fn();
+        renderGanttChart({ onAnchorChange, zoom: 'day' });
+        const el = scroller();
+        el.scrollLeft = 300;
+        el.scrollTop = ROW_HEIGHT;
+        fireEvent.scroll(el);
+        fireEvent.scroll(el);
+        expect(onAnchorChange).not.toHaveBeenCalled();
+        act(() => void jest.advanceTimersByTime(200));
+        expect(onAnchorChange).toHaveBeenCalledTimes(1);
+        expect(onAnchorChange.mock.calls[0]![0]).toMatchObject({ rowKey: 'task:wi-2' });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not emit without a handler and drops the timer on unmount', () => {
+      jest.useFakeTimers();
+      try {
+        const none = renderGanttChart();
+        fireEvent.scroll(scroller());
+        none.unmount();
+        const onAnchorChange = jest.fn();
+        const pending = renderGanttChart({ onAnchorChange });
+        fireEvent.scroll(scroller());
+        pending.unmount();
+        act(() => void jest.advanceTimersByTime(500));
+        expect(onAnchorChange).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('a refetch with a changed date range keeps the date at the left edge', () => {
+      const first = makeTimeline();
+      const view = (data: TimelineResponse) => (
+        <MemoryRouter>
+          <GanttChart data={data} zoom="day" />
+        </MemoryRouter>
+      );
+      const { rerender } = render(view(first));
+      const el = scroller();
+      el.scrollLeft = 900;
+      fireEvent.scroll(el);
+      const oldRange = computeChartRange(first.dateRange!.earliest, first.dateRange!.latest, 'day');
+      const dateBefore = dateAtX(900, oldRange, 'day');
+
+      const second = makeTimeline({ dateRange: { earliest: '2024-05-01', latest: '2024-12-31' } });
+      rerender(view(second));
+
+      const newRange = computeChartRange(
+        second.dateRange!.earliest,
+        second.dateRange!.latest,
+        'day',
+      );
+      expect(dateAtX(scroller().scrollLeft, newRange, 'day')).toBe(dateBefore);
+    });
+
+    it('a zoom change keeps the date at the centre of the viewport', () => {
+      const data = makeTimeline();
+      const view = (zoom: 'day' | 'week') => (
+        <MemoryRouter>
+          <GanttChart data={data} zoom={zoom} />
+        </MemoryRouter>
+      );
+      const { rerender } = render(view('day'));
+      const el = scroller();
+      Object.defineProperty(el, 'clientWidth', { configurable: true, value: 400 });
+      el.scrollLeft = 1000;
+      fireEvent.scroll(el);
+      const dayRange = computeChartRange(data.dateRange!.earliest, data.dateRange!.latest, 'day');
+      const centre = dateAtX(1000 + 200, dayRange, 'day');
+
+      rerender(view('week'));
+
+      const weekRange = computeChartRange(data.dateRange!.earliest, data.dateRange!.latest, 'week');
+      const centreAfter = dateAtX(scroller().scrollLeft + 200, weekRange, 'week');
+      // one week column is 158 px: the centre date stays within a day or so
+      const gap = Math.abs(toUtcMidnight(centre).getTime() - toUtcMidnight(centreAfter).getTime());
+      expect(gap / 86_400_000).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('scroll to today', () => {
+    const aroundToday = () => {
+      const day = (offset: number) => {
+        const d = new Date();
+        d.setDate(d.getDate() + offset);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+      return makeTimeline({ dateRange: { earliest: day(-60), latest: day(60) } });
+    };
+
+    function setupControl(data: TimelineResponse) {
+      const controlRef = { current: null as GanttChartControl | null };
+      renderGanttChart({ data, controlRef, zoom: 'day' });
+      const el = scroller();
+      el.scrollTo = jest.fn() as never;
+      return { controlRef, el };
+    }
+
+    it('scrolls smoothly so that today sits a quarter in', () => {
+      const { controlRef, el } = setupControl(aroundToday());
+      controlRef.current!.scrollToToday();
+      expect(el.scrollTo).toHaveBeenCalledWith({ left: expect.any(Number), behavior: 'smooth' });
+    });
+
+    it('jumps instead when reduced motion is preferred', () => {
+      const original = window.matchMedia;
+      window.matchMedia = ((query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+      try {
+        const { controlRef, el } = setupControl(aroundToday());
+        el.scrollLeft = 0;
+        controlRef.current!.scrollToToday();
+        expect(el.scrollTo).not.toHaveBeenCalled();
+        expect(el.scrollLeft).toBeGreaterThan(0);
+      } finally {
+        window.matchMedia = original;
+      }
+    });
+
+    it('does nothing when today is outside the chart range', () => {
+      const { controlRef, el } = setupControl(makeTimeline());
+      controlRef.current!.scrollToToday();
+      expect(el.scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('chart wrapper', () => {
+    it('is a labelled group (not an image) with no hard-coded English label', () => {
+      renderGanttChart();
+      const chart = screen.getByTestId('gantt-chart');
+      expect(chart).toHaveAttribute('role', 'group');
+      expect(chart).toHaveAccessibleName('Schedule chart');
+    });
+
+    it('Ctrl+wheel zooms through onCtrlScroll and a plain wheel does not', () => {
+      const onCtrlScroll = jest.fn();
+      renderGanttChart({ onCtrlScroll });
+      fireEvent.wheel(scroller(), { ctrlKey: true, deltaY: -40 });
+      expect(onCtrlScroll).toHaveBeenCalledWith(40);
+      fireEvent.wheel(scroller(), { deltaY: -40 });
+      expect(onCtrlScroll).toHaveBeenCalledTimes(1);
+    });
   });
 });

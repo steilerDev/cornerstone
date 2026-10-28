@@ -18,14 +18,18 @@ export interface GanttGridProps {
     borderMinor: string;
     borderMajor: string;
     todayMarker: string;
+    /** Fill of a group header band. */
+    groupBand: string;
   };
+  /** Indices of the rows that are group headers (drawn as a band, not a stripe). */
+  groupRows?: ReadonlySet<number>;
   /** X position of today's marker line (or null if today is out of range). */
   todayX: number | null;
 }
 
 /**
  * GanttGrid renders the SVG background:
- * - Alternating row stripe rectangles
+ * - Alternating row stripe rectangles (group header rows get a band)
  * - Vertical grid lines (major and minor)
  * - Horizontal row separators
  * - Today marker vertical line
@@ -38,6 +42,7 @@ export const GanttGrid = memo(function GanttGrid({
   rowCount,
   gridLines,
   colors,
+  groupRows,
   todayX,
 }: GanttGridProps) {
   return (
@@ -50,7 +55,7 @@ export const GanttGrid = memo(function GanttGrid({
           y={i * ROW_HEIGHT}
           width={width}
           height={ROW_HEIGHT}
-          fill={i % 2 === 0 ? colors.rowEven : colors.rowOdd}
+          fill={groupRows?.has(i) ? colors.groupBand : i % 2 === 0 ? colors.rowEven : colors.rowOdd}
         />
       ))}
 

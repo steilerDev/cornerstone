@@ -11,7 +11,7 @@
  * Scenarios
  * FC1 (desktop, AC1)       project figures equal the money service on every registered surface
  * FC2 (desktop, AC1)       a company's Still to pay: both page markers and the Companies list cell equal the API balance; Paid equals the API's paid (#2244)
- * FC3 (desktop, AC1)       "Holds up n tasks": API, Home attention row and Schedule tooltip agree
+ * FC3 (desktop, AC1)       "Holds up n tasks": API, Home attention row, Schedule tooltip, panel and Reschedule preview agree
  * FC4 (@responsive, AC4)   at most one Left to spend figure per screen; no former names visible
  * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
  * FC6 (desktop, #2239)     an invoice page's Paid and Still to pay equal the record's API figures
@@ -45,6 +45,8 @@ import {
   PENDING_SURFACES,
   PROJECT_SURFACES,
   readFinancingReadyCount,
+  SCHEDULE_PANEL_SURFACE,
+  SCHEDULE_RESCHEDULE_PREVIEW_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   TASKS_LIST_HOLDS_UP_SURFACE,
 } from '../../fixtures/figureSurfaces.js';
@@ -472,6 +474,12 @@ test.describe('Figure consistency', () => {
       await expect(page.getByTestId('gantt-tooltip-holds-up')).not.toContainText(
         `${testPrefix} Holds-up C`,
       );
+
+      // Schedule panel and Reschedule preview (#2247): the same number (chart surface only)
+      const panel = await SCHEDULE_PANEL_SURFACE.readAll(page, { workItemId: a });
+      if (panel.length > 0) expect(panel).toEqual([2]);
+      const preview = await SCHEDULE_RESCHEDULE_PREVIEW_SURFACE.readAll(page, { workItemId: a });
+      if (preview.length > 0) expect(preview).toEqual([2]);
     } finally {
       for (const id of ids.reverse()) await deleteWorkItemViaApi(page, id);
     }

@@ -635,7 +635,7 @@
     "gate": "none",
     "acceptance": "Sidebar view 'Schedule' under Tasks, title menu 'Tasks ▾' > Schedule, Home > This week 'Open schedule', search 'Schedule' or 'Gantt', key g s all open /schedule/gantt.",
     "decision": "Q1b, PLAN §2.0 #1",
-    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone. #2210: the client search resolver returns Schedule for its name and former names (Gantt, Timeline) and its German name; #2211: the command search shows Schedule under \"Go to\" for its name and former names."
+    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone. #2210: the client search resolver returns Schedule for its name and former names (Gantt, Timeline) and its German name; #2211: the command search shows Schedule under \"Go to\" for its name and former names. #2247: the h1 reads Schedule; ⋯ › Subscribe in calendar app links to Settings › Profile #calendar-sync (no dialog)."
   },
   "WRK-093": {
     "name": "Switch between Gantt and Calendar views",
@@ -643,7 +643,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar views under Tasks in the sidebar and the title menu (URLs /schedule/gantt and /schedule/calendar kept; ?view=calendar on /schedule is preserved, D-11)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2202: /schedule?view=calendar lands on /schedule/calendar in one hop (live query map); Gantt/Calendar tab switches use history replace. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2202: /schedule?view=calendar lands on /schedule/calendar in one hop (live query map); Gantt/Calendar tab switches use history replace. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone. #2247: the Schedule and the Calendar share one view hook; the Calendar reads only the Show kind toggles. On phones the Schedule toggles 'Agenda | Chart' (Gantt stays a search alias, not a label)."
   },
   "WRK-094": {
     "name": "Show or hide work items, milestones and household items on the schedule",
@@ -651,7 +651,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > 'Show' menu > Tasks, Milestones, Purchases",
     "change": "same",
     "gate": "none",
-    "note": "Toggles no longer look like section tabs."
+    "note": "Toggles no longer look like section tabs. #2247: 'Show' menu (Tasks, Milestones, Purchases, plus Dependency arrows, Critical path and Done on the Schedule); defaults all on except Done; the last shown kind stays on (aria-disabled, with a description); the trigger reads 'Show · n changed'. Done off hides completed tasks, reached milestones and delivered purchases and the legend counts them. ?show= in the URL and remembered per user (schedule.view); the legacy ?filter= is converted to show once."
   },
   "WRK-095": {
     "name": "Create a work item, household item or milestone from the schedule",
@@ -659,7 +659,7 @@
     "to": "Global > New menu (on Tasks > Schedule the date is pre-filled from the visible week)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "The Schedule's own 'New ▾' goes (one primary control per page, SIM-02). #2212: Tasks › Schedule › Calendar view: New › Milestone / Diary entry pre-fill the visible date (today when shown, else the first day of the displayed month or week). The Gantt view pre-fills no date. The Schedule 'Add' menu stays until its own story."
+    "note": "The Schedule's own 'New ▾' goes (one primary control per page, SIM-02). #2212: Tasks › Schedule › Calendar view: New › Milestone / Diary entry pre-fill the visible date (today when shown, else the first day of the displayed month or week). The Gantt view pre-fills no date. The Schedule 'Add' menu stays until its own story. #2247: the Schedule's Add menu is gone from both views; the global New menu pre-fills the Monday of the visible week and the area chip's areaId (chart view) or the current week (phone agenda)."
   },
   "WRK-096": {
     "name": "View work items as bars on a time axis, coloured by status",
@@ -667,7 +667,7 @@
     "to": "Tasks > Schedule > chart (bars by status, with legend)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2200: dark not-started bars and default arrows reach >=4.89:1 against the rows."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2200: dark not-started bars and default arrows reach >=4.89:1 against the rows. #2247: late tasks (Late · n d or Held up, the Tasks list chip) get a hatch, a danger outline and a ghost bar at their planned dates; the legend explains every mark and remembers whether it is open."
   },
   "WRK-097": {
     "name": "Read one chronological list mixing work items, milestones and household items",
@@ -675,7 +675,7 @@
     "to": "Tasks > Schedule > row list (title, area, company)",
     "change": "same",
     "gate": "none",
-    "note": "Company added (WALK-08). Rows can be grouped by area (collapsible, with an area filter chip; House graft); default grouping is by time with current rows first (VRS-01)."
+    "note": "Company added (WALK-08). Rows can be grouped by area (collapsible, with an area filter chip; House graft); default grouping is by time with current rows first (VRS-01). #2247: Group Time (default) | Area (buildTree order, a final 'No area' group, collapsible 44 px headers kept for the session); the area chip matches descendant areas, keeps a milestone only while one of its tasks is shown, and is cleared by an 'All areas' chip. ?group= and ?areaId= in the URL; rows are 44 px."
   },
   "WRK-098": {
     "name": "Change the Gantt zoom level (Day / Week / Month)",
@@ -683,7 +683,7 @@
     "to": "Tasks > Schedule > zoom Day / Week / Month",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2247: ?zoom= in the URL and remembered per user (schedule.view); a zoom change keeps the date at the viewport's centre."
   },
   "WRK-099": {
     "name": "Widen or narrow the Gantt time columns",
@@ -691,7 +691,7 @@
     "to": "Tasks > Schedule > column width − / +",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2247: the − / + buttons are gone; Ctrl + mouse wheel and Ctrl + = / Ctrl + − stay (ignored inside a dialog or the docked panel)."
   },
   "WRK-100": {
     "name": "Show or hide dependency arrows on the Gantt",
@@ -699,7 +699,7 @@
     "to": "Tasks > Schedule > 'Show' menu > Dependency arrows",
     "change": "same",
     "gate": "none",
-    "note": "Labelled toggle instead of icon-only."
+    "note": "Labelled toggle instead of icon-only. #2247: Show › Dependency arrows, remembered per user (schedule.view)."
   },
   "WRK-101": {
     "name": "Highlight the critical path on the Gantt",
@@ -707,7 +707,7 @@
     "to": "Tasks > Schedule > 'Show' menu > Critical path (on by default, the toggle is remembered per user); Home > This week > first line 'Critical path: next deadline'",
     "change": "same",
     "gate": "none",
-    "note": "Today the Gantt highlights the critical path by default (TimelinePage.tsx:182); the plan keeps that (R-M7)."
+    "note": "Today the Gantt highlights the critical path by default (TimelinePage.tsx:182); the plan keeps that (R-M7). #2247: Show › Critical path, on by default, remembered per user (schedule.view)."
   },
   "WRK-102": {
     "name": "See today's marker and have the Gantt open scrolled to today",
@@ -715,7 +715,7 @@
     "to": "Tasks > Schedule > today line; opens scrolled to today",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2247: opens once per visit with today at 25% of the width and the first current row (in progress or late, else the next not-started task) in the top third; data refreshes, toggles and width changes restore a date anchor and never reset the scroll or the zoom."
   },
   "WRK-103": {
     "name": "Hover or focus an item to highlight everything it depends on and that depends on it",
@@ -723,7 +723,7 @@
     "to": "Tasks > Schedule > hover/focus highlight of linked items",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2247: focusing a row label highlights its links the same as hover."
   },
   "WRK-104": {
     "name": "Hover a dependency arrow to read the relationship in words",
@@ -731,7 +731,7 @@
     "to": "Tasks > Schedule > arrow hover text",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2247: relation words come from the shared DEPENDENCY_TYPES tuple (union key sets)."
   },
   "WRK-105": {
     "name": "See a work-item tooltip with dates, duration variance, owner, area and dependencies",
@@ -739,7 +739,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > tooltip (dates, company, area, 'Waits for' / 'Holds up n tasks' with direction)",
     "change": "same",
     "gate": "none",
-    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08). #2198: the tooltip names the company and splits dependencies into Waits for / Holds up (D-33). #2232: Tasks › Schedule / Tasks › Calendar › work-item tooltip › 'Holds up n tasks' is now `computeHoldsUp` from GET /api/timeline `holdsUp` (every unfinished task that moves, chains and milestone gates included), the same count as Home's attention rows, not the number of direct successors; the direct list stays below it."
+    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08). #2198: the tooltip names the company and splits dependencies into Waits for / Holds up (D-33). #2232: Tasks › Schedule / Tasks › Calendar › work-item tooltip › 'Holds up n tasks' is now `computeHoldsUp` from GET /api/timeline `holdsUp` (every unfinished task that moves, chains and milestone gates included), the same count as Home's attention rows, not the number of direct successors; the direct list stays below it. #2247: the side panel shows the same 'Holds up n tasks' (GET /api/timeline holdsUp) and the full Waits for / Holds up lists (predecessors, required milestones, successors, milestones it counts toward, purchases waiting for it)."
   },
   "WRK-106": {
     "name": "See milestones as diamonds with on-track / late / ahead / completed state",
@@ -747,7 +747,7 @@
     "to": "Tasks > Schedule > milestone diamonds with states Upcoming / Early · n d / Late · n d / Reached",
     "change": "same",
     "gate": "none",
-    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01)."
+    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01). #2247: a late milestone keeps its own Late · n d / Early · n d chip; Show › Done off hides reached milestones."
   },
   "WRK-107": {
     "name": "See a milestone tooltip with target, projected and completion dates plus contributing and blocked items",
@@ -755,7 +755,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > milestone tooltip",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the milestone tooltip groups say Holds up and \"+N more\" is translated. #2232: Tasks › Schedule / Tasks › Calendar › milestone tooltip › 'Holds up n tasks' is `computeHoldsUp` from GET /api/timeline `holdsUp`, as for WRK-105."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the milestone tooltip groups say Holds up and \"+N more\" is translated. #2232: Tasks › Schedule / Tasks › Calendar › milestone tooltip › 'Holds up n tasks' is `computeHoldsUp` from GET /api/timeline `holdsUp`, as for WRK-105. #2247: the milestone side panel lists Waits for (contributing tasks) and Holds up (tasks waiting for it, dependent purchases)."
   },
   "WRK-108": {
     "name": "See household-item delivery windows on the Gantt and calendar, with a tooltip",
@@ -763,7 +763,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > purchase delivery windows",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the purchase tooltip header shows the status word and names the area; the calendar shows the shared status colours."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the purchase tooltip header shows the status word and names the area; the calendar shows the shared status colours. #2247: a late purchase reads Late · n d (days since the latest, else earliest, delivery date, minimum 1); its panel lists what its delivery waits for (its dependencies)."
   },
   "WRK-109": {
     "name": "Open an item's detail page from the Gantt",
@@ -771,7 +771,9 @@
     "to": "Tasks > Schedule > click a bar, diamond or delivery marker -> side panel (overlays the chart below 1440 px; When, Who with call, status control, 'Waits for' / 'Holds up n tasks', Reschedule…); 'Open task' opens the page; scroll position and zoom are kept on return",
     "change": "promoted",
     "gate": "none",
-    "note": "In-place panel (Routines/House graft): J07 drops to 4 clicks and the chart keeps its position (WALK-08)."
+    "clicks": 2,
+    "clickPath": "Tasks › Schedule > bar, diamond, delivery marker or row label (1) > side panel 'Open task' (2)",
+    "note": "In-place panel (Routines/House graft): J07 drops to 4 clicks and the chart keeps its position (WALK-08). #2247: shipped. A click on a bar, diamond, delivery marker or row label opens the side panel (a docked aside at 1440 px and wider, a side sheet from 768 px, a bottom sheet below); 'Open task' opens the page and Back restores the date anchor (sessionStorage per history entry). The journey J07 from Home is 4 clicks; from the Schedule it is 2."
   },
   "WRK-110": {
     "name": "Preview before navigating on touch devices (tap = tooltip, second tap = open)",
@@ -779,7 +781,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > touch: tap = preview, second tap = open",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2247: on the Schedule a tap opens the side panel directly (it is the preview; 'Open task' replaces the second tap). The Calendar keeps tap = tooltip, second tap = open."
   },
   "WRK-111": {
     "name": "Navigate the Gantt with the keyboard",
@@ -787,7 +789,7 @@
     "to": "Tasks > Schedule > keyboard navigation",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2247: the row labels are the keyboard model: each row is a button in a listitem, ↑/↓ move between rows and group headers, Enter/Space opens the side panel, Esc closes it; bars and markers in the aria-hidden chart are pointer-only (tabIndex -1); the chart is a labelled group."
   },
   "WRK-112": {
     "name": "View the schedule as a month calendar",
@@ -885,7 +887,9 @@
     "to": "Tasks > Schedule > side panel > Reschedule… (one ReschedulePanel: n tasks move by d days, milestone shifts, Save) and Tasks > Task page > Timing tab > Reschedule… (same panel in place)",
     "change": "promoted",
     "gate": "none",
-    "note": "Needs an `overrides` field on POST /api/schedule. Real preview: ending the floor heating on Fri 9 Oct moves 28 tasks by 3 days and both milestones by 3 days."
+    "clicks": 2,
+    "clickPath": "Tasks › Schedule > bar or row label (1) > side panel 'Reschedule…' (2)",
+    "note": "Needs an `overrides` field on POST /api/schedule. Real preview: ending the floor heating on Fri 9 Oct moves 28 tasks by 3 days and both milestones by 3 days. #2247: shipped on the Schedule side panel: ReschedulePanel (shared) previews through POST /api/schedule overrides (never persisted; the preview settles the patched graph as Save + autoReschedule would), shows 'Holds up n tasks', the moved tasks and milestone shifts and the project end, then Save PATCHes the task with Undo. The task-page adoption (Timing tab) is #2248."
   },
   "WRK-137": {
     "name": "Attach several vendors to one work item (API only, legacy)",

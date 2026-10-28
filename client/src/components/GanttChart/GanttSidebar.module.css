@@ -40,10 +40,7 @@
 
 .sidebarRow {
   display: flex;
-  align-items: center;
-  padding: 0 var(--spacing-4);
   border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
   transition: background-color var(--transition-medium);
   box-sizing: border-box;
 }
@@ -52,9 +49,107 @@
   background: var(--color-bg-hover) !important;
 }
 
-.sidebarRow:focus-visible {
+.sidebarRowSelected {
+  background: var(--color-primary-bg) !important;
+}
+
+/* The whole row is one button: title (+ signal chip) over "Area · Company" */
+.rowButton {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--spacing-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowButton:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.titleLine {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.signalChip {
+  flex-shrink: 0;
+}
+
+.subline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Group header: a 44px band, one toggle button */
+.groupRow {
+  display: flex;
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+  box-sizing: border-box;
+}
+
+.groupButton {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--spacing-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupButton:hover {
+  background: var(--color-bg-hover);
+}
+
+.groupButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.groupChevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.groupChevronOpen {
+  transform: rotate(90deg);
+}
+
+.groupName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupCount {
+  margin-left: auto;
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
 }
 
 .sidebarRowEven {
@@ -63,14 +158,6 @@
 
 .sidebarRowOdd {
   background: var(--color-gantt-row-odd);
-}
-
-.sidebarRowContent {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  min-width: 0;
-  overflow: hidden;
 }
 
 .sidebarRowLabel {
@@ -87,9 +174,8 @@
   color: var(--color-text-muted);
 }
 
-/* Milestone rows — appear after work item rows, visually distinct */
-.sidebarMilestoneRow {
-  cursor: pointer;
+/* Milestone rows — visually distinct */
+.sidebarMilestoneRow .titleLine {
   gap: var(--spacing-2);
 }
 
@@ -109,9 +195,8 @@
   max-width: 100%;
 }
 
-/* Household item rows — appear after milestones, visually distinct */
-.sidebarHouseholdItemRow {
-  cursor: pointer;
+/* Purchase rows — visually distinct */
+.sidebarHouseholdItemRow .titleLine {
   gap: var(--spacing-2);
 }
 
@@ -138,34 +223,38 @@
   }
 }
 
-/* Mobile: collapse sidebar to icon strip */
+/* Mobile: a narrow label column, titles only */
 @media (max-width: 767px) {
   .sidebar {
-    width: 44px;
+    width: 7.5rem;
+    border-right: 1px solid var(--color-border-strong);
   }
 
   .sidebarHeader {
-    padding: 0;
-    justify-content: center;
+    padding: 0 var(--spacing-2);
     font-size: var(--font-size-2xs);
     overflow: hidden;
   }
 
-  .sidebarRowLabel {
+  .rowButton,
+  .groupButton {
+    padding: 0 var(--spacing-2);
+    min-height: var(--touch-target-min);
+  }
+
+  .subline,
+  .signalChip {
     display: none;
   }
 
-  .sidebarMilestoneLabel {
+  .groupCount {
     display: none;
   }
+}
 
-  .sidebarHouseholdItemLabel {
-    display: none;
-  }
-
+@media (prefers-reduced-motion: reduce) {
+  .groupChevron,
   .sidebarRow {
-    padding: 0;
-    justify-content: center;
-    min-height: 44px;
+    transition: none;
   }
 }

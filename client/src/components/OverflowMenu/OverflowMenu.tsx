@@ -19,7 +19,7 @@ import styles from './OverflowMenu.module.css';
 export const SCROLL_CLOSE_THRESHOLD_PX = 8;
 
 const NAVIGABLE_SELECTOR =
-  '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
+  '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
 
 export interface OverflowMenuItem {
   kind?: 'action';
@@ -51,6 +51,20 @@ export interface OverflowMenuLinkItem {
   testId?: string;
   /** The current page: aria-current="page", highlighted, with a leading checkmark. */
   current?: boolean;
+}
+
+export interface OverflowMenuToggleItem {
+  kind: 'toggle';
+  id: string;
+  label: string;
+  checked: boolean;
+  /** Called with the new value; the menu stays open. */
+  onChange: (checked: boolean) => void;
+  testId?: string;
+  /** Focusable but inert; the menu stays open. */
+  ariaDisabled?: boolean;
+  /** Accessible description (e.g. why it is unavailable). */
+  description?: string;
 }
 
 export interface OverflowMenuSeparator {
@@ -90,6 +104,7 @@ export interface OverflowMenuGroup {
 export type OverflowMenuEntry =
   | OverflowMenuItem
   | OverflowMenuLinkItem
+  | OverflowMenuToggleItem
   | OverflowMenuSeparator
   | OverflowMenuChoiceGroup
   | OverflowMenuGroup;
@@ -481,6 +496,36 @@ export function OverflowMenu({
     switch (entry.kind) {
       case 'separator':
         return <div key={entry.id} role="separator" className={styles.separator} />;
+      case 'toggle': {
+        const descriptionId = entry.description ? `${menuId}-${entry.id}-desc` : undefined;
+        return (
+          <button
+            key={entry.id}
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={entry.checked}
+            tabIndex={-1}
+            className={styles.item}
+            aria-disabled={entry.ariaDisabled ? 'true' : undefined}
+            aria-describedby={descriptionId}
+            data-testid={entry.testId}
+            onClick={() => {
+              if (entry.ariaDisabled) return;
+              entry.onChange(!entry.checked);
+            }}
+          >
+            <span aria-hidden="true" className={styles.check}>
+              {entry.checked ? '✓' : ''}
+            </span>
+            {entry.label}
+            {descriptionId && (
+              <span id={descriptionId} className={sharedStyles.srOnly}>
+                {entry.description}
+              </span>
+            )}
+          </button>
+        );
+      }
       case 'choice': {
         const labelId = `${menuId}-${entry.id}`;
         return (

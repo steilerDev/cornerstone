@@ -217,7 +217,7 @@ const DiamondMarker = memo(function DiamondMarker({
     <g
       role="graphics-symbol"
       aria-label={label}
-      tabIndex={0}
+      tabIndex={-1}
       className={`${styles.diamond} ${statusClass} ${interactionClass}`}
       style={{ '--milestone-hover-glow': hoverGlow } as CSSProperties}
       onMouseEnter={onMouseEnter}
@@ -226,12 +226,6 @@ const DiamondMarker = memo(function DiamondMarker({
       onFocus={onFocus}
       onBlur={onBlur}
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
       data-testid="gantt-milestone-diamond"
     >
       {/* Expanded invisible hit area for easier interaction */}
@@ -374,7 +368,7 @@ export const GanttMilestones = memo(function GanttMilestones({
                 x={targetX}
                 y={y}
                 status={status}
-                label={`${milestone.title} planned date`}
+                label={ariaLabel}
                 colors={colors}
                 isGhost
                 isCritical={isCriticalMilestone}

@@ -481,3 +481,18 @@ describe('Purchases, Milestones and Companies list routes (#2246)', () => {
     noPaging(entry?.carries);
   });
 });
+
+describe('Schedule routes carry their view params (#2247)', () => {
+  const find = (id: string) =>
+    (ROUTE_MAP as readonly { id?: string; carries?: readonly string[] }[]).find(
+      (e) => e.id === id,
+    )!;
+
+  it('the Gantt route carries the legacy filter, zoom, group, the show toggles and the area', () => {
+    expect(find('scheduleGantt').carries).toEqual(['filter', 'zoom', 'group', 'show', 'areaId']);
+  });
+
+  it('the Calendar route carries its mode, the show toggles and the legacy filter', () => {
+    expect(find('scheduleCalendar').carries).toEqual(['calendarMode', 'show', 'filter']);
+  });
+});

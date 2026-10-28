@@ -1,8 +1,19 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import {
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useCallback,
+  useId,
+  useImperativeHandle,
+  useLayoutEffect,
+} from 'react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TimelineResponse, WorkItemStatus, TimelineHouseholdItem } from '@cornerstone/shared';
-import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
+import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
 import { barDates } from '../../lib/scheduleDates.js';
+import { parseRowKey, rowKey } from '../../lib/scheduleView.js';
+import type { ScheduleGroup, ScheduleRowKey } from '../../lib/scheduleView.js';
 import {
   computeChartRange,
   computeChartWidth,
@@ -16,7 +27,20 @@ import {
   HEADER_HEIGHT,
   BAR_OFFSET_Y,
   BAR_HEIGHT,
+  buildGanttRows,
+  ganttRowKey,
+  hoverIdOfKey,
+  lateSignalOf,
 } from './ganttUtils.js';
+import {
+  anchorFromScroll,
+  dateAtX,
+  firstCurrentRowIndex,
+  scrollFromAnchor,
+} from './ganttScroll.js';
+import type { GanttScrollAnchor, GanttScrollGeometry } from './ganttScroll.js';
+import { GanttGhosts } from './GanttGhosts.js';
+import type { GanttGhostShape } from './GanttGhosts.js';
 import { GanttGrid } from './GanttGrid.js';
 import { GanttBar } from './GanttBar.js';
 import type { BarInteractionState } from './GanttBar.js';
@@ -61,6 +85,11 @@ interface ChartColors {
   arrowCritical: string;
   arrowMilestone: string;
   criticalBorder: string;
+  lateHatch: string;
+  ghostStroke: string;
+  previewStroke: string;
+  danger: string;
+  groupBand: string;
   milestone: MilestoneColors;
   householdItem: HouseholdItemColors;
 }
@@ -81,6 +110,11 @@ function resolveColors(): ChartColors {
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     arrowMilestone: readCssVar('--color-gantt-arrow-milestone'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
+    lateHatch: readCssVar('--color-gantt-bar-late-hatch'),
+    ghostStroke: readCssVar('--color-gantt-bar-ghost-stroke'),
+    previewStroke: readCssVar('--color-gantt-bar-preview-stroke'),
+    danger: readCssVar('--color-danger'),
+    groupBand: readCssVar('--color-bg-tertiary'),
     milestone: {
       incompleteFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
       incompleteStroke: readCssVar('--color-milestone-incomplete-stroke'),
@@ -126,39 +160,71 @@ const TOOLTIP_HIDE_DELAY = 80;
 // Main GanttChart component
 // ---------------------------------------------------------------------------
 
+export type { GanttScrollAnchor } from './ganttScroll.js';
+
+/** What the page can ask the chart to do. */
+export interface GanttChartControl {
+  /** Puts today at 25 % of the viewport, smoothly unless reduced motion is on. */
+  scrollToToday(): void;
+}
+
+/** A reschedule preview outline: where a task or milestone would sit after the change. */
+export interface GanttPreviewGhost {
+  readonly rowKey: ScheduleRowKey;
+  readonly start: string | null;
+  readonly end: string;
+}
+
 export interface GanttChartProps {
+  /** Already filtered by the page. */
   data: TimelineResponse;
   zoom: ZoomLevel;
   /** Custom column width (overrides the default for the zoom level). Used for zoom in/out. */
   columnWidth?: number;
-  /** Called when user clicks on a work item bar or sidebar row. */
-  onItemClick?: (id: string) => void;
   /** Whether to show dependency arrows. Default: true. */
   showArrows?: boolean;
   /** Whether to highlight the critical path with distinct styling. Default: true. */
   highlightCriticalPath?: boolean;
-  /**
-   * Called when user clicks a milestone diamond — passes milestone ID.
-   */
-  onMilestoneClick?: (milestoneId: number) => void;
-  /**
-   * Called when user clicks a household item circle — passes HI ID.
-   */
-  onHouseholdItemClick?: (householdItemId: string) => void;
+  /** Time (default) keeps one interleaved list; Area adds collapsible group headers. */
+  groupBy?: ScheduleGroup;
+  /** Area ids in display order, for `groupBy: 'area'`. */
+  areaOrder?: readonly string[];
+  /** The row whose panel is open. */
+  selectedKey?: ScheduleRowKey | null;
+  /** Dashed outlines drawn over the bars while a reschedule is previewed. */
+  previewGhosts?: readonly GanttPreviewGhost[];
+  /** A bar, marker or row was activated; `opener` is the row button (focus returns there). */
+  onSelect?: (key: ScheduleRowKey, opener: HTMLElement) => void;
   /** Called when user scrolls with Ctrl held — for zoom via scroll. Positive = zoom in. */
   onCtrlScroll?: (delta: number) => void;
+  /** Where to place the chart on first mount. */
+  initialAnchor?: GanttScrollAnchor | null;
+  /** The scroll position as a date anchor, debounced 200 ms. */
+  onAnchorChange?: (anchor: GanttScrollAnchor) => void;
+  controlRef?: RefObject<GanttChartControl | null>;
 }
+
+const NO_AREAS: readonly string[] = [];
+const NO_GHOSTS: readonly GanttPreviewGhost[] = [];
+const ANCHOR_DEBOUNCE_MS = 200;
+/** Today sits at this share of the viewport width after positioning. */
+const TODAY_VIEWPORT_SHARE = 0.25;
 
 export function GanttChart({
   data,
   zoom,
   columnWidth,
-  onItemClick,
   showArrows = true,
   highlightCriticalPath = true,
-  onMilestoneClick,
-  onHouseholdItemClick,
+  groupBy = 'time',
+  areaOrder = NO_AREAS,
+  selectedKey = null,
+  previewGhosts = NO_GHOSTS,
+  onSelect,
   onCtrlScroll,
+  initialAnchor = null,
+  onAnchorChange,
+  controlRef,
 }: GanttChartProps) {
   const { t } = useTranslation('schedule');
 
@@ -168,6 +234,9 @@ export function GanttChart({
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const isScrollSyncingRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const lastScrollRef = useRef({ left: 0, top: 0 });
+  const anchorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousGeometryRef = useRef<GanttScrollGeometry | null>(null);
 
   // CSS color values read from computed styles (updated on theme change)
   const [colors, setColors] = useState<ChartColors>(() => resolveColors());
@@ -339,120 +408,80 @@ export function GanttChart({
     setTooltipTriggerId(null);
   }, [showTimerRef, hideTimerRef]);
 
-  // Sort work items by start date ascending (nulls last) for waterfall ordering
-  const sortedWorkItems = useMemo(() => {
-    return [...data.workItems].sort((a, b) => {
-      const aStart = barDates(a).start;
-      const bStart = barDates(b).start;
-      if (aStart === null && bStart === null) return 0;
-      if (aStart === null) return 1;
-      if (bStart === null) return -1;
-      return aStart < bStart ? -1 : aStart > bStart ? 1 : 0;
+  // ---------------------------------------------------------------------------
+  // Rows — tasks, milestones and purchases (plus group headers), by row key
+  // ---------------------------------------------------------------------------
+
+  // Collapsed groups live in this session only (D15)
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+  const noAreaName = t('view.gantt.noArea');
+
+  const rows = useMemo(
+    () => buildGanttRows(data, groupBy, areaOrder, collapsedGroups, noAreaName),
+    [data, groupBy, areaOrder, collapsedGroups, noAreaName],
+  );
+
+  const rowKeys = useMemo(() => rows.map(ganttRowKey), [rows]);
+
+  const groupRowIndices = useMemo<ReadonlySet<number>>(() => {
+    const set = new Set<number>();
+    rows.forEach((row, idx) => {
+      if (row.kind === 'group') set.add(idx);
     });
-  }, [data.workItems]);
+    return set;
+  }, [rows]);
 
-  // Build a unified sorted row list interleaving work items, milestones, and household items by date.
-  // Each row gets a globally unique rowIndex for sidebar and SVG positioning.
-  type UnifiedRow =
-    | { kind: 'workItem'; item: (typeof data.workItems)[0] }
-    | { kind: 'milestone'; milestone: (typeof data.milestones)[0] }
-    | { kind: 'householdItem'; item: (typeof data.householdItems)[0] };
+  // Rows that are shown (a collapsed group drops its rows)
+  const sortedWorkItems = useMemo(
+    () => rows.flatMap((row) => (row.kind === 'workItem' ? [row.item] : [])),
+    [rows],
+  );
+  const visibleMilestones = useMemo(
+    () => rows.flatMap((row) => (row.kind === 'milestone' ? [row.milestone] : [])),
+    [rows],
+  );
+  const visibleHouseholdItems = useMemo(
+    () => rows.flatMap((row) => (row.kind === 'householdItem' ? [row.item] : [])),
+    [rows],
+  );
 
-  const unifiedRows = useMemo<UnifiedRow[]>(() => {
-    // Helper: get effective sort date for a milestone
-    function milestoneSortDate(m: (typeof data.milestones)[0]): string | null {
-      if (m.isCompleted && m.completedAt) return m.completedAt.slice(0, 10);
-      if (m.projectedDate) return m.projectedDate;
-      return m.targetDate;
-    }
-
-    const workItemRows: UnifiedRow[] = sortedWorkItems.map((item) => ({ kind: 'workItem', item }));
-    const milestoneRows: UnifiedRow[] = data.milestones.map((milestone) => ({
-      kind: 'milestone',
-      milestone,
-    }));
-    const hiRows: UnifiedRow[] = data.householdItems.map((item) => ({
-      kind: 'householdItem',
-      item,
-    }));
-
-    const all = [...workItemRows, ...milestoneRows, ...hiRows];
-
-    // Sort: by effective date ascending, nulls last; order on same date: milestones, then HIs, then work items
-    all.sort((a, b) => {
-      const getDate = (row: UnifiedRow): string | null => {
-        if (row.kind === 'workItem') return barDates(row.item).start;
-        if (row.kind === 'milestone') return milestoneSortDate(row.milestone);
-        return row.item.earliestDeliveryDate;
-      };
-
-      const dateA = getDate(a);
-      const dateB = getDate(b);
-
-      if (dateA === null && dateB === null) return 0;
-      if (dateA === null) return 1;
-      if (dateB === null) return -1;
-      if (dateA < dateB) return -1;
-      if (dateA > dateB) return 1;
-
-      // Same date: sort by type (milestones, then HIs, then work items)
-      const kindOrder = { milestone: 0, householdItem: 1, workItem: 2 };
-      if (a.kind !== b.kind) return kindOrder[a.kind] - kindOrder[b.kind];
-
-      // Same date and type: sort by duration (longest first)
-      const getDuration = (row: UnifiedRow): number => {
-        if (row.kind === 'milestone') return 0; // milestones have no duration
-        const start =
-          row.kind === 'workItem' ? barDates(row.item).start : row.item.earliestDeliveryDate;
-        const end = row.kind === 'workItem' ? barDates(row.item).end : row.item.latestDeliveryDate;
-        if (!start || !end) return 0;
-        return new Date(end).getTime() - new Date(start).getTime();
-      };
-      return getDuration(b) - getDuration(a); // descending (longest first)
-    });
-
-    return all;
-  }, [sortedWorkItems, data]);
-
-  // Derive work item row indices and milestone row indices from the unified row list
   const workItemRowIndices = useMemo(() => {
     const map = new Map<string, number>();
-    unifiedRows.forEach((row, idx) => {
+    rows.forEach((row, idx) => {
       if (row.kind === 'workItem') map.set(row.item.id, idx);
     });
     return map;
-  }, [unifiedRows]);
+  }, [rows]);
 
   const milestoneRowIndices = useMemo(() => {
     const map = new Map<number, number>();
-    unifiedRows.forEach((row, idx) => {
+    rows.forEach((row, idx) => {
       if (row.kind === 'milestone') map.set(row.milestone.id, idx);
     });
     return map;
-  }, [unifiedRows]);
+  }, [rows]);
 
   const hiRowIndices = useMemo(() => {
     const map = new Map<string, number>();
-    unifiedRows.forEach((row, idx) => {
+    rows.forEach((row, idx) => {
       if (row.kind === 'householdItem') map.set(row.item.id, idx);
     });
     return map;
-  }, [unifiedRows]);
+  }, [rows]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(groupId)) next.add(groupId);
+      return next;
+    });
+  }, []);
 
   // Build a lookup map from item ID to TimelineWorkItem for tooltip data
   const workItemMap = useMemo(() => {
     const map = new Map(data.workItems.map((item) => [item.id, item]));
     return map;
   }, [data.workItems]);
-
-  // Build a lookup map from household item ID to TimelineHouseholdItem for tooltip data
-  const householdItemMap = useMemo<ReadonlyMap<string, TimelineHouseholdItem>>(() => {
-    const map = new Map<string, TimelineHouseholdItem>();
-    for (const hi of data.householdItems) {
-      map.set(hi.id, hi);
-    }
-    return map;
-  }, [data.householdItems]);
 
   // Build a title map for GanttArrows aria-labels
   const workItemTitles = useMemo<ReadonlyMap<string, string>>(() => {
@@ -520,7 +549,7 @@ export function GanttChart({
     [colors.arrowDefault, colors.arrowCritical, colors.arrowMilestone],
   );
 
-  const hasMilestones = data.milestones.length > 0;
+  const hasMilestones = visibleMilestones.length > 0;
 
   // ---------------------------------------------------------------------------
   // Milestone arrow data — positions and linkage maps for GanttArrows
@@ -536,7 +565,7 @@ export function GanttChart({
     const map = new Map<number, MilestonePoint>();
     if (!hasMilestones) return map;
 
-    data.milestones.forEach((milestone) => {
+    visibleMilestones.forEach((milestone) => {
       const rowIndex = milestoneRowIndices.get(milestone.id)!;
       const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
@@ -560,7 +589,7 @@ export function GanttChart({
     });
 
     return map;
-  }, [data.milestones, milestoneRowIndices, hasMilestones, chartRange, zoom, columnWidth]);
+  }, [visibleMilestones, milestoneRowIndices, hasMilestones, chartRange, zoom, columnWidth]);
 
   /**
    * Map from milestone ID → array of contributing work item IDs.
@@ -650,7 +679,7 @@ export function GanttChart({
    */
   const hiPoints = useMemo<ReadonlyMap<string, { x: number; y: number }>>(() => {
     const map = new Map<string, { x: number; y: number }>();
-    for (const hi of data.householdItems) {
+    for (const hi of visibleHouseholdItems) {
       const dateStr = hi.actualDeliveryDate ?? hi.targetDeliveryDate ?? hi.earliestDeliveryDate;
       if (!dateStr) continue;
       const rowIdx = hiRowIndices.get(hi.id)!;
@@ -659,7 +688,7 @@ export function GanttChart({
       map.set(hi.id, { x, y });
     }
     return map;
-  }, [data.householdItems, hiRowIndices, chartRange, zoom, columnWidth]);
+  }, [visibleHouseholdItems, hiRowIndices, chartRange, zoom, columnWidth]);
 
   // ---------------------------------------------------------------------------
   // Item hover dependency lookup — pre-computed for performance
@@ -812,6 +841,11 @@ export function GanttChart({
   // Arrow hover interaction state — per-bar and per-milestone visual states
   // ---------------------------------------------------------------------------
 
+  // Hover wins over the open panel's row; an arrow hover wins over both
+  const selectedHoverId = selectedKey ? hoverIdOfKey(selectedKey) : null;
+  const activeItemId =
+    hoveredArrowConnectedIds === null ? (hoveredItemId ?? selectedHoverId) : null;
+
   /**
    * Computes the interaction state for a work item bar given the current
    * hovered arrow's connected IDs set or hovered item's connected IDs.
@@ -829,8 +863,8 @@ export function GanttChart({
       }
       return map;
     }
-    if (hoveredItemId !== null) {
-      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+    if (activeItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(activeItemId)?.connectedEntityIds;
       if (!connectedIds) return new Map();
       const map = new Map<string, BarInteractionState>();
       for (const { item } of barData) {
@@ -839,7 +873,7 @@ export function GanttChart({
       return map;
     }
     return new Map();
-  }, [hoveredArrowConnectedIds, hoveredItemId, barData, itemDependencyLookup]);
+  }, [hoveredArrowConnectedIds, activeItemId, barData, itemDependencyLookup]);
 
   /**
    * Computes the interaction state for each milestone given the current
@@ -857,8 +891,8 @@ export function GanttChart({
       }
       return map;
     }
-    if (hoveredItemId !== null) {
-      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+    if (activeItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(activeItemId)?.connectedEntityIds;
       if (!connectedIds) return new Map();
       const map = new Map<number, MilestoneInteractionState>();
       for (const milestone of data.milestones) {
@@ -868,7 +902,7 @@ export function GanttChart({
       return map;
     }
     return new Map();
-  }, [hoveredArrowConnectedIds, hoveredItemId, data.milestones, itemDependencyLookup]);
+  }, [hoveredArrowConnectedIds, activeItemId, data.milestones, itemDependencyLookup]);
 
   /**
    * Computes the interaction state for each household item given the current
@@ -884,8 +918,8 @@ export function GanttChart({
       }
       return map;
     }
-    if (hoveredItemId !== null) {
-      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+    if (activeItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(activeItemId)?.connectedEntityIds;
       if (!connectedIds) return new Map();
       const map = new Map<string, HouseholdItemInteractionState>();
       for (const hi of data.householdItems) {
@@ -895,7 +929,7 @@ export function GanttChart({
       return map;
     }
     return new Map();
-  }, [hoveredArrowConnectedIds, hoveredItemId, data.householdItems, itemDependencyLookup]);
+  }, [hoveredArrowConnectedIds, activeItemId, data.householdItems, itemDependencyLookup]);
 
   /**
    * The set of arrow keys that should be highlighted due to item hover.
@@ -903,163 +937,149 @@ export function GanttChart({
    * When no item is hovered, this is undefined (no prop passed).
    */
   const highlightedArrowKeys = useMemo<ReadonlySet<string> | undefined>(() => {
-    if (hoveredItemId === null) return undefined;
-    return itemDependencyLookup.get(hoveredItemId)?.arrowKeys;
-  }, [hoveredItemId, itemDependencyLookup]);
+    if (activeItemId === null) return undefined;
+    return itemDependencyLookup.get(activeItemId)?.arrowKeys;
+  }, [activeItemId, itemDependencyLookup]);
 
-  // SVG height: unified rows (interleaved work items + milestones)
-  const totalRowCount = unifiedRows.length;
+  // SVG height: one row per group header, task, milestone and purchase
+  const totalRowCount = rows.length;
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
-  // ---------------------------------------------------------------------------
-  // Touch two-tap interaction (#331)
-  // ---------------------------------------------------------------------------
+  // Late tasks: hatch + outline on the bar, a dashed outline where they were planned (D7)
+  const patternSuffix = useId().replace(/:/g, '');
+  const hatchPatternId = `gantt-hatch-${patternSuffix}`;
 
-  const { isTouchDevice, activeTouchId, handleTouchTap } = useTouchTooltip();
-
-  /**
-   * Handles a tap on a GanttBar or sidebar row on touch devices.
-   * First tap: shows the work item tooltip at the center of the viewport.
-   * Second tap on the same item: clears tooltip and navigates.
-   * Tap on a different item: shows that item's tooltip instead.
-   */
-  const handleGanttTouchTap = useCallback(
-    (itemId: string) => {
-      const tooltipItem = workItemMap.get(itemId);
-      handleTouchTap(itemId, () => {
-        // Second tap — clear tooltip and navigate
-        if (showTimerRef.current !== null) {
-          clearTimeout(showTimerRef.current);
-          showTimerRef.current = null;
-        }
-        if (hideTimerRef.current !== null) {
-          clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        setTooltipData(null);
-        setTooltipTriggerId(null);
-        onItemClick?.(itemId);
+  const plannedGhosts = useMemo<GanttGhostShape[]>(() => {
+    const ghosts: GanttGhostShape[] = [];
+    for (const { item, rowIndex, effectiveStartDate, effectiveEndDate } of barData) {
+      if (lateSignalOf(item) === null || !item.startDate || !item.endDate) continue;
+      if (item.startDate === effectiveStartDate && item.endDate === effectiveEndDate) continue;
+      const position = computeBarPosition(
+        item.startDate,
+        item.endDate,
+        rowIndex,
+        chartRange,
+        zoom,
+        today,
+        columnWidth,
+      );
+      ghosts.push({
+        testId: `gantt-ghost-${item.id}`,
+        shape: 'bar',
+        x: position.x,
+        width: position.width,
+        rowIndex,
       });
-      if (tooltipItem && activeTouchId !== itemId) {
-        // First tap — show tooltip at approximate center of viewport
-        if (showTimerRef.current !== null) {
-          clearTimeout(showTimerRef.current);
-          showTimerRef.current = null;
-        }
-        if (hideTimerRef.current !== null) {
-          clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        setTooltipTriggerId(itemId);
-        setTooltipData(
-          buildWorkItemTooltipData(
-            tooltipItem,
-            itemDependencyLookup.get(itemId)?.tooltipDeps,
-            today,
-            data.holdsUp?.workItems[itemId]?.count ?? 0,
-          ),
-        );
-        setTooltipPosition({
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 3,
-        });
+    }
+    return ghosts;
+  }, [barData, chartRange, zoom, today, columnWidth]);
+
+  const previewShapes = useMemo<GanttGhostShape[]>(() => {
+    const shapes: GanttGhostShape[] = [];
+    for (const ghost of previewGhosts) {
+      const { kind, id } = parseRowKey(ghost.rowKey);
+      const rowIndex =
+        kind === 'milestone'
+          ? milestoneRowIndices.get(Number(id))
+          : kind === 'task'
+            ? workItemRowIndices.get(id)
+            : hiRowIndices.get(id);
+      if (rowIndex === undefined) continue;
+      const testId = `gantt-preview-ghost-${ghost.rowKey}`;
+      if (kind === 'milestone') {
+        const x = dateToX(toUtcMidnight(ghost.end), chartRange, zoom, columnWidth);
+        shapes.push({ testId, shape: 'diamond', x, width: 0, rowIndex });
+        continue;
       }
+      const position = computeBarPosition(
+        ghost.start,
+        ghost.end,
+        rowIndex,
+        chartRange,
+        zoom,
+        today,
+        columnWidth,
+      );
+      shapes.push({ testId, shape: 'bar', x: position.x, width: position.width, rowIndex });
+    }
+    return shapes;
+  }, [
+    previewGhosts,
+    milestoneRowIndices,
+    workItemRowIndices,
+    hiRowIndices,
+    chartRange,
+    zoom,
+    today,
+    columnWidth,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Selection — a bar, marker or row opens the panel; focus returns to the row button
+  // ---------------------------------------------------------------------------
+
+  const handleChartSelect = useCallback(
+    (key: ScheduleRowKey) => {
+      if (!onSelect) return;
+      const opener = Array.from(
+        sidebarScrollRef.current!.querySelectorAll<HTMLElement>('[data-gantt-row-key]'),
+      ).find((el) => el.dataset.ganttRowKey === key)!;
+      onSelect(key, opener);
     },
-    [
-      workItemMap,
-      activeTouchId,
-      itemDependencyLookup,
-      handleTouchTap,
-      onItemClick,
-      data.holdsUp,
-      today,
-      showTimerRef,
-      hideTimerRef,
-    ],
+    [onSelect],
   );
 
-  /**
-   * Handles a tap on a household item circle marker or sidebar row on touch devices.
-   * First tap: shows the household item tooltip at the center of the viewport.
-   * Second tap on the same item: clears tooltip and navigates.
-   * Tap on a different item: shows that item's tooltip instead.
-   */
-  const handleHiTouchTap = useCallback(
-    (hiId: string) => {
-      const tooltipItem = householdItemMap.get(hiId);
-      handleTouchTap(hiId, () => {
-        // Second tap — clear tooltip and navigate
-        if (showTimerRef.current !== null) {
-          clearTimeout(showTimerRef.current);
-          showTimerRef.current = null;
-        }
-        if (hideTimerRef.current !== null) {
-          clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        setTooltipData(null);
-        setTooltipTriggerId(null);
-        onHouseholdItemClick?.(hiId);
-      });
-      if (tooltipItem && activeTouchId !== hiId) {
-        // First tap — show tooltip at approximate center of viewport
-        if (showTimerRef.current !== null) {
-          clearTimeout(showTimerRef.current);
-          showTimerRef.current = null;
-        }
-        if (hideTimerRef.current !== null) {
-          clearTimeout(hideTimerRef.current);
-          hideTimerRef.current = null;
-        }
-        setTooltipTriggerId(hiId);
-        setTooltipData(buildHouseholdItemTooltipData(tooltipItem, hiLinkedItemsMap.get(hiId)));
-        setTooltipPosition({
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 3,
-        });
-      }
-    },
-    [
-      householdItemMap,
-      activeTouchId,
-      handleTouchTap,
-      onHouseholdItemClick,
-      showTimerRef,
-      hideTimerRef,
-      hiLinkedItemsMap,
-    ],
+  const handleBarClick = useCallback(
+    (id: string) => handleChartSelect(rowKey('task', id)),
+    [handleChartSelect],
   );
-
-  /**
-   * Click handler for GanttBar and GanttSidebar rows.
-   * On touch devices: routes through two-tap pattern.
-   * On pointer devices: calls onItemClick directly.
-   */
-  const handleBarOrSidebarClick = useCallback(
-    (itemId: string) => {
-      if (isTouchDevice) {
-        handleGanttTouchTap(itemId);
-      } else {
-        onItemClick?.(itemId);
-      }
-    },
-    [isTouchDevice, handleGanttTouchTap, onItemClick],
+  const handleMilestoneClick = useCallback(
+    (id: number) => handleChartSelect(rowKey('milestone', id)),
+    [handleChartSelect],
   );
-
-  /**
-   * Click handler for household item circle markers and sidebar rows.
-   * On touch devices: routes through two-tap pattern.
-   * On pointer devices: calls onHouseholdItemClick directly.
-   */
   const handleHiClick = useCallback(
-    (hiId: string) => {
-      if (isTouchDevice) {
-        handleHiTouchTap(hiId);
-      } else {
-        onHouseholdItemClick?.(hiId);
-      }
+    (id: string) => handleChartSelect(rowKey('purchase', id)),
+    [handleChartSelect],
+  );
+
+  // A focused sidebar row highlights its links, as hover does; no tooltip opens (D8)
+  const handleRowFocus = useCallback((key: ScheduleRowKey) => {
+    setHoveredItemId(hoverIdOfKey(key));
+  }, []);
+  const handleRowBlur = useCallback(() => setHoveredItemId(null), []);
+
+  // ---------------------------------------------------------------------------
+  // Scroll position — anchor bookkeeping (positioning itself is below, after the handlers)
+  // ---------------------------------------------------------------------------
+
+  const geometry = useMemo<GanttScrollGeometry>(
+    () => ({ chartRange, zoom, columnWidth, rowKeys }),
+    [chartRange, zoom, columnWidth, rowKeys],
+  );
+
+  // The latest geometry and callback, for the debounced emit and the restore below
+  const geometryRef = useRef(geometry);
+  const onAnchorChangeRef = useRef(onAnchorChange);
+  useLayoutEffect(() => {
+    geometryRef.current = geometry;
+    onAnchorChangeRef.current = onAnchorChange;
+  });
+
+  const scheduleAnchorEmit = useCallback(() => {
+    if (!onAnchorChangeRef.current) return;
+    if (anchorTimerRef.current !== null) clearTimeout(anchorTimerRef.current);
+    anchorTimerRef.current = setTimeout(() => {
+      anchorTimerRef.current = null;
+      const { left, top } = lastScrollRef.current;
+      onAnchorChangeRef.current?.(anchorFromScroll(left, top, geometryRef.current));
+    }, ANCHOR_DEBOUNCE_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (anchorTimerRef.current !== null) clearTimeout(anchorTimerRef.current);
     },
-    [isTouchDevice, handleHiTouchTap, onHouseholdItemClick],
+    [],
   );
 
   // ---------------------------------------------------------------------------
@@ -1073,9 +1093,11 @@ export function GanttChart({
    * Uses requestAnimationFrame to prevent jank on large datasets.
    */
   const handleChartScroll = useCallback(() => {
-    if (isScrollSyncingRef.current) return;
-
     const chartEl = chartScrollRef.current!;
+    lastScrollRef.current = { left: chartEl.scrollLeft, top: chartEl.scrollTop };
+    scheduleAnchorEmit();
+
+    if (isScrollSyncingRef.current) return;
 
     requestAnimationFrame(() => {
       isScrollSyncingRef.current = true;
@@ -1090,7 +1112,7 @@ export function GanttChart({
 
       isScrollSyncingRef.current = false;
     });
-  }, []);
+  }, [scheduleAnchorEmit]);
 
   /**
    * Sync sidebar scroll back to chart.
@@ -1112,15 +1134,76 @@ export function GanttChart({
     });
   }, []);
 
-  // Scroll to today on first render and when zoom changes
-  useEffect(() => {
-    if (todayX !== null && chartScrollRef.current) {
-      const el = chartScrollRef.current;
-      const targetScrollLeft = Math.max(0, todayX - el.clientWidth / 2);
-      el.scrollLeft = targetScrollLeft;
-      headerScrollRef.current!.scrollLeft = targetScrollLeft;
+  // ---------------------------------------------------------------------------
+  // Scroll position — positioned once per mount, then restored from a date anchor (D18)
+  // ---------------------------------------------------------------------------
+
+  /** Moves both scroll panes (and keeps the header and sidebar in step). */
+  function applyScroll(left: number, top: number | null) {
+    const chartEl = chartScrollRef.current!;
+    chartEl.scrollLeft = left;
+    headerScrollRef.current!.scrollLeft = left;
+    if (top !== null) {
+      chartEl.scrollTop = top;
+      sidebarScrollRef.current!.scrollTop = top;
     }
-  }, [todayX, zoom]);
+    lastScrollRef.current = { left: chartEl.scrollLeft, top: top ?? lastScrollRef.current.top };
+  }
+
+  useLayoutEffect(() => {
+    const chartEl = chartScrollRef.current!;
+    const previous = previousGeometryRef.current;
+    previousGeometryRef.current = geometry;
+
+    if (previous === null) {
+      // First positioning: the saved anchor, else today at 25 % of the viewport, with the first
+      // current row near the top and one row of context above it
+      if (initialAnchor) {
+        const target = scrollFromAnchor(initialAnchor, geometry);
+        applyScroll(target.left, target.top);
+        return;
+      }
+      const left =
+        todayX === null ? 0 : Math.max(0, todayX - chartEl.clientWidth * TODAY_VIEWPORT_SHARE);
+      const firstRow = firstCurrentRowIndex(rows, today);
+      applyScroll(left, firstRow === -1 ? null : Math.max(0, (firstRow - 1) * ROW_HEIGHT));
+      return;
+    }
+
+    // Restore: a zoom change keeps the viewport's centre date, anything else the left-edge date
+    // and the top row
+    const { left, top } = lastScrollRef.current;
+    if (previous.zoom !== zoom) {
+      const half = chartEl.clientWidth / 2;
+      const centre = dateAtX(left + half, previous.chartRange, previous.zoom, previous.columnWidth);
+      const centreX = scrollFromAnchor({ date: centre, rowKey: null, rowOffset: 0 }, geometry).left;
+      applyScroll(Math.max(0, centreX - half), null);
+      return;
+    }
+    const target = scrollFromAnchor(anchorFromScroll(left, top, previous), geometry);
+    applyScroll(target.left, target.top);
+    // Re-runs on geometry only: the first positioning reads the rest once, and a changed
+    // anchor prop must never move a chart the user is looking at
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
+  }, [geometry]);
+
+  useImperativeHandle(
+    controlRef,
+    () => ({
+      scrollToToday() {
+        if (todayX === null) return;
+        const chartEl = chartScrollRef.current!;
+        const left = Math.max(0, todayX - chartEl.clientWidth * TODAY_VIEWPORT_SHARE);
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion) {
+          applyScroll(left, null);
+          return;
+        }
+        chartEl.scrollTo({ left, behavior: 'smooth' });
+      },
+    }),
+    [todayX],
+  );
 
   // ---------------------------------------------------------------------------
   // Render
@@ -1129,18 +1212,20 @@ export function GanttChart({
   return (
     <div
       className={styles.chartBody}
-      role="img"
-      aria-label={`Project timeline Gantt chart with ${data.workItems.length} work items and ${data.milestones.length} milestones`}
+      role="group"
+      aria-label={t('view.gantt.chartAriaLabel')}
       data-testid="gantt-chart"
     >
       {/* Left sidebar — fixed during horizontal scroll, synced vertically */}
       <GanttSidebar
-        items={sortedWorkItems}
-        milestones={data.milestones}
-        unifiedRows={unifiedRows}
-        onItemClick={handleBarOrSidebarClick}
-        onMilestoneClick={onMilestoneClick}
-        onHouseholdItemClick={handleHiClick}
+        rows={rows}
+        criticalWorkItemIds={criticalPathSet}
+        criticalMilestoneIds={criticalMilestoneIds}
+        selectedKey={selectedKey}
+        onSelect={onSelect}
+        onToggleGroup={handleToggleGroup}
+        onRowFocus={handleRowFocus}
+        onRowBlur={handleRowBlur}
         onScroll={handleSidebarScroll}
         ref={sidebarScrollRef}
       />
@@ -1178,6 +1263,19 @@ export function GanttChart({
             aria-hidden="true"
             data-testid="gantt-svg"
           >
+            {/* One hatch pattern shared by every late bar */}
+            <defs>
+              <pattern
+                id={hatchPatternId}
+                width={6}
+                height={6}
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <line x1={0} y1={0} x2={0} y2={6} stroke={colors.lateHatch} strokeWidth={2} />
+              </pattern>
+            </defs>
+
             {/* Background: row stripes + grid lines + today marker */}
             <GanttGrid
               width={chartWidth}
@@ -1185,8 +1283,12 @@ export function GanttChart({
               rowCount={totalRowCount}
               gridLines={gridLines}
               colors={colors}
+              groupRows={groupRowIndices}
               todayX={todayX}
             />
+
+            {/* Planned dates of late tasks (below the bars) */}
+            <GanttGhosts ghosts={plannedGhosts} stroke={colors.ghostStroke} variant="planned" />
 
             {/* Dependency arrows (middle layer — above grid, below bars) */}
             <GanttArrows
@@ -1203,7 +1305,7 @@ export function GanttChart({
               criticalMilestoneIds={criticalMilestoneIds}
               milestoneTitles={milestoneTitles}
               hiPoints={hiPoints}
-              householdItems={data.householdItems}
+              householdItems={visibleHouseholdItems}
               onArrowHover={handleArrowHover}
               onArrowMouseMove={handleArrowMouseMove}
               onArrowLeave={handleArrowLeave}
@@ -1213,7 +1315,7 @@ export function GanttChart({
             {/* Milestone diamond markers (below work item bars, above arrows) */}
             {hasMilestones && (
               <GanttMilestones
-                milestones={data.milestones}
+                milestones={visibleMilestones}
                 chartRange={chartRange}
                 zoom={zoom}
                 milestoneRowIndices={milestoneRowIndices}
@@ -1315,14 +1417,14 @@ export function GanttChart({
                 criticalMilestoneIds={criticalMilestoneIds}
                 criticalBorderColor={colors.criticalBorder}
                 criticalConnectorColor={highlightCriticalPath ? colors.arrowCritical : undefined}
-                onMilestoneClick={onMilestoneClick}
+                onMilestoneClick={handleMilestoneClick}
               />
             )}
 
             {/* Household item circle markers */}
-            {data.householdItems.length > 0 && (
+            {visibleHouseholdItems.length > 0 && (
               <GanttHouseholdItems
-                householdItems={data.householdItems}
+                householdItems={visibleHouseholdItems}
                 chartRange={chartRange}
                 zoom={zoom}
                 hiRowIndices={hiRowIndices}
@@ -1388,8 +1490,11 @@ export function GanttChart({
                   width={position.width}
                   rowIndex={rowIndex}
                   fill={colors.barColors[item.status]}
-                  onClick={handleBarOrSidebarClick}
+                  onClick={handleBarClick}
                   isCritical={criticalPathSet.has(item.id)}
+                  isLate={lateSignalOf(item) !== null}
+                  hatchPatternId={hatchPatternId}
+                  lateOutlineColor={colors.danger}
                   criticalBorderColor={colors.criticalBorder}
                   interactionState={barInteractionStates.get(item.id) ?? 'default'}
                   // Tooltip accessibility
@@ -1463,6 +1568,9 @@ export function GanttChart({
                 />
               ))}
             </g>
+
+            {/* Reschedule preview (above the bars) */}
+            <GanttGhosts ghosts={previewShapes} stroke={colors.previewStroke} variant="preview" />
           </svg>
         </div>
       </div>
@@ -1473,8 +1581,7 @@ export function GanttChart({
           data={tooltipData}
           position={tooltipPosition}
           id={TOOLTIP_ID}
-          isTouchDevice={isTouchDevice}
-          onMilestoneNavigate={onMilestoneClick}
+          isTouchDevice={false}
         />
       )}
     </div>

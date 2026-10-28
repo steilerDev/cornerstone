@@ -1,4 +1,8 @@
-import type { ScheduleSignal, WorkItemScheduleFields } from '@cornerstone/shared';
+import type {
+  ScheduleSignal,
+  TimelineHouseholdItem,
+  WorkItemScheduleFields,
+} from '@cornerstone/shared';
 import { formatDayRange } from './formatters.js';
 
 /** Signals a task chip can show ('critical' belongs to a later story). */
@@ -60,4 +64,23 @@ export function plannedRangeText(
   }
   const single = plannedStart ?? plannedEnd;
   return single ? formatDate(single) : null;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function utcMs(dateKey: string): number {
+  const [year, month, day] = dateKey.split('-').map(Number) as [number, number, number];
+  return Date.UTC(year, month - 1, day);
+}
+
+/** Whole days from `from` to `to` (`YYYY-MM-DD` keys; negative when `to` is earlier). */
+export function daysBetweenKeys(from: string, to: string): number {
+  return Math.round((utcMs(to) - utcMs(from)) / DAY_MS);
+}
+
+/** Days since the latest (else earliest) delivery date, at least 1; 0 when the purchase is not late. */
+export function purchaseLateDays(item: TimelineHouseholdItem, todayKey: string): number {
+  if (!item.isLate) return 0;
+  const due = item.latestDeliveryDate ?? item.earliestDeliveryDate;
+  return due === null ? 1 : Math.max(1, daysBetweenKeys(due, todayKey));
 }

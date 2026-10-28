@@ -18,7 +18,7 @@ metadata:
 - Frontmatter: `title:` required, `sidebar_position:` for ordering.
 - Missing screenshots: `:::info Screenshot needed`, never a broken image ref.
 - `:::caution` for destructive actions. Use `--` instead of em dashes.
-- Same-directory links are relative (`(gantt-chart)`). Cross-section links are absolute from root (`/guides/work-items/dependencies`). Same-page anchors: `gantt-chart#touch-devices`.
+- Same-directory links are relative (`(gantt-chart)`). Cross-section links are absolute from root (`/guides/work-items/dependencies`). Anchor `gantt-chart#touch-devices` is gone (phones now use `gantt-chart#phones`); `gantt-chart#auto-schedule` and `milestones#editing-a-milestone` are still valid.
 - Headings that start with a number drop the period in anchors ("6. Assign..." becomes `#6-assign...`).
 - `guides/home/what-moved-where.md` is a permanent help page: `HOME_HELP_URL` in `client/src/lib/externalLinks.ts` points at it, so keep the path.
 
@@ -59,3 +59,4 @@ Sidebar entries live in `sidebars.js`; keep it in sync when adding a page.
 - Household items guide is now titled Purchases (sidebar label too; URL slug `guides/household-items` kept). Form field label stays "Vendor" in the UI, so the bold label stays "Vendor" and prose says company.
 - Milestone detail page sections are **Linked Items** (contributing tasks) and **Dependent Work Items** (UI strings, not renamed).
 - Old screenshots `household-items-list-light.png` and `timeline-milestones-light.png` are unreferenced now.
+- Schedule (#2247): the Timeline section is titled Schedule (sidebar and footer). `gantt-chart.md` is titled "Schedule Chart"; file names are kept so links survive. Sidebar entries are Schedule, Calendar and Milestones under Tasks. The Calendar lives at `/schedule/calendar`, the chart at `/schedule/gantt`. Two-tap, column buttons, Add menu and filter toggles are gone from docs.

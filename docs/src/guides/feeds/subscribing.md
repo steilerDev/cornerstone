@@ -20,6 +20,10 @@ Replace `<your-cornerstone-host>` with the address of your Cornerstone instance 
 If your Cornerstone instance uses HTTPS behind a reverse proxy, use `https://` in the URL.
 :::
 
+## Start from Cornerstone
+
+You can also start the calendar subscription inside Cornerstone. On the **Schedule** page, select the more actions (⋯) menu and choose **Subscribe in calendar app**. It takes you to the calendar sync section of your profile settings. The steps below work the same either way.
+
 ## Calendar Feed
 
 ### Apple Calendar (macOS / iOS)
@@ -128,7 +132,7 @@ Cornerstone uses **ETags** for caching -- when your app re-fetches a feed and no
 
 ### Calendar or contacts are empty
 
-- Verify that your Cornerstone instance has data -- work items with dates for the calendar feed, or companies for the contacts feed
+- Verify that your Cornerstone instance has data -- tasks with dates for the calendar feed, or companies for the contacts feed
 - Check that the feed URL is correct and accessible from the device where your app is running
 - Try opening the feed URL directly in a browser to confirm it returns data
 
@@ -140,7 +144,7 @@ Cornerstone uses **ETags** for caching -- when your app re-fetches a feed and no
 
 ### Events show wrong dates
 
-The calendar feed uses **actual dates** where available (actual start, actual end) and falls back to **planned dates** if actual dates are not set. If you see unexpected dates, check the work item's date fields in Cornerstone.
+The calendar feed uses **actual dates** where available (actual start, actual end) and falls back to **planned dates** if actual dates are not set. If you see unexpected dates, check the task's date fields in Cornerstone.
 
 ### Changes are not showing up
 

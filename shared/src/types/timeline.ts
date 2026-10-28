@@ -19,6 +19,12 @@ import type {
   HouseholdItemDepRef,
 } from './householdItem.js';
 
+/** Vendor on a timeline task; carries the company phone for the Schedule panel's Call button. */
+export interface TimelineVendorSummary extends VendorSummary {
+  /** Always sent by the server (#2247); optional only so older mocks stay valid. */
+  phone?: string | null;
+}
+
 /**
  * A work item entry in the timeline response.
  * Contains only scheduling-relevant fields — no budget information.
@@ -39,7 +45,7 @@ export interface TimelineWorkItem extends WorkItemScheduleFields {
   /** Latest start constraint (scheduling). */
   startBefore: string | null;
   assignedUser: UserSummary | null;
-  assignedVendor: VendorSummary | null;
+  assignedVendor: TimelineVendorSummary | null;
   area: AreaSummary | null;
   /**
    * IDs of milestones this work item depends on (must complete before WI can start).

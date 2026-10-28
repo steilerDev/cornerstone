@@ -84,7 +84,7 @@ const config = {
               { label: 'Getting Started', to: '/getting-started' },
               { label: 'Work Items', to: '/guides/work-items' },
               { label: 'Budget', to: '/guides/budget' },
-              { label: 'Timeline', to: '/guides/timeline' },
+              { label: 'Schedule', to: '/guides/timeline' },
               { label: 'Household Items', to: '/guides/household-items' },
               { label: 'Documents', to: '/guides/documents' },
               { label: 'Diary', to: '/guides/diary' },

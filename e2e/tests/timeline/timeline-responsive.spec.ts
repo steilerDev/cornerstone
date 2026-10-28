@@ -9,12 +9,27 @@
  * 5.  Dark mode — no horizontal scroll on all viewports
  * 6.  Calendar view renders without horizontal scroll on all viewports
  * 7.  ARIA roles and labels on key elements
+ * 8.  AC7 (#2247): phone Agenda default, Chart one tap away, sticky name column, bottom sheet
+ *
+ * The Schedule view is a per-user preference (phone view, zoom, Show), so the file runs as a
+ * dedicated user and starts every test from the defaults.
  */
 
-import { test, expect } from '../../fixtures/auth.js';
-import { buildTimeline, mockWorkItem } from '../../fixtures/timelineMocks.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
+import {
+  buildScheduleScenario,
+  buildTimeline,
+  mockWorkItem,
+  SCHEDULE_IDS,
+} from '../../fixtures/timelineMocks.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
+
+test.use({ isolatedUserPerWorker: { emailPrefix: 'sched-resp' } });
+
+test.beforeEach(async ({ page }) => {
+  await new TimelinePage(page).resetViewPreference();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: No horizontal scroll
@@ -195,7 +210,9 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
     }
   });
 
-  test('Pressing Enter on a sidebar row navigates to work item detail', async ({ page }) => {
+  test('Pressing Enter on a sidebar row opens the panel; Escape closes it and returns focus', async ({
+    page,
+  }) => {
     const viewport = page.viewportSize();
     if (!viewport || viewport.width < 768) {
       test.skip();
@@ -234,24 +251,15 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
       await row.waitFor({ state: 'visible' });
       await row.focus();
 
-      // On touch devices (tablet/mobile), the Gantt uses a two-tap pattern routed through
-      // handleBarOrSidebarClick: first activation shows the tooltip, second navigates.
-      // On pointer devices (desktop), a single Enter navigates directly.
-      const isTouchDevice = await page.evaluate(
-        () => window.matchMedia('(pointer: coarse)').matches,
-      );
-
+      // Enter opens the panel (no navigation: "Open task" navigates)
       await page.keyboard.press('Enter');
+      await expect(timelinePage.panel).toContainText('Enter Nav Item');
+      expect(new URL(page.url()).pathname).toBe('/schedule/gantt');
 
-      if (isTouchDevice) {
-        // Wait briefly for the tooltip state to settle, then press Enter again to navigate
-        await page.waitForTimeout(300);
-        await row.focus(); // Re-focus in case focus moved
-        await page.keyboard.press('Enter');
-      }
-
-      await page.waitForURL('**/project/work-items/enter-nav-item');
-      expect(page.url()).toContain('/project/work-items/enter-nav-item');
+      // Escape closes it and focus returns to the row that opened it
+      await page.keyboard.press('Escape');
+      await expect(timelinePage.panel).toBeHidden();
+      await expect(row).toBeFocused();
     } finally {
       await page.unroute('**/api/timeline');
     }
@@ -310,7 +318,7 @@ test.describe('Calendar on all viewports (Scenario 6)', { tag: '@responsive' }, 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Gantt chart container has role=img and accessible label', async ({ page }) => {
+  test('Chart container is a labelled group (not an image)', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
     const today = new Date();
@@ -337,13 +345,11 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
 
     try {
       await timelinePage.goto();
-      await timelinePage.waitForLoaded();
+      await timelinePage.showChart();
 
-      // Gantt chart has role="img" and aria-label
-      await expect(timelinePage.ganttChart).toHaveAttribute('role', 'img');
-      const ariaLabel = await timelinePage.ganttChart.getAttribute('aria-label');
-      expect(ariaLabel).toContain('Gantt chart');
-      expect(ariaLabel).toContain('1 work item');
+      // The bars are pointer targets in an aria-hidden SVG; the rows are the keyboard model
+      await expect(timelinePage.ganttChart).toHaveAttribute('role', 'group');
+      await expect(timelinePage.ganttChart).toHaveAttribute('aria-label', 'Schedule chart');
     } finally {
       await page.unroute('**/api/timeline');
     }
@@ -376,27 +382,49 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
 
     try {
       await timelinePage.goto();
-      await timelinePage.waitForLoaded();
+      await timelinePage.showChart();
 
-      // Sidebar rows list has role=list and aria-label
+      // Sidebar rows list has role=list and aria-label (t('ganttSidebar.ariaLabel'))
       await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute('role', 'list');
-      // aria-label comes from t('ganttSidebar.ariaLabel') in schedule.json
-      // Updated in EPIC-18 to include household items: "Work items, milestones, and household items"
       await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute(
         'aria-label',
-        'Work items, milestones, and household items',
+        'Tasks, milestones and purchases',
       );
+      // Each row is a button inside a list item
+      await expect(
+        timelinePage.ganttSidebarRowsList.getByRole('listitem').getByRole('button').first(),
+      ).toBeVisible();
     } finally {
       await page.unroute('**/api/timeline');
     }
   });
 
-  test('Zoom toolbar has role=toolbar and accessible label', async ({ page }) => {
+  test('Zoom control is a labelled group of toggle buttons', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
-    await timelinePage.goto();
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'zoom-aria-item',
+            title: 'Zoom ARIA Item',
+            status: 'not_started',
+            startDate: '2030-01-01',
+            endDate: '2030-01-31',
+          }),
+        ],
+      }),
+    );
 
-    await expect(timelinePage.zoomToolbar).toHaveAttribute('role', 'toolbar');
-    await expect(timelinePage.zoomToolbar).toHaveAttribute('aria-label', 'Zoom level');
+    try {
+      await timelinePage.goto();
+      await timelinePage.showChart();
+
+      await expect(timelinePage.zoomToolbar).toHaveAttribute('role', 'group');
+      await expect(timelinePage.zoomToolbar).toHaveAttribute('aria-label', 'Zoom');
+      await expect(timelinePage.zoomButton('Month')).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      await timelinePage.unmockTimeline();
+    }
   });
 
   test('Tasks views are listed in the main navigation or the title menu', async ({ page }) => {
@@ -421,3 +449,115 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     await expect(modeToolbar).toBeVisible();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8 (AC7): phone Agenda, Chart one tap away, sticky names, bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Phone: Agenda first, Chart one tap away (Scenario 8, AC7)',
+  { tag: '@responsive' },
+  () => {
+    test('The Agenda is the default and starts at the current week', async ({ page }) => {
+      const timelinePage = new TimelinePage(page);
+      await timelinePage.mockTimeline(buildScheduleScenario());
+
+      try {
+        await timelinePage.goto();
+        test.skip((await timelinePage.surface()) !== 'agenda', 'The Agenda is the phone surface');
+
+        await expect(timelinePage.agenda).toBeVisible();
+        await expect(timelinePage.ganttChart).toHaveCount(0);
+        // Zoom and Group only act on the chart: the Agenda has neither
+        await expect(timelinePage.zoomToolbar).toHaveCount(0);
+        await expect(timelinePage.groupTrigger).toHaveCount(0);
+        // The current week is marked and in view at the top
+        const current = timelinePage.agenda.locator('[aria-current="date"]').first();
+        await expect(current).toBeInViewport();
+        const box = await current.boundingBox();
+        const height = page.viewportSize()?.height ?? 0;
+        expect(box!.y).toBeLessThan(height / 2);
+        // Rows of the scenario are there
+        await expect(timelinePage.agendaRow(`task:${SCHEDULE_IDS.foundation}`)).toBeVisible();
+      } finally {
+        await timelinePage.unmockTimeline();
+      }
+    });
+
+    test('The Chart is one tap away and the name column stays visible after scrolling sideways', async ({
+      page,
+    }) => {
+      const timelinePage = new TimelinePage(page);
+      await timelinePage.mockTimeline(buildScheduleScenario());
+
+      try {
+        await timelinePage.goto();
+        test.skip((await timelinePage.surface()) !== 'agenda', 'The Agenda is the phone surface');
+
+        await expect(timelinePage.phoneViewAgenda).toHaveAttribute('aria-pressed', 'true');
+        await timelinePage.phoneViewChart.click();
+        await expect(timelinePage.ganttChart).toBeVisible();
+        await expect(timelinePage.phoneViewChart).toHaveAttribute('aria-pressed', 'true');
+        await expect(timelinePage.agenda).toHaveCount(0);
+
+        // Scroll the canvas sideways: the sticky name column does not move
+        const row = timelinePage.ganttSidebarRow(SCHEDULE_IDS.foundation);
+        await expect(row).toBeVisible();
+        const before = await row.boundingBox();
+        await timelinePage.canvasScroll.evaluate((el) => {
+          el.scrollLeft = el.scrollLeft + 300;
+        });
+        await expect
+          .poll(async () => (await timelinePage.scrollPosition()).left)
+          .toBeGreaterThan(0);
+        await expect(row).toBeVisible();
+        const after = await row.boundingBox();
+        expect(after!.x).toBeCloseTo(before!.x, 0);
+        expect(after!.y).toBeCloseTo(before!.y, 0);
+        await expect(timelinePage.ganttSidebar).toBeInViewport();
+
+        // And back to the Agenda
+        await timelinePage.phoneViewAgenda.click();
+        await expect(timelinePage.agenda).toBeVisible();
+      } finally {
+        await timelinePage.unmockTimeline();
+      }
+    });
+
+    test('A tap on an Agenda row or a bar opens the bottom sheet', async ({ page }) => {
+      const timelinePage = new TimelinePage(page);
+      await timelinePage.mockTimeline(buildScheduleScenario());
+
+      try {
+        await timelinePage.goto();
+        test.skip((await timelinePage.surface()) !== 'agenda', 'The Agenda is the phone surface');
+
+        const viewport = page.viewportSize()!;
+        const expectBottomSheet = async () => {
+          await expect(timelinePage.panel).toBeVisible();
+          expect(await timelinePage.panelIsDocked()).toBe(false);
+          await expect(timelinePage.panel).toHaveAttribute('aria-modal', 'true');
+          await expect(async () => {
+            const box = await timelinePage.panel.boundingBox();
+            // A bottom sheet: as wide as the screen and resting on its bottom edge
+            expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
+            expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
+          }).toPass();
+        };
+
+        await timelinePage.openTaskPanel(SCHEDULE_IDS.foundation);
+        await expectBottomSheet();
+        await timelinePage.closePanel();
+
+        // The same from the chart: a tap on a bar
+        await timelinePage.phoneViewChart.click();
+        await timelinePage.ganttBar(SCHEDULE_IDS.foundation).click();
+        await expect(timelinePage.panel).toContainText('Sched Foundation');
+        await expectBottomSheet();
+        expect(new URL(page.url()).pathname).toBe('/schedule/gantt');
+      } finally {
+        await timelinePage.unmockTimeline();
+      }
+    });
+  },
+);

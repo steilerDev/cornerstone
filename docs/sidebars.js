@@ -50,7 +50,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Timeline',
+      label: 'Schedule',
       link: { type: 'doc', id: 'guides/timeline/index' },
       items: [
         'guides/timeline/gantt-chart',

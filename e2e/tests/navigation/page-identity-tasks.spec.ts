@@ -47,6 +47,7 @@ import {
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
+import { CreateMenu } from '../../pages/components/CreateMenu.js';
 import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
 import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
@@ -445,16 +446,17 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
     }) => {
       const timeline = new TimelinePage(page);
       const bc = new BreadcrumbsBar(page);
-      const startPath = `${routeUrl('scheduleGantt')}?filter=work-items,household-items`;
+      // #2247: the Show selection is the `show` param (the legacy `filter` is converted)
+      const startPath = `${routeUrl('scheduleGantt')}?show=tasks,purchases`;
 
       await page.goto(startPath);
       await timeline.waitForLoaded();
       const before = locationOf(page);
-      expect(before.search.get('filter')).toBe('work-items,household-items');
+      expect(before.search.get('show')).toBe('tasks,purchases');
 
-      const row = timeline.ganttSidebarRow(seed.workItemId);
-      await row.waitFor({ state: 'visible' });
-      await row.click();
+      // A row opens the panel; "Open task" in it navigates (agenda row on a phone)
+      await timeline.openTaskPanel(seed.workItemId);
+      await timeline.openTaskPage();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('workItem', { id: seed.workItemId }),
@@ -465,8 +467,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       await bc.backLink.click();
       await expect(page).toHaveURL(
         (url) =>
-          url.pathname === before.pathname &&
-          url.searchParams.get('filter') === 'work-items,household-items',
+          url.pathname === before.pathname && url.searchParams.get('show') === 'tasks,purchases',
       );
       await expect(timeline.heading).toBeVisible();
     });
@@ -680,7 +681,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       expect(log.filter((entry) => entry.kind === 'replaceState').length).toBeGreaterThan(0);
     });
 
-    test('E8: toggling a Schedule entity filter replaces the URL and never pushes', async ({
+    test('E8: toggling a Schedule Show item replaces the URL and never pushes', async ({
       page,
     }) => {
       const timeline = new TimelinePage(page);
@@ -688,8 +689,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
 
       await page.goto(routeUrl('scheduleGantt'));
       await timeline.waitForLoaded();
-      await page.getByTestId('entity-filter-milestones').click();
-      await expect(page).toHaveURL((url) => url.searchParams.has('filter'));
+      await timeline.toggleShow('milestones');
+      await expect(page).toHaveURL((url) => url.searchParams.has('show'));
 
       const log = await readRouteLog(page);
       expect(log.filter((entry) => entry.kind === 'pushState')).toEqual([]);
@@ -775,8 +776,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       try {
         await page.goto(routeUrl('scheduleGantt'));
         await timeline.waitForLoaded();
-        await timeline.addButton.click();
-        await page.getByTestId('timeline-add-work-item').click();
+        // The Schedule has no Add menu of its own since #2247: the global New menu creates
+        await new CreateMenu(page).choose('task');
 
         // The dialog opens over the Schedule (which stays rendered behind it)
         await expect(createPage.heading).toBeVisible();

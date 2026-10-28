@@ -43,4 +43,4 @@ Dependencies are shown on the work item detail page in two sections:
 
 ## Dependencies on the Timeline
 
-Dependencies are also visualized on the [Gantt chart](/guides/timeline/gantt-chart) as arrows connecting work item bars. The arrow direction and attachment points reflect the dependency type. Hover over a bar to highlight all its connected arrows. The [scheduling engine](/guides/timeline/gantt-chart#auto-schedule) uses dependencies to calculate optimal dates automatically.
+Dependencies are also visualized on the [schedule chart](/guides/timeline/gantt-chart) as arrows connecting task bars. The arrow direction and attachment points reflect the dependency type. Hover over a bar to highlight all its connected arrows. The [scheduling engine](/guides/timeline/gantt-chart#auto-schedule) uses dependencies to calculate optimal dates automatically.
