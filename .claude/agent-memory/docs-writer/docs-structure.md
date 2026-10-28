@@ -50,3 +50,12 @@ Sidebar entries live in `sidebars.js`; keep it in sync when adding a page.
 - The old Budget Sources and Subsidies pages, their routes, and the "Budget > Reports" sidebar entry are gone. The bank report wizard has no sidebar entry; it opens from Financing, a loan card's ⋯ menu, or a funding source page.
 - Old screenshots `budget-sources-light.png` and `budget-subsidies-light.png` were removed with the old pages. The new pages use `:::info Screenshot needed` until the screenshot capture covers them.
 - "Discretionary Funding" is now "Own funds" (migration 0049). Docs use "Own funds" everywhere.
+
+## Object-list pages (#2246)
+
+- Purchases, Companies and Milestones lists run on the ObjectList template: chips, Filters, Group by, Sort, Columns, footer totals, rows load as you scroll. Page paging is gone.
+- The milestone slide-over panel is gone. Milestones live under Tasks in the sidebar; rows open the milestone page. Anchor `#milestone-panel` is removed (calendar-view and gantt-chart were fixed).
+- Purchase status words in the UI are Planned / Ordered / Delivery scheduled / Delivered (not the old Purchased / Scheduled / Arrived).
+- Household items guide is now titled Purchases (sidebar label too; URL slug `guides/household-items` kept). Form field label stays "Vendor" in the UI, so the bold label stays "Vendor" and prose says company.
+- Milestone detail page sections are **Linked Items** (contributing tasks) and **Dependent Work Items** (UI strings, not renamed).
+- Old screenshots `household-items-list-light.png` and `timeline-milestones-light.png` are unreferenced now.

@@ -881,16 +881,12 @@
     "list": {
       "newCompany": "Neue Firma",
       "trades": "Gewerke",
-      "allTrades": "Alle Gewerke",
       "tradeFilterLabel": "Gewerk",
-      "actionsFor": "Aktionen für {{name}}",
       "emptyTitle": "Noch keine Firmen",
       "emptyDescription": "Füge Firmen hinzu, mit denen du arbeitest. Danach kannst du sie mit zwei Tipps anrufen.",
       "loadError": "Firmen konnten nicht geladen werden. Versuche es erneut.",
       "deleteBlocked": "Diese Firma kann nicht gelöscht werden, solange Rechnungen oder Kostenpositionen sie verwenden. Entferne diese zuerst.",
-      "deleteFailed": "Die Firma konnte nicht gelöscht werden. Versuche es erneut.",
       "columns": {
-        "name": "Name",
         "trade": "Gewerk",
         "phone": "Telefon",
         "contactPersons": "Ansprechpartner",
@@ -904,7 +900,28 @@
         "offers": "Angebote"
       },
       "offersPaid": "{{amount}} bezahlt",
-      "noOffers": "Keine Angebote"
+      "noOffers": "Keine Angebote",
+      "search": "Firmen durchsuchen",
+      "resultCount_one": "{{count}} Firma",
+      "resultCount_other": "{{count}} Firmen",
+      "titleHeader": "Firma",
+      "noMatch": "Keine Firmen passen dazu.",
+      "moreTrades": "Weitere Gewerke",
+      "noTrade": "Kein Gewerk",
+      "groupBy": {
+        "trade": "Gewerk"
+      },
+      "sort": {
+        "name": "Name",
+        "trade": "Gewerk",
+        "stillToPay": "Noch zu zahlen",
+        "lastOnSite": "Zuletzt vor Ort",
+        "createdAt": "Hinzugefügt am",
+        "updatedAt": "Zuletzt aktualisiert"
+      },
+      "row": {
+        "open": "Öffnen"
+      }
     },
     "form": {
       "title": "Neue Firma",

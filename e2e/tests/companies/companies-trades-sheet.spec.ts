@@ -61,7 +61,7 @@ const hasTradesParam = (url: URL): boolean => url.searchParams.get('trades') ===
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Trades sheet - open and close (AC6)', { tag: '@responsive' }, () => {
-  test('T1: the Trades button opens it with focus in the New trade field; Escape, Done and Back close it', async ({
+  test('T1: ⋯ › Trades opens it with focus in the New trade field; Escape, Done and Back close it', async ({
     page,
   }) => {
     const list = new VendorsPage(page);
@@ -73,18 +73,18 @@ test.describe('Trades sheet - open and close (AC6)', { tag: '@responsive' }, () 
     await expect(page).toHaveURL(hasTradesParam);
     await expect(sheet.newInput).toBeFocused();
 
-    // Escape closes it and focus returns to the Trades button
+    // Escape closes it and focus returns to the page ⋯ menu (AC5)
     await page.keyboard.press('Escape');
     await sheet.waitForClosed();
     await expect(page).toHaveURL((url) => !url.searchParams.has('trades'));
-    await expect(list.tradesButton).toBeFocused();
+    await expect(list.pageMenuButton).toBeFocused();
 
     // Done does the same
     await list.openTrades();
     await sheet.doneButton.click();
     await sheet.waitForClosed();
     await expect(page).toHaveURL((url) => !url.searchParams.has('trades'));
-    await expect(list.tradesButton).toBeFocused();
+    await expect(list.pageMenuButton).toBeFocused();
 
     // Browser Back closes it too, and focus never falls to the body
     await list.openTrades();
@@ -227,8 +227,8 @@ test.describe('Trades sheet - add (AC6)', { tag: '@responsive' }, () => {
       await expect(sheet.newInput).toBeFocused();
       await expect(sheet.dialog.getByRole('status').first()).toContainText(`${name} added`);
 
-      // The chip row behind the sheet knows the new trade
-      await expect(page.getByTestId(`company-trade-${tradeId}`)).toHaveText(name);
+      // A trade without a company has no chip (#2246 D8: chips are the trades in use)
+      await expect(page.getByTestId(`companies-chip-${tradeId}`)).toHaveCount(0);
 
       // A duplicate name is a field error and keeps focus
       await sheet.addTrade(name);
@@ -262,9 +262,10 @@ test.describe('Trades sheet - rename (AC6)', { tag: '@responsive' }, () => {
       }
     });
     try {
-      await page.goto(tradesUrl());
+      // The selected trade always has a chip, even without a company
+      await page.goto(`${tradesUrl()}&tradeId=${tradeId}`);
       await sheet.waitForOpen();
-      await expect(page.getByTestId(`company-trade-${tradeId}`)).toHaveText(original);
+      await expect(page.getByTestId(`companies-chip-${tradeId}`)).toContainText(original);
 
       // Open the rename: prefilled with the current name and selected; no built-in hint here
       await sheet.chooseAction(original, 'Rename');
@@ -301,7 +302,7 @@ test.describe('Trades sheet - rename (AC6)', { tag: '@responsive' }, () => {
       await expect(sheet.row(renamed)).toBeVisible();
       await expect(sheet.row(original)).toHaveCount(0);
       await expect(sheet.rowActions(renamed)).toBeFocused();
-      await expect(page.getByTestId(`company-trade-${tradeId}`)).toHaveText(renamed);
+      await expect(page.getByTestId(`companies-chip-${tradeId}`)).toContainText(renamed);
       await expect(sheet.dialog.getByRole('status').first()).toContainText(`${renamed} renamed`);
       expect(patches).toHaveLength(1);
     } finally {
@@ -339,7 +340,12 @@ test.describe('Trades sheet - built-in trades (AC6, PLT-101)', () => {
 
     let session: LocaleSession | null = null;
     try {
-      session = await openAsLocaleUser(browser, page, testPrefix, tradesUrl());
+      session = await openAsLocaleUser(
+        browser,
+        page,
+        testPrefix,
+        `${tradesUrl()}&tradeId=${tradeId}`,
+      );
       const de = session.page;
       const sheet = new TradesSheet(de, 'Gewerke');
       await sheet.waitForOpen();
@@ -364,7 +370,7 @@ test.describe('Trades sheet - built-in trades (AC6, PLT-101)', () => {
       // The typed name shows, in German, instead of the translation
       await expect(heading.getByText(typed, { exact: true })).toBeVisible();
       await expect(heading.getByText('Erdarbeiten', { exact: true })).toHaveCount(0);
-      await expect(de.getByTestId(`company-trade-${tradeId}`)).toHaveText(typed);
+      await expect(de.getByTestId(`companies-chip-${tradeId}`)).toContainText(typed);
     } finally {
       if (session) await session.dispose();
       // Restore the English name (the translation key stays cleared; that is the feature)
@@ -410,7 +416,7 @@ test.describe('Trades sheet - delete (AC6)', { tag: '@responsive' }, () => {
       await sheet.chooseAction(name, 'Delete');
       await sheet.deleteDialog.confirmAndWaitClosed();
       await expect(sheet.row(name)).toHaveCount(0);
-      await expect(page.getByTestId(`company-trade-${tradeId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`companies-chip-${tradeId}`)).toHaveCount(0);
       // Focus went to a neighbouring row's ⋯ or the New trade field, never the body
       await expect
         .poll(() =>
@@ -535,7 +541,7 @@ test.describe('Trades sheet - merge duplicates (AC7)', { tag: '@responsive' }, (
       await page.goto(
         routeUrl('companies', undefined, { q: `${testPrefix} M`, tradeId: duplicateId }),
       );
-      await expect(page.getByTestId(`company-trade-${duplicateId}`)).toHaveAttribute(
+      await expect(page.getByTestId(`companies-chip-${duplicateId}`)).toHaveAttribute(
         'aria-pressed',
         'true',
       );
@@ -574,14 +580,23 @@ test.describe('Trades sheet - merge duplicates (AC7)', { tag: '@responsive' }, (
       await expect(sheet.row(keeper)).toContainText('3 companies');
       await expect(sheet.rowActions(keeper)).toBeFocused();
 
-      // The active chip fell back to "All trades"; the parameter is gone
-      await expect(page.getByTestId('company-trade-all')).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.getByTestId(`company-trade-${duplicateId}`)).toHaveCount(0);
-      await expect(page).toHaveURL((url) => !url.searchParams.has('tradeId'));
+      // As soon as the trades refetch returns, with the sheet still open, the active chip falls
+      // back to "All" and the list behind is no longer filtered by the merged trade
+      await expect(page.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId(`companies-chip-${duplicateId}`)).toHaveCount(0);
+      // (the reset writes an explicit `tradeId=all`)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
+      // The stayer (keeper trade) was outside the merged-trade filter and is listed now
+      await expect(list.row(stayer)).toBeVisible();
 
-      // Every former company of the duplicate now shows the keeper's trade
+      // Closing the sheet keeps it that way
       await sheet.doneButton.click();
       await sheet.waitForClosed();
+      await expect(page.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
+      // (the reset writes an explicit `tradeId=all`)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
+
+      // Every former company of the duplicate now shows the keeper's trade
       for (const name of [...movers, stayer]) {
         await expect(list.row(name)).toContainText(keeper);
       }
@@ -609,7 +624,7 @@ test.describe('Trades sheet - merge duplicates (AC7)', { tag: '@responsive' }, (
       await sheet.mergeDialog.confirmAndWaitClosed();
       await expect(sheet.row(empty)).toHaveCount(0);
       await expect(sheet.row(keeper)).toContainText('No companies');
-      await expect(list.tradesButton).toBeAttached();
+      await expect(list.pageMenuButton).toBeAttached();
     } finally {
       await cleanup(page, [], [emptyId, keeperId]);
     }

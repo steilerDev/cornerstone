@@ -15,7 +15,8 @@ import type {
   WorkItemDependentSummary,
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
-  MilestoneListResponse,
+  MilestoneListRowsResponse,
+  AttentionHoldsUp,
   MilestoneWorkItemLinkResponse,
   UserSummary,
   WorkItemSummary,
@@ -33,7 +34,15 @@ import {
   type DeletedMilestoneLinkSnapshot,
 } from './workItemMilestoneService.js';
 import { toWorkItemSummary } from './workItemService.js';
-import { autoReschedule, computeScheduleProjection } from './schedulingEngine.js';
+import {
+  autoReschedule,
+  computeScheduleProjection,
+  loadScheduleGraph,
+  projectSchedule,
+  todayUtc,
+  MILESTONE_NODE_PREFIX,
+} from './schedulingEngine.js';
+import { buildScheduleIndex, computeHoldsUp } from './shared/holdsUp.js';
 import type { ScheduleProjection } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
@@ -209,12 +218,33 @@ function validateDate(date: string | undefined, fieldContext: string): void {
 }
 
 /**
- * Get all milestones sorted by target_date ascending.
+ * Get all milestones sorted by target_date ascending, each with its projected date and the
+ * count of work held up (one schedule projection per request).
  */
-export function getAllMilestones(db: DbType): MilestoneListResponse {
+export function getAllMilestones(db: DbType): MilestoneListRowsResponse {
   const rows = db.select().from(milestones).orderBy(asc(milestones.targetDate)).all();
+  const today = todayUtc();
+  const graph = loadScheduleGraph(db);
+  const projection = projectSchedule(graph, today);
+  const index = buildScheduleIndex(graph);
   return {
-    milestones: rows.map((m) => toMilestoneSummary(db, m)),
+    milestones: rows.map((m) => {
+      let holdsUp: AttentionHoldsUp | null = null;
+      if (!m.isCompleted) {
+        const { count, startingWithin14Days } = computeHoldsUp(
+          index,
+          `${MILESTONE_NODE_PREFIX}${m.id}`,
+          { today, projection },
+        );
+        if (count > 0) holdsUp = { count, startingWithin14Days };
+      }
+      return {
+        ...toMilestoneSummary(db, m),
+        // The projection holds every milestone row (it is built from the same request's graph)
+        projectedDate: projection.milestones.get(m.id)!.projectedDate,
+        holdsUp,
+      };
+    }),
   };
 }
 

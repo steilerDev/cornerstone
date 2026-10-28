@@ -4,6 +4,8 @@ import type {
   MilestoneSummary,
   MilestoneDetail,
   MilestoneListResponse,
+  MilestoneListRow,
+  MilestoneListRowsResponse,
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
   LinkWorkItemRequest,
@@ -16,6 +18,14 @@ import type {
  */
 export function listMilestones(): Promise<MilestoneSummary[]> {
   return get<MilestoneListResponse>('/milestones').then((r) => r.milestones);
+}
+
+/**
+ * Fetches every milestone as a list row: the summary plus the projected date and the Holds up
+ * count (same endpoint as `listMilestones`, typed rows).
+ */
+export function listMilestoneRows(): Promise<MilestoneListRow[]> {
+  return get<MilestoneListRowsResponse>('/milestones').then((r) => r.milestones);
 }
 
 /**

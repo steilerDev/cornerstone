@@ -983,13 +983,13 @@ test.describe('Companies list - Still to pay and Offers (AC6)', { tag: '@respons
     await expect(list.row(withMoney)).toBeVisible();
     await expect(list.stillToPay(moneyId)).toContainText(amount('600.00'));
     await expect(list.stillToPay(moneyId)).toHaveAttribute('data-figure', 'still-to-pay');
-    await expect(list.row(withMoney)).toContainText(amount('1,200.00'));
-    await expect(list.row(withMoney)).toContainText('paid');
-    await expect(list.row(bare)).toContainText('No offers');
-
-    if ((await page.viewportSize())!.width >= 768) {
-      await expect(list.tableContainer.locator('thead th')).toHaveText([
-        /^Name/,
+    // Offers is a table column; the phone card shows Trade, Still to pay and Call
+    if (await list.isTableSurface()) {
+      await expect(list.row(withMoney)).toContainText(amount('1,200.00'));
+      await expect(list.row(withMoney)).toContainText('paid');
+      await expect(list.row(bare)).toContainText('No offers');
+      await expect(list.tableHeaders).toHaveText([
+        /^Company/,
         /^Trade/,
         /^Phone/,
         /^Still to pay/,
@@ -1046,7 +1046,7 @@ test.describe('Companies list - Still to pay and Offers (AC6)', { tag: '@respons
   });
 
   test('L3: clicking the Still to pay header sorts and toggles', async ({ page, testPrefix }) => {
-    test.skip((page.viewportSize()?.width ?? 1440) < 768, 'the table header exists from 768px');
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'the table shows from 1024px');
     const list = new VendorsPage(page);
     const lowId = await createCompany(page, { name: `${testPrefix} Header Low Ltd` });
     await createCompany(page, { name: `${testPrefix} Header Zero Ltd` });
@@ -1059,10 +1059,10 @@ test.describe('Companies list - Still to pay and Offers (AC6)', { tag: '@respons
     await list.goto({ q: `${testPrefix} Header` });
     const header = list.columnHeader(/^Still to pay/);
     await expect(header).toHaveAttribute('aria-sort', 'none');
-    await header.click();
+    await header.getByRole('button').click();
     await expect(header).toHaveAttribute('aria-sort', 'ascending');
     await expect(page).toHaveURL((url) => url.searchParams.get('sortBy') === 'still_to_pay');
-    await header.click();
+    await header.getByRole('button').click();
     await expect(header).toHaveAttribute('aria-sort', 'descending');
     await expect(page).toHaveURL((url) => url.searchParams.get('sortOrder') === 'desc');
     // The Offers column is not sortable

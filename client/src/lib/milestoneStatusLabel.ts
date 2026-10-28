@@ -1,4 +1,5 @@
 import type { MilestoneDisplayStatus } from '@cornerstone/shared';
+import type { BadgeVariantMap } from '../components/Badge/Badge.js';
 import { I18N_UNION_KEYS } from '../i18n/unionKeys.js';
 
 /** Minimal t() shape bound to (or accepting) the common namespace. */
@@ -37,4 +38,23 @@ export function milestoneStatusLabel(tCommon: MilestoneLabelT, milestone: Milest
   const { status, days } = milestoneDisplayStatus(milestone);
   const set = I18N_UNION_KEYS.statusVocabularyMilestone;
   return tCommon(set.key(status), { ns: set.ns, days });
+}
+
+/**
+ * Badge props of a milestone: the display status as the value, with that status's label replaced
+ * by the full word (late and early carry the day count).
+ */
+export function milestoneBadgeProps(
+  variants: BadgeVariantMap,
+  tCommon: MilestoneLabelT,
+  milestone: MilestoneLabelInput,
+): { variants: BadgeVariantMap; value: MilestoneDisplayStatus } {
+  const { status } = milestoneDisplayStatus(milestone);
+  return {
+    variants: {
+      ...variants,
+      [status]: { ...variants[status]!, label: milestoneStatusLabel(tCommon, milestone) },
+    },
+    value: status,
+  };
 }

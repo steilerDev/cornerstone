@@ -1,6 +1,11 @@
 import { describe, it, expect } from '@jest/globals';
 import enCommon from '../i18n/en/common.json';
-import { milestoneDisplayStatus, milestoneStatusLabel } from './milestoneStatusLabel.js';
+import {
+  milestoneBadgeProps,
+  milestoneDisplayStatus,
+  milestoneStatusLabel,
+} from './milestoneStatusLabel.js';
+import type { BadgeVariantMap } from '../components/Badge/Badge.js';
 import type { MilestoneLabelT } from './milestoneStatusLabel.js';
 
 /** Real-resource t(): resolves the key in en common and interpolates {{days}}. */
@@ -105,6 +110,53 @@ describe('milestoneStatusLabel', () => {
         targetDate: '2026-03-10',
         projectedDate: '2026-03-08',
       }),
+    ).toBe('Early · 2 d');
+  });
+});
+
+describe('milestoneBadgeProps', () => {
+  const variants = {
+    upcoming: { label: 'Upcoming', className: 'u' },
+    late: { label: 'Late', className: 'l' },
+    early: { label: 'Early', className: 'e' },
+    reached: { label: 'Reached', className: 'r' },
+  } as unknown as BadgeVariantMap;
+
+  it('uses the display status as the value, with the full word as that status label', () => {
+    const props = milestoneBadgeProps(variants, t, {
+      isCompleted: false,
+      targetDate: '2026-03-01',
+      projectedDate: '2026-03-04',
+    });
+
+    expect(props.value).toBe('late');
+    expect(props.variants.late).toEqual({ label: 'Late · 3 d', className: 'l' });
+  });
+
+  it('leaves the other statuses as they were, and the input untouched', () => {
+    const props = milestoneBadgeProps(variants, t, {
+      isCompleted: true,
+      targetDate: '2026-03-01',
+      projectedDate: null,
+    });
+
+    expect(props.value).toBe('reached');
+    expect(props.variants.late).toBe(variants.late);
+    expect(props.variants.upcoming).toBe(variants.upcoming);
+    expect(variants.reached).toEqual({ label: 'Reached', className: 'r' });
+  });
+
+  it('says Upcoming and Early with their words', () => {
+    expect(
+      milestoneBadgeProps(variants, t, { isCompleted: false, targetDate: '2026-03-01' }).variants
+        .upcoming!.label,
+    ).toBe('Upcoming');
+    expect(
+      milestoneBadgeProps(variants, t, {
+        isCompleted: false,
+        targetDate: '2026-03-10',
+        projectedDate: '2026-03-08',
+      }).variants.early!.label,
     ).toBe('Early · 2 d');
   });
 });

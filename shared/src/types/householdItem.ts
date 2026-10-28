@@ -256,6 +256,23 @@ export interface UpdateHouseholdItemRequest {
   actualDeliveryDate?: string | null;
 }
 
+/** Sort keys of GET /api/household-items (`delivery` = actual ?? target delivery date). */
+export const HOUSEHOLD_ITEM_LIST_SORTS = [
+  'name',
+  'category',
+  'status',
+  'order_date',
+  'target_delivery_date',
+  'actual_delivery_date',
+  'delivery',
+  'expected_cost',
+  'invoiced',
+  'created_at',
+  'updated_at',
+] as const;
+
+export type HouseholdItemListSort = (typeof HOUSEHOLD_ITEM_LIST_SORTS)[number];
+
 /**
  * Query parameters for GET /api/household-items.
  */
@@ -280,19 +297,55 @@ export interface HouseholdItemListQuery {
   actualCostMax?: number;
   budgetLinesMin?: number;
   budgetLinesMax?: number;
-  sortBy?:
-    | 'name'
-    | 'category'
-    | 'status'
-    | 'order_date'
-    | 'target_delivery_date'
-    | 'created_at'
-    | 'updated_at';
+  sortBy?: HouseholdItemListSort;
+  /** Group by status: rows ordered by status rank first, `groupCounts` returned. */
+  group?: 'status';
+  expectedCostMin?: number;
+  expectedCostMax?: number;
+  grantsMin?: number;
+  grantsMax?: number;
+  afterGrantsMin?: number;
+  afterGrantsMax?: number;
+  /** YYYY-MM-DD, inclusive. */
+  targetDeliveryFrom?: string;
+  targetDeliveryTo?: string;
+  actualDeliveryFrom?: string;
+  actualDeliveryTo?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
+/** A Purchases list row (#2246): the summary plus the money engine's figures. */
+export interface HouseholdItemListRow extends HouseholdItemSummary {
+  grants: ItemGrantChip[];
+  /** Money engine expected cost (major units); null when the purchase has no cost lines. */
+  expectedCost: number | null;
+  /** expectedCost − budgetSummary.subsidyReduction; null when expectedCost is null. */
+  afterGrants: number | null;
+  /** Paid (ADR-039 attribution, money service). */
+  paid: number;
+}
+
+export interface HouseholdItemListTotals {
+  expectedCost: number;
+  invoiced: number;
+  paid: number;
+}
+
+/** Response for GET /api/household-items. */
+export interface HouseholdItemListRowsResponse {
+  items: HouseholdItemListRow[];
+  pagination: PaginationMeta;
+  /** Only with group=status: all four statuses, rows matching the query. */
+  groupCounts?: Record<HouseholdItemStatus, number>;
+  /** Rows matching only `status` (the chip): the heading's "of m". */
+  scopeTotal: number;
+  /** Over every row matching the query (not just the page). Invoiced = Σ budgetSummary.totalActual. */
+  totals: HouseholdItemListTotals;
+}
+
 /**
- * Response for GET /api/household-items (paginated list with filter metadata).
+ * Legacy list response shape (paginated list with filter metadata); `filterMeta` is no longer
+ * sent by GET /api/household-items.
  */
 export interface HouseholdItemListResponse {
   items: HouseholdItemSummary[];

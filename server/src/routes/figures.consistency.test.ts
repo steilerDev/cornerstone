@@ -30,6 +30,9 @@ import type {
   AttentionResponse,
   TimelineResponse,
   WorkItemListRowsResponse,
+  HouseholdItemListRowsResponse,
+  MilestoneListRowsResponse,
+  BudgetBreakdownResponse,
 } from '@cornerstone/shared';
 
 const NOW = '2026-03-10T09:00:00.000Z';
@@ -267,6 +270,119 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
       expect(checked).toContain('wi-a');
       // the group row's members are checked one by one
       expect(checked).toEqual(expect.arrayContaining(['wi-g1', 'wi-g2', 'wi-g3', 'wi-g4']));
+    });
+  });
+
+  describe('the Purchases list (#2246)', () => {
+    beforeEach(() => {
+      const hi = (id: string, name: string) =>
+        app.db
+          .insert(schema.householdItems)
+          .values({ id, name, categoryId: 'hic-furniture', ...ts })
+          .run();
+      hi('hi-1', 'Sofa');
+      hi('hi-2', 'Oven');
+      hi('hi-3', 'Lamp without cost lines');
+      app.db
+        .insert(schema.vendors)
+        .values({ id: 'ven-1', name: 'Company One', ...ts })
+        .run();
+      const line = (id: string, householdItemId: string, plannedAmount: number, c: string) =>
+        app.db
+          .insert(schema.householdItemBudgets)
+          .values({
+            id,
+            householdItemId,
+            plannedAmount,
+            confidence: c as 'own_estimate',
+            includesVat: true,
+            ...ts,
+          })
+          .run();
+      line('hl-1', 'hi-1', 300, 'own_estimate');
+      line('hl-2', 'hi-2', 200, 'invoice');
+      app.db
+        .insert(schema.invoices)
+        .values({
+          id: 'inv-1',
+          vendorId: 'ven-1',
+          amount: 100,
+          status: 'paid',
+          date: '2026-02-01',
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id: 'ibl-1',
+          invoiceId: 'inv-1',
+          householdItemBudgetId: 'hl-2',
+          itemizedAmount: 100,
+          ...ts,
+        })
+        .run();
+    });
+
+    const listRows = () =>
+      getJson<HouseholdItemListRowsResponse>('/api/household-items?pageSize=100');
+
+    it('lists a purchase without cost lines (expected cost not set) instead of failing', async () => {
+      const list = await listRows();
+      const row = list.items.find((i) => i.id === 'hi-3')!;
+
+      expect(list.items).toHaveLength(3);
+      expect(row.expectedCost).toBeNull();
+      expect(row.paid).toBe(0);
+    });
+
+    it('the unfiltered footer Expected cost equals the engine household_items expected cost', async () => {
+      const list = await listRows();
+      const { breakdown } = await getJson<BudgetBreakdownResponse>('/api/budget/breakdown');
+
+      expect(list.totals.expectedCost).toBeGreaterThan(0);
+      expect(list.totals.expectedCost).toBe(breakdown.byType.household_items.expectedCost.expected);
+    });
+
+    it('the unfiltered footer Paid equals the sum of Paid over Money > Overview purchase rows', async () => {
+      const list = await listRows();
+      const { breakdown } = await getJson<BudgetBreakdownResponse>('/api/budget/breakdown');
+      const purchaseRows = breakdown.items.filter((i) => i.kind === 'household_item');
+      const paidByRow = new Map(purchaseRows.map((i) => [i.id, i.figures.paid]));
+
+      expect(list.totals.paid).toBe(100);
+      expect(list.totals.paid).toBe(purchaseRows.reduce((sum, i) => sum + i.figures.paid, 0));
+      for (const row of list.items) expect(row.paid).toBe(paidByRow.get(row.id) ?? 0);
+    });
+
+    it('each footer value is the sum of the rows, also when filtered', async () => {
+      for (const url of [
+        '/api/household-items?pageSize=100',
+        '/api/household-items?pageSize=100&expectedCostMin=250',
+      ]) {
+        const list = await getJson<HouseholdItemListRowsResponse>(url);
+        const sum = (pick: (r: (typeof list.items)[number]) => number) =>
+          list.items.reduce((total, r) => total + pick(r), 0);
+
+        expect(list.totals).toEqual({
+          expectedCost: sum((r) => r.expectedCost ?? 0),
+          invoiced: sum((r) => r.budgetSummary.totalActual),
+          paid: sum((r) => r.paid),
+        });
+      }
+    });
+  });
+
+  describe('the Milestones list (#2246)', () => {
+    it('a list row holdsUp equals the timeline holdsUp (null when nothing waits), projectedDate the projection', async () => {
+      const { milestones } = await getJson<MilestoneListRowsResponse>('/api/milestones');
+      const timeline = await getJson<TimelineResponse>('/api/timeline');
+      const projection = computeScheduleProjection(app.db);
+      const row = milestones.find((m) => m.id === milestoneId)!;
+
+      expect(row.holdsUp).toEqual(timeline.holdsUp!.milestones[String(milestoneId)]);
+      expect(row.holdsUp).toEqual({ count: 1, startingWithin14Days: 1 });
+      expect(row.projectedDate).toBe(projection.milestones.get(milestoneId)!.projectedDate);
     });
   });
 });

@@ -4,10 +4,58 @@ import type {
   HouseholdItemDetail,
   HouseholdItemListQuery,
   HouseholdItemListResponse,
+  HouseholdItemListRowsResponse,
   HouseholdItemResponse,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
 } from '@cornerstone/shared';
+
+const STRING_PARAMS = [
+  'q',
+  'category',
+  'status',
+  'vendorId',
+  'areaId',
+  'sortBy',
+  'sortOrder',
+  'group',
+  'targetDeliveryFrom',
+  'targetDeliveryTo',
+  'actualDeliveryFrom',
+  'actualDeliveryTo',
+] as const satisfies readonly (keyof HouseholdItemListQuery)[];
+
+const NUMBER_PARAMS = [
+  'page',
+  'pageSize',
+  'plannedCostMin',
+  'plannedCostMax',
+  'actualCostMin',
+  'actualCostMax',
+  'budgetLinesMin',
+  'budgetLinesMax',
+  'expectedCostMin',
+  'expectedCostMax',
+  'grantsMin',
+  'grantsMax',
+  'afterGrantsMin',
+  'afterGrantsMax',
+] as const satisfies readonly (keyof HouseholdItemListQuery)[];
+
+/** The request path of GET /api/household-items for every HouseholdItemListQuery field. */
+function listPath(params?: HouseholdItemListQuery): string {
+  const queryParams = new URLSearchParams();
+  for (const key of STRING_PARAMS) {
+    const value = params?.[key];
+    if (value) queryParams.set(key, value);
+  }
+  for (const key of NUMBER_PARAMS) {
+    const value = params?.[key];
+    if (value !== undefined) queryParams.set(key, value.toString());
+  }
+  const queryString = queryParams.toString();
+  return queryString ? `/household-items?${queryString}` : '/household-items';
+}
 
 /**
  * Fetches a paginated list of household items with optional search and filtering.
@@ -16,58 +64,18 @@ export function listHouseholdItems(
   params?: HouseholdItemListQuery,
   options?: RequestOptions,
 ): Promise<HouseholdItemListResponse> {
-  const queryParams = new URLSearchParams();
+  return get<HouseholdItemListResponse>(listPath(params), options);
+}
 
-  if (params?.page !== undefined) {
-    queryParams.set('page', params.page.toString());
-  }
-  if (params?.pageSize !== undefined) {
-    queryParams.set('pageSize', params.pageSize.toString());
-  }
-  if (params?.q) {
-    queryParams.set('q', params.q);
-  }
-  if (params?.category) {
-    queryParams.set('category', params.category);
-  }
-  if (params?.status) {
-    queryParams.set('status', params.status);
-  }
-  if (params?.vendorId) {
-    queryParams.set('vendorId', params.vendorId);
-  }
-  if (params?.areaId) {
-    queryParams.set('areaId', params.areaId);
-  }
-  if (params?.plannedCostMin !== undefined) {
-    queryParams.set('plannedCostMin', params.plannedCostMin.toString());
-  }
-  if (params?.plannedCostMax !== undefined) {
-    queryParams.set('plannedCostMax', params.plannedCostMax.toString());
-  }
-  if (params?.actualCostMin !== undefined) {
-    queryParams.set('actualCostMin', params.actualCostMin.toString());
-  }
-  if (params?.actualCostMax !== undefined) {
-    queryParams.set('actualCostMax', params.actualCostMax.toString());
-  }
-  if (params?.budgetLinesMin !== undefined) {
-    queryParams.set('budgetLinesMin', params.budgetLinesMin.toString());
-  }
-  if (params?.budgetLinesMax !== undefined) {
-    queryParams.set('budgetLinesMax', params.budgetLinesMax.toString());
-  }
-  if (params?.sortBy) {
-    queryParams.set('sortBy', params.sortBy);
-  }
-  if (params?.sortOrder) {
-    queryParams.set('sortOrder', params.sortOrder);
-  }
-
-  const queryString = queryParams.toString();
-  const path = queryString ? `/household-items?${queryString}` : '/household-items';
-
-  return get<HouseholdItemListResponse>(path, options);
+/**
+ * Fetches the Purchases list rows: the engine's Expected cost and Paid per row, the status group
+ * counts (group=status), the scope total and the totals over every row matching the query.
+ */
+export function listHouseholdItemRows(
+  params?: HouseholdItemListQuery,
+  options?: RequestOptions,
+): Promise<HouseholdItemListRowsResponse> {
+  return get<HouseholdItemListRowsResponse>(listPath(params), options);
 }
 
 /**

@@ -1,530 +1,150 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
-import { useOpenCreate } from '../../navigation/useOpenCreate.js';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
-import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
-import { DataTable } from '../../components/DataTable/DataTable.js';
-import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
-import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
+import type { HouseholdItemListRow } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { ObjectList } from '../../components/ObjectList/ObjectList.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { focusPageHeading } from '../../lib/focusPageHeading.js';
-import { Badge } from '../../components/Badge/Badge.js';
-import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { useTableState } from '../../hooks/useTableState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { useListRowDelete } from '../../hooks/useListRowDelete.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
-import { searchCompanies } from '../../lib/vendorsApi.js';
-import { useCompanyName } from '../../hooks/useCompanyName.js';
-import type { CompanyOption } from '../../objectForms/companyForm.js';
-import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { useAreas } from '../../hooks/useAreas.js';
-import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
-import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { GrantChips } from '../../components/Badge/GrantChips.js';
-import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
-import sharedStyles from '../../styles/shared.module.css';
+import { deleteHouseholdItem } from '../../lib/householdItemsApi.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
+import shared from '../../styles/shared.module.css';
+import { usePurchaseCategories } from './PurchaseListFilters.js';
+import { usePurchaseRows } from './usePurchaseRows.js';
+import { usePurchasesList } from './usePurchasesList.js';
+import type { PurchaseListMeta } from './usePurchasesList.js';
 import styles from './HouseholdItemsPage.module.css';
 
+/** Purchases: the list with Status / Area / Company grouping, filters, row menu and totals footer. */
 export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
-  const { t: tSettings } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
-  const { t: tErrors } = useTranslation('errors');
+  const { formatCurrency } = useFormatters();
   useDocumentTitle(tCommon('navigation.purchases'));
-  const navigate = useNavigate();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const openCreate = useOpenCreate();
-  const listShortcuts = useMemo(
+
+  const categories = usePurchaseCategories();
+  const { list, config, labels, scopeTotal } = usePurchasesList(categories);
+  const { refresh, meta } = list;
+  useOnObjectCreated('purchase', refresh);
+
+  // `n` creates like the primary button (read at press time).
+  const createRef = useRef(openCreate);
+  useEffect(() => {
+    createRef.current = openCreate;
+  });
+  const shortcuts = useMemo(
     () => [
       {
         key: 'n',
-        handler: () => openCreate('purchase'),
+        handler: () => createRef.current('purchase'),
         description: tCommon('listShortcuts.newPurchase'),
       },
     ],
-    [openCreate, tCommon],
+    [tCommon],
   );
-  useKeyboardShortcuts(listShortcuts);
-  const { formatCurrency, formatDate } = useFormatters();
-  const { areas } = useAreas();
+  useKeyboardShortcuts(shortcuts);
 
-  // Data state
-  const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
-  const [categories, setCategories] = useState<
-    Array<{ id: string; name: string; translationKey: string | null }>
-  >([]);
-  const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-
-  // Table state management with URL sync
-  const { tableState, toApiParams, setFilter } = useTableState({
-    defaultPageSize: 25,
+  const { request, deletion } = useListRowDelete<HouseholdItemListRow>({
+    remove: (item) => deleteHouseholdItem(item.id),
+    onDeleted: refresh,
   });
-  const companyFilterId = tableState.filters.get('vendorId')?.value ?? '';
-  // A company id that no longer exists (link, reload, old multi-select value) is dropped.
-  const companyFilter = useCompanyName(companyFilterId, {
-    onUnknown: () => setFilter('vendorId', null),
-  });
-  const [searchParams, setSearchParams] = useSearchParams();
+  const rows = usePurchaseRows({ categories, requestDelete: request });
+  const deleteConsequences = useDeleteImpact('household_item', deletion.item?.id ?? null);
 
-  // Delete confirmation state
-  const [deletingItem, setDeletingItem] = useState<HouseholdItemSummary | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string>('');
-  const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('household_item', deletingItem?.id ?? null);
-
-  // Actions menu state
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-
-  // Load categories on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const categoriesResponse = await fetchHouseholdItemCategories();
-        setCategories(
-          categoriesResponse.categories.map((c) => ({
-            id: c.id,
-            name: c.name,
-            translationKey: c.translationKey,
-          })),
-        );
-      } catch (err) {
-        console.error('Failed to load categories:', err);
-      }
-    };
-    loadData();
-  }, []);
-
-  // Load household items when table state changes
-  useEffect(() => {
-    void loadHouseholdItems();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadHouseholdItems is defined in component body; effect re-runs on intended trigger only
-  }, [
-    tableState.search,
-    tableState.sortBy,
-    tableState.sortDir,
-    tableState.page,
-    tableState.pageSize,
-    tableState.filters,
-  ]);
-
-  const loadHouseholdItems = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const response = await listHouseholdItems(toApiParams() as HouseholdItemListQuery);
-      setHouseholdItems(response.items);
-      setFilterMeta(response.filterMeta ?? {});
-      setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.totalItems);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(translateApiError(err.error.code, tErrors));
-      } else if (err instanceof NetworkError) {
-        setError(tCommon('requestErrors.network'));
-      } else {
-        setError(t('error'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleStateChange = (newState: TableState) => {
-    const params = new URLSearchParams(searchParams);
-    if (newState.search) {
-      params.set('q', newState.search);
-    } else {
-      params.delete('q');
-    }
-    if (newState.sortBy) {
-      params.set('sortBy', newState.sortBy);
-      params.set('sortOrder', newState.sortDir ?? 'asc');
-    } else {
-      params.delete('sortBy');
-      params.delete('sortOrder');
-    }
-    params.set('page', String(newState.page));
-    params.set('pageSize', String(newState.pageSize));
-
-    // Delete all known filter param keys first
-    const knownFilterKeys = [
-      'category',
-      'status',
-      'vendorId',
-      'areaId',
-      'targetDelivery',
-      'actualDelivery',
-      'plannedCost',
-      'actualCost',
-      'budgetLines',
-    ];
-    for (const key of knownFilterKeys) {
-      params.delete(key);
-    }
-
-    // Sync filters
-    for (const [paramKey, filter] of newState.filters.entries()) {
-      if (filter.value) {
-        params.set(paramKey, filter.value);
-      }
-    }
-
-    setSearchParams(params, { replace: true });
-  };
-
-  const openDeleteConfirm = (item: HouseholdItemSummary) => {
-    setDeletingItem(item);
-    setDeleteError('');
-    setDeleteBlocked(false);
-  };
-
-  const closeDeleteConfirm = () => {
-    if (!isDeleting) {
-      setDeletingItem(null);
-      setDeleteError('');
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingItem) return;
-
-    setIsDeleting(true);
-    setDeleteError('');
-
-    try {
-      await deleteHouseholdItem(deletingItem.id);
-      focusPageHeading();
-      setDeletingItem(null);
-      await loadHouseholdItems();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setDeleteBlocked(err.statusCode === 409);
-        setDeleteError(translateApiError(err.error.code, tErrors));
-      } else if (err instanceof NetworkError) {
-        setDeleteError(tCommon('requestErrors.network'));
-      } else {
-        setDeleteError(t('deleteError'));
-      }
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Canonical purchase status chips (common:statusVocabulary.purchase)
-  const statusVariants = useStatusBadgeVariants();
-
-  // Column definitions
-  const columns = useMemo(
-    (): ColumnDef<HouseholdItemSummary>[] => [
-      {
-        key: 'name',
-        label: t('table.headers.name')!,
-        sortable: true,
-        sortKey: 'name',
-        defaultVisible: true,
-        render: (item, surface) => (
-          <div className={styles.titleCell}>
-            <Link to={routeUrl('householdItem', { id: item.id })} className={styles.itemLink}>
-              {item.name}
-            </Link>
-            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
-            <GrantChips
-              grants={item.grants}
-              testId={dataTableTestId('household-item-grants', item.id, surface)}
-            />
-          </div>
-        ),
-      },
-      {
-        key: 'category',
-        label: t('table.headers.category')!,
-        sortable: true,
-        sortKey: 'category',
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'enum',
-        filterParamKey: 'category',
-        enumOptions: categories.map((c) => ({
-          value: c.id,
-          label: getCategoryDisplayName(tSettings, c.name, c.translationKey),
-        })),
-        render: (item) => {
-          const cat = categories.find((c) => c.id === item.category);
-          return cat
-            ? getCategoryDisplayName(tSettings, cat.name, cat.translationKey)
-            : item.category;
-        },
-      },
-      {
-        key: 'status',
-        label: t('table.headers.status')!,
-        sortable: true,
-        sortKey: 'status',
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'enum',
-        filterParamKey: 'status',
-        enumOptions: HOUSEHOLD_ITEM_STATUSES.map((status) => ({
-          value: status,
-          label: statusVariants.purchase[status].label,
-        })),
-        render: (item) => <Badge variants={statusVariants.purchase} value={item.status} />,
-      },
-      {
-        key: 'area',
-        label: t('table.headers.area')!,
-        sortable: false,
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'enum',
-        filterParamKey: 'areaId',
-        enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
-        enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
-        enumIncludeNone: true,
-        enumNoneLabel: tCommon('noArea'),
-        enumNoneDescription: tCommon('noAreaDescription'),
-        render: (item) => item.area?.name || '—',
-      },
-      {
-        key: 'vendor',
-        label: t('table.headers.vendor')!,
-        sortable: false,
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'entity',
-        filterParamKey: 'vendorId',
-        entitySearchFn: (q, _excluded, signal) => searchCompanies(q, signal),
-        entityRenderItem: (item) => {
-          const v = item as CompanyOption;
-          return { id: v.id, label: v.name };
-        },
-        entitySelectedLabel: companyFilter.name,
-        render: (item) => item.vendor?.name || '—',
-      },
-      {
-        key: 'plannedCost',
-        label: t('table.headers.plannedCost')!,
-        sortable: false,
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'plannedCost',
-        numberMin: 0,
-        numberStep: 0.01,
-        render: (item) => formatCurrency(item.totalPlannedAmount),
-      },
-      {
-        key: 'targetDelivery',
-        label: t('table.headers.targetDelivery')!,
-        sortable: true,
-        sortKey: 'target_delivery_date',
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'date',
-        filterParamKey: 'targetDelivery',
-        render: (item) => formatDate(item.targetDeliveryDate),
-      },
-      {
-        key: 'actualDelivery',
-        label: t('table.headers.actualDelivery')!,
-        sortable: true,
-        sortKey: 'actual_delivery_date',
-        defaultVisible: false,
-        filterable: true,
-        filterType: 'date',
-        filterParamKey: 'actualDelivery',
-        render: (item) => (item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '—'),
-      },
-      {
-        key: 'actualCost',
-        label: t('table.headers.actualCost')!,
-        sortable: false,
-        defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'actualCost',
-        numberMin: 0,
-        numberStep: 0.01,
-        render: (item) => formatCurrency(item.budgetSummary?.totalActual ?? 0),
-      },
-      {
-        key: 'subsidyReduction',
-        label: t('table.headers.subsidyReduction')!,
-        sortable: false,
-        defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        getValue: (item) => item.budgetSummary?.subsidyReduction ?? 0,
-        numberMin: 0,
-        numberStep: 0.01,
-        render: (item) => formatCurrency(item.budgetSummary?.subsidyReduction ?? 0),
-      },
-      {
-        key: 'netCost',
-        label: t('table.headers.netCost')!,
-        sortable: false,
-        defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        getValue: (item) => item.budgetSummary?.netCost ?? 0,
-        numberMin: 0,
-        numberStep: 0.01,
-        render: (item) => formatCurrency(item.budgetSummary?.netCost ?? 0),
-      },
-      {
-        key: 'orderDate',
-        label: t('table.headers.orderDate')!,
-        sortable: true,
-        sortKey: 'order_date',
-        defaultVisible: false,
-        render: (item) => (item.orderDate ? formatDate(item.orderDate) : '—'),
-      },
-      {
-        key: 'budgetLines',
-        label: t('table.headers.budgetLines')!,
-        sortable: false,
-        defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'budgetLines',
-        numberMin: 0,
-        numberStep: 1,
-        render: (item) => item.budgetLineCount,
-      },
-    ],
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- tSettings is a stable i18n function
-    [t, tCommon, categories, formatCurrency, formatDate, statusVariants, companyFilter.name, areas],
-  );
-
-  // Close action menu on outside click and Escape key
-  useEffect(() => {
-    if (!activeMenuId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(`.${styles.actionsMenu}`)) {
-        setActiveMenuId(null);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [activeMenuId]);
-
-  // Render actions menu
-  const renderActions = (item: HouseholdItemSummary, surface: DataTableSurface) => (
-    <div className={styles.actionsMenu}>
-      <button
-        type="button"
-        className={styles.menuButton}
-        onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-        aria-label={t('menu.actions', { name: item.name })}
-        data-testid={dataTableTestId('hi-menu-button', item.id, surface)}
+  const narrowed = list.filtersActive || list.query.chip !== 'all';
+  const summary =
+    meta && list.totalItems !== null && list.totalItems > 0 ? (
+      <div
+        className={shared.listFooter}
+        role="group"
+        aria-label={narrowed ? t('list.footer.labelFiltered') : t('list.footer.label')}
+        data-testid="purchases-footer"
       >
-        ⋮
-      </button>
-      {activeMenuId === item.id && (
-        <div className={styles.menuDropdown}>
-          <button
-            type="button"
-            className={styles.menuItem}
-            onClick={() => {
-              navigate(routeUrl('householdItem', { id: item.id }));
-              setActiveMenuId(null);
-            }}
-            data-testid={dataTableTestId('hi-view', item.id, surface)}
-          >
-            {t('menu.edit')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.menuItemDanger}`}
-            onClick={() => {
-              openDeleteConfirm(item);
-              setActiveMenuId(null);
-            }}
-            data-testid={dataTableTestId('hi-delete', item.id, surface)}
-          >
-            {t('menu.delete')}
-          </button>
+        <div className={styles.totals}>
+          <TotalsFigure
+            label={t('list.footer.expectedCost')}
+            value={formatCurrency(meta.totals.expectedCost)}
+            testId="purchases-footer-expected"
+          />
+          <span className={styles.separator} aria-hidden="true">
+            ·
+          </span>
+          <TotalsFigure
+            label={t('list.footer.invoiced')}
+            value={formatCurrency(meta.totals.invoiced)}
+            testId="purchases-footer-invoiced"
+          />
+          <span className={styles.separator} aria-hidden="true">
+            ·
+          </span>
+          <TotalsFigure
+            label={t('list.footer.paid')}
+            value={formatCurrency(meta.totals.paid)}
+            testId="purchases-footer-paid"
+          />
         </div>
-      )}
-    </div>
-  );
+      </div>
+    ) : undefined;
 
   return (
-    <PageLayout
-      title={tCommon('navigation.purchases')}
-      action={
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={() => openCreate('purchase')}
-          data-testid="new-household-item-button"
-        >
-          {t('newButton')}
-        </button>
-      }
+    <ObjectList<HouseholdItemListRow, PurchaseListMeta>
+      list={list}
+      config={config}
+      labels={labels}
+      primary={{
+        label: t('list.newPurchase'),
+        onClick: () => openCreate('purchase'),
+        testId: 'new-household-item-button',
+      }}
+      titleHeader={t('list.titleHeader')}
+      statusHeader={t('list.statusHeader')}
+      {...rows}
+      headingCount="always"
+      scopeTotal={scopeTotal}
+      summary={summary}
+      headingRef={headingRef}
     >
-      <DataTable<HouseholdItemSummary>
-        pageKey="householdItems"
-        columns={columns}
-        items={householdItems}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        currentPage={tableState.page}
-        isLoading={isLoading}
-        error={error}
-        getRowKey={(item) => item.id}
-        onRowClick={(item) => navigate(routeUrl('householdItem', { id: item.id }))}
-        renderActions={renderActions}
-        tableState={tableState}
-        onStateChange={handleStateChange}
-        filterMeta={filterMeta}
-        emptyState={{
-          message: t('empty.noItems')!,
-          description: t('empty.noItemsMessage')!,
-          action: {
-            label: t('empty.createFirstItem')!,
-            onClick: () => openCreate('purchase'),
-          },
-        }}
-      />
-
-      {/* Delete confirmation */}
-      {deletingItem && (
+      {deletion.item ? (
         <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletingItem.name })}
+          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.name })}
           consequences={deleteConsequences}
           irreversible
+          tone="danger"
           confirmLabel={tCommon('button.delete')}
           busyLabel={tCommon('confirmDialog.deleting')}
-          busy={isDeleting}
-          error={deleteError || null}
-          blocked={deleteBlocked}
-          onConfirm={() => void confirmDelete()}
-          onCancel={closeDeleteConfirm}
+          busy={deletion.busy}
+          error={deletion.error}
+          blocked={deletion.blocked}
+          onConfirm={deletion.confirm}
+          onCancel={deletion.cancel}
+          returnFocusRef={headingRef}
           testIdPrefix="purchase-list-delete"
         />
-      )}
-    </PageLayout>
+      ) : null}
+    </ObjectList>
+  );
+}
+
+interface TotalsFigureProps {
+  readonly label: string;
+  readonly value: string;
+  readonly testId: string;
+}
+
+/** One label/figure pair of the totals footer. */
+function TotalsFigure({ label, value, testId }: TotalsFigureProps) {
+  return (
+    <span className={styles.totalsPair}>
+      <span className={shared.listFooterLabel}>{label}</span>
+      <span className={shared.listFooterFigure} data-testid={testId}>
+        {value}
+      </span>
+    </span>
   );
 }
 

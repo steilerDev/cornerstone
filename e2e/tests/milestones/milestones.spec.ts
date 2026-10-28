@@ -11,7 +11,7 @@
  * 7.  Create form validation — targetDate required
  * 8.  Create dialog cancel / Escape close
  * 9.  Milestone created via API appears in list
- * 10. Row click navigates to detail page
+ * 10. The row's title link navigates to the detail page
  * 11. Detail page loads with correct title and status badge
  * 12. Edit milestone — change title and targetDate, save via PATCH
  * 13. Mark milestone as completed via edit form
@@ -45,7 +45,7 @@ test.describe('Milestones list page load (Scenario 1)', { tag: '@responsive' }, 
       await milestonesPage.goto();
 
       await expect(milestonesPage.heading).toBeVisible();
-      await expect(milestonesPage.heading).toHaveText('Milestones');
+      await expect(milestonesPage.heading).toHaveText(/^Milestones \(\d+\)$/);
       await expect(milestonesPage.newMilestoneButton).toBeVisible();
     },
   );
@@ -81,15 +81,10 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
       await milestonesPage.goto();
 
       await expect(milestonesPage.emptyState).toBeVisible();
+      await expect(milestonesPage.emptyState).toContainText('No milestones yet');
 
-      const emptyText = await milestonesPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no milestones yet/i);
-
-      // CTA to create first milestone
-      const ctaButton = milestonesPage.emptyState.getByRole('button', {
-        name: /Create First Milestone/i,
-      });
-      await expect(ctaButton).toBeVisible();
+      // The one primary stays in the header; the template's empty state has no action of its own
+      await expect(milestonesPage.newMilestoneButton).toBeVisible();
     } finally {
       await page.unroute(`${API.milestones}*`);
     }
@@ -219,7 +214,7 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     await expect(createPage.heading).toHaveText('New milestone');
     // A deep link shows the list behind the dialog (a view: no breadcrumb trail)
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Milestones( \(\d+\))?$/ }),
     ).toBeVisible();
     await expect(createPage.titleInput).toBeVisible();
     await expect(createPage.targetDateInput).toBeVisible();
@@ -300,7 +295,7 @@ test.describe('Create dialog close paths (Scenario 8)', { tag: '@responsive' }, 
 
     await page.waitForURL((url) => url.pathname === MILESTONES_ROUTE);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Milestones( \(\d+\))?$/ }),
     ).toBeVisible();
   });
 
@@ -313,7 +308,7 @@ test.describe('Create dialog close paths (Scenario 8)', { tag: '@responsive' }, 
     await page.waitForURL((url) => url.pathname === MILESTONES_ROUTE);
     await createPage.form.waitForClosed();
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Milestones( \(\d+\))?$/ }),
     ).toBeFocused();
   });
 });
@@ -352,12 +347,14 @@ test.describe(
       }
     });
 
-    test('Table shows Title, Target Date, Status, Linked Items columns (desktop+tablet)', async ({
+    test('Table shows Milestone, Target, Projected, Waits for, Holds up and Status columns (desktop+tablet)', async ({
       page,
       testPrefix,
     }) => {
+      // The table/card switch follows the list's own width, and the tablet sidebar leaves a
+      // narrower list: only the desktop viewport always shows the table.
       const viewport = page.viewportSize();
-      if (!viewport || viewport.width < 768) {
+      if (!viewport || viewport.width < 1024) {
         test.skip();
         return;
       }
@@ -374,13 +371,21 @@ test.describe(
         await milestonesPage.goto();
         await milestonesPage.waitForLoaded();
 
-        await expect(milestonesPage.tableContainer).toBeVisible();
+        await expect(milestonesPage.tableSurface).toBeVisible();
 
-        const table = milestonesPage.tableContainer.locator('table');
-        await expect(table.getByRole('columnheader', { name: 'Title' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Target Date' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Status' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Linked Items' })).toBeVisible();
+        for (const header of [
+          'Milestone',
+          'Target',
+          'Projected',
+          'Waits for',
+          'Holds up',
+          'Status',
+        ]) {
+          await expect(milestonesPage.columnHeader(header)).toBeVisible();
+        }
+        // Description and Reached on are hidden by default
+        await expect(milestonesPage.columnHeader('Description')).toHaveCount(0);
+        await expect(milestonesPage.columnHeader('Reached on')).toHaveCount(0);
       } finally {
         if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
       }
@@ -409,7 +414,7 @@ test.describe('Row click navigates to detail (Scenario 10)', { tag: '@responsive
       // Search for this specific milestone
       await milestonesPage.search(title);
 
-      await milestonesPage.clickMilestoneRow(title);
+      await milestonesPage.openMilestone(title);
 
       // Should navigate to /project/milestones/:id
       await page.waitForURL(`**/project/milestones/${createdId}`);
@@ -637,7 +642,7 @@ test.describe('Delete milestone from list — confirm (Scenario 14)', { tag: '@r
     await milestonesPage.confirmDelete();
 
     // Milestone no longer visible
-    await milestonesPage.search(title);
+    await expect.poll(() => milestonesPage.getMilestoneTitles()).not.toContain(title);
     const titlesAfter = await milestonesPage.getMilestoneTitles();
     expect(titlesAfter).not.toContain(title);
 
@@ -804,21 +809,25 @@ test.describe('Responsive layout — list (Scenario 18)', { tag: '@responsive' }
         targetDate: '2028-01-01',
       });
 
-      await milestonesPage.goto();
+      await milestonesPage.goto(`q=${encodeURIComponent(`${testPrefix} Mobile Card`)}`);
       await milestonesPage.waitForLoaded();
 
-      // At least one card should be visible in cardsContainer
-      const cards = await milestonesPage.cardsContainer.locator('[class*="card"]').all();
-      expect(cards.length).toBeGreaterThan(0);
+      // The phone shows cards, not the table
+      expect(await milestonesPage.isTableSurface()).toBe(false);
+      await expect(milestonesPage.milestoneRow(`${testPrefix} Mobile Card Milestone`)).toHaveCount(
+        1,
+      );
     } finally {
       if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
     }
   });
 
-  test('Desktop: table is visible when viewport is >= 768px', async ({ page, testPrefix }) => {
+  test('Desktop: table is visible when viewport is >= 1024px', async ({ page, testPrefix }) => {
+    // The table/card switch follows the list's own width (768px container query), and the tablet
+    // sidebar leaves a narrower list: only the desktop viewport always shows the table.
     const viewport = page.viewportSize();
 
-    if (!viewport || viewport.width < 768) {
+    if (!viewport || viewport.width < 1024) {
       test.skip();
       return;
     }
@@ -835,7 +844,7 @@ test.describe('Responsive layout — list (Scenario 18)', { tag: '@responsive' }
       await milestonesPage.goto();
       await milestonesPage.waitForLoaded();
 
-      await expect(milestonesPage.tableContainer).toBeVisible();
+      await expect(milestonesPage.tableSurface).toBeVisible();
     } finally {
       if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
     }

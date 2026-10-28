@@ -173,7 +173,7 @@ export function listVendors(
   db: DbType,
   query: VendorListQuery,
   tradeIds: readonly string[] = [],
-): { vendors: VendorListItem[]; pagination: PaginationMeta } {
+): { vendors: VendorListItem[]; pagination: PaginationMeta; scopeTotal: number } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortBy = query.sortBy ?? 'name';
@@ -202,6 +202,13 @@ export function listVendors(
     .get();
   const totalItems = countResult!.count;
   const totalPages = Math.ceil(totalItems / pageSize);
+
+  // The heading's "of m": companies matching only the trade chip, ignoring the search
+  const scopeTotal = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(vendors)
+    .where(query.tradeId ? eq(vendors.tradeId, query.tradeId) : undefined)
+    .get()!.count;
 
   // Qualified by hand: drizzle renders ${vendors.id} unqualified inside a select-field subquery, where "id" would bind to vc.id.
   const lastOnSiteExpr = sql`(
@@ -316,6 +323,7 @@ export function listVendors(
       totalItems,
       totalPages,
     },
+    scopeTotal,
   };
 }
 

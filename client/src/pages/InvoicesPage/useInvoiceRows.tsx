@@ -102,7 +102,7 @@ export function useInvoiceRows({ chip, actions }: UseInvoiceRowsOptions): RowPro
     <NavAnchor
       to={routeUrl('company', { id: inv.vendorId })}
       state={originState}
-      {...userText(styles.companyLink)}
+      {...userText(shared.rowLink)}
       data-testid={dataTableTestId('invoices-company', inv.id, surface)}
     >
       {inv.vendorName}

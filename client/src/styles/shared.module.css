@@ -753,3 +753,64 @@
   overflow-wrap: break-word;
   word-break: normal;
 }
+
+/* ---- Object list: row link (company/relation link under a title) ---- */
+
+/* Above the title's stretched link; a 44px target below 1024px. */
+.rowLink {
+  position: relative;
+  z-index: var(--z-raised);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.rowLink:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.rowLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 1023px) {
+  .rowLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
+}
+
+/* ---- Object list: totals footer ---- */
+
+.listFooter {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-body);
+  font-size: var(--font-size-base);
+}
+
+.listFooterLabel {
+  color: var(--color-text-secondary);
+}
+
+.listFooterFigure {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 479px) {
+  .listFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-1);
+  }
+}

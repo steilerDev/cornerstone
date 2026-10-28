@@ -741,6 +741,7 @@
   "listShortcuts": {
     "newPurchase": "Neue Anschaffung",
     "newCompany": "Neue Firma",
+    "newMilestone": "Neuer Meilenstein",
     "newInvoice": "Neue Rechnung",
     "newDiaryEntry": "Neuer Tagebucheintrag",
     "newTask": "Neue Aufgabe"

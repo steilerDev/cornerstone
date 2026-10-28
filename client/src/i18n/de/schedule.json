@@ -157,46 +157,49 @@
     "weeklyCalendarAriaLabel": "Wochenkalender"
   },
   "milestones": {
-    "errors": {
-      "loadFailed": "Beim Laden der Meilensteine ist ein unerwarteter Fehler aufgetreten."
-    },
-    "newButton": "Neuer Meilenstein",
-    "empty": {
-      "noItems": "Noch keine Meilensteine",
-      "noItemsMessage": "Erstelle deinen ersten Meilenstein, um wichtige Projektfortschrittspunkte zu markieren.",
-      "createFirst": "Ersten Meilenstein erstellen"
-    },
-    "table": {
-      "headers": {
-        "title": "Titel",
+    "list": {
+      "newMilestone": "Neuer Meilenstein",
+      "titleHeader": "Meilenstein",
+      "statusHeader": "Status",
+      "search": "Meilensteine durchsuchen",
+      "resultCount_one": "{{count}} Meilenstein",
+      "resultCount_other": "{{count}} Meilensteine",
+      "empty": "Noch keine Meilensteine",
+      "emptyDescription": "Erstelle deinen ersten Meilenstein, um einen wichtigen Fortschrittspunkt zu markieren.",
+      "noMatch": "Keine Meilensteine entsprechen deinen Filtern.",
+      "loadFailed": "Meilensteine konnten nicht geladen werden. Versuche es erneut.",
+      "sort": {
         "targetDate": "Zieldatum",
+        "title": "Titel",
+        "projectedDate": "Voraussichtlich",
         "status": "Status",
+        "waitsFor": "Wartet auf"
+      },
+      "columns": {
+        "target": "Zieldatum",
+        "projected": "Voraussichtlich",
+        "waitsFor": "Wartet auf",
+        "holdsUp": "Hält auf",
         "description": "Beschreibung",
-        "linkedItems": "Verknüpfte Artikel",
-        "completedAt": "Abgeschlossen am",
-        "actions": "Aktionen"
+        "reachedOn": "Erreicht am"
+      },
+      "row": {
+        "notSet": "Nicht festgelegt",
+        "taskCount_one": "{{count}} Aufgabe",
+        "taskCount_other": "{{count}} Aufgaben",
+        "open": "Öffnen"
+      },
+      "filters": {
+        "targetDate": "Zieldatum",
+        "waitsFor": "Wartet auf",
+        "from": "Von",
+        "to": "Bis",
+        "min": "Min",
+        "max": "Max"
       }
     },
-    "card": {
-      "targetDate": "Zieldatum:",
-      "status": "Status:",
-      "description": "Beschreibung:"
-    },
-    "menu": {
-      "actions": "Aktionsmenü",
-      "edit": "Bearbeiten",
-      "delete": "Löschen"
-    },
-    "loading": "Meilensteine werden geladen...",
-    "error": "Fehler beim Laden der Meilensteine. Bitte versuche es erneut.",
-    "deleteError": "Fehler beim Löschen des Meilensteins. Bitte versuche es erneut.",
-    "keyboard": {
-      "newMilestone": "Neuer Meilenstein",
-      "selectNext": "Nächsten Artikel wählen",
-      "selectPrevious": "Vorherigen Artikel wählen",
-      "openSelected": "Ausgewählten Artikel öffnen",
-      "showShortcuts": "Tastaturkürzel anzeigen",
-      "closeDialog": "Dialog schließen oder abbrechen"
+    "errors": {
+      "loadFailed": "Beim Laden der Meilensteine ist ein unerwarteter Fehler aufgetreten."
     },
     "create": {
       "form": {

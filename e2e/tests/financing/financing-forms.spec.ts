@@ -17,13 +17,13 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
-import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createPurchase, createTask, newCleanup, runCleanup } from '../../fixtures/costLineSeed.js';
 import { createGrant, deleteGrant } from '../../fixtures/financingSeed.js';
 import { API } from '../../fixtures/testData.js';
 import { FinancingFormDialog } from '../../pages/FinancingFormDialog.js';
 import { FinancingPage } from '../../pages/FinancingPage.js';
 import { GrantPage } from '../../pages/GrantPage.js';
+import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 
 test.describe('New grant dialog', { tag: '@responsive' }, () => {
@@ -230,10 +230,14 @@ test.describe('Grant chips on the lists', { tag: '@responsive' }, () => {
         await expect(page.getByTestId(`work-item-grants-${taskId}-more`)).toHaveCount(0);
       }
 
-      await page.goto(`${routeUrl('householdItems')}?q=${encodeURIComponent(purchaseName)}`);
-      const purchaseChip = chips(page, 'household-item-grants', purchaseId);
-      await expect(purchaseChip).toBeVisible();
-      await expect(purchaseChip).toContainText(`${grantName} · 40%`);
+      const purchases = new HouseholdItemsPage(page);
+      await purchases.openSearch(purchaseName);
+      // The grant chips sit under the name on the table; the card surface shows three facts only
+      if (await purchases.isTableSurface()) {
+        const purchaseChip = chips(page, 'household-item-grants', purchaseId);
+        await expect(purchaseChip).toBeVisible();
+        await expect(purchaseChip).toContainText(`${grantName} · 40%`);
+      }
     } finally {
       await runCleanup(cleanup);
     }

@@ -5,8 +5,8 @@
  * L2  Search: umlaut folding ("Oeko"), contact person, phone digit run, English trade name; fast
  *     typing keeps focus and every keystroke
  * L3  German UI: the German name of a built-in trade finds a company of that trade; chip labels
- * L4  Trade chips: pressed state, URL `tradeId`, history entry replaced (Back leaves the page),
- *     chip + search combine, "All trades" resets
+ * L4  Trade chips (#2246: top four + More trades): pressed state, URL `tradeId`, history entry
+ *     replaced (Back leaves the page), chip + search combine, "All" resets
  * L5  Call: `tel:` link, accessible names, exact sizes (32px fine pointer, 44px coarse, full-width
  *     phone card), the phone-card path through the More sheet
  * L6  Sort by "Last on site" puts companies without a value last in both directions
@@ -100,15 +100,16 @@ test.describe('Companies list - columns (AC1)', { tag: '@responsive' }, () => {
       entries.push(await createDailyLog(page, id, '2026-04-02', `${testPrefix} newer log`));
 
       await list.goto({ q: `${testPrefix} Sample` });
-      await expect(list.heading).toHaveText('Companies');
+      await expect(list.heading).toHaveText(/^Companies \(/);
+      await list.waitForVendorsLoaded();
       await expect(list.row(name)).toBeVisible();
 
-      if ((await page.viewportSize())!.width >= 768) {
-        // Table: Name, Trade, Phone, Still to pay, Offers, Contact persons, Last on site (#2244),
-        // then the row-actions column (its header is visually hidden text). Nothing else is
-        // visible by default.
-        await expect(list.tableContainer.locator('thead th')).toHaveText([
-          /^Name/,
+      if (await list.isTableSurface()) {
+        // Table: Company, Trade, Phone, Still to pay, Offers, Contact persons, Last on site
+        // (#2244), then the row-actions column (its header is visually hidden text). E-mail,
+        // Address, Notes, Date added and Last updated are hidden by default (#2246 D10).
+        await expect(list.tableHeaders).toHaveText([
+          /^Company/,
           /^Trade/,
           /^Phone/,
           /^Still to pay/,
@@ -120,11 +121,15 @@ test.describe('Companies list - columns (AC1)', { tag: '@responsive' }, () => {
       }
 
       // The later of the two saved daily logs wins; the company without a log shows a dash
-      await expect(list.row(name)).toContainText('Apr 2, 2026');
-      await expect(list.row(name)).not.toContainText('Mar 14, 2026');
+      // (Last on site and Contact persons are table columns; the card shows Trade, Still to pay
+      // and Call)
       await expect(list.row(name)).toContainText('Tiling');
-      await expect(list.row(name)).toContainText('2');
-      await expect(list.row(quietName)).not.toContainText('2026');
+      if (await list.isTableSurface()) {
+        await expect(list.row(name)).toContainText('Apr 2, 2026');
+        await expect(list.row(name)).not.toContainText('Mar 14, 2026');
+        await expect(list.row(name)).toContainText('2');
+        await expect(list.row(quietName)).not.toContainText('2026');
+      }
 
       // Exactly one entry is current: Companies, on the list and on a company page
       await expect(shell.activeEntries).toHaveCount(1);
@@ -237,20 +242,14 @@ test.describe('Companies list - German UI (AC3)', () => {
       session = await openAsLocaleUser(browser, page, testPrefix, routeUrl('companies'));
       const de = session.page;
       const list = new VendorsPage(de);
-      await expect(
-        de.getByRole('heading', { level: 1, name: 'Firmen', exact: true }),
-      ).toBeVisible();
+      await expect(de.getByRole('heading', { level: 1, name: /^Firmen(\s|$)/ })).toBeVisible();
 
-      // Chips and the sheet show the German trade name; the search field the German label
+      // The chip group and its "All" chip are German (a trade has a chip only among the four
+      // most used, so the trade name itself is checked on the row below)
       await expect(de.getByRole('group', { name: 'Gewerk', exact: true })).toBeVisible();
       await expect(
-        de.getByRole('group', { name: 'Gewerk' }).getByRole('button', { name: 'Alle Gewerke' }),
+        de.getByRole('group', { name: 'Gewerk' }).getByRole('button', { name: 'Alle' }),
       ).toHaveAttribute('aria-pressed', 'true');
-      await expect(
-        de
-          .getByRole('group', { name: 'Gewerk' })
-          .getByRole('button', { name: 'Fliesenarbeiten', exact: true }),
-      ).toBeVisible();
 
       // The German name finds the company (the stored name is English)
       await de.getByRole('searchbox').fill('Fliesenarbeiten');
@@ -297,12 +296,11 @@ test.describe('Companies list - Trade chips (AC3)', { tag: '@responsive' }, () =
       await list.goto({ q: `${testPrefix} Chip` });
       await expect(list.row(tiled)).toBeVisible();
       await expect(list.row(bare)).toBeVisible();
-      await expect(list.tradeChip('All trades')).toHaveAttribute('aria-pressed', 'true');
+      await expect(list.chip('all')).toHaveAttribute('aria-pressed', 'true');
 
       // Pressing a chip filters and writes tradeId (the search stays)
-      await list.tradeChip('Tiling').click();
-      await expect(list.tradeChip('Tiling')).toHaveAttribute('aria-pressed', 'true');
-      await expect(list.tradeChip('All trades')).toHaveAttribute('aria-pressed', 'false');
+      await list.selectTrade('trade-tiling');
+      await expect(list.chip('all')).toHaveAttribute('aria-pressed', 'false');
       await expect(list.row(tiled)).toBeVisible();
       await expect(list.row(bare)).toHaveCount(0);
       await expect(page).toHaveURL(
@@ -315,17 +313,18 @@ test.describe('Companies list - Trade chips (AC3)', { tag: '@responsive' }, () =
       await list.search(`${testPrefix} Chip Bare`);
       await expect(list.row(bare)).toHaveCount(0);
       await expect(list.emptyState).toBeVisible();
-      await expect(list.tradeChip('Tiling')).toHaveAttribute('aria-pressed', 'true');
+      await expect(list.chip('trade-tiling')).toHaveAttribute('aria-pressed', 'true');
       await list.search(`${testPrefix} Chip`);
       await expect(list.row(tiled)).toBeVisible();
 
-      // "All trades" resets the chip and removes the parameter
-      await list.tradeChip('All trades').click();
+      // "All" resets the chip and removes the parameter
+      await list.selectChip('all');
       await expect(list.row(bare)).toBeVisible();
-      await expect(page).toHaveURL((url) => !url.searchParams.has('tradeId'));
+      // (the template writes an explicit `tradeId=all` for the All chip)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
 
       // The chip press replaced its history entry: Back leaves the page, it does not un-press
-      await list.tradeChip('Tiling').click();
+      await list.selectTrade('trade-tiling');
       await expect(list.row(bare)).toHaveCount(0);
       await page.goBack();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
@@ -360,11 +359,12 @@ test.describe('Companies list - Call (AC4)', { tag: '@responsive' }, () => {
       await expect(call).toBeVisible();
       await expect(call).toHaveAttribute('href', 'tel:+15550152');
 
-      const width = (await page.viewportSize())!.width;
+      // The card or the table follows the list's own width, not the viewport (tablet: cards)
+      const isTable = await list.isTableSurface();
       const coarse = await page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
       const box = (await call.boundingBox())!;
 
-      if (width < 768) {
+      if (!isTable) {
         // Phone card: one full-width "Call <number>" button, at least 44px high
         await expect(call).toHaveText('Call +1 555-0152');
         await expect(call).toHaveAccessibleName(`Call +1 555-0152, ${name}`);
@@ -462,12 +462,14 @@ test.describe('Companies list - touch targets', { tag: '@responsive' }, () => {
     const name = `${testPrefix} Touch Co 2213`;
     const id = await createCompany(page, { name, tradeId: 'trade-tiling' });
     try {
-      await list.goto({ q: name });
+      // The selected trade always has a chip (it need not be among the four most used)
+      await list.goto({ q: name, tradeId: 'trade-tiling' });
+      await list.waitForVendorsLoaded();
       await expect(list.row(name)).toBeVisible();
       const width = (await page.viewportSize())!.width;
       test.skip(width >= 1024, 'the 44px floor applies at 1023px and below');
 
-      const chip = (await list.tradeChip('Tiling').boundingBox())!;
+      const chip = (await list.chip('trade-tiling').boundingBox())!;
       expect(chip.height).toBeGreaterThanOrEqual(44);
       const trigger = (await list.rowActions(name).boundingBox())!;
       expect(Math.round(trigger.width)).toBe(44);
@@ -492,10 +494,11 @@ test.describe('Companies list - dark mode and reflow', { tag: '@responsive' }, (
     const id = await createCompany(page, { name, phone: '555-0161', tradeId: 'trade-tiling' });
     try {
       await list.goto({ q: name });
+      await list.waitForVendorsLoaded();
       await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
       await expect(list.row(name)).toBeVisible();
       await expect(list.newCompanyButton).toBeVisible();
-      await expect(list.tradesButton).toBeVisible();
+      await expect(list.pageMenuButton).toBeVisible();
       const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
       expect(background).not.toBe('rgb(255, 255, 255)');
 

@@ -1,6 +1,6 @@
 /**
  * VAT-rate regression tests for householdItemService: planned totals, percentage subsidy
- * reduction, filterMeta planned-cost min/max and the plannedCostMin/Max list filters all use the
+ * reduction, the plannedCostMin/Max list filters all use the
  * VAT-effective planned amount (net lines, includes_vat = 0, are grossed up by 1 + vatRate).
  * Net 100 -> 120 at vatRate=0.2, 119 at 0.19.
  */
@@ -97,7 +97,7 @@ describe('householdItemService — configured VAT rate', () => {
     it('list summary totalPlannedAmount and budgetSummary.totalPlanned are VAT-effective', () => {
       createItem('Net sofa', false);
 
-      const { items } = householdItemService.listHouseholdItems(db, {}, vatRate);
+      const { items } = householdItemService.listHouseholdItemRows(db, {}, { vatRate });
 
       expect(items[0]!.totalPlannedAmount).toBeCloseTo(gross, 5);
       expect(items[0]!.budgetSummary.totalPlanned).toBeCloseTo(gross, 5);
@@ -107,7 +107,7 @@ describe('householdItemService — configured VAT rate', () => {
       const id = createItem('Net sofa', false);
       linkPercentageSubsidy(id, 10);
 
-      const { items } = householdItemService.listHouseholdItems(db, {}, vatRate);
+      const { items } = householdItemService.listHouseholdItemRows(db, {}, { vatRate });
 
       expect(items[0]!.budgetSummary.subsidyReduction).toBeCloseTo(gross * 0.1, 5);
       expect(items[0]!.budgetSummary.netCost).toBeCloseTo(gross * 0.9, 5);
@@ -121,30 +121,29 @@ describe('householdItemService — configured VAT rate', () => {
       expect(detail.totalPlannedAmount).toBeCloseTo(gross, 5);
     });
 
-    it('filterMeta.plannedCost min/max are VAT-effective (net 100 and gross 100)', () => {
+    it('list rows carry VAT-effective planned totals (net 100 and gross 100)', () => {
       createItem('Net sofa', false);
       createItem('Gross table', true);
 
-      const { filterMeta } = householdItemService.listHouseholdItems(db, {}, vatRate);
+      const { items } = householdItemService.listHouseholdItemRows(db, {}, { vatRate });
 
-      expect(filterMeta.plannedCost).toBeDefined();
-      const plannedCost = filterMeta.plannedCost!;
-      expect(plannedCost.min).toBeCloseTo(100, 5);
-      expect(plannedCost.max).toBeCloseTo(gross, 5);
+      const planned = items.map((i) => i.totalPlannedAmount).sort((x, y) => x - y);
+      expect(planned[0]).toBeCloseTo(100, 5);
+      expect(planned[1]).toBeCloseTo(gross, 5);
     });
 
     it('plannedCostMin includes the net item exactly at the boundary and excludes just above it', () => {
       createItem('Net sofa', false);
 
-      const atBoundary = householdItemService.listHouseholdItems(
+      const atBoundary = householdItemService.listHouseholdItemRows(
         db,
         { plannedCostMin: gross },
-        vatRate,
+        { vatRate },
       );
-      const above = householdItemService.listHouseholdItems(
+      const above = householdItemService.listHouseholdItemRows(
         db,
         { plannedCostMin: gross + 0.01 },
-        vatRate,
+        { vatRate },
       );
 
       expect(atBoundary.items).toHaveLength(1);
@@ -154,15 +153,15 @@ describe('householdItemService — configured VAT rate', () => {
     it('plannedCostMax includes the net item exactly at the boundary and excludes just below it', () => {
       createItem('Net sofa', false);
 
-      const atBoundary = householdItemService.listHouseholdItems(
+      const atBoundary = householdItemService.listHouseholdItemRows(
         db,
         { plannedCostMax: gross },
-        vatRate,
+        { vatRate },
       );
-      const below = householdItemService.listHouseholdItems(
+      const below = householdItemService.listHouseholdItemRows(
         db,
         { plannedCostMax: gross - 0.01 },
-        vatRate,
+        { vatRate },
       );
 
       expect(atBoundary.items).toHaveLength(1);
@@ -174,20 +173,22 @@ describe('householdItemService — configured VAT rate', () => {
     createItem('Net sofa', false);
 
     expect(
-      householdItemService.listHouseholdItems(db, { plannedCostMin: 110 }, 0.2).items,
+      householdItemService.listHouseholdItemRows(db, { plannedCostMin: 110 }, { vatRate: 0.2 })
+        .items,
     ).toHaveLength(1);
     expect(
-      householdItemService.listHouseholdItems(db, { plannedCostMin: 110 }, 0.05).items,
+      householdItemService.listHouseholdItemRows(db, { plannedCostMin: 110 }, { vatRate: 0.05 })
+        .items,
     ).toHaveLength(0);
   });
 
   it('a gross-stored item (includesVat=true) is unaffected by the rate in totals and filters', () => {
     createItem('Gross table', true);
 
-    const { items } = householdItemService.listHouseholdItems(
+    const { items } = householdItemService.listHouseholdItemRows(
       db,
       { plannedCostMin: 100, plannedCostMax: 100 },
-      0.2,
+      { vatRate: 0.2 },
     );
 
     expect(items).toHaveLength(1);
@@ -214,7 +215,7 @@ describe('householdItemService — configured VAT rate', () => {
         const id = createItem('Gross table', true);
         linkPercentageSubsidy(id, 10, { status });
 
-        const { items } = householdItemService.listHouseholdItems(db, {}, 0.19);
+        const { items } = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
         expect(items[0]!.budgetSummary.subsidyReduction).toBe(0);
         expect(items[0]!.budgetSummary.netCost).toBe(100);
@@ -225,7 +226,7 @@ describe('householdItemService — configured VAT rate', () => {
       const id = createItem('Gross table', true);
       linkPercentageSubsidy(id, 10, { status: 'received' });
 
-      const { items } = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const { items } = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       expect(items[0]!.budgetSummary.subsidyReduction).toBe(10);
       expect(items[0]!.budgetSummary.netCost).toBe(90);
@@ -246,8 +247,8 @@ describe('householdItemService — configured VAT rate', () => {
       const id = createItem('Plain item', true);
 
       expect(
-        householdItemService.listHouseholdItems(db, {}, 0.19).items[0]!.budgetSummary
-          .subsidyReduction,
+        householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 }).items[0]!
+          .budgetSummary.subsidyReduction,
       ).toBe(0);
       expect(
         householdItemService.getHouseholdItemById(db, id, 0.19).budgetSummary.subsidyReduction,

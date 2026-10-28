@@ -1,51 +1,77 @@
 /**
- * E2E tests for the Household Items list page (/project/household-items)
+ * E2E tests for the Purchases list (/project/household-items)
  *
- * EPIC-04 Stories covered:
- * - 4.3: List Page (filtering, sorting, status badges)
- * - 4.8: Responsive & Accessibility
+ * EPIC-04 (list, status badges, responsive), rebuilt on the object-list template by #2246
+ * (EPIC-21 P5.2): grouped by Status, status chips, Filters panel, totals footer, ⋯ row menu.
  *
  * Scenarios covered:
- * 1.  Page loads with h1 "Household Items"
- * 2.  "New Item" button navigates to /project/household-items/new
- * 3.  Empty state when no items exist (mocked)
- * 4.  Filter empty state when search matches nothing
- * 5.  Item created via API appears in the list
+ * 1.  Page loads with h1 "Purchases (n)"
+ * 2.  "New purchase" opens the create dialog over the list
+ * 3.  Empty state when no purchases exist (mocked)
+ * 4.  "No purchases match." with Clear filters when a search matches nothing
+ * 5.  Purchase created via API appears; AC1 column headers and the hidden-by-default columns
  * 6.  Search filters the list
- * 7.  Category filter narrows results
- * 8.  Status filter narrows results
- * 9.  Status badge rendered correctly (planned, purchased, scheduled, arrived)
- * 10. Delete modal — confirm removes item
- * 11. Delete modal — cancel leaves item
- * 12. Pagination visible when API returns totalPages > 1 (mocked)
- * 13. Responsive — no horizontal scroll on current viewport
- * 14. Mobile: card view shown when viewport < 768px
- * 15. Desktop: table view shown when viewport >= 768px
- * 16. Dark mode rendering
- * 17. Filter panel has accessible role="search" landmark
+ * 7.  Category filter (URL and Filters panel)
+ * 8.  Status chips narrow the list
+ * 9.  Status badges for every status
+ * 10. Delete with Confirm
+ * 11. Delete with Cancel
+ * 12. Legacy ?page= / ?pageSize= are removed from the URL and the list renders
+ * 13. Responsive: no horizontal scroll, surface switch
+ * 14. Dark mode
+ * 15. Accessible search
+ * 16. Status chip colour (#2195)
+ * 17. Grouped by Status by default, Delivered collapsed while other groups have rows
+ * 18. Four status chips plus All, no "Searching all"
+ * 19. Footer totals equal the API totals; the label changes with a filter
+ * 20. Filters: Area (incl. No area), Target delivery
+ * 21. Row link opens the purchase
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { HouseholdItemsPage, HOUSEHOLD_ITEMS_ROUTE } from '../../pages/HouseholdItemsPage.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import {
+  HouseholdItemsPage,
+  HOUSEHOLD_ITEMS_ROUTE,
+  parseMoney,
+} from '../../pages/HouseholdItemsPage.js';
+import { HouseholdItemCreatePage } from '../../pages/HouseholdItemCreatePage.js';
 import { API } from '../../fixtures/testData.js';
-import { createHouseholdItemViaApi, deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createAreaViaApi,
+  createHouseholdItemViaApi,
+  deleteAreaViaApi,
+  deleteHouseholdItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+import {
+  createCostLine,
+  createFundingSource,
+  newCleanup,
+  runCleanup,
+} from '../../fixtures/costLineSeed.js';
+
+/** A well-formed empty list answer (chip scope, totals and status counts included). */
+const EMPTY_LIST_BODY = {
+  items: [],
+  pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  groupCounts: { planned: 0, purchased: 0, scheduled: 0, arrived: 0 },
+  scopeTotal: 0,
+  totals: { expectedCost: 0, invoiced: 0, paid: 0 },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "Household Items"
+// Scenario 1: Page loads
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test(
-    'Household Items list page loads with h1 "Household Items"',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const listPage = new HouseholdItemsPage(page);
+  test('Purchases list page loads with h1 "Purchases"', { tag: '@smoke' }, async ({ page }) => {
+    const listPage = new HouseholdItemsPage(page);
 
-      await listPage.goto();
+    await listPage.goto();
 
-      await expect(listPage.heading).toBeVisible();
-      await expect(listPage.heading).toHaveText('Purchases');
-    },
-  );
+    await expect(listPage.heading).toBeVisible();
+    // A count is always shown: "Purchases (n)"
+    await expect(listPage.heading).toHaveText(/^Purchases \(\d+\)$/);
+  });
 
   test('Page URL is /project/household-items', async ({ page }) => {
     await page.goto(HOUSEHOLD_ITEMS_ROUTE);
@@ -55,40 +81,39 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "New Item" button navigates to /project/household-items/new
+// Scenario 2: "New purchase"
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"New Item" navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"New Item" button navigates to the create page', async ({ page }) => {
+test.describe('"New purchase" (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"New purchase" opens the create dialog over the list', async ({ page }) => {
     const listPage = new HouseholdItemsPage(page);
+    const createPage = new HouseholdItemCreatePage(page);
 
     await listPage.goto();
+    await listPage.waitForLoaded();
     await expect(listPage.newItemButton).toBeVisible();
+    await expect(listPage.newItemButton).toHaveText('New purchase');
 
     await listPage.newItemButton.click();
 
     await page.waitForURL('**/project/household-items/new');
-    expect(page.url()).toContain('/project/household-items/new');
+    await expect(createPage.heading).toBeVisible();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Empty state when no items exist (mocked)
+// Scenario 3: Empty state (mocked)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state — no items (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Empty state shown when no household items exist (mocked empty response)', async ({
-    page,
-  }) => {
+test.describe('Empty state — no purchases (Scenario 3)', { tag: '@responsive' }, () => {
+  test('Empty state shown when no purchases exist (mocked empty response)', async ({ page }) => {
     const listPage = new HouseholdItemsPage(page);
+    const isList = (url: URL) => url.pathname === API.householdItems;
 
-    await page.route(`${API.householdItems}*`, async (route) => {
+    await page.route(isList, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            items: [],
-            pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
-          }),
+          body: JSON.stringify(EMPTY_LIST_BODY),
         });
       } else {
         await route.continue();
@@ -97,32 +122,24 @@ test.describe('Empty state — no items (Scenario 3)', { tag: '@responsive' }, (
 
     try {
       await listPage.goto();
+      await listPage.waitForLoaded();
 
-      await expect(listPage.emptyState).toBeVisible({ timeout: 7000 });
-
-      const emptyText = await listPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no household items yet/);
-
-      // CTA button to create the first item
-      const ctaButton = listPage.emptyState.getByRole('button', {
-        name: /Create First Item/i,
-      });
-      await expect(ctaButton).toBeVisible();
+      await expect(listPage.emptyState).toContainText('No purchases yet');
+      // No rows, so no totals footer
+      await expect(listPage.footer).toHaveCount(0);
     } finally {
-      await page.unroute(`${API.householdItems}*`);
+      await page.unroute(isList);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Filter empty state when search matches nothing
+// Scenario 4: No match
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsive' }, () => {
-  // Extend test timeout: multi-step test (create → navigate → search → assert
-  // → delete) takes longer than the desktop default 15s, especially on mobile
-  // WebKit under full CI shard load.
+test.describe('Empty state — no match (Scenario 4)', { tag: '@responsive' }, () => {
   test.describe.configure({ timeout: 60_000 });
-  test('Filter empty state shown when search matches no household items', async ({
+
+  test('"No purchases match." with Clear filters when a search matches nothing', async ({
     page,
     testPrefix,
   }) => {
@@ -136,22 +153,17 @@ test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsiv
 
       await listPage.goto();
       await listPage.waitForLoaded();
+      await listPage.typeSearch('ZZZNOMATCH99999XYZABC');
 
-      await listPage.search('ZZZNOMATCH99999XYZABC');
+      await expect(listPage.emptyState).toContainText('No purchases match.');
+      await expect(
+        listPage.emptyState.getByRole('button', { name: 'Clear filters' }),
+      ).toBeVisible();
 
-      await expect(async () => {
-        await expect(listPage.emptyState).toBeVisible({ timeout: 5000 });
-        // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
-        // when hasActiveFilters is true (search or column filters active).
-        const emptyText = await listPage.emptyState.textContent();
-        expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
-
-        // DataTable renders "Clear Filters" button (t('button.clearFilters')) in filtered empty state.
-        const clearButton = listPage.emptyState.getByRole('button', {
-          name: /Clear Filters/i,
-        });
-        await expect(clearButton).toBeVisible();
-      }).toPass({ timeout: 30000 });
+      // Clear filters empties the search again
+      await listPage.emptyState.getByRole('button', { name: 'Clear filters' }).click();
+      await expect(listPage.searchInput).toHaveValue('');
+      await expect(listPage.emptyState).toBeHidden();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -159,84 +171,78 @@ test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsiv
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Item created via API appears in list
+// Scenario 5: Purchase appears; AC1 columns
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe(
-  'Item appears in list after API creation (Scenario 5)',
-  { tag: '@responsive' },
-  () => {
-    // Extend test timeout: multi-step test (create → navigate → search → assert
-    // → delete) takes longer than the desktop default 15s on mobile WebKit.
-    test.describe.configure({ timeout: 60_000 });
+test.describe('Purchase appears in the list (Scenario 5)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
 
-    test('Household item created via API appears in the list', async ({ page, testPrefix }) => {
-      const listPage = new HouseholdItemsPage(page);
-      let createdId: string | null = null;
-      const name = `${testPrefix} HI API Created Item`;
+  test('Purchase created via API appears in the list', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let createdId: string | null = null;
+    const name = `${testPrefix} HI API Created Item`;
 
-      try {
-        createdId = await createHouseholdItemViaApi(page, { name });
+    try {
+      createdId = await createHouseholdItemViaApi(page, { name });
 
-        await listPage.goto();
-        await listPage.waitForLoaded();
+      await listPage.search(name);
 
-        await listPage.search(name);
+      await expect(async () => {
+        expect(await listPage.getItemNames()).toContain(name);
+      }).toPass();
+    } finally {
+      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
+    }
+  });
 
-        await expect(async () => {
-          const names = await listPage.getItemNames();
-          expect(names).toContain(name);
-        }).toPass({ timeout: 30000 });
-      } finally {
-        if (createdId) await deleteHouseholdItemViaApi(page, createdId);
-      }
-    });
+  test('Table headers are Purchase, Area, Company, Delivery, Expected cost, Invoiced, Status; the other columns are hidden by default', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let createdId: string | null = null;
+    const name = `${testPrefix} HI Table Columns Test`;
 
-    test('Table shows item name, category, status columns on desktop', async ({
-      page,
-      testPrefix,
-    }) => {
-      const viewport = page.viewportSize();
-      if (!viewport || viewport.width < 768) {
-        test.skip();
+    try {
+      createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
+
+      await listPage.search(name);
+      await expect(listPage.itemRow(name)).toHaveCount(1);
+
+      if (!(await listPage.isTableSurface())) {
+        // Card surface: the three facts are Area, Delivery and Expected cost
+        await expect(listPage.itemRow(name)).toContainText('No area');
         return;
       }
 
-      const listPage = new HouseholdItemsPage(page);
-      let createdId: string | null = null;
-      const name = `${testPrefix} HI Table Columns Test`;
-
-      try {
-        createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
-
-        await listPage.goto();
-        await listPage.waitForLoaded();
-        await listPage.search(name);
-
-        await expect(async () => {
-          await expect(listPage.tableContainer).toBeVisible();
-
-          const table = listPage.tableContainer.locator('table');
-          await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-          await expect(table.getByRole('columnheader', { name: 'Category' })).toBeVisible();
-          await expect(table.getByRole('columnheader', { name: 'Status' })).toBeVisible();
-          await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
-        }).toPass({ timeout: 30000 });
-      } finally {
-        if (createdId) await deleteHouseholdItemViaApi(page, createdId);
+      for (const header of [
+        'Purchase',
+        'Area',
+        'Company',
+        'Delivery',
+        'Expected cost',
+        'Invoiced',
+        'Status',
+      ]) {
+        await expect(listPage.columnHeader(header)).toBeVisible();
       }
-    });
-  },
-);
+      for (const hidden of ['Category', 'Order date', 'Grants', 'After grants', 'Cost lines']) {
+        await expect(listPage.columnHeader(hidden)).toHaveCount(0);
+      }
+      // "Actual cost" is gone (it is the same number as Invoiced)
+      await expect(listPage.columnHeader('Actual cost')).toHaveCount(0);
+    } finally {
+      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Search filters the list
+// Scenario 6: Search
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
-  test('Search by name filters list to matching items only', async ({ page, testPrefix }) => {
+  test('Search by name filters list to matching purchases only', async ({ page, testPrefix }) => {
     const listPage = new HouseholdItemsPage(page);
     const created: string[] = [];
     const alphaName = `${testPrefix} HI Alpha Sofa`;
@@ -248,31 +254,26 @@ test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
 
       await listPage.goto();
       await listPage.waitForLoaded();
-
-      await listPage.search(`${testPrefix} HI Alpha`);
+      await listPage.typeSearch(`${testPrefix} HI Alpha`);
 
       await expect(async () => {
         const names = await listPage.getItemNames();
         expect(names).toContain(alphaName);
         expect(names).not.toContain(betaName);
-      }).toPass({ timeout: 30000 });
+      }).toPass();
     } finally {
-      for (const id of created) {
-        await deleteHouseholdItemViaApi(page, id);
-      }
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Category filter narrows results
+// Scenario 7: Category filter
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
-  test('Category filter narrows list to items in selected category', async ({
+  test('Filters › Category narrows the list to the selected category', async ({
     page,
     testPrefix,
   }) => {
@@ -289,41 +290,68 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
         await createHouseholdItemViaApi(page, { name: applianceName, category: 'hic-appliances' }),
       );
 
-      // Navigate directly with the category filter in the URL — DataTable reads filter params
-      // from the URL on load. This is the reliable approach for DataTable enum column filters
-      // (the old #category-filter select element no longer exists).
-      await page.goto(
-        `/project/household-items?q=${encodeURIComponent(`${testPrefix} HI Cat`)}&category=hic-furniture`,
-      );
-      await listPage.heading.waitFor({ state: 'visible' });
-      await listPage.waitForLoaded();
+      await listPage.search(`${testPrefix} HI Cat`);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(furnitureName);
+        expect(names).toContain(applianceName);
+      }).toPass();
 
-      // Verify URL contains category filter
-      const url = new URL(page.url());
-      expect(url.searchParams.get('category')).toBe('hic-furniture');
+      await listPage.pickCategoryFilter('hic-furniture');
+      await page.waitForURL((url) => url.searchParams.get('category') === 'hic-furniture');
 
       await expect(async () => {
         const names = await listPage.getItemNames();
         expect(names).toContain(furnitureName);
         expect(names).not.toContain(applianceName);
-      }).toPass({ timeout: 30000 });
+      }).toPass();
     } finally {
-      for (const id of created) {
-        await deleteHouseholdItemViaApi(page, id);
-      }
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+
+  test('?category= in the URL pre-selects the filter', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const furnitureName = `${testPrefix} HI CatUrl Furniture`;
+    const applianceName = `${testPrefix} HI CatUrl Appliance`;
+
+    try {
+      created.push(
+        await createHouseholdItemViaApi(page, { name: furnitureName, category: 'hic-furniture' }),
+      );
+      created.push(
+        await createHouseholdItemViaApi(page, { name: applianceName, category: 'hic-appliances' }),
+      );
+
+      await listPage.goto(
+        `q=${encodeURIComponent(`${testPrefix} HI CatUrl`)}&category=hic-furniture`,
+      );
+      await listPage.waitForLoaded();
+
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(furnitureName);
+        expect(names).not.toContain(applianceName);
+      }).toPass();
+      await listPage.openFilters();
+      await expect(listPage.categoryFilter).toHaveValue('hic-furniture');
+    } finally {
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Status filter narrows results
+// Scenario 8: Status chips
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
+test.describe('Status chips (Scenario 8)', { tag: '@responsive' }, () => {
   test.describe.configure({ timeout: 60_000 });
 
-  test('Status filter narrows list to items with selected status', async ({ page, testPrefix }) => {
+  test('Pressing a status chip narrows the list and writes status= to the URL', async ({
+    page,
+    testPrefix,
+  }) => {
     const listPage = new HouseholdItemsPage(page);
     const created: string[] = [];
     const plannedName = `${testPrefix} HI Status Planned Desk`;
@@ -335,372 +363,34 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
         await createHouseholdItemViaApi(page, { name: purchasedName, status: 'purchased' }),
       );
 
-      // Navigate directly with the status filter in the URL — DataTable reads filter params
-      // from the URL on load. This is the reliable approach for DataTable enum column filters
-      // (the old #status-filter select element no longer exists).
-      await page.goto(
-        `/project/household-items?q=${encodeURIComponent(`${testPrefix} HI Status`)}&status=planned`,
-      );
-      await listPage.heading.waitFor({ state: 'visible' });
-      await listPage.waitForLoaded();
+      await listPage.search(`${testPrefix} HI Status`);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(plannedName);
+        expect(names).toContain(purchasedName);
+      }).toPass();
 
-      // Verify URL contains status filter
-      const statusUrl = new URL(page.url());
-      expect(statusUrl.searchParams.get('status')).toBe('planned');
+      await listPage.selectChip('planned');
+      await page.waitForURL((url) => url.searchParams.get('status') === 'planned');
 
       await expect(async () => {
         const names = await listPage.getItemNames();
         expect(names).toContain(plannedName);
         expect(names).not.toContain(purchasedName);
-      }).toPass({ timeout: 30000 });
+      }).toPass();
     } finally {
-      for (const id of created) {
-        await deleteHouseholdItemViaApi(page, id);
-      }
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Status badge rendered correctly
+// Scenario 9: Status badges
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
-  test('Status badges render for planned, purchased, scheduled, arrived items', async ({
-    page,
-    testPrefix,
-  }) => {
-    const listPage = new HouseholdItemsPage(page);
-    const created: string[] = [];
-
-    const statuses = ['planned', 'purchased', 'scheduled', 'arrived'] as const;
-    const nameMap: Record<string, string> = {};
-
-    try {
-      for (const status of statuses) {
-        const name = `${testPrefix} HI Badge ${status}`;
-        nameMap[status] = name;
-        created.push(await createHouseholdItemViaApi(page, { name, status }));
-      }
-
-      await listPage.goto();
-      await listPage.waitForLoaded();
-
-      await listPage.search(`${testPrefix} HI Badge`);
-
-      // Each status should have a badge in the DOM. On desktop the badge is
-      // visible inside the table; on mobile the table is hidden (display:none)
-      // so we check for DOM presence rather than visibility.
-      await expect(async () => {
-        for (const status of statuses) {
-          const statusLabel = {
-            planned: 'Planned',
-            purchased: 'Ordered',
-            scheduled: 'Delivery scheduled',
-            arrived: 'Delivered',
-          }[status];
-          const badge = page.locator('[class*="badge"]', { hasText: statusLabel }).first();
-          await expect(badge).toBeAttached();
-        }
-      }).toPass({ timeout: 30000 });
-    } finally {
-      for (const id of created) {
-        await deleteHouseholdItemViaApi(page, id);
-      }
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: Delete modal — confirm removes item
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
-  test.describe.configure({ timeout: 60_000 });
-
-  test('Confirming delete removes the household item from the list', async ({
-    page,
-    testPrefix,
-  }) => {
-    const listPage = new HouseholdItemsPage(page);
-    const name = `${testPrefix} HI Delete Confirm`;
-
-    // Create item (no cleanup var — deleted via UI)
-    const createdId = await createHouseholdItemViaApi(page, { name });
-
-    await listPage.goto();
-    await listPage.waitForLoaded();
-
-    await listPage.search(name);
-    await expect(async () => {
-      const namesBefore = await listPage.getItemNames();
-      expect(namesBefore).toContain(name);
-    }).toPass({ timeout: 30000 });
-
-    await listPage.openDeleteModal(name);
-    await expect(listPage.deleteModal).toBeVisible();
-
-    // Modal contains the item name
-    const modalText = await listPage.deleteModal.textContent();
-    expect(modalText).toContain(name);
-
-    await listPage.confirmDelete();
-    // confirmDelete() already waits for the DELETE response and modal close.
-    // Wait briefly for React to re-render the updated list.
-    await listPage.waitForLoaded();
-
-    const namesAfter = await listPage.getItemNames();
-    expect(namesAfter).not.toContain(name);
-
-    void createdId;
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 11: Delete modal — cancel leaves item
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete modal — cancel (Scenario 11)', { tag: '@responsive' }, () => {
-  // Extend test timeout: these tests create real API data, search/filter, and
-  // delete — multi-step flows that take longer on mobile WebKit under CI load.
-  test.describe.configure({ timeout: 60_000 });
-
-  test('Cancelling delete modal leaves the household item in the list', async ({
-    page,
-    testPrefix,
-  }) => {
-    const listPage = new HouseholdItemsPage(page);
-    let createdId: string | null = null;
-    const name = `${testPrefix} HI Delete Cancel`;
-
-    try {
-      createdId = await createHouseholdItemViaApi(page, { name });
-
-      await listPage.goto();
-      await listPage.waitForLoaded();
-      await listPage.search(name);
-
-      await expect(async () => {
-        const names = await listPage.getItemNames();
-        expect(names).toContain(name);
-      }).toPass({ timeout: 30000 });
-
-      await listPage.openDeleteModal(name);
-      await listPage.cancelDelete();
-
-      const names = await listPage.getItemNames();
-      expect(names).toContain(name);
-    } finally {
-      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 12: Pagination visible when >25 items (mocked)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Pagination (Scenario 12)', { tag: '@responsive' }, () => {
-  test('Pagination controls visible when API returns totalPages > 1', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await page.route(`${API.householdItems}*`, async (route) => {
-      if (route.request().method() === 'GET') {
-        const items = Array.from({ length: 25 }, (_, i) => ({
-          id: `mock-hi-${i}`,
-          name: `Mock Household Item ${String(i + 1).padStart(2, '0')}`,
-          category: 'hic-furniture',
-          status: 'planned',
-          areaId: null,
-          vendor: null,
-          totalPlannedAmount: null,
-          targetDeliveryDate: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
-
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items,
-            pagination: { page: 1, pageSize: 25, totalItems: 26, totalPages: 2 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await listPage.goto();
-
-      await expect(listPage.pagination).toBeVisible({ timeout: 7000 });
-      await expect(listPage.nextPageButton).toBeVisible();
-      await expect(listPage.prevPageButton).toBeVisible();
-
-      // Previous page disabled on page 1
-      await expect(listPage.prevPageButton).toBeDisabled();
-
-      const infoText = await listPage.getPaginationInfoText();
-      expect(infoText).toMatch(/showing|of 26/i);
-    } finally {
-      await page.unroute(`${API.householdItems}*`);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13–15: Responsive layout
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive layout (Scenarios 13–15)', { tag: '@responsive' }, () => {
-  test('Household Items list page renders without horizontal scroll', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await listPage.goto();
-
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-
-    expect(hasHorizontalScroll).toBe(false);
-  });
-
-  test('Mobile: card view is shown when viewport is < 768px', async ({ page, testPrefix }) => {
-    const viewport = page.viewportSize();
-
-    if (!viewport || viewport.width >= 768) {
-      test.skip();
-      return;
-    }
-
-    const listPage = new HouseholdItemsPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Mobile Card Test`,
-      });
-
-      await listPage.goto();
-      await listPage.waitForLoaded();
-
-      const cards = await listPage.cardsContainer.locator('[class*="card"]').all();
-      expect(cards.length).toBeGreaterThan(0);
-    } finally {
-      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
-    }
-  });
-
-  test('Desktop: table is visible when viewport is >= 768px', async ({ page, testPrefix }) => {
-    const viewport = page.viewportSize();
-
-    if (!viewport || viewport.width < 768) {
-      test.skip();
-      return;
-    }
-
-    const listPage = new HouseholdItemsPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Desktop Table Test`,
-      });
-
-      await listPage.goto();
-      await listPage.waitForLoaded();
-
-      await expect(listPage.tableContainer).toBeVisible();
-    } finally {
-      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 16: Dark mode rendering
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dark mode rendering (Scenario 16)', { tag: '@responsive' }, () => {
-  test('Household Items list page renders correctly in dark mode', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-
-    await listPage.heading.waitFor({ state: 'visible', timeout: 7000 });
-
-    await expect(listPage.heading).toBeVisible();
-
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-    expect(hasHorizontalScroll).toBe(false);
-  });
-
-  test('Search input and filter controls visible in dark mode', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-
-    await listPage.heading.waitFor({ state: 'visible', timeout: 7000 });
-
-    await expect(listPage.searchInput).toBeVisible();
-    // Column filter buttons are in the table header (<thead>) which is CSS-hidden on mobile
-    // (tableContainer has display:none at max-width: 767px). Only check them on tablet+desktop.
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 768) {
-      await expect(listPage.categoryFilter).toBeVisible();
-      await expect(listPage.statusFilter).toBeVisible();
-    }
-    // Column settings button has display:none at max-width:767px — only visible on tablet+desktop.
-    if (viewport && viewport.width >= 768) {
-      await expect(page.getByLabel('Column settings')).toBeVisible();
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17: Filter panel accessible landmark
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Accessibility (Scenario 17)', { tag: '@responsive' }, () => {
-  test('DataTable search input is accessible with aria-label', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await listPage.goto();
-
-    // DataTable renders a search input with type="search" and aria-label="Search items"
-    // (the old role="search" filter panel landmark was removed when the page was
-    // refactored to use the shared DataTable component).
-    await expect(listPage.searchInput).toBeVisible();
-    const searchInput = page.getByRole('searchbox', { name: 'Search items' });
-    await expect(searchInput).toBeVisible();
-  });
-
-  test('Search input has accessible label', async ({ page }) => {
-    const listPage = new HouseholdItemsPage(page);
-
-    await listPage.goto();
-
-    await expect(listPage.searchInput).toBeVisible();
-    // DataTable renders aria-label="Search items" for all pages using the component.
-    const label = await listPage.searchInput.getAttribute('aria-label');
-    expect(label).toBe('Search items');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Story #2195 (AC2): purchase status chips are coloured (D-08 regression guard)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Purchase status chip colour (Story #2195, AC2)', { tag: '@responsive' }, () => {
-  test('Every purchase status chip has a non-transparent background and the planned and scheduled chips differ in wording', async ({
+  test('A status badge renders for planned, purchased, scheduled and arrived purchases', async ({
     page,
     testPrefix,
   }) => {
@@ -712,28 +402,206 @@ test.describe('Purchase status chip colour (Story #2195, AC2)', { tag: '@respons
       ['scheduled', 'Delivery scheduled'],
       ['arrived', 'Delivered'],
     ] as const;
+    const ids: Record<string, string> = {};
 
     try {
       for (const [status] of statuses) {
-        created.push(
-          await createHouseholdItemViaApi(page, {
-            name: `${testPrefix} HI Colour ${status}`,
-            status,
-          }),
-        );
+        const id = await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} HI Badge ${status}`,
+          status,
+        });
+        ids[status] = id;
+        created.push(id);
       }
 
-      await listPage.goto();
-      await listPage.waitForLoaded();
-      await listPage.search(`${testPrefix} HI Colour`);
+      await listPage.search(`${testPrefix} HI Badge`);
+      // The Delivered group is collapsed while other groups have rows
+      await listPage.expandGroup('arrived');
 
-      for (const [, label] of statuses) {
-        const chip = page
-          .locator('[class*="badge"]')
-          .filter({ hasText: new RegExp(`^${label}$`) })
-          .visible()
-          .first();
-        await expect(chip).toBeVisible();
+      for (const [status, label] of statuses) {
+        await expect(listPage.statusBadge(ids[status]!)).toHaveText(label);
+      }
+    } finally {
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 10 and 11: Delete
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Delete (Scenarios 10 and 11)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test('⋯ › Delete › Confirm removes the purchase from the list', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const name = `${testPrefix} HI Delete Confirm`;
+    await createHouseholdItemViaApi(page, { name });
+
+    await listPage.search(name);
+    await expect(listPage.itemRow(name)).toHaveCount(1);
+
+    await listPage.openDeleteModal(name);
+    await expect(listPage.deleteModal).toContainText(name);
+
+    await listPage.confirmDelete();
+
+    await expect(listPage.itemRow(name)).toHaveCount(0);
+  });
+
+  test('⋯ › Delete › Cancel leaves the purchase in the list', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let createdId: string | null = null;
+    const name = `${testPrefix} HI Delete Cancel`;
+
+    try {
+      createdId = await createHouseholdItemViaApi(page, { name });
+
+      await listPage.search(name);
+      await expect(listPage.itemRow(name)).toHaveCount(1);
+
+      await listPage.openDeleteModal(name);
+      await listPage.cancelDelete();
+
+      await expect(listPage.itemRow(name)).toHaveCount(1);
+      // Focus returns to the page, never to <body>
+      await expect(listPage.heading).toBeFocused();
+    } finally {
+      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: Legacy paging URL
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Legacy URL (Scenario 12)', { tag: '@responsive' }, () => {
+  test('?page=2&pageSize=10 is removed from the URL and the list renders', async ({ page }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await listPage.goto('page=2&pageSize=10');
+    await listPage.waitForLoaded();
+
+    await page.waitForURL(
+      (url) => !url.searchParams.has('page') && !url.searchParams.has('pageSize'),
+    );
+    await expect(listPage.heading).toBeVisible();
+    await expect(listPage.olist.retryButton).toHaveCount(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13: Responsive
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Responsive layout (Scenario 13)', { tag: '@responsive' }, () => {
+  test('Purchases list renders without horizontal scroll', async ({ page }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await listPage.goto();
+    await listPage.waitForLoaded();
+
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(hasHorizontalScroll).toBe(false);
+  });
+
+  test('Phone: cards are shown below 768px; larger: the table', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let createdId: string | null = null;
+    const name = `${testPrefix} HI Surface Test`;
+
+    try {
+      createdId = await createHouseholdItemViaApi(page, { name });
+
+      await listPage.search(name);
+      await expect(listPage.itemRow(name)).toHaveCount(1);
+
+      const width = page.viewportSize()?.width ?? 0;
+      if (width < 768) {
+        expect(await listPage.isTableSurface()).toBe(false);
+      } else if (width >= 1024) {
+        expect(await listPage.isTableSurface()).toBe(true);
+      }
+    } finally {
+      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 14: Dark mode
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Dark mode rendering (Scenario 14)', { tag: '@responsive' }, () => {
+  test('Purchases list renders correctly in dark mode', async ({ page }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await page.goto(HOUSEHOLD_ITEMS_ROUTE);
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    });
+    await listPage.heading.waitFor({ state: 'visible' });
+    await listPage.waitForLoaded();
+
+    await expect(listPage.searchInput).toBeVisible();
+    await expect(listPage.olist.filtersButton).toBeVisible();
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(hasHorizontalScroll).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 15: Accessibility
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Accessibility (Scenario 15)', { tag: '@responsive' }, () => {
+  test('Search field is a search box named "Search purchases" inside a search landmark', async ({
+    page,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await listPage.goto();
+
+    await expect(page.getByRole('search')).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search purchases' })).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 16: Status chip colour (Story #2195, AC2; D-08 regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Purchase status chip colour (Story #2195, AC2)', { tag: '@responsive' }, () => {
+  test('Every purchase status chip has a non-transparent background', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const statuses = [
+      ['planned', 'Planned'],
+      ['purchased', 'Ordered'],
+      ['scheduled', 'Delivery scheduled'],
+      ['arrived', 'Delivered'],
+    ] as const;
+    const ids: Record<string, string> = {};
+
+    try {
+      for (const [status] of statuses) {
+        const id = await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} HI Colour ${status}`,
+          status,
+        });
+        ids[status] = id;
+        created.push(id);
+      }
+
+      await listPage.search(`${testPrefix} HI Colour`);
+      await listPage.expandGroup('arrived');
+
+      for (const [status, label] of statuses) {
+        const chip = listPage.statusBadge(ids[status]!);
+        await expect(chip).toHaveText(label);
         const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
         expect(
           bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)',
@@ -741,9 +609,301 @@ test.describe('Purchase status chip colour (Story #2195, AC2)', { tag: '@respons
         ).toBe(true);
       }
     } finally {
-      for (const id of created) {
-        await deleteHouseholdItemViaApi(page, id);
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 17: Grouped by Status by default
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Grouped by Status (Scenario 17)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test('Status groups appear in status order; Delivered is collapsed while other groups have rows', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const arrivedName = `${testPrefix} HI Group Arrived`;
+    const plannedName = `${testPrefix} HI Group Planned`;
+    const orderedName = `${testPrefix} HI Group Ordered`;
+
+    try {
+      created.push(await createHouseholdItemViaApi(page, { name: arrivedName, status: 'arrived' }));
+      created.push(await createHouseholdItemViaApi(page, { name: plannedName, status: 'planned' }));
+      created.push(
+        await createHouseholdItemViaApi(page, { name: orderedName, status: 'purchased' }),
+      );
+
+      await listPage.search(`${testPrefix} HI Group`);
+
+      await expect(async () => {
+        expect(await listPage.groupKeys()).toEqual(['planned', 'purchased', 'arrived']);
+      }).toPass();
+      await expect(listPage.groupToggle('planned')).toHaveAttribute('aria-expanded', 'true');
+      await expect(listPage.groupToggle('arrived')).toHaveAttribute('aria-expanded', 'false');
+      // The collapsed group hides its row
+      expect(await listPage.getItemNames()).not.toContain(arrivedName);
+
+      await listPage.expandGroup('arrived');
+      await expect(async () => {
+        expect(await listPage.getItemNames()).toContain(arrivedName);
+      }).toPass();
+    } finally {
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 18: Chips
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Status chips and search (Scenario 18)', { tag: '@responsive' }, () => {
+  test('The four status chips and All are offered; searching never says "Searching all"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await listPage.goto();
+    await listPage.waitForLoaded();
+
+    for (const chip of ['planned', 'purchased', 'scheduled', 'arrived', 'all'] as const) {
+      await expect(listPage.chip(chip)).toBeVisible();
+    }
+    await expect(listPage.chip('planned')).toContainText('Planned');
+    await expect(listPage.chip('purchased')).toContainText('Ordered');
+    await expect(listPage.chip('scheduled')).toContainText('Delivery scheduled');
+    await expect(listPage.chip('arrived')).toContainText('Delivered');
+
+    // No chip is pressed by default (all purchases are listed)
+    await expect(listPage.chip('planned')).toHaveAttribute('aria-pressed', 'false');
+
+    await listPage.typeSearch(`${testPrefix} HI NoSuchPurchase`);
+    await expect(listPage.olist.searchingAll).toHaveCount(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 19: Footer totals
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Totals footer (Scenario 19)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test('Footer Expected cost, Invoiced and Paid equal the API totals and the sum of the rows', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const cleanup = newCleanup();
+    const created: string[] = [];
+    const prefix = `${testPrefix} HI Totals`;
+
+    try {
+      const sourceId = await createFundingSource(page, cleanup, `${prefix} Source`);
+      for (const [suffix, amount] of [
+        ['One', 1200],
+        ['Two', 3400.5],
+      ] as const) {
+        const id = await createHouseholdItemViaApi(page, { name: `${prefix} ${suffix}` });
+        created.push(id);
+        await createCostLine(page, {
+          kind: 'household_item',
+          hostId: id,
+          budgetSourceId: sourceId,
+          description: `${prefix} ${suffix} line`,
+          plannedAmount: amount,
+        });
       }
+
+      const answered = page.waitForResponse((resp) => {
+        const url = new URL(resp.url());
+        return (
+          url.pathname === API.householdItems &&
+          url.searchParams.get('q') === prefix &&
+          resp.request().method() === 'GET'
+        );
+      });
+      await listPage.search(prefix);
+      const body = (await (await answered).json()) as {
+        items: Array<{
+          expectedCost: number | null;
+          paid: number;
+          budgetSummary: { totalActual: number };
+        }>;
+        totals: { expectedCost: number; invoiced: number; paid: number };
+      };
+
+      expect(body.items).toHaveLength(2);
+      expect(body.totals.expectedCost).toBeGreaterThan(0);
+
+      await expect(listPage.footer).toBeVisible();
+      await expect
+        .poll(async () => parseMoney(await listPage.footerExpected.innerText()))
+        .toBeCloseTo(body.totals.expectedCost, 2);
+      expect(parseMoney(await listPage.footerInvoiced.innerText())).toBeCloseTo(
+        body.totals.invoiced,
+        2,
+      );
+      expect(parseMoney(await listPage.footerPaid.innerText())).toBeCloseTo(body.totals.paid, 2);
+
+      // Each total is the sum of the rows
+      const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+      expect(sum(body.items.map((i) => i.expectedCost ?? 0))).toBeCloseTo(
+        body.totals.expectedCost,
+        2,
+      );
+      expect(sum(body.items.map((i) => i.budgetSummary.totalActual))).toBeCloseTo(
+        body.totals.invoiced,
+        2,
+      );
+      expect(sum(body.items.map((i) => i.paid))).toBeCloseTo(body.totals.paid, 2);
+    } finally {
+      await runCleanup(cleanup);
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+
+  test('The footer label is "Totals", and "Totals (filtered)" once a chip narrows the list', async ({
+    page,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+
+    await listPage.goto();
+    await listPage.waitForLoaded();
+
+    // The shared database may be empty of purchases at this moment: the footer needs a row
+    test.skip((await listPage.footer.count()) === 0, 'No purchase in the list, so no footer');
+    await expect(listPage.footer).toHaveAccessibleName('Totals');
+
+    await listPage.selectChip('planned');
+    await page.waitForURL((url) => url.searchParams.get('status') === 'planned');
+    if ((await listPage.footer.count()) > 0) {
+      await expect(listPage.footer).toHaveAccessibleName('Totals (filtered)');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 20: Filters
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Filters panel (Scenario 20)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test('Filters › Area narrows the list, "No area" lists the purchases without one', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const areaIds: string[] = [];
+    const areaName = `${testPrefix} HI Filter Area`;
+    const inAreaName = `${testPrefix} HI Filter In Area`;
+    const noAreaName = `${testPrefix} HI Filter No Area`;
+
+    try {
+      const areaId = await createAreaViaApi(page, { name: areaName });
+      areaIds.push(areaId);
+      created.push(await createHouseholdItemViaApi(page, { name: inAreaName, areaId }));
+      created.push(await createHouseholdItemViaApi(page, { name: noAreaName }));
+
+      await listPage.search(`${testPrefix} HI Filter`);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(inAreaName);
+        expect(names).toContain(noAreaName);
+      }).toPass();
+
+      await listPage.pickAreaFilter(areaName);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(inAreaName);
+        expect(names).not.toContain(noAreaName);
+      }).toPass();
+
+      await listPage.pickAreaFilter('No area');
+      await page.waitForURL((url) => url.searchParams.get('areaId') === '__none__');
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(noAreaName);
+        expect(names).not.toContain(inAreaName);
+      }).toPass();
+    } finally {
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+      for (const id of areaIds) await deleteAreaViaApi(page, id);
+    }
+  });
+
+  test('Filters › Target delivery narrows the list to the date range', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const earlyName = `${testPrefix} HI Target Early`;
+    const lateName = `${testPrefix} HI Target Late`;
+
+    try {
+      // The target delivery date is derived: the scheduler sets it from the earliest delivery
+      // constraint, so patch that (a create cannot set it) and read the result back.
+      for (const [name, earliest] of [
+        [earlyName, '2031-03-10'],
+        [lateName, '2031-09-20'],
+      ] as const) {
+        const id = await createHouseholdItemViaApi(page, { name });
+        created.push(id);
+        const patched = await page.request.patch(`${API.householdItems}/${id}`, {
+          data: { earliestDeliveryDate: earliest },
+        });
+        expect(patched.ok(), `PATCH purchase: ${patched.status()}`).toBeTruthy();
+        const detail = (await (await page.request.get(`${API.householdItems}/${id}`)).json()) as {
+          householdItem: { targetDeliveryDate: string | null };
+        };
+        expect(detail.householdItem.targetDeliveryDate).toBe(earliest);
+      }
+
+      await listPage.search(`${testPrefix} HI Target`);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(earlyName);
+        expect(names).toContain(lateName);
+      }).toPass();
+
+      await listPage.setTargetDelivery('2031-01-01', '2031-06-30');
+      await page.waitForURL((url) => url.searchParams.has('targetDelivery'));
+
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(earlyName);
+        expect(names).not.toContain(lateName);
+      }).toPass();
+    } finally {
+      for (const id of created) await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 21: Row link
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Row link (Scenario 21)', { tag: '@responsive' }, () => {
+  test('The purchase name links to the purchase page', async ({ page, testPrefix }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let createdId: string | null = null;
+    const name = `${testPrefix} HI Open Link`;
+
+    try {
+      createdId = await createHouseholdItemViaApi(page, { name });
+
+      await listPage.search(name);
+      await expect(listPage.itemRow(name)).toHaveCount(1);
+      await listPage.olist.titleLink(await listPage.idOf(name)).click();
+
+      await page.waitForURL(`**${routeUrl('householdItem', { id: createdId })}`);
+    } finally {
+      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 });

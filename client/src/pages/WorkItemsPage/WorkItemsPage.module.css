@@ -34,25 +34,6 @@
   min-width: 0;
 }
 
-/* Above the title's stretched link; a 44px target below 1024px. */
-.relationLink {
-  position: relative;
-  z-index: var(--z-raised);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.relationLink:hover {
-  color: var(--color-text-primary);
-  text-decoration: underline;
-}
-
-.relationLink:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm);
-}
-
 /* The area link under the title: above the stretched title link. */
 .areaLink {
   position: relative;
@@ -60,8 +41,7 @@
 }
 
 @media (max-width: 1023px) {
-  .areaLink,
-  .relationLink {
+  .areaLink {
     display: inline-flex;
     align-items: center;
     min-height: var(--touch-target-min);

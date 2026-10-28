@@ -5,6 +5,7 @@
  */
 
 import type { UserSummary, WorkItemSummary } from './workItem.js';
+import type { AttentionHoldsUp } from './attention.js';
 
 /**
  * Display status of a milestone (glossary v1): derived from isCompleted and the projected
@@ -94,6 +95,19 @@ export interface UpdateMilestoneRequest {
  */
 export interface MilestoneListResponse {
   milestones: MilestoneSummary[];
+}
+
+/** A Milestones list row (#2246): the summary plus the schedule projection's figures. */
+export interface MilestoneListRow extends MilestoneSummary {
+  /** Latest projected end among contributing tasks (schedule projection); null when none. */
+  projectedDate: string | null;
+  /** computeHoldsUp('milestone:<id>'); null when reached or count 0. */
+  holdsUp: AttentionHoldsUp | null;
+}
+
+/** Response for GET /api/milestones. */
+export interface MilestoneListRowsResponse {
+  milestones: MilestoneListRow[];
 }
 
 /**

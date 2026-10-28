@@ -741,6 +741,7 @@
   "listShortcuts": {
     "newPurchase": "New purchase",
     "newCompany": "New company",
+    "newMilestone": "New milestone",
     "newInvoice": "New invoice",
     "newDiaryEntry": "New diary entry",
     "newTask": "New task"

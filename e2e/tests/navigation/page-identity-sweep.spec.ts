@@ -157,6 +157,7 @@ const ROWS: SweepRow[] = [
     id: 'milestones',
     path: () => routeUrl('milestones'),
     h1: 'Milestones',
+    h1Count: true,
     crumbs: false,
     active: 'sidebar-view-milestones',
   },
@@ -165,6 +166,7 @@ const ROWS: SweepRow[] = [
     path: () => routeUrl('milestoneNew'),
     // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
     h1: 'Milestones',
+    h1Count: true,
     dialog: 'New milestone',
     title: new RegExp(`^New milestone · Tasks · ${HOUSE}$`),
     crumbs: false,
@@ -196,6 +198,7 @@ const ROWS: SweepRow[] = [
     id: 'householdItems',
     path: () => routeUrl('householdItems'),
     h1: 'Purchases',
+    h1Count: true,
     crumbs: false,
     active: PURCHASES,
   },
@@ -204,6 +207,7 @@ const ROWS: SweepRow[] = [
     path: () => routeUrl('householdItemNew'),
     // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
     h1: 'Purchases',
+    h1Count: true,
     dialog: 'New purchase',
     title: new RegExp(`^New purchase · Purchases · ${HOUSE}$`),
     crumbs: false,
@@ -386,6 +390,7 @@ const ROWS: SweepRow[] = [
     id: 'companies',
     path: () => routeUrl('companies'),
     h1: 'Companies',
+    h1Count: true,
     crumbs: false,
     active: COMPANIES,
   },
@@ -394,6 +399,7 @@ const ROWS: SweepRow[] = [
     path: () => routeUrl('companyNew'),
     // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
     h1: 'Companies',
+    h1Count: true,
     dialog: 'New company',
     title: new RegExp(`^New company · Companies · ${HOUSE}$`),
     crumbs: false,

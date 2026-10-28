@@ -5,6 +5,7 @@ import { issueRestoreToken, runUndoable, undoStore } from '../services/undoServi
 import { autoReschedule, autoRescheduleLogged } from '../services/schedulingEngine.js';
 import { undoableDeleteResponse } from './undoResponseSchema.js';
 import * as householdItemDepService from '../services/householdItemDepService.js';
+import { HOUSEHOLD_ITEM_LIST_SORTS } from '@cornerstone/shared';
 import type {
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
@@ -60,18 +61,18 @@ const listHouseholdItemsSchema = {
       actualCostMax: { type: 'number' },
       budgetLinesMin: { type: 'number' },
       budgetLinesMax: { type: 'number' },
-      sortBy: {
-        type: 'string',
-        enum: [
-          'name',
-          'category',
-          'status',
-          'order_date',
-          'target_delivery_date',
-          'created_at',
-          'updated_at',
-        ],
-      },
+      expectedCostMin: { type: 'number' },
+      expectedCostMax: { type: 'number' },
+      grantsMin: { type: 'number' },
+      grantsMax: { type: 'number' },
+      afterGrantsMin: { type: 'number' },
+      afterGrantsMax: { type: 'number' },
+      targetDeliveryFrom: { type: 'string', format: 'date' },
+      targetDeliveryTo: { type: 'string', format: 'date' },
+      actualDeliveryFrom: { type: 'string', format: 'date' },
+      actualDeliveryTo: { type: 'string', format: 'date' },
+      group: { type: 'string', enum: ['status'] },
+      sortBy: { type: 'string', enum: [...HOUSEHOLD_ITEM_LIST_SORTS] },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
     },
     additionalProperties: false,
@@ -204,11 +205,9 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     const query = request.query as HouseholdItemListQuery;
 
-    const result = householdItemService.listHouseholdItems(
-      fastify.db,
-      query,
-      fastify.config.vatRate,
-    );
+    const result = householdItemService.listHouseholdItemRows(fastify.db, query, {
+      vatRate: fastify.config.vatRate,
+    });
 
     return reply.status(200).send(result);
   });

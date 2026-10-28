@@ -1,98 +1,65 @@
 /**
- * Page Object Model for the Milestones list page (/project/milestones)
+ * Page Object Model for the Milestones list page (/project/milestones), the sixth ObjectList
+ * adopter (#2246, EPIC-21 P5.2), composed from the shared `ObjectListControl` (prefix
+ * `milestones`).
  *
  * The page renders:
- * - A PageLayout with h1 "Milestones" (common navigation.milestones)
- *   and a "New Milestone" button (data-testid="new-milestone-button")
- * - No in-page tab row (#2205): "Milestones" is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
- * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
- * - Filter buttons: "Filter by Status", "Filter by Target Date", "Filter by Linked Items"
- * - Table columns: Title, Target Date, Status (Badge), Linked Items, Description
- * - An actions menu per row (aria-label="Actions menu" = t('milestones.menu.actions') = "Actions menu")
- *   with Edit and Delete options (data-testid="milestone-edit-{id}", "milestone-delete-{id}")
- * - An empty state when no milestones exist (DataTable EmptyState component)
- * - A delete confirmation Modal (role="dialog") using sharedStyles.btnConfirmDelete
- * - An error display rendered by DataTable when load fails
- *
- * Key DOM observations from source code:
- * - "New Milestone" is a <button> with data-testid="new-milestone-button" calling navigate()
- * - The delete modal is the shared Modal component (role="dialog") with:
- *   - title = t('milestones.delete.confirm') = "Delete Milestone"
- *   - Cancel: sharedStyles.btnSecondary, text "Cancel"
- *   - Confirm: sharedStyles.btnConfirmDelete, text "Delete Milestone" / "Deleting..."
- * - Actions menu button has aria-label="Actions menu" (from t('milestones.menu.actions'))
- * - Edit menu item: t('milestones.menu.edit') = "Edit"
- * - Delete menu item: t('milestones.menu.delete') = "Delete"
- * - Client-side filtering: search, status filter (enum), targetDate filter (date range)
- * - Search is client-side (no URL param), so no waitForResponse needed — filter is synchronous
+ * - h1 "Milestones (n)" / "(n of m)" and the one primary "New milestone"
+ *   (`new-milestone-button`); the page ⋯ menu (`milestones-page-menu`).
+ * - Chips `milestones-chip-<upcoming|reached|all>`, Filters (Target date
+ *   `milestones-filter-targetDate-<from|to>`, Waits for `milestones-filter-waitsFor-<min|max>`),
+ *   Sort (`milestones-sort-<target_date|title|projected_date|status|waits_for>`). No Group by.
+ * - Filtering, sorting and paging run on the client over the one `GET /api/milestones` answer.
+ * - Table headers: Milestone (title), Target, Projected, Waits for, Holds up, Status. Row parts
+ *   (both surfaces): `row`, `title`, `status` (Badge: Upcoming / Late · n d / Early · n d /
+ *   Reached), `row-menu`, `open`, `delete`; table only: `milestones-holds-up-<id>`
+ *   (`data-figure="holds-up"`, absent when nothing is held up).
+ * - The delete ConfirmDialog (prefix `milestone-list-delete`). Milestone ids are numbers.
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { ObjectListControl } from './components/ObjectListControl.js';
 
 export const MILESTONES_ROUTE = routeUrl('milestones');
 export const MILESTONES_NEW_ROUTE = routeUrl('milestoneNew');
 
+export type MilestoneChip = 'upcoming' | 'reached' | 'all';
+
 export class MilestonesPage {
   readonly page: Page;
+  readonly olist: ObjectListControl;
 
-  // Page header
   readonly heading: Locator;
   readonly newMilestoneButton: Locator;
-
-  // Search and filter controls (DataTable)
   readonly searchInput: Locator;
-  readonly statusFilter: Locator;
-  readonly targetDateFilter: Locator;
-
-  // Table (desktop view)
-  readonly tableContainer: Locator;
-  readonly tableBody: Locator;
-
-  // Cards (mobile view)
-  readonly cardsContainer: Locator;
-
-  // Empty state
   readonly emptyState: Locator;
+  readonly tableSurface: Locator;
+  readonly groupMenuButton: Locator;
+  readonly sortMenuButton: Locator;
 
-  // Error banner (DataTable renders this when load fails)
-  readonly errorBanner: Locator;
-
-  // Delete confirmation (shared ConfirmDialog, role="alertdialog")
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
+    this.olist = new ObjectListControl(
+      page,
+      'milestones',
+      'Milestones',
+      (url) => url.pathname === '/api/milestones',
+      false,
+    );
 
-    // PageLayout renders h1 with common navigation.milestones = "Milestones"
-    this.heading = page.getByRole('heading', { level: 1, name: 'Milestones', exact: true });
-    // New Milestone button uses data-testid for stable selection
+    this.heading = page.getByRole('heading', { level: 1, name: /^Milestones(\s|$)/ });
     this.newMilestoneButton = page.getByTestId('new-milestone-button');
+    this.searchInput = this.olist.searchInput;
+    this.emptyState = this.olist.emptyState;
+    this.tableSurface = this.olist.tableSurface;
+    this.groupMenuButton = this.olist.groupMenuButton;
+    this.sortMenuButton = this.olist.sortMenuButton;
 
-    // DataTable search input (aria-label="Search items" for all DataTable pages)
-    this.searchInput = page.getByLabel('Search items');
-    // Column filter buttons (DataTable renders "Filter by {column label}")
-    this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
-    this.targetDateFilter = page.getByRole('button', { name: 'Filter by Target Date' });
-
-    // Table (desktop) — [class*="tableContainer"] is the DataTable table wrapper
-    this.tableContainer = page.locator('[class*="tableContainer"]');
-    this.tableBody = this.tableContainer.locator('tbody');
-
-    // Mobile cards container
-    this.cardsContainer = page.locator('[class*="cardsContainer"]');
-
-    // Empty state — use .first() to avoid strict mode: child elements (emptyStateTitle,
-    // emptyStateDescription) also have "emptyState" in their class names.
-    this.emptyState = page.locator('[class*="emptyState"]').first();
-
-    // Error banner from DataTable
-    this.errorBanner = page.locator('[role="alert"]');
-
-    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209),
-    // title "Delete <title>?", action "Delete", testid prefix milestone-list-delete
     this.deleteModal = page
       .getByRole('alertdialog')
       .filter({ has: page.getByTestId('milestone-list-delete-cancel') });
@@ -100,194 +67,126 @@ export class MilestonesPage {
     this.deleteCancelButton = this.deleteModal.getByTestId('milestone-list-delete-cancel');
   }
 
-  /**
-   * Navigate to the milestones list page.
-   * No explicit timeout — uses project-level actionTimeout.
-   */
-  async goto(): Promise<void> {
-    await this.page.goto(MILESTONES_ROUTE);
+  async goto(query = ''): Promise<void> {
+    await this.page.goto(
+      query ? `${MILESTONES_ROUTE}?${query.replace(/^\?/, '')}` : MILESTONES_ROUTE,
+    );
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Wait for the milestones list to finish loading.
-   * Races: table rows visible, mobile cards visible, or empty state visible.
-   */
   async waitForLoaded(): Promise<void> {
-    await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
-      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
-      this.emptyState.waitFor({ state: 'visible' }),
-    ]);
+    await this.olist.waitForLoaded();
   }
 
-  /**
-   * Get the titles of all milestones currently shown.
-   * Uses table rows on desktop/tablet, card view on mobile.
-   *
-   * Milestones page uses DataTable with a 'title' column — the title cell
-   * does NOT use a special CSS class (it's a plain string render, not a <Link>).
-   * We read text from the first column cells in tbody.
-   */
-  async getMilestoneTitles(): Promise<string[]> {
-    const tableVisible = await this.tableContainer.isVisible();
-
-    // One atomic read per branch: the list re-renders while other tests/helpers mutate shared
-    // data, so never snapshot elements with .all() and read them one by one.
-    if (tableVisible) {
-      // Desktop/tablet: first td in each row is the Title column.
-      const texts = await this.tableBody.locator('tr > td:first-child').allTextContents();
-      return texts.map((text) => text.trim()).filter(Boolean);
-    }
-
-    // Mobile fallback: DataTableCard renders cards with first column as header.
-    // `[class^="card_"]` matches the CSS-module-hashed `card_abc123` card without picking up
-    // `cardHeader_/cardRow_/cardValue_`. The first cardValue is the Title column value.
-    const texts = await this.cardsContainer
-      .locator('[class^="card_"]')
-      .evaluateAll((cards) =>
-        cards.map((card) => card.querySelector('[class*="cardValue"]')?.textContent ?? ''),
-      );
-    return texts.map((text) => text.trim()).filter(Boolean);
+  /** The visible milestone titles, in order. */
+  getMilestoneTitles(): Promise<string[]> {
+    return this.olist.getTitles();
   }
 
-  /**
-   * Search the milestones list.
-   * Search is client-side (no debounce + API round-trip), so we only
-   * fill the input and wait for the DOM to update synchronously.
-   */
-  async search(query: string): Promise<void> {
-    await this.searchInput.waitFor({ state: 'visible' });
-    await this.searchInput.scrollIntoViewIfNeeded();
-    await this.searchInput.fill(query);
+  /** The heading's numbers: "(2 of 9)" is `{ shown: 2, total: 9 }`. */
+  async headingCounts(): Promise<{ shown: number; total: number | null } | null> {
+    const text = (await this.heading.innerText()).replace(/\s+/g, ' ');
+    const match = /\((\d+)(?: of (\d+))?\)/.exec(text);
+    if (!match) return null;
+    return { shown: Number(match[1]), total: match[2] ? Number(match[2]) : null };
   }
 
-  /**
-   * Clear the search input.
-   */
-  async clearSearch(): Promise<void> {
-    await this.searchInput.clear();
+  /** Type a search (client-side: waits for the URL and the list's re-fetch). */
+  search(query: string): Promise<void> {
+    return this.olist.search(query);
   }
 
-  /**
-   * Open the actions menu for the milestone with the given title.
-   * Clicks the "Actions menu" button (⋮) in the table row or card.
-   */
-  async openActionsMenu(title: string): Promise<void> {
-    const tableVisible = await this.tableContainer.isVisible();
-
-    // Filter inside the locator so the match is re-evaluated at click time (the list re-renders).
-    if (tableVisible) {
-      const row = this.tableBody
-        .locator('tr')
-        .filter({ hasText: title })
-        .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
-        .first();
-      if ((await row.count()) > 0) {
-        await row.locator('[aria-label="Actions menu"]').click();
-        return;
-      }
-    }
-
-    // Mobile fallback: cards
-    const card = this.cardsContainer
-      .locator('[class*="card"]')
-      .filter({ hasText: title })
-      .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
-      .first();
-    if ((await card.count()) > 0) {
-      await card.locator('[aria-label="Actions menu"]').click();
-      return;
-    }
-
-    throw new Error(`Milestone with title "${title}" not found in list`);
+  clearSearch(): Promise<void> {
+    return this.olist.clearSearch();
   }
 
-  /**
-   * Open the delete modal for the milestone with the given title.
-   * Opens the actions menu then clicks "Delete".
-   */
+  chip(value: MilestoneChip): Locator {
+    return this.olist.chip(value);
+  }
+
+  selectChip(value: MilestoneChip): Promise<void> {
+    return this.olist.selectChip(value);
+  }
+
+  setSort(value: string, direction?: 'asc' | 'desc'): Promise<void> {
+    return this.olist.setSort(value, direction);
+  }
+
+  columnHeader(label: string | RegExp): Locator {
+    return this.olist.columnHeader(label);
+  }
+
+  openFilters(): Promise<void> {
+    return this.olist.openFilters();
+  }
+
+  closeFilters(): Promise<void> {
+    return this.olist.closeFilters();
+  }
+
+  /** Open Filters and set the Target date range (ISO dates). */
+  async setTargetDateRange(from: string | null, to: string | null): Promise<void> {
+    await this.openFilters();
+    if (from !== null) await this.olist.dateInput('targetDate', 'from').fill(from);
+    if (to !== null) await this.olist.dateInput('targetDate', 'to').fill(to);
+  }
+
+  // Rows ----------------------------------------------------------------------
+
+  /** The row (table) or card of the milestone with this exact title. */
+  milestoneRow(title: string): Locator {
+    return this.olist.rowByTitle(title);
+  }
+
+  idOf(title: string): Promise<string> {
+    return this.olist.idOf(title);
+  }
+
+  titleLink(id: string | number): Locator {
+    return this.olist.titleLink(String(id));
+  }
+
+  statusBadge(id: string | number): Locator {
+    return this.olist.part('status', String(id));
+  }
+
+  /** Table only: the "n tasks" Holds up sentence (`data-figure="holds-up"`). */
+  holdsUp(id: string | number): Locator {
+    return this.page.getByTestId(`milestones-holds-up-${id}`);
+  }
+
+  async isTableSurface(): Promise<boolean> {
+    return this.olist.isTableSurface();
+  }
+
+  // Delete --------------------------------------------------------------------
+
+  /** Open the delete dialog of the milestone with this title (⋯ › Delete). */
   async openDeleteModal(title: string): Promise<void> {
-    const tableVisible = await this.tableContainer.isVisible();
-
-    // Filter inside the locator so the match is re-evaluated at click time (the list re-renders).
-    if (tableVisible) {
-      const row = this.tableBody
-        .locator('tr')
-        .filter({ hasText: title })
-        .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
-        .first();
-      if ((await row.count()) > 0) {
-        await row.locator('[aria-label="Actions menu"]').click();
-        // The menu dropdown renders buttons: "Edit" and "Delete"
-        await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
-        await this.deleteModal.waitFor({ state: 'visible' });
-        return;
-      }
-    }
-
-    // Mobile fallback: cards
-    const card = this.cardsContainer
-      .locator('[class*="card"]')
-      .filter({ hasText: title })
-      .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
-      .first();
-    if ((await card.count()) > 0) {
-      await card.locator('[aria-label="Actions menu"]').click();
-      // The menu dropdown renders buttons: "Edit" and "Delete"
-      await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
-      await this.deleteModal.waitFor({ state: 'visible' });
-      return;
-    }
-
-    throw new Error(`Milestone with title "${title}" not found in list`);
+    const id = await this.idOf(title);
+    await this.olist.chooseRowMenu(id, 'delete');
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Confirm the deletion in the delete modal.
-   * Waits for the DELETE API response and modal to hide.
-   */
   async confirmDelete(): Promise<void> {
-    const deleteResponsePromise = this.page.waitForResponse(
+    const deleted = this.page.waitForResponse(
       (resp) =>
         resp.url().includes('/api/milestones') &&
         resp.request().method() === 'DELETE' &&
         resp.status() === 204,
     );
     await this.deleteConfirmButton.click();
-    await deleteResponsePromise;
+    await deleted;
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Cancel the delete modal without deleting.
-   */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Click a table row by title to navigate to the milestone detail page.
-   */
-  async clickMilestoneRow(title: string): Promise<void> {
-    const tableVisible = await this.tableContainer.isVisible();
-
-    if (tableVisible) {
-      const row = this.tableBody.locator('tr').filter({ hasText: title }).first();
-      if ((await row.count()) > 0) {
-        await row.click();
-        return;
-      }
-    }
-
-    // Mobile fallback: click card
-    const card = this.cardsContainer.locator('[class*="card"]').filter({ hasText: title }).first();
-    if ((await card.count()) > 0) {
-      await card.click();
-      return;
-    }
-
-    throw new Error(`Milestone with title "${title}" not found in list`);
+  /** Follow a milestone's title link to its detail page. */
+  async openMilestone(title: string): Promise<void> {
+    await this.titleLink(await this.idOf(title)).click();
   }
 }

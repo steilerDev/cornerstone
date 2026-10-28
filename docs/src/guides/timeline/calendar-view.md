@@ -61,7 +61,7 @@ Click a work item bar to navigate to its detail page. On touch devices, the [two
 
 ## Milestone Interactions
 
-Click a milestone diamond on the calendar to open the [milestone panel](milestones#milestone-panel) with that milestone selected for editing.
+Click a milestone diamond on the calendar to open that [milestone's page](milestones#editing-a-milestone), where you can edit it.
 
 Hover over a milestone diamond to see a tooltip showing:
 

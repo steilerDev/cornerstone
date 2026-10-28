@@ -70,7 +70,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Household Items',
+      label: 'Purchases',
       link: { type: 'doc', id: 'guides/household-items/index' },
       items: [
         'guides/household-items/creating-editing-items',

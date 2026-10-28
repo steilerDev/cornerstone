@@ -41,6 +41,7 @@ const mockUpdateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.updateB
 const mockDeleteBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.deleteBudgetCategory>();
 
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockListMilestoneRows = jest.fn<typeof MilestonesApiTypes.listMilestoneRows>();
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 
 // Must mock BEFORE importing the component
@@ -65,6 +66,7 @@ jest.unstable_mockModule('./lib/budgetCategoriesApi.js', () => ({
 // test case times out waiting for the heading to appear.
 jest.unstable_mockModule('./lib/milestonesApi.js', () => ({
   listMilestones: mockListMilestones,
+  listMilestoneRows: mockListMilestoneRows,
   getMilestone: jest.fn<typeof MilestonesApiTypes.getMilestone>(),
   createMilestone: jest.fn<typeof MilestonesApiTypes.createMilestone>(),
   updateMilestone: jest.fn<typeof MilestonesApiTypes.updateMilestone>(),
@@ -101,8 +103,10 @@ jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
 // HouseholdItemsPage calls listHouseholdItems and fetchVendors on mount.
 // Mock to prevent fetch calls in the jsdom test environment.
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
+const mockListHouseholdItemRows = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItemRows>();
 jest.unstable_mockModule('./lib/householdItemsApi.js', () => ({
   listHouseholdItems: mockListHouseholdItems,
+  listHouseholdItemRows: mockListHouseholdItemRows,
   getHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>(),
   createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
   updateHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>(),
@@ -338,10 +342,12 @@ describe('App', () => {
     mockUpdateBudgetCategory.mockReset();
     mockDeleteBudgetCategory.mockReset();
     mockListMilestones.mockReset();
+    mockListMilestoneRows.mockReset();
     mockGetTimeline.mockReset();
     mockListWorkItems.mockReset();
     mockListWorkItemRows.mockReset();
     mockListHouseholdItems.mockReset();
+    mockListHouseholdItemRows.mockReset();
     mockFetchVendors.mockReset();
     mockFetchVendor.mockReset();
     mockListUsers.mockReset();
@@ -420,6 +426,7 @@ describe('App', () => {
 
     // Default: milestones returns empty list (used by TimelinePage via useMilestones)
     mockListMilestones.mockResolvedValue([]);
+    mockListMilestoneRows.mockResolvedValue([]);
 
     // Default: timeline returns empty data (used by TimelinePage via useTimeline)
     mockGetTimeline.mockResolvedValue({
@@ -449,6 +456,12 @@ describe('App', () => {
     mockListHouseholdItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+    });
+    mockListHouseholdItemRows.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+      scopeTotal: 0,
+      totals: { expectedCost: 0, invoiced: 0, paid: 0 },
     });
 
     // Default: fetchVendor stays pending — keeps VendorDetailPage in loading state
@@ -601,7 +614,7 @@ describe('App', () => {
     // Use level: 1 to match the page title h1 (not the h2 empty state).
     const heading = await screen.findByRole(
       'heading',
-      { name: /^purchases$/i, level: 1 },
+      { name: /^purchases( \(\d+\))?$/i, level: 1 },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
@@ -1090,7 +1103,11 @@ describe('App', () => {
 
       await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
       expect(
-        await screen.findByRole('heading', { name: /^purchases$/i, level: 1 }, { timeout: 5000 }),
+        await screen.findByRole(
+          'heading',
+          { name: /^purchases( \(\d+\))?$/i, level: 1 },
+          { timeout: 5000 },
+        ),
       ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /^tasks$/i, level: 1 })).toBeNull();
     }, 15000);
@@ -1121,14 +1138,18 @@ describe('App', () => {
 
       await screen.findByRole('dialog', { name: 'New milestone' }, { timeout: 5000 });
       expect(
-        await screen.findByRole('heading', { name: /^milestones$/i, level: 1 }, { timeout: 5000 }),
+        await screen.findByRole(
+          'heading',
+          { name: /^milestones( \(\d+\))?$/i, level: 1 },
+          { timeout: 5000 },
+        ),
       ).toBeInTheDocument();
     }, 15000);
 
     it.each([
-      ['/project/household-items/new', 'New purchase', /^purchases$/i],
-      ['/project/milestones/new', 'New milestone', /^milestones$/i],
-      ['/companies/new', 'New company', /^companies$/i],
+      ['/project/household-items/new', 'New purchase', /^purchases( \(\d+\))?$/i],
+      ['/project/milestones/new', 'New milestone', /^milestones( \(\d+\))?$/i],
+      ['/companies/new', 'New company', /^companies( \(\d+\))?$/i],
     ])(
       '%s opens %s over its own list',
       async (path, dialogName, listHeading) => {

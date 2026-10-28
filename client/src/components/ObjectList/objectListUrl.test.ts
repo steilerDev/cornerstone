@@ -138,6 +138,22 @@ describe('objectListUrl', () => {
       expect(normaliseListParams(p(''), makeConfig())).toBeNull();
     });
 
+    it('keeps a chip value that is only in the overflow menu, and drops other unknown values', () => {
+      const cfg = makeConfig({
+        chips: {
+          options: [{ value: 'open', label: 'Open' }],
+          overflow: { label: 'More', options: [{ value: 'tiling', label: 'Tiling' }] },
+        },
+      });
+
+      expect(normaliseListParams(p('status=tiling'), cfg)).toBeNull();
+      expect(normaliseListParams(p('status=gone'), cfg)?.toString()).toBe('');
+    });
+
+    it('drops an overflow value when the config has no overflow', () => {
+      expect(normaliseListParams(p('status=tiling'), makeConfig())?.toString()).toBe('');
+    });
+
     it('works without chips or group config', () => {
       const cfg = makeConfig({ chips: undefined, groupBy: undefined });
       expect(normaliseListParams(p('group=area'), cfg)?.toString()).toBe('');

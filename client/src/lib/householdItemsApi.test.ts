@@ -1,12 +1,18 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   listHouseholdItems,
+  listHouseholdItemRows,
   getHouseholdItem,
   createHouseholdItem,
   updateHouseholdItem,
   deleteHouseholdItem,
 } from './householdItemsApi.js';
-import type { HouseholdItemListResponse, HouseholdItemDetail } from '@cornerstone/shared';
+import type {
+  HouseholdItemListResponse,
+  HouseholdItemListQuery,
+  HouseholdItemListRowsResponse,
+  HouseholdItemDetail,
+} from '@cornerstone/shared';
 
 describe('householdItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -682,7 +688,7 @@ describe('householdItemsApi', () => {
       await listHouseholdItems({ q: 'sofa', pageSize: 50 }, { signal: controller.signal });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/household-items?pageSize=50&q=sofa',
+        '/api/household-items?q=sofa&pageSize=50',
         expect.objectContaining({ signal: controller.signal }),
       );
     });
@@ -696,6 +702,96 @@ describe('householdItemsApi', () => {
       await listHouseholdItems();
 
       expect(mockFetch.mock.calls[0]![1]!.signal).toBeUndefined();
+    });
+  });
+
+  describe('list path (#2246)', () => {
+    const everyParam: Required<HouseholdItemListQuery> = {
+      page: 2,
+      pageSize: 50,
+      q: 'sofa',
+      category: 'hic-furniture',
+      status: 'arrived',
+      vendorId: 'v1',
+      areaId: 'a1',
+      plannedCostMin: 1,
+      plannedCostMax: 2,
+      actualCostMin: 3,
+      actualCostMax: 4,
+      budgetLinesMin: 5,
+      budgetLinesMax: 6,
+      sortBy: 'expected_cost',
+      sortOrder: 'desc',
+      group: 'status',
+      expectedCostMin: 7,
+      expectedCostMax: 8,
+      grantsMin: 9,
+      grantsMax: 10,
+      afterGrantsMin: 11,
+      afterGrantsMax: 12,
+      targetDeliveryFrom: '2026-03-01',
+      targetDeliveryTo: '2026-03-31',
+      actualDeliveryFrom: '2026-04-01',
+      actualDeliveryTo: '2026-04-30',
+    };
+
+    function lastQuery(): URLSearchParams {
+      const url = mockFetch.mock.calls[0]![0] as string;
+      return new URLSearchParams(url.split('?')[1]);
+    }
+
+    it.each(['listHouseholdItems', 'listHouseholdItemRows'] as const)(
+      '%s sends every query field once, numbers as text',
+      async (name) => {
+        mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+        const fn = name === 'listHouseholdItems' ? listHouseholdItems : listHouseholdItemRows;
+
+        await fn(everyParam);
+
+        const sent = Object.fromEntries(lastQuery().entries());
+        expect(sent).toEqual(
+          Object.fromEntries(Object.entries(everyParam).map(([k, v]) => [k, String(v)])),
+        );
+      },
+    );
+
+    it('keeps a zero bound and leaves undefined and empty values out', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+      await listHouseholdItemRows({ grantsMin: 0, q: '', group: undefined });
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/household-items?grantsMin=0');
+    });
+  });
+
+  describe('listHouseholdItemRows', () => {
+    it('requests /api/household-items and returns the rows response', async () => {
+      const response: HouseholdItemListRowsResponse = {
+        items: [],
+        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+        scopeTotal: 3,
+        totals: { expectedCost: 0, invoiced: 0, paid: 0 },
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+
+      await expect(listHouseholdItemRows({ pageSize: 100 })).resolves.toEqual(response);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/household-items?pageSize=100',
+        expect.any(Object),
+      );
+    });
+
+    it('forwards the abort signal', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+      const controller = new AbortController();
+
+      await listHouseholdItemRows(undefined, { signal: controller.signal });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/household-items',
+        expect.objectContaining({ signal: controller.signal }),
+      );
     });
   });
 });

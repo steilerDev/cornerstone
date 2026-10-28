@@ -17,6 +17,8 @@ export interface VendorListResponse {
     totalItems: number;
     totalPages: number;
   };
+  /** Companies matching the trade scope only (no search): the "of m" of the list heading. Always sent. */
+  scopeTotal?: number;
 }
 
 /**

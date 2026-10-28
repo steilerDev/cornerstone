@@ -80,4 +80,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Bank report specs](bank-report-specs.md) — NavAnchor ignores target, ConfirmDialog danger-only, aria-disabled unstyled on shared btns, revert batchId, real closure measure
 - [Company page specs](company-page-specs.md) — array-literal `to` counts as destination, alias removal on client rebuild, per-list delete focus, retry clears failure, subject history filters
 - [Tasks list specs](tasks-list-specs.md) — UX drops capabilities, group badge dup label, focus rule vs UX, per-row figures, picker "none", count-only reuse
+- [ObjectList P5.2 specs](object-list-p52-specs.md) — async chip options vs normalise, chip param as filter def, stranded DataTable features, engine Expected cost, milestone holds-up
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

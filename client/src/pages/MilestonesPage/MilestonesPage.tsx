@@ -1,455 +1,90 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useOpenCreate } from '../../navigation/useOpenCreate.js';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import type { MilestoneSummary } from '@cornerstone/shared';
-import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
-import { DataTable } from '../../components/DataTable/DataTable.js';
-import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
-import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
-import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
+import type { MilestoneListRow } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { ObjectList } from '../../components/ObjectList/ObjectList.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { focusPageHeading } from '../../lib/focusPageHeading.js';
-import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
-import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
-import { useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
-import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { useFormatters } from '../../lib/formatters.js';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
-import sharedStyles from '../../styles/shared.module.css';
-import styles from './MilestonesPage.module.css';
-import { routeUrl } from '@cornerstone/shared';
+import { useListRowDelete } from '../../hooks/useListRowDelete.js';
+import { deleteMilestone } from '../../lib/milestonesApi.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { useMilestoneRows } from './useMilestoneRows.js';
+import { useMilestonesList } from './useMilestonesList.js';
+import type { MilestoneListMeta } from './useMilestonesList.js';
 
+/** Schedule › Milestones: the Upcoming / Reached list with Target, Projected, Waits for and Holds up. */
 export function MilestonesPage() {
-  const { formatDate } = useFormatters();
   const { t } = useTranslation('schedule');
   const { t: tCommon } = useTranslation('common');
-  const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(tCommon('navigation.milestones'));
-  const navigate = useNavigate();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const openCreate = useOpenCreate();
 
-  // Data state
-  const [milestones, setMilestones] = useState<MilestoneSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const { list, config, labels, scopeTotal } = useMilestonesList();
+  const { refresh } = list;
+  useOnObjectCreated('milestone', refresh);
 
-  // Delete confirmation state
-  const [deletingMilestone, setDeletingMilestone] = useState<MilestoneSummary | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('milestone', deletingMilestone?.id ?? null);
-
-  // Action menu state
-  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
-
-  // Keyboard shortcuts state
-  const registry = useShortcutRegistry();
-  const [helpShortcuts, setHelpShortcuts] = useState<KeyboardShortcut[] | null>(null);
-
-  // Table state
-  const [tableState, setTableState] = useState<TableState>(() => ({
-    search: '',
-    filters: new Map(),
-    sortBy: null,
-    sortDir: null,
-    page: 1,
-    pageSize: 100,
-  }));
-
-  // Load milestones on mount
+  // `n` creates like the primary button (read at press time).
+  const createRef = useRef(openCreate);
   useEffect(() => {
-    const loadMilestones = async () => {
-      setIsLoading(true);
-      setError('');
-
-      try {
-        const data = await listMilestones();
-        setMilestones(data);
-      } catch (err) {
-        if (err instanceof ApiClientError) {
-          setError(translateApiError(err.error.code, tErrors));
-        } else {
-          setError(t('milestones.error'));
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadMilestones();
-  }, [t, tErrors]);
-
-  const reloadMilestones = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const data = await listMilestones();
-      setMilestones(data);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(translateApiError(err.error.code, tErrors));
-      } else {
-        setError(t('milestones.error'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteClick = (milestone: MilestoneSummary) => {
-    setDeleteError(null);
-    setDeleteBlocked(false);
-    setDeletingMilestone(milestone);
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingMilestone) return;
-
-    setIsDeleting(true);
-    setDeleteError(null);
-
-    try {
-      await deleteMilestone(deletingMilestone.id);
-      focusPageHeading();
-      setDeletingMilestone(null);
-      reloadMilestones();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setDeleteBlocked(err.statusCode === 409);
-        setDeleteError(translateApiError(err.error.code, tErrors));
-      } else {
-        setDeleteError(t('milestones.deleteError'));
-      }
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Status badge variants
-  const milestoneStatusVariants = useMemo(
-    (): BadgeVariantMap => ({
-      completed: {
-        label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('reached')),
-        className: badgeStyles.milestoneCompleted!,
-      },
-      pending: {
-        label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('upcoming')),
-        className: badgeStyles.milestonePending!,
-      },
-    }),
-    [tCommon],
-  );
-
-  // Client-side filtering and sorting
-  const filtered = useMemo(() => {
-    let result = [...milestones];
-
-    // Text search
-    const searchLower = tableState.search.toLowerCase();
-    if (searchLower) {
-      result = result.filter(
-        (m) =>
-          m.title.toLowerCase().includes(searchLower) ||
-          (m.description && m.description.toLowerCase().includes(searchLower)),
-      );
-    }
-
-    // Status filter
-    const statusFilter = tableState.filters.get('status')?.value;
-    if (statusFilter) {
-      result = result.filter((m) => {
-        if (statusFilter === 'completed') return m.isCompleted;
-        if (statusFilter === 'pending') return !m.isCompleted;
-        return true;
-      });
-    }
-
-    // Date range filter (format: "from:YYYY-MM-DD,to:YYYY-MM-DD")
-    const dateFilter = tableState.filters.get('targetDate')?.value;
-    if (dateFilter) {
-      const match = dateFilter.match(/from:([^,]+)(?:,to:(.+))?/);
-      if (match) {
-        const fromDate = match[1] ? new Date(match[1]) : null;
-        const toDate = match[2] ? new Date(match[2]) : null;
-
-        result = result.filter((m) => {
-          const mDate = new Date(m.targetDate);
-          if (fromDate && mDate < fromDate) return false;
-          if (toDate && mDate > toDate) return false;
-          return true;
-        });
-      }
-    }
-
-    // Note: workItemCount filtering is handled by DataTable's generic
-    // client-side filtering via the getValue prop on the column definition.
-
-    // Sorting
-    if (tableState.sortBy) {
-      result.sort((a, b) => {
-        let aVal: unknown;
-        let bVal: unknown;
-
-        if (tableState.sortBy === 'title') {
-          aVal = a.title;
-          bVal = b.title;
-        } else if (tableState.sortBy === 'targetDate') {
-          aVal = new Date(a.targetDate).getTime();
-          bVal = new Date(b.targetDate).getTime();
-        } else if (tableState.sortBy === 'isCompleted') {
-          aVal = a.isCompleted ? 1 : 0;
-          bVal = b.isCompleted ? 1 : 0;
-        } else if (tableState.sortBy === 'workItemCount') {
-          aVal = a.workItemCount ?? 0;
-          bVal = b.workItemCount ?? 0;
-        }
-
-        if (aVal === bVal) return 0;
-        const comparison = (aVal as number) > (bVal as number) ? 1 : -1;
-        return tableState.sortDir === 'desc' ? -comparison : comparison;
-      });
-    }
-
-    return result;
-  }, [milestones, tableState]);
-
-  // Column definitions
-  const columns = useMemo(
-    (): ColumnDef<MilestoneSummary>[] => [
-      {
-        key: 'title',
-        label: t('milestones.table.headers.title')!,
-        sortable: true,
-        filterable: true,
-        filterType: 'string',
-        defaultVisible: true,
-        render: (m) => m.title,
-      },
-      {
-        key: 'targetDate',
-        label: t('milestones.table.headers.targetDate')!,
-        sortable: true,
-        filterable: true,
-        filterType: 'date',
-        defaultVisible: true,
-        render: (m) => formatDate(m.targetDate),
-      },
-      {
-        key: 'status',
-        label: t('milestones.table.headers.status')!,
-        sortable: true,
-        sortKey: 'isCompleted',
-        filterable: true,
-        filterType: 'enum',
-        filterParamKey: 'status',
-        enumOptions: [
-          {
-            value: 'completed',
-            label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('reached')),
-          },
-          {
-            value: 'pending',
-            label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('upcoming')),
-          },
-        ],
-        defaultVisible: true,
-        render: (m) => (
-          <Badge
-            variants={milestoneStatusVariants}
-            value={m.isCompleted ? 'completed' : 'pending'}
-          />
-        ),
-      },
-      {
-        key: 'workItemCount',
-        label: t('milestones.table.headers.linkedItems')!,
-        sortable: true,
-        defaultVisible: true,
-        filterable: true,
-        filterType: 'number' as const,
-        getValue: (m) => m.workItemCount ?? 0,
-        numberMin: 0,
-        numberStep: 1,
-        render: (m) => m.workItemCount ?? 0,
-      },
-      {
-        key: 'description',
-        label: t('milestones.table.headers.description')!,
-        sortable: false,
-        defaultVisible: true,
-        render: (m) => {
-          if (!m.description) return '—';
-          return m.description.length > 60 ? `${m.description.substring(0, 60)}...` : m.description;
-        },
-      },
-      {
-        key: 'completedAt',
-        label: t('milestones.table.headers.completedAt')!,
-        sortable: false,
-        defaultVisible: false,
-        render: (m) => (m.completedAt ? formatDate(m.completedAt) : '—'),
-      },
-    ],
-    [t, tCommon, formatDate, milestoneStatusVariants],
-  );
-
-  // Close action menu on outside click and Escape key
-  useEffect(() => {
-    if (!activeMenuId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(`.${styles.actionsMenu}`)) {
-        setActiveMenuId(null);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [activeMenuId]);
-
-  // Render actions menu
-  const renderActions = (milestone: MilestoneSummary, surface: DataTableSurface) => (
-    <div className={styles.actionsMenu}>
-      <button
-        type="button"
-        className={styles.menuButton}
-        onClick={() => setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)}
-        aria-label={t('milestones.menu.actions')}
-        data-testid={dataTableTestId('milestone-menu-button', milestone.id, surface)}
-      >
-        ⋮
-      </button>
-      {activeMenuId === milestone.id && (
-        <div className={styles.menuDropdown}>
-          <button
-            type="button"
-            className={styles.menuItem}
-            onClick={() => navigate(routeUrl('milestone', { id: milestone.id }))}
-            data-testid={dataTableTestId('milestone-edit', milestone.id, surface)}
-          >
-            {t('milestones.menu.edit')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.menuItemDanger}`}
-            onClick={() => handleDeleteClick(milestone)}
-            data-testid={dataTableTestId('milestone-delete', milestone.id, surface)}
-          >
-            {t('milestones.menu.delete')}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
-  // Keyboard shortcuts
+    createRef.current = openCreate;
+  });
   const shortcuts = useMemo(
     () => [
       {
         key: 'n',
-        handler: () => openCreate('milestone'),
-        description: t('milestones.keyboard.newMilestone')!,
-      },
-      {
-        key: '?',
-        handler: () => setHelpShortcuts(registry?.snapshot() ?? shortcuts),
-        description: t('milestones.keyboard.showShortcuts')!,
-      },
-      {
-        key: 'Escape',
-        handler: () => {
-          if (helpShortcuts) {
-            setHelpShortcuts(null);
-          } else if (deletingMilestone) {
-            setDeletingMilestone(null);
-          } else if (activeMenuId !== null) {
-            setActiveMenuId(null);
-          }
-        },
-        description: t('milestones.keyboard.closeDialog')!,
+        handler: () => createRef.current('milestone'),
+        description: tCommon('listShortcuts.newMilestone'),
       },
     ],
-    [openCreate, helpShortcuts, registry, deletingMilestone, activeMenuId, t],
+    [tCommon],
   );
-
   useKeyboardShortcuts(shortcuts);
 
-  return (
-    <PageLayout
-      title={tCommon('navigation.milestones')}
-      action={
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={() => openCreate('milestone')}
-          data-testid="new-milestone-button"
-        >
-          {t('milestones.newButton')}
-        </button>
-      }
-    >
-      <DataTable<MilestoneSummary>
-        pageKey="milestones"
-        columns={columns}
-        items={filtered}
-        totalItems={filtered.length}
-        totalPages={1}
-        currentPage={1}
-        isLoading={isLoading}
-        error={error}
-        getRowKey={(m) => String(m.id)}
-        onRowClick={(m) => navigate(routeUrl('milestone', { id: m.id }))}
-        renderActions={renderActions}
-        tableState={tableState}
-        onStateChange={setTableState}
-        emptyState={{
-          message: t('milestones.empty.noItems')!,
-          description: t('milestones.empty.noItemsMessage')!,
-          action: {
-            label: t('milestones.empty.createFirst')!,
-            onClick: () => openCreate('milestone'),
-          },
-        }}
-      />
+  const { request: requestDelete, deletion } = useListRowDelete<MilestoneListRow>({
+    remove: (item) => deleteMilestone(item.id),
+    onDeleted: refresh,
+  });
+  const rows = useMilestoneRows({ onDelete: requestDelete });
+  const deleteConsequences = useDeleteImpact('milestone', deletion.item?.id ?? null);
 
-      {/* Delete confirmation */}
-      {deletingMilestone && (
+  return (
+    <ObjectList<MilestoneListRow, MilestoneListMeta>
+      list={list}
+      config={config}
+      labels={labels}
+      primary={{
+        label: t('milestones.list.newMilestone'),
+        onClick: () => openCreate('milestone'),
+        testId: 'new-milestone-button',
+      }}
+      titleHeader={t('milestones.list.titleHeader')}
+      statusHeader={t('milestones.list.statusHeader')}
+      {...rows}
+      headingCount="always"
+      scopeTotal={scopeTotal}
+      headingRef={headingRef}
+    >
+      {deletion.item ? (
         <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletingMilestone.title })}
+          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.title })}
           consequences={deleteConsequences}
           irreversible
+          tone="danger"
           confirmLabel={tCommon('button.delete')}
           busyLabel={tCommon('confirmDialog.deleting')}
-          busy={isDeleting}
-          error={deleteError}
-          blocked={deleteBlocked}
-          onConfirm={() => void confirmDelete()}
-          onCancel={() => setDeletingMilestone(null)}
+          busy={deletion.busy}
+          error={deletion.error}
+          blocked={deletion.blocked}
+          onConfirm={deletion.confirm}
+          onCancel={deletion.cancel}
+          returnFocusRef={headingRef}
           testIdPrefix="milestone-list-delete"
         />
-      )}
-
-      {/* Keyboard shortcuts help */}
-      {helpShortcuts && (
-        <KeyboardShortcutsHelp shortcuts={helpShortcuts} onClose={() => setHelpShortcuts(null)} />
-      )}
-    </PageLayout>
+      ) : null}
+    </ObjectList>
   );
 }
 

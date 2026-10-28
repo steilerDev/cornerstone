@@ -874,16 +874,12 @@
     "list": {
       "newCompany": "New company",
       "trades": "Trades",
-      "allTrades": "All trades",
       "tradeFilterLabel": "Trade",
-      "actionsFor": "Actions for {{name}}",
       "emptyTitle": "No companies yet",
       "emptyDescription": "Add the businesses you work with, then call them in two taps.",
       "loadError": "Companies could not be loaded. Try again.",
       "deleteBlocked": "This company can't be deleted while invoices or cost lines use it. Remove those first.",
-      "deleteFailed": "The company could not be deleted. Try again.",
       "columns": {
-        "name": "Name",
         "trade": "Trade",
         "phone": "Phone",
         "contactPersons": "Contact persons",
@@ -897,7 +893,28 @@
         "offers": "Offers"
       },
       "offersPaid": "{{amount}} paid",
-      "noOffers": "No offers"
+      "noOffers": "No offers",
+      "search": "Search companies",
+      "resultCount_one": "{{count}} company",
+      "resultCount_other": "{{count}} companies",
+      "titleHeader": "Company",
+      "noMatch": "No companies match.",
+      "moreTrades": "More trades",
+      "noTrade": "No trade",
+      "groupBy": {
+        "trade": "Trade"
+      },
+      "sort": {
+        "name": "Name",
+        "trade": "Trade",
+        "stillToPay": "Still to pay",
+        "lastOnSite": "Last on site",
+        "createdAt": "Date added",
+        "updatedAt": "Last updated"
+      },
+      "row": {
+        "open": "Open"
+      }
     },
     "form": {
       "title": "New company",

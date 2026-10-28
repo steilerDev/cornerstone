@@ -1,16 +1,14 @@
 /**
- * E2E tests for the company column filters of the Tasks, Purchases and Invoices lists (in-session
- * fix under EPIC-21). The filters are single-select entity filters: the header button opens a
- * popover with a server-searching picker, so a company past the first page can be filtered by.
+ * E2E tests for the company filters of the Tasks, Purchases and Invoices lists (in-session
+ * fix under EPIC-21). The filters are single-select entity pickers in the Filters panel (Purchases:
+ * #2246), searching the server, so a company past the first page can be filtered by.
  *
- * F1  Tasks    "Filter by Vendor" (hidden-by-default column, enabled first), param `assignedVendorId`
- * F2  Purchases "Filter by Vendor", param `vendorId`
+ * F1  Tasks    Filters panel › Who (an EntityPicker), param `assignedVendorId`
+ * F2  Purchases Filters panel › Company (an EntityPicker), param `vendorId`
  * F3  Invoices Filters panel › Company (an EntityPicker), param `vendorId`; a deep link shows the name
  *
  * Each scenario: choose a company (the list narrows, the URL carries the param), reopen (the name
- * shows), clear (the param is gone), Escape returns focus to the header button. Table headers are
- * not shown on phone cards, so the scenarios are skipped below 768px (the existing filter specs do
- * the same).
+ * shows), clear (the param is gone). The Filters panel is a sheet on phones, so all viewports run.
  */
 
 import type { Page } from '@playwright/test';
@@ -24,45 +22,9 @@ import {
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
-import type { CompanyFilterControl } from '../../pages/components/CompanyFilterControl.js';
 import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { INVOICES_ROUTE, InvoicesPage } from '../../pages/InvoicesPage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
-
-function skipOnPhone(page: Page): void {
-  const viewport = page.viewportSize();
-  test.skip(
-    !!viewport && viewport.width < 768,
-    'Table header filters are not shown on phone cards',
-  );
-}
-
-/** The contract every company filter shares, after the list is on screen. */
-async function exerciseFilter(
-  page: Page,
-  filter: CompanyFilterControl,
-  company: string,
-  companyId: string,
-): Promise<void> {
-  // Choose: the URL carries the param
-  await filter.choose(company);
-  await filter.expectParam(companyId);
-
-  // Reopen: the selected name shows
-  await filter.closeWithEscape();
-  await filter.open();
-  await expect(filter.selectedChip).toContainText(company);
-
-  // Clear: the param is gone
-  await filter.clearButton.click();
-  await filter.expectNoParam();
-  await expect(filter.input).toBeVisible();
-
-  // Escape closes the popover and focuses the "Filter by ..." button (focus starts in the input)
-  await filter.input.click();
-  await filter.closeWithEscape();
-  await expect(filter.button).toBeFocused();
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // F1 - Tasks
@@ -120,7 +82,6 @@ test.describe('Company filter - Tasks (F1)', { tag: '@responsive' }, () => {
 
 test.describe('Company filter - Purchases (F2)', { tag: '@responsive' }, () => {
   test('F2: filter purchases by company, reopen, clear, Escape', async ({ page, testPrefix }) => {
-    skipOnPhone(page);
     const nameA = `${testPrefix} Filter Purchase Co A`;
     const nameB = `${testPrefix} Filter Purchase Co B`;
     const itemA = `${testPrefix} Filter Purchase A`;
@@ -131,16 +92,28 @@ test.describe('Company filter - Purchases (F2)', { tag: '@responsive' }, () => {
     const purchaseB = await createHouseholdItemViaApi(page, { name: itemB, vendorId: idB });
     try {
       const list = new HouseholdItemsPage(page);
-      await list.goto();
-      await list.waitForLoaded();
+      const vendorIdParam = () => new URL(page.url()).searchParams.get('vendorId');
+      await list.search(`${testPrefix} Filter Purchase`);
 
-      await list.companyFilter.choose(nameA);
-      await list.companyFilter.expectParam(idA);
+      // Choose: the URL carries the param and the list narrows to that company
+      await list.pickCompanyFilter(nameA);
+      await expect.poll(vendorIdParam).toBe(idA);
       await expect.poll(() => list.getItemNames()).toContain(itemA);
       await expect.poll(() => list.getItemNames()).not.toContain(itemB);
 
-      await exerciseFilter(page, list.companyFilter, nameB, idB);
+      // Reopen: the selected name shows
+      await list.closeFilters();
+      await list.openFilters();
+      await expect(list.filtersSelected.first()).toContainText(nameA);
+
+      // Clear: the param is gone, the input is back, and another company can be chosen
+      await list.companyFilter.clearButton.click();
+      await expect.poll(vendorIdParam).toBeNull();
+      await expect(list.companyFilter.input).toBeVisible();
+      await list.companyFilter.pick(nameB);
+      await expect.poll(vendorIdParam).toBe(idB);
       await expect.poll(() => list.getItemNames()).toContain(itemB);
+      await expect.poll(() => list.getItemNames()).not.toContain(itemA);
     } finally {
       await deleteHouseholdItemViaApi(page, purchaseA);
       await deleteHouseholdItemViaApi(page, purchaseB);
@@ -243,26 +216,30 @@ test.describe('Company filter - focus (F4)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    skipOnPhone(page);
     const name = `${testPrefix} Filter Focus Co`;
     const id = await createVendorViaApi(page, { name });
     try {
       const list = new HouseholdItemsPage(page);
+      const vendorIdParam = () => new URL(page.url()).searchParams.get('vendorId');
       await list.goto();
       await list.waitForLoaded();
-      const inPopover = () =>
+      const inFilters = () =>
         page.evaluate(() => {
           const active = document.activeElement;
-          return !!active && active !== document.body && !!active.closest('[role="dialog"]');
+          return (
+            !!active &&
+            active !== document.body &&
+            !!active.closest('[data-testid^="purchases-filters-"]')
+          );
         });
 
-      await list.companyFilter.choose(name);
-      await list.companyFilter.expectParam(id);
-      await expect.poll(inPopover).toBe(true);
+      await list.pickCompanyFilter(name);
+      await expect.poll(vendorIdParam).toBe(id);
+      await expect.poll(inFilters).toBe(true);
 
       await list.companyFilter.clearButton.click();
-      await list.companyFilter.expectNoParam();
-      await expect.poll(inPopover).toBe(true);
+      await expect.poll(vendorIdParam).toBeNull();
+      await expect.poll(inFilters).toBe(true);
     } finally {
       await deleteVendorViaApi(page, id);
     }

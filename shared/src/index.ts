@@ -356,7 +356,7 @@ export {
   INVOICE_DEPOSIT_ENTRY_TYPES,
 } from './types/invoice.js';
 export { SUBSIDY_APPLICATION_STATUSES, GRANT_ITEM_TYPES } from './types/subsidyProgram.js';
-export { HOUSEHOLD_ITEM_STATUSES } from './types/householdItem.js';
+export { HOUSEHOLD_ITEM_STATUSES, HOUSEHOLD_ITEM_LIST_SORTS } from './types/householdItem.js';
 export { DIARY_SOURCE_ENTITY_TYPES, DIARY_ISSUE_RESOLUTIONS } from './types/diary.js';
 export { SCHEDULE_SIGNALS } from './types/schedule.js';
 export { MILESTONE_DISPLAY_STATUSES } from './types/milestone.js';
@@ -378,6 +378,8 @@ export type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
   MilestoneListResponse,
+  MilestoneListRow,
+  MilestoneListRowsResponse,
   LinkWorkItemRequest,
   MilestoneWorkItemLinkResponse,
   MilestoneDisplayStatus,
@@ -455,6 +457,10 @@ export type {
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
   HouseholdItemListResponse,
+  HouseholdItemListSort,
+  HouseholdItemListRow,
+  HouseholdItemListTotals,
+  HouseholdItemListRowsResponse,
   HouseholdItemResponse,
   HouseholdItemCategoryEntity,
   CreateHouseholdItemCategoryRequest,

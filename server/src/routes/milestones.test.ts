@@ -126,6 +126,25 @@ describe('Milestone Routes', () => {
       expect(body.milestones).toEqual([]);
     });
 
+    it('should return projectedDate and holdsUp on every row (null without tasks)', async () => {
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      await createTestMilestone(cookie, { title: 'Empty', targetDate: '2026-04-01' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/milestones',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<MilestoneListResponse>();
+      expect(body.milestones[0]).toMatchObject({ projectedDate: null, holdsUp: null });
+    });
+
     it('should return all milestones sorted by target_date ascending', async () => {
       const { cookie } = await createUserWithSession(
         'user@example.com',

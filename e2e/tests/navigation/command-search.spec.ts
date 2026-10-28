@@ -556,6 +556,8 @@ test.describe('Command search', () => {
 
     await page.goto(routeUrl('companies'));
     await pageHeading(page);
+    // The list (and its `n` shortcut) mounts once the trades have loaded
+    await new VendorsPage(page).waitForVendorsLoaded();
     await page.keyboard.press('n');
     await expect(new VendorsPage(page).createDialog.dialog).toBeVisible();
 

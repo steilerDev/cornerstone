@@ -272,7 +272,9 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         if (h1 !== null) {
           const headings = page.getByRole('heading', { level: 1 });
           await expect(headings).toHaveCount(1);
-          await expect(headings).toHaveText(h1);
+          // Object lists (Tasks, Purchases, Milestones, Companies) may carry a count: "Purchases (3)"
+          const escaped = h1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          await expect(headings).toHaveText(new RegExp(`^${escaped}( \\(\\d+( of \\d+)?\\))?$`));
         }
         if (c.dialog !== undefined) {
           await expect(page.getByRole('dialog', { name: c.dialog, exact: true })).toBeVisible();
@@ -405,7 +407,10 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
           await fresh.goto(route);
           await expect(fresh.getByRole('dialog', { name: dialog, exact: true })).toBeVisible();
           await expect(
-            fresh.getByRole('heading', { level: 1, name: list, exact: true }),
+            fresh.getByRole('heading', {
+              level: 1,
+              name: new RegExp(`^${list}( \\(\\d+( of \\d+)?\\))?$`),
+            }),
           ).toBeVisible();
           await new BreadcrumbsBar(fresh).expectNoTrail();
         } finally {

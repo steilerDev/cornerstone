@@ -18,6 +18,7 @@ import { useInvoiceCreate } from './useInvoiceCreate.js';
 import { useInvoiceRows } from './useInvoiceRows.js';
 import { useInvoicesList } from './useInvoicesList.js';
 import type { InvoiceListMeta } from './useInvoicesList.js';
+import shared from '../../styles/shared.module.css';
 import styles from './InvoicesPage.module.css';
 
 /** Money › Invoices and offers: the Invoices list (To pay, Offers, Paid, Submitted, All). */
@@ -75,14 +76,14 @@ function InvoicesList() {
       }
       summary={
         meta && list.query.chip === 'pending' ? (
-          <div className={styles.footer} data-testid="invoices-footer">
-            <span className={styles.footerLabel}>
+          <div className={shared.listFooter} data-testid="invoices-footer">
+            <span className={shared.listFooterLabel}>
               {list.filtersActive
                 ? t('invoices.list.footer.stillToPayFiltered')
                 : t('invoices.list.footer.stillToPay')}
             </span>
             <span
-              className={styles.footerFigure}
+              className={shared.listFooterFigure}
               data-figure={list.filtersActive ? undefined : 'still-to-pay'}
               data-testid="invoices-footer-figure"
             >

@@ -22,8 +22,10 @@ import fs from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import {
+  createMilestoneViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
+  deleteMilestoneViaApi,
   deleteVendorViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
@@ -39,6 +41,7 @@ import {
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,
   LEFT_SCREENS,
+  MILESTONES_LIST_HOLDS_UP_SURFACE,
   PENDING_SURFACES,
   PROJECT_SURFACES,
   readFinancingReadyCount,
@@ -529,6 +532,60 @@ test.describe('Figure consistency', () => {
   );
 });
 
+test.describe('Milestones list Holds up (#2246)', () => {
+  test('FC8: a milestone\'s "n tasks" Holds up is the API count on the Milestones list (table surface)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const title = `${testPrefix} Holds-up Milestone`;
+    const ids: string[] = [];
+    let milestoneId: number | null = null;
+    try {
+      // Milestone M; D1 waits for M, D2 waits for D1: M holds up two tasks
+      milestoneId = await createMilestoneViaApi(page, { title, targetDate: dayOffset(20) });
+      const d1 = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Milestone D1`,
+        status: 'not_started',
+        startDate: dayOffset(21),
+        endDate: dayOffset(23),
+      });
+      ids.push(d1);
+      const d2 = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Milestone D2`,
+        status: 'not_started',
+        startDate: dayOffset(24),
+        endDate: dayOffset(26),
+      });
+      ids.push(d2);
+      const dependent = await page.request.post(
+        `${API.milestones}/${milestoneId}/dependents/${d1}`,
+      );
+      expect(dependent.ok(), `POST milestone dependent: ${dependent.status()}`).toBeTruthy();
+      const dependency = await page.request.post(`${API.workItems}/${d2}/dependencies`, {
+        data: { predecessorId: d1, dependencyType: 'finish_to_start' },
+      });
+      expect(dependency.ok(), `POST dependency: ${dependency.status()}`).toBeTruthy();
+
+      // The API: the list endpoint's own Holds up count
+      const response = await page.request.get(API.milestones);
+      expect(response.ok()).toBeTruthy();
+      const rows = (
+        (await response.json()) as {
+          milestones: Array<{ id: number; holdsUp: { count: number } | null }>;
+        }
+      ).milestones;
+      expect(rows.find((row) => row.id === milestoneId)?.holdsUp?.count).toBe(2);
+
+      // The list: the same number in the milestone's Holds up cell ([] on the card surface)
+      const reading = await MILESTONES_LIST_HOLDS_UP_SURFACE.readAll(page, { milestoneId, title });
+      if (reading.length > 0) expect(reading).toEqual([2]);
+    } finally {
+      for (const id of ids.reverse()) await deleteWorkItemViaApi(page, id);
+      if (milestoneId !== null) await deleteMilestoneViaApi(page, milestoneId);
+    }
+  });
+});
+
 test.describe('Figure surface registry', () => {
   test('FC5: a pending surface cannot become served without registering itself (AC3)', async () => {
     const entries = ROUTE_MAP as unknown as ReadonlyArray<{ id: string; stage: string }>;
@@ -540,6 +597,7 @@ test.describe('Figure surface registry', () => {
     expect(COMPANY_SURFACE.story).toBe('4.12');
     expect(COMPANY_PAID_SURFACE.story).toBe('4.12');
     expect(COMPANIES_LIST_SURFACE.story).toBe('4.12');
+    expect(MILESTONES_LIST_HOLDS_UP_SURFACE.story).toBe('5.2');
     expect(FINANCING_SOURCE_PAID_SURFACE.story).toBe('4.10');
     expect(FINANCING_READY_SURFACE.story).toBe('4.10');
     for (const pending of gated) {

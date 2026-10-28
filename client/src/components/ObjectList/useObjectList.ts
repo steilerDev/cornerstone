@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll.js';
 import type { InfiniteScrollStatus } from '../../hooks/useInfiniteScroll.js';
 import {
@@ -87,6 +87,10 @@ export function useObjectList<T, M = undefined>(
 ): ObjectListController<T, M> {
   const { config, getKey, scrollRoot } = options;
   const [searchParams, setSearchParams] = useSearchParams();
+  // Replace writes keep the entry's location state (e.g. a host sheet's marker).
+  const locationState: unknown = useLocation().state;
+  const locationStateRef = useRef(locationState);
+  locationStateRef.current = locationState;
   const configRef = useRef(config);
   configRef.current = config;
   const fetchPageRef = useRef(options.fetchPage);
@@ -109,13 +113,14 @@ export function useObjectList<T, M = undefined>(
   // Unknown values and the retired page/pageSize params are removed once per bad URL.
   useEffect(() => {
     const next = normaliseListParams(searchParams, configRef.current);
-    if (next) setSearchParams(next, { replace: true });
+    if (next) setSearchParams(next, { replace: true, state: locationStateRef.current });
   }, [searchParams, setSearchParams]);
 
   const write = useCallback(
     (patch: ListPatch) => {
       setSearchParams((prev) => writeListParams(prev, patch, configRef.current), {
         replace: true,
+        state: locationStateRef.current,
       });
     },
     [setSearchParams],

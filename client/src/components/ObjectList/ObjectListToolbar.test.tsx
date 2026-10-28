@@ -195,6 +195,63 @@ describe('ObjectListToolbar', () => {
     expect(screen.getByTestId('tasks-chip-open')).toBeInTheDocument();
   });
 
+  describe('chip overflow menu (#2246)', () => {
+    const withOverflow: ObjectListConfig<Task> = {
+      ...config,
+      chips: {
+        ...config.chips!,
+        overflow: {
+          label: 'More trades',
+          options: [
+            { value: 'roofing', label: 'Roofing' },
+            { value: 'tiling', label: 'Tiling' },
+          ],
+        },
+      },
+    };
+
+    it('renders a More menu after the chips that lists the extra values', () => {
+      setup({ config: withOverflow });
+
+      const trigger = screen.getByTestId('tasks-chip-more');
+      expect(trigger).toHaveTextContent('More trades');
+      expect(trigger).toHaveAccessibleName('More trades');
+      fireEvent.click(trigger);
+      expect(screen.getByTestId('tasks-chip-more-roofing')).toHaveTextContent('Roofing');
+      expect(screen.getByTestId('tasks-chip-more-tiling')).toHaveTextContent('Tiling');
+    });
+
+    it('picking an entry sets the same chip value as a chip', () => {
+      const list = makeList();
+      setup({ config: withOverflow, list });
+
+      fireEvent.click(screen.getByTestId('tasks-chip-more'));
+      fireEvent.click(screen.getByTestId('tasks-chip-more-tiling'));
+
+      expect(list.setChip).toHaveBeenCalledWith('tiling');
+    });
+
+    it('checks the entry that is the current chip value', () => {
+      setup({ config: withOverflow }, { explicitChip: 'roofing' });
+
+      fireEvent.click(screen.getByTestId('tasks-chip-more'));
+
+      expect(screen.getByTestId('tasks-chip-more-roofing')).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByTestId('tasks-chip-more-tiling')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('is absent when there are no extra values or no overflow config', () => {
+      const empty = { ...config.chips!, overflow: { label: 'More trades', options: [] } };
+      setup({ config: { ...config, chips: empty } });
+      expect(screen.queryByTestId('tasks-chip-more')).not.toBeInTheDocument();
+    });
+
+    it('is absent without an overflow config', () => {
+      setup();
+      expect(screen.queryByTestId('tasks-chip-more')).not.toBeInTheDocument();
+    });
+  });
+
   it('T4: Filters shows the active count, renders fieldsets with the field context', () => {
     const list = makeList({
       activeFilterCount: 1,

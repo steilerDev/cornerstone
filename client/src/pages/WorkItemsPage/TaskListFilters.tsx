@@ -3,20 +3,17 @@ import { useTranslation } from 'react-i18next';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { ObjectListSelectFilter } from '../../components/ObjectList/ObjectListSelectFilter.js';
 import {
   DateRangeFilter,
   NumberRangeFilter,
 } from '../../components/ObjectList/ObjectListRangeFilters.js';
-import type {
-  ObjectListFilterDef,
-  ObjectListFilterRenderContext,
-} from '../../components/ObjectList/types.js';
+import type { ObjectListFilterDef } from '../../components/ObjectList/types.js';
 import { useAreas } from '../../hooks/useAreas.js';
-import { fetchFailureMessage, toFetchFailure } from '../../lib/fetchFailure.js';
+import { toFetchFailure } from '../../lib/fetchFailure.js';
 import type { FetchFailure } from '../../lib/fetchFailure.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { listUsers } from '../../lib/usersApi.js';
-import shared from '../../styles/shared.module.css';
 import { NONE_KEY } from './tasksListUrl.js';
 import styles from './TaskListFilters.module.css';
 
@@ -61,48 +58,6 @@ function useFilterOptions(): FilterOptions {
     };
   }, []);
   return options;
-}
-
-interface SelectFieldProps {
-  readonly ctx: ObjectListFilterRenderContext;
-  readonly label: string;
-  readonly emptyLabel: string;
-  readonly options: readonly { readonly value: string; readonly label: string }[];
-  readonly failure: FetchFailure | null;
-  readonly testId: string;
-}
-
-/** A native select with an "any" option that clears the param, and its load failure below it. */
-function SelectField({ ctx, label, emptyLabel, options, failure, testId }: SelectFieldProps) {
-  const { t } = useTranslation('workItems');
-  const { t: tErrors } = useTranslation('errors');
-  return (
-    <div className={styles.field}>
-      <label htmlFor={ctx.id} className={styles.label}>
-        {label}
-      </label>
-      <select
-        id={ctx.id}
-        className={`${shared.select} ${styles.select}`}
-        value={ctx.value ?? ''}
-        onChange={(e) => ctx.onChange(e.target.value === '' ? null : e.target.value)}
-        data-testid={testId}
-      >
-        <option value="">{emptyLabel}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {failure ? (
-        <FormError
-          variant="field"
-          message={fetchFailureMessage(failure, tErrors, t('list.filters.optionsFailed'))}
-        />
-      ) : null}
-    </div>
-  );
 }
 
 /**
@@ -166,12 +121,13 @@ export function useTaskListFilters(): readonly ObjectListFilterDef[] {
         label: t('list.filters.member'),
         fieldset,
         render: (ctx) => (
-          <SelectField
+          <ObjectListSelectFilter
             ctx={ctx}
             label={t('list.filters.member')}
             emptyLabel={t('list.filters.anyone')}
             options={members.map((member) => ({ value: member.id, label: member.displayName }))}
             failure={membersFailure}
+            failureFallback={t('list.filters.optionsFailed')}
             testId="tasks-filter-member"
           />
         ),
@@ -180,7 +136,7 @@ export function useTaskListFilters(): readonly ObjectListFilterDef[] {
         param: 'milestoneId',
         label: t('list.filters.milestone'),
         render: (ctx) => (
-          <SelectField
+          <ObjectListSelectFilter
             ctx={ctx}
             label={t('list.filters.milestone')}
             emptyLabel={t('list.filters.anyMilestone')}
@@ -189,6 +145,7 @@ export function useTaskListFilters(): readonly ObjectListFilterDef[] {
               label: milestone.title,
             }))}
             failure={milestonesFailure}
+            failureFallback={t('list.filters.optionsFailed')}
             testId="tasks-filter-milestone"
           />
         ),

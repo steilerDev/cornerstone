@@ -1,78 +1,11 @@
-/* ---- Page actions ---- */
+/* ---- Row cells ---- */
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-}
-
-/* ---- Cells ---- */
-
-.nameCell {
-  min-width: 0;
-  max-width: 20rem;
-}
-
-.nameLink {
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
-  color: var(--color-primary);
-  text-decoration: none;
-  font-weight: var(--font-weight-medium);
-}
-
-.nameLink:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.nameLink:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--color-bg-primary),
-    0 0 0 4px var(--color-border-focus);
-  border-radius: var(--radius-sm);
-}
-
-.phoneCell {
-  white-space: nowrap;
-}
-
-.phoneRow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.phoneText {
-  color: var(--color-text-secondary);
-}
-
-.countCell {
-  text-align: right;
+.amount {
   font-variant-numeric: tabular-nums;
-}
-
-.countHeader {
-  text-align: right;
-}
-
-.amountCell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.amountHeader {
-  text-align: right;
 }
 
 .muted {
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
 }
 
 .subline {
@@ -81,29 +14,27 @@
   color: var(--color-text-secondary);
 }
 
-.contactLink {
-  color: var(--color-primary);
-  text-decoration: none;
+.phoneRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
 }
 
-.contactLink:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.phoneText {
+  color: var(--color-text-secondary);
 }
 
-.contactLink:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--color-bg-primary),
-    0 0 0 4px var(--color-border-focus);
-  border-radius: var(--radius-sm);
+/* The Call button sits above the row's stretched title link. */
+.raised {
+  position: relative;
+  z-index: var(--z-raised);
 }
 
-/* ---- Tablet: the least important column gives way first ---- */
-
-@media (min-width: 768px) and (max-width: 1023px) {
-  .countCell,
-  .countHeader {
-    display: none;
-  }
+.notes {
+  display: block;
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

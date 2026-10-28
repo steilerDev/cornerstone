@@ -5,6 +5,8 @@
  * (between Category and Status filters) in EPIC-19. It filters items by area using
  * ?areaId=<id> in the URL and supports pre-selection on page load from the URL.
  *
+ * Reworked for the Filters panel (#2246): Area is an EntityPicker field, Status is a chip.
+ *
  * Scenarios covered:
  * 1.  Area filter dropdown is visible in the filters row
  * 2.  Selecting an area filters items; URL contains areaId=<id>
@@ -27,41 +29,33 @@ import {
 // Scenario 1: Area filter dropdown is visible
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Area filter visible (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Area filter (AreaPicker) is present in the household items filter panel', async ({
-    page,
-  }) => {
+  test('Area filter (EntityPicker) is present in the Filters panel', async ({ page }) => {
     const listPage = new HouseholdItemsPage(page);
 
     await listPage.goto();
+    await listPage.waitForLoaded();
+    await listPage.openFilters();
 
-    // areaFilterContainer points to the "Filter by Area" DataTable column filter button,
-    // which is in the table header. The table is CSS-hidden on mobile (< 768px).
-    // Skip this assertion on mobile viewports where the table header is not visible.
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 768) {
-      await expect(listPage.areaFilterContainer).toBeVisible();
-    } else {
-      // On mobile, verify the page loaded successfully instead.
-      await expect(listPage.heading).toBeVisible();
-    }
+    await expect(listPage.areaFilter.input).toBeVisible();
   });
 
-  test('Area filter appears between category and status filters', async ({ page }) => {
+  test('Area filter sits between Category and Company in the Filters panel', async ({ page }) => {
     const listPage = new HouseholdItemsPage(page);
 
     await listPage.goto();
+    await listPage.waitForLoaded();
+    await listPage.openFilters();
 
-    // All three filter controls are DataTable column header filter buttons in the table header.
-    // The table (and its header) is CSS-hidden on mobile (< 768px), so skip on mobile.
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 768) {
-      await expect(listPage.categoryFilter).toBeVisible();
-      await expect(listPage.areaFilterContainer).toBeVisible();
-      await expect(listPage.statusFilter).toBeVisible();
-    } else {
-      // On mobile, verify the page loaded successfully instead.
-      await expect(listPage.heading).toBeVisible();
-    }
+    await expect(listPage.categoryFilter).toBeVisible();
+    await expect(listPage.areaFilter.input).toBeVisible();
+    await expect(listPage.companyFilter.input).toBeVisible();
+    const [category, area, company] = await Promise.all([
+      listPage.categoryFilter.boundingBox(),
+      listPage.areaFilter.input.boundingBox(),
+      listPage.companyFilter.input.boundingBox(),
+    ]);
+    expect(category!.y).toBeLessThan(area!.y);
+    expect(area!.y).toBeLessThan(company!.y);
   });
 });
 
@@ -120,11 +114,9 @@ test.describe('Selecting area filters items (Scenario 2)', { tag: '@responsive' 
         expect(names).not.toContain(itemInBetaName);
       }).toPass({ timeout: 30_000 });
 
-      // The area filter should be active — areaId must appear in the URL
-      await expect(async () => {
-        const selectedAreaId = await listPage.getSelectedAreaFilterName();
-        expect(selectedAreaId).toBe(areaAlphaId);
-      }).toPass({ timeout: 20_000 });
+      // The Filters panel shows the area as selected and the toolbar counts one filter
+      await listPage.openFilters();
+      await expect(listPage.filtersSelected).toContainText(areaAlphaName);
     } finally {
       for (const id of itemIds) {
         await deleteHouseholdItemViaApi(page, id);
@@ -152,12 +144,8 @@ test.describe('Selecting All Areas clears filter (Scenario 3)', { tag: '@respons
     await listPage.goto();
     await listPage.waitForLoaded();
 
-    // The Area column filter button is in the DataTable header (thead).
-    // The table is CSS-hidden on mobile (< 768px), so only check on tablet+desktop.
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 768) {
-      await expect(listPage.areaFilterContainer).toBeVisible();
-    }
+    await listPage.openFilters();
+    await expect(listPage.areaFilter.input).toBeVisible();
 
     // areaId must NOT appear in the URL on initial load
     const url = new URL(page.url());
@@ -184,8 +172,10 @@ test.describe('Selecting All Areas clears filter (Scenario 3)', { tag: '@respons
       // Item without any area
       itemIds.push(await createHouseholdItemViaApi(page, { name: itemNoAreaName }));
 
-      // Start with area filter pre-applied in URL
-      await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}`);
+      // Start with area filter pre-applied in URL (the search scopes the list to this test)
+      await page.goto(
+        `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}&q=${encodeURIComponent(`${testPrefix} HI`)}`,
+      );
       await listPage.heading.waitFor({ state: 'visible' });
       await listPage.waitForLoaded();
 
@@ -195,18 +185,8 @@ test.describe('Selecting All Areas clears filter (Scenario 3)', { tag: '@respons
         expect(names).toContain(itemWithAreaName);
       }).toPass({ timeout: 20_000 });
 
-      // Register response listener BEFORE the "All Areas" selection
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-        { timeout: 15_000 },
-      );
-
-      // Select "All Areas" — the picker is currently in selectedDisplay state
-      // so we need to clear it first (clear button) then the input appears
-      await listPage.clearAreaFilter();
-
-      // Wait for API response
-      await responsePromise;
+      // Clear the filter with the toolbar's Clear filters (the search stays)
+      await listPage.olist.clearFiltersButton.click();
 
       // areaId must be absent from the URL
       await page.waitForURL((url) => !url.searchParams.has('areaId'), { timeout: 10_000 });
@@ -256,11 +236,9 @@ test.describe('URL persistence on reload (Scenario 4)', { tag: '@responsive' }, 
       await listPage.heading.waitFor({ state: 'visible' });
       await listPage.waitForLoaded();
 
-      // The area filter should be active — areaId must appear in the URL
-      await expect(async () => {
-        const selectedAreaId = await listPage.getSelectedAreaFilterName();
-        expect(selectedAreaId).toBe(areaId);
-      }).toPass({ timeout: 20_000 });
+      // The Filters panel pre-selects the area
+      await listPage.openFilters();
+      await expect(listPage.filtersSelected).toContainText(areaName);
 
       // Only the item in that area should be shown
       await expect(async () => {
@@ -323,7 +301,7 @@ test.describe(
 
         // Navigate with both filters pre-applied in URL
         await page.goto(
-          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}&status=planned`,
+          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}&status=planned&q=${encodeURIComponent(`${testPrefix} HI`)}`,
         );
         await listPage.heading.waitFor({ state: 'visible' });
         await listPage.waitForLoaded();
@@ -336,7 +314,8 @@ test.describe(
           expect(names).not.toContain(plannedNoAreaName);
         }).toPass({ timeout: 30_000 });
 
-        // Both areaId and status must appear in the URL
+        // The status chip is pressed and both params stay in the URL
+        await expect(listPage.chip('planned')).toHaveAttribute('aria-pressed', 'true');
         const url = new URL(page.url());
         expect(url.searchParams.get('areaId')).toBe(areaId);
         expect(url.searchParams.get('status')).toBe('planned');
@@ -385,14 +364,11 @@ test.describe('Empty state for area with no items (Scenario 6)', { tag: '@respon
         await expect(listPage.emptyState).toBeVisible();
       }).toPass({ timeout: 30_000 });
 
-      // Empty state should indicate filter-based no-results (not "no items yet").
-      // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
-      const emptyText = await listPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
-
-      // DataTable "Clear Filters" button should be visible in the empty state action.
+      // The empty state says the filters matched nothing (not "no purchases yet") and offers
+      // Clear filters.
+      await expect(listPage.emptyState).toContainText('No purchases match.');
       const clearButton = listPage.emptyState.getByRole('button', {
-        name: /Clear Filters/i,
+        name: /Clear filters/i,
       });
       await expect(clearButton).toBeVisible();
     } finally {
@@ -400,6 +376,51 @@ test.describe('Empty state for area with no items (Scenario 6)', { tag: '@respon
         await deleteHouseholdItemViaApi(page, id);
       }
       if (areaId) await deleteAreaViaApi(page, areaId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 7: Picking an area in the Filters panel narrows the list (and sets the URL)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Picking an area in the Filters panel (Scenario 7)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test('Picking an area narrows the list and writes areaId to the URL', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const areaIds: string[] = [];
+    const itemIds: string[] = [];
+    const areaName = `${testPrefix} Area Eta Attic`;
+    const inAreaName = `${testPrefix} HI Eta In`;
+    const elsewhereName = `${testPrefix} HI Eta Elsewhere`;
+
+    try {
+      const areaId = await createAreaViaApi(page, { name: areaName });
+      areaIds.push(areaId);
+      itemIds.push(await createHouseholdItemViaApi(page, { name: inAreaName, areaId }));
+      itemIds.push(await createHouseholdItemViaApi(page, { name: elsewhereName }));
+
+      await listPage.search(`${testPrefix} HI Eta`);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(inAreaName);
+        expect(names).toContain(elsewhereName);
+      }).toPass();
+
+      await listPage.pickAreaFilter(areaName);
+      await page.waitForURL((url) => url.searchParams.get('areaId') === areaId);
+
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(inAreaName);
+        expect(names).not.toContain(elsewhereName);
+      }).toPass();
+    } finally {
+      for (const id of itemIds) await deleteHouseholdItemViaApi(page, id);
+      for (const id of areaIds) await deleteAreaViaApi(page, id);
     }
   });
 });
