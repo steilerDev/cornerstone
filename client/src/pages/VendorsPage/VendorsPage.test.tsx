@@ -367,6 +367,7 @@ describe('a selected trade that disappears while the Trades sheet is open (D11)'
   async function changeTrades(
     url: string,
     next: UseTradesTypes.UseTradesResult,
+    state?: unknown,
   ): Promise<RouterLog> {
     let setTrades: (value: UseTradesTypes.UseTradesResult) => void = () => undefined;
     const initial = tradesResult([ROOFING, TILING]);
@@ -375,7 +376,7 @@ describe('a selected trade that disappears while the Trades sheet is open (D11)'
       setTrades = setValue;
       return value;
     });
-    const { log } = renderPage(url);
+    const { log } = renderPage(url, { state });
     await loaded();
     await userEvent.click(screen.getByTestId('stub-changed'));
     act(() => setTrades(next));
@@ -390,6 +391,24 @@ describe('a selected trade that disappears while the Trades sheet is open (D11)'
     );
     await waitFor(() => expect(lastFetch()).not.toHaveProperty('tradeId'));
     expect(screen.queryByTestId('companies-chip-t-tile')).not.toBeInTheDocument();
+  });
+
+  it('keeps the tradesSheet location state through the reset, so closing the sheet goes back', async () => {
+    const log = await changeTrades('/companies?trades=1&tradeId=t-tile', tradesResult([ROOFING]), {
+      tradesSheet: true,
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true'),
+    );
+    expect(JSON.parse(screen.getByTestId('loc-state').textContent ?? 'null')).toMatchObject({
+      tradesSheet: true,
+    });
+    expect(loc()).toContain('trades=1');
+
+    await userEvent.click(screen.getByTestId('stub-close'));
+
+    expect(log.actions.at(-1)).toBe('GO -1');
   });
 
   it('changes nothing while the selected trade is still there', async () => {

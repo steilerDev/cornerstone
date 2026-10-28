@@ -63,6 +63,7 @@ function setup(
   url = '/tasks',
   cfg: ObjectListConfig<Row> = config,
   scrollRoot: Element | null = null,
+  locationState?: unknown,
 ) {
   let ctrl!: ObjectListController<Row>;
   const nav = {
@@ -82,7 +83,15 @@ function setup(
     return null;
   }
   render(
-    <MemoryRouter initialEntries={['/start', url]} initialIndex={1}>
+    <MemoryRouter
+      initialEntries={[
+        '/start',
+        locationState === undefined
+          ? url
+          : { pathname: '/tasks', search: url.split('?')[1] ?? '', state: locationState },
+      ]}
+      initialIndex={1}
+    >
       <Probe />
       <Routes>
         <Route path="/tasks" element={<Host />} />
@@ -370,6 +379,53 @@ describe('useObjectList', () => {
     expect(h.nav.type).toBe('REPLACE');
     await waitFor(() => expect(h.get().totalItems).toBe(1));
     expect(h.search()).toBe('?trades=1');
+  });
+
+  it("a write keeps the entry's location state (a host sheet marker survives chip and query writes)", async () => {
+    const h = setup(() => ok(rows(1)), '/tasks?trades=1', config, null, { tradesSheet: true });
+    await waitFor(() => expect(h.get().totalItems).toBe(1));
+    expect(h.nav.location.state).toEqual({ tradesSheet: true });
+
+    await act(async () => h.get().setChip('done'));
+    expect(h.nav.type).toBe('REPLACE');
+    expect(h.search()).toContain('status=done');
+    expect(h.nav.location.state).toEqual({ tradesSheet: true });
+
+    await act(async () => h.get().setSearch('tile'));
+    await act(async () => h.get().setSort('due', 'desc'));
+    expect(h.nav.location.state).toEqual({ tradesSheet: true });
+  });
+
+  it("normalising a bad URL keeps the entry's location state", async () => {
+    const h = setup(() => ok(rows(1)), '/tasks?status=bogus&trades=1', config, null, {
+      tradesSheet: true,
+    });
+
+    await waitFor(() => expect(h.search()).toBe('?trades=1'));
+    expect(h.nav.type).toBe('REPLACE');
+    expect(h.nav.location.state).toEqual({ tradesSheet: true });
+  });
+
+  it('writes and normalises still work for an entry without location state', async () => {
+    const h = setup(() => ok(rows(1)), '/tasks?status=bogus');
+    await waitFor(() => expect(h.search()).toBe(''));
+    expect(h.nav.location.state).toBeNull();
+
+    await act(async () => h.get().setChip('done'));
+
+    expect(h.search()).toBe('?status=done');
+    expect(h.nav.location.state).toBeNull();
+  });
+
+  it('writes with the latest location state, not the one from the first render', async () => {
+    const h = setup(() => ok(rows(1)), '/tasks', config, null, { step: 1 });
+    await waitFor(() => expect(h.get().totalItems).toBe(1));
+
+    await act(async () => h.get().setSearch('a'));
+    await act(async () => h.get().setSearch('ab'));
+
+    expect(h.nav.location.state).toEqual({ step: 1 });
+    expect(h.search()).toBe('?q=ab');
   });
 
   it('keeps the getKey it was given', async () => {
