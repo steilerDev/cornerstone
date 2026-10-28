@@ -8,28 +8,108 @@ title: Invoices & Companies
 Invoices track the real cost of your project -- the receipts from everyone you pay. Each invoice can be split into cost lines across your tasks and purchases, and each company can have any number of invoices attached.
 
 :::info Companies have their own page
-Companies are a page of their own in the main navigation, separate from the budget. A company's name, trade, and contact details are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. All existing links between invoices, cost lines, and companies are preserved.
+Companies are a page of their own in the main navigation, separate from the budget. A company's name, trade, and contact persons are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. The company page also brings together what you owe the company, its offers, its work and its site diary entries.
 :::
 
 ## Companies
 
 ### Company List
 
-Navigate to **Companies** in the main navigation to see all companies. The list supports:
+Navigate to **Companies** in the main navigation to see all companies. Search finds a company by its name or its trade. The list shows these columns by default:
 
-- **Search** -- Find companies by name
-- **Sorting** -- Sort by name or creation date
-- **Pagination** -- Browse through large company lists
+- **Name** and **Trade**
+- **Phone** and **Contact persons** -- the number of people on the company's contact list
+- **Last on site** -- the date of the company's most recent site diary entry
+- **Still to pay** -- the total you still owe the company across its open invoices and progress payments
+- **Offers** -- the total of the company's offers, with the amount already paid shown beneath it, such as **12,000 EUR** and **5,000 EUR paid** below it. A company with no offers shows a dash.
+
+Use **Visible columns** to show more, such as **E-mail**, **Address**, **Notes**, **Date added** or **Last updated**.
+
+Sort by **Name**, **Trade**, **Still to pay**, **Last on site**, **Date added** or **Last updated** by selecting the column header. **Phone**, **Contact persons** and **Offers** cannot be sorted. The list shows one page at a time, so use the page controls to move through a long list.
 
 ### Creating a Company
 
-Click **New company** and provide the company's name and optionally assign a **trade** to indicate the company's specialty (e.g., Electrical, Plumbing). Type in the **Trade** field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
+Click **New company** and fill in the fields:
 
-### Company Detail
+- **Name** -- Required, at most 200 characters.
+- **Trade** -- Optional. The company's specialty, such as Electrical or Plumbing. Type in the field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
+- **Phone**, **E-mail**, **Address** and **Notes** -- Optional. An e-mail address must be valid if you enter one.
 
-Click a company to see its detail page, which shows the company's information, assigned trade, and all its invoices. From the company edit page, you can navigate directly to any invoice detail by clicking on it.
+### Company Page
 
-![Company detail page](/img/screenshots/budget-vendor-detail-light.png)
+Select a company in the list to open its page. The page has a header, a summary strip and five tabs: **Overview**, **Work**, **Payments**, **Site diary** and **History**.
+
+:::info Screenshot needed
+A screenshot of the company page is still to come.
+:::
+
+#### Header and Call
+
+The header shows the company's name with a **Call** button. **Call** dials the company's phone number:
+
+- If the company has a phone number, **Call** uses it.
+- If the company has no phone number but a contact person does, **Call** dials the number of the first contact person, in the order you added them, who has one. The button still reads **Call**.
+- If no phone number is saved anywhere, the button reads **Add phone number**. Select it to go to the **Overview** tab, where the **Phone and e-mail** card opens for editing with the phone field selected.
+
+#### Summary Strip
+
+Below the header, a strip shows the key facts for the company:
+
+- **Trade** -- the company's trade, or **None**.
+- **Still to pay** -- the total you still owe the company.
+- **Offers** -- the total of the offers, with the amount already paid beneath it, or **None**.
+- **Tasks** -- the number of open tasks assigned to the company, such as **2 open**, or **None open**.
+- **On site** -- the number of days recorded in the site diary for this company and the date of the last entry, such as **3 days** with **last 12 March 2027**. It reads **None yet** when no entry names the company.
+
+#### Overview
+
+The **Overview** tab holds four cards:
+
+- **Contact Persons** -- one row for each person, with the name, role, phone and e-mail. Each row has a **Call** button that dials that person's number. A person without a phone number shows **No phone number**. Select **New contact person** to add someone. Use a row's **⋯** menu to edit the person or remove them. Removing a contact person shows a message with an **Undo** button, which restores the person. A contact person needs a first name or a last name.
+- **Phone and e-mail** -- the company's phone number and e-mail address.
+- **Address** -- the company's postal address.
+- **About** -- the company's name and notes, and who added the company (**Added by**).
+
+Each card can be edited in place.
+
+#### Payments
+
+The **Payments** tab lists everything you pay or owe the company, and its tab label shows how many offers and invoices there are, such as **Payments (7)**.
+
+The totals line at the top shows two figures:
+
+- **Paid** -- what you have paid so far, across the company's invoices and progress payments.
+- **Still to pay** -- what is still open, across the company's invoices and progress payments.
+
+A submitted invoice is not counted in **Still to pay**. When one exists, a note beneath the totals says how many, such as **1 submitted invoice is not counted in Still to pay.**
+
+Below the totals are three lists:
+
+- **Invoices** -- each invoice with its due date, the amount paid and the **Still to pay** amount. Select the invoice to open it.
+- **Offers** -- each offer with its amount, the amount paid and **Remaining on offer**.
+- **Progress payments** -- the progress payments on the company's invoices, each with its date and amount.
+
+Select **New invoice** or **New offer** to add a record with the company already filled in. The row menu **⋯** on an invoice or offer offers **Delete**, which asks you to confirm first.
+
+#### Work
+
+The **Work** tab shows what the company is doing or supplying for your project, in three lists:
+
+- **Tasks** -- the tasks assigned to the company, with the end date of each.
+- **Purchases** -- the household purchases that name the company as supplier, with their delivery or delivered date.
+- **Cost lines** -- the cost lines that name the company.
+
+#### Site Diary
+
+The **Site diary** tab lists the diary entries that name this company, such as a daily log for the company or a delivery from it. The tab label shows how many there are, such as **Site diary (12)**. Select **Show all in Site diary** to open the Site diary with the same company filter applied.
+
+#### History
+
+The **History** tab lists what has happened to the company's offers and invoices, such as an invoice being recorded. Select **Show all in History** to open the full history with the same filter.
+
+### Going Back to the Company
+
+On an invoice or offer page, the company's name in the header links to the company page. From there you can return to its invoices and offers on the **Payments** tab.
 
 ## Invoices
 
@@ -124,7 +204,7 @@ Open the dialog from any of these places. It opens over the page you are on, so 
 
 - **New menu** -- choose **Invoice** or **Offer**. On a company's page, the company is already filled in.
 - **Budget > Invoices** -- select **New invoice**. On the **Offers** chip the button reads **New offer**.
-- **Company page** -- in the **Invoices** card, select **New invoice**. The company is already filled in.
+- **Company page** -- on the **Payments** tab, select **New invoice**. The company is already filled in.
 - **Task or purchase page** -- in the **Cost lines** section, select **New invoice**. The task or purchase is already filled in.
 
 The dialog title says **New invoice** or **New offer**, depending on what you are adding. To add an offer for a task or purchase, use the New menu and choose **Offer**, then pick the task or purchase under **For task / purchase**.

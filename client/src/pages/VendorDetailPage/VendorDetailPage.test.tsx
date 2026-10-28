@@ -1,25 +1,38 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
+/**
+ * Page tests for the Company page (VendorDetailPage.tsx, rebuilt in #2244). All data is synthetic.
+ */
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import type {
+  DiaryEntrySummary,
+  InvoiceListRow,
+  InvoiceStatus,
+  VendorContact,
+  VendorDetail,
+} from '@cornerstone/shared';
 import {
   CreateMenuProvider,
   useCreatePrefill,
 } from '../../components/CreateMenu/CreateMenuContext.js';
-import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
-import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
-import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
-import enErrors from '../../i18n/en/errors.json';
-import type { VendorDetail, Invoice } from '@cornerstone/shared';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { InvoiceCreateContext } from '../../objectForms/invoiceCreateContext.js';
 import type { OpenInvoiceForm } from '../../objectForms/invoiceCreateContext.js';
-import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
+import type * as RelationsApiTypes from '../../lib/vendorRelationsApi.js';
+import type * as DiaryApiTypes from '../../lib/diaryApi.js';
+import type * as HistoryApiTypes from '../../lib/historyApi.js';
 
 const mockWhenReady = jest.fn<() => () => void>(() => () => {});
 jest.unstable_mockModule('../../lib/focusPageHeading.js', () => ({
@@ -27,23 +40,9 @@ jest.unstable_mockModule('../../lib/focusPageHeading.js', () => ({
   focusPageHeadingWhenReady: mockWhenReady,
 }));
 
-// Mock the vendor API module BEFORE importing the component
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockUpdateVendor = jest.fn<typeof VendorsApiTypes.updateVendor>();
 const mockDeleteVendor = jest.fn<typeof VendorsApiTypes.deleteVendor>();
-const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
-
-jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
-  fetchDeleteImpact: mockFetchDeleteImpact,
-}));
-
-/** The delete action is aria-disabled until the "also affects" counts have loaded. */
-async function enabledConfirm(prefix: string): Promise<HTMLElement> {
-  const btn = await screen.findByTestId(`${prefix}-confirm`);
-  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-  return btn;
-}
-
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest.fn(),
   searchCompanies: jest.fn(async () => []),
@@ -53,2043 +52,712 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: mockDeleteVendor,
 }));
 
-// Mock the invoices API module BEFORE importing the component
-const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
-const mockOpenForm = jest.fn<OpenInvoiceForm>();
-const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
-
-jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchInvoices: mockFetchInvoices,
-  createInvoice: jest.fn(),
-  deleteInvoice: mockDeleteInvoice,
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
 }));
 
-// Mock the vendor contacts API module so VendorContactsSection does not make real
-// network calls during VendorDetailPage tests, preventing spurious role="alert"
-// elements from a contacts-load failure interfering with editError assertions.
+const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
+jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
+  fetchAllInvoices: mockFetchAllInvoices,
+  deleteInvoice: mockDeleteInvoice,
+  createInvoice: jest.fn(),
+}));
+
+const mockFetchRelations = jest.fn<typeof RelationsApiTypes.fetchVendorRelations>();
+jest.unstable_mockModule('../../lib/vendorRelationsApi.js', () => ({
+  fetchVendorRelations: mockFetchRelations,
+}));
+
+const mockListDiary = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+jest.unstable_mockModule('../../lib/diaryApi.js', () => ({ listDiaryEntries: mockListDiary }));
+
+const mockListHistory = jest.fn<typeof HistoryApiTypes.listHistory>();
+jest.unstable_mockModule('../../lib/historyApi.js', () => ({ listHistory: mockListHistory }));
+
 jest.unstable_mockModule('../../lib/vendorContactsApi.js', () => ({
-  listVendorContacts: jest
-    .fn<() => Promise<{ contacts: never[] }>>()
-    .mockResolvedValue({ contacts: [] }),
   createVendorContact: jest.fn(),
   updateVendorContact: jest.fn(),
   deleteVendorContact: jest.fn(),
 }));
 
-// Trades load through useTrades (edit form trade picker).
-const mockFetchTrades = jest.fn<() => Promise<{ trades: never[] }>>();
 jest.unstable_mockModule('../../lib/tradesApi.js', () => ({
-  fetchTrades: mockFetchTrades,
+  fetchTrades: jest.fn(async () => ({ trades: [] })),
   createTrade: jest.fn(),
   updateTrade: jest.fn(),
   deleteTrade: jest.fn(),
   mergeTrade: jest.fn(),
 }));
 
-// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
-
-jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
   };
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
-    formatCurrency: fmtCurrency,
-    formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
   };
 });
 
-describe('VendorDetailPage', () => {
-  let VendorDetailPage: React.ComponentType;
+let VendorDetailPage: React.ComponentType;
+let media: MatchMediaControl;
+const mockOpenForm = jest.fn<OpenInvoiceForm>();
 
-  // ─── Sample Data ─────────────────────────────────────────────────────────
+// ─── Fixtures ────────────────────────────────────────────────────────────────
 
-  const sampleVendor: VendorDetail = {
-    id: 'vendor-1',
+const AT = '2026-01-01T00:00:00.000Z';
+
+const contact = (id: string, phone: string | null, name = `Person ${id}`): VendorContact => ({
+  id,
+  vendorId: 'v1',
+  firstName: name,
+  lastName: null,
+  name,
+  role: null,
+  phone,
+  email: null,
+  notes: null,
+  createdAt: AT,
+  updatedAt: AT,
+});
+
+function vendor(over: Partial<VendorDetail> = {}): VendorDetail {
+  return {
+    id: 'v1',
     name: 'Smith Plumbing',
-    trade: { id: 'trade-plumbing', name: 'Plumbing', color: null, translationKey: null },
+    trade: { id: 't-plumb', name: 'Plumbing', color: null, translationKey: null },
     phone: '+1 555-1234',
-    email: 'smith@plumbing.com',
-    address: '123 Main St, Springfield',
-    notes: 'Very reliable contractor.',
-    createdBy: { id: 'user-1', displayName: 'Admin User', email: 'admin@example.com' },
+    email: 'smith@plumbing.example',
+    address: '123 Main St',
+    notes: 'Very reliable.',
+    createdBy: { id: 'u1', displayName: 'Admin User', email: 'admin@example.com' },
+    createdAt: AT,
+    updatedAt: AT,
     invoiceCount: 3,
-    outstandingBalance: 2500.0,
+    stillToPay: 600,
+    paid: 900,
+    offers: { count: 2, amount: 5000, paid: 1200, stillToPay: 0, remainingOnOffer: 3800 },
+    openTaskCount: 2,
+    onSiteDays: 4,
+    lastOnSite: '2026-03-05',
     contacts: [],
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  };
+    ...over,
+  } as VendorDetail;
+}
 
-  const vendorWithNoStats: VendorDetail = {
-    id: 'vendor-2',
-    name: 'Jones Electric',
-    trade: null,
-    phone: null,
-    email: null,
-    address: null,
-    notes: null,
-    createdBy: null,
-    invoiceCount: 0,
-    outstandingBalance: 0,
-    contacts: [],
-    createdAt: '2026-01-02T00:00:00.000Z',
-    updatedAt: '2026-01-02T00:00:00.000Z',
-  };
+const BARE = vendor({
+  trade: null,
+  phone: null,
+  email: null,
+  address: null,
+  notes: null,
+  createdBy: null,
+  invoiceCount: 0,
+  stillToPay: 0,
+  paid: 0,
+  offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+  openTaskCount: 0,
+  onSiteDays: 0,
+  lastOnSite: null,
+});
 
-  // Sample invoices fixture
-  const sampleInvoice: Invoice = {
-    id: 'invoice-1',
-    vendorId: 'vendor-1',
-    vendorName: 'Test Vendor',
-    budgetLines: [],
-    remainingAmount: 1500.0,
-    invoiceNumber: 'INV-001',
-    amount: 1500.0,
+function invoice(id: string, status: InvoiceStatus, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    vendorId: 'v1',
+    invoiceNumber: `R-${id}`,
+    amount: 1000,
     date: '2026-02-01',
-    dueDate: '2026-03-01',
-    status: 'pending',
-    notes: 'First invoice note',
-    deposits: [],
-    finalPaymentAmount: 1500.0,
-    createdBy: { id: 'user-1', displayName: 'Admin User', email: 'admin@example.com' },
-    createdAt: '2026-02-01T00:00:00.000Z',
-    updatedAt: '2026-02-01T00:00:00.000Z',
-  };
-
-  const paidInvoice: Invoice = {
-    id: 'invoice-2',
-    vendorId: 'vendor-1',
-    vendorName: 'Test Vendor',
-    budgetLines: [],
-    remainingAmount: 2500.0,
-    invoiceNumber: 'INV-002',
-    amount: 2500.0,
-    date: '2026-01-15',
     dueDate: null,
-    status: 'paid',
-    notes: null,
+    status,
+    paid: 0,
+    openAmount: 1000,
+    remainingOnOffer: 500,
     deposits: [],
-    finalPaymentAmount: 2500.0,
-    createdBy: null,
-    createdAt: '2026-01-15T00:00:00.000Z',
-    updatedAt: '2026-01-15T00:00:00.000Z',
-  };
+    ...over,
+  } as unknown as InvoiceListRow;
+}
 
-  const claimedInvoice: Invoice = {
-    id: 'invoice-3',
-    vendorId: 'vendor-1',
-    vendorName: 'Test Vendor',
-    budgetLines: [],
-    remainingAmount: 800.0,
-    invoiceNumber: null,
-    amount: 800.0,
-    date: '2025-12-01',
-    dueDate: '2026-01-01',
-    status: 'claimed',
-    notes: null,
-    deposits: [],
-    finalPaymentAmount: 800.0,
-    createdBy: null,
-    createdAt: '2025-12-01T00:00:00.000Z',
-    updatedAt: '2025-12-01T00:00:00.000Z',
-  };
+const page = (rows: InvoiceListRow[]) => ({
+  invoices: rows,
+  pagination: { page: 1, pageSize: 100, totalItems: rows.length, totalPages: 1 },
+  summary: {} as never,
+});
 
-  beforeEach(async () => {
-    if (!VendorDetailPage) {
-      const module = await import('./VendorDetailPage.js');
-      VendorDetailPage = module.default;
-    }
+const diaryEntry = (id: string) =>
+  ({
+    id,
+    entryType: 'daily_log',
+    entryDate: '2026-03-01',
+    title: `Log ${id}`,
+    body: 'On site',
+    status: 'saved',
+    isAutomatic: false,
+    photoCount: 0,
+    thumbnails: [],
+    metadata: null,
+    sourceEntityType: null,
+    sourceEntityId: null,
+  }) as unknown as DiaryEntrySummary;
 
-    mockFetchVendor.mockReset();
-    mockUpdateVendor.mockReset();
-    mockDeleteVendor.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'vendor-1', effects: [] });
-    mockFetchTrades.mockReset();
-    mockFetchTrades.mockResolvedValue({ trades: [] });
-    mockFetchInvoices.mockReset();
-    mockOpenForm.mockReset();
-    mockDeleteInvoice.mockReset();
-
-    // Default: invoices load successfully (empty list) unless overridden
-    mockFetchInvoices.mockResolvedValue([]);
-  });
-
-  /**
-   * Renders the VendorDetailPage in a router context with the given vendor ID param.
-   */
-  function renderPage(
-    vendorId: string = 'vendor-1',
-    options: { probe?: boolean; withOpener?: boolean } = {},
-  ) {
-    const tree = (
-      <MemoryRouter initialEntries={[`/companies/${vendorId}`]}>
+function renderPage(
+  options: {
+    initial?: string;
+    withOpener?: boolean;
+    probe?: boolean;
+    vendorPath?: string;
+  } = {},
+) {
+  const tree = (
+    <ToastProvider>
+      <MemoryRouter initialEntries={[options.initial ?? '/companies/v1']}>
         {options.probe ? <OriginProbe /> : null}
         <Routes>
-          <Route path="/companies/:id" element={<VendorDetailPage />} />
-          <Route path="/companies" element={<div>Vendors List Page</div>} />
-          <Route
-            path="/budget/invoices/:id"
-            element={<div data-testid="invoice-detail-page">Invoice Detail</div>}
-          />
+          <Route path={options.vendorPath ?? '/companies/:id'} element={<VendorDetailPage />} />
+          <Route path="/companies" element={<div>Companies List Page</div>} />
+          <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+          <Route path="*" element={<div>Other</div>} />
         </Routes>
       </MemoryRouter>
-    );
-    return render(
-      options.withOpener === false ? (
-        tree
-      ) : (
-        <InvoiceCreateContext value={mockOpenForm}>{tree}</InvoiceCreateContext>
-      ),
-    );
+    </ToastProvider>
+  );
+  return render(
+    options.withOpener === false ? (
+      tree
+    ) : (
+      <InvoiceCreateContext value={mockOpenForm}>{tree}</InvoiceCreateContext>
+    ),
+  );
+}
+
+async function loaded(name = 'Smith Plumbing') {
+  await screen.findByRole('heading', { level: 1, name });
+}
+
+const tab = (name: RegExp) => screen.getByRole('tab', { name });
+
+beforeEach(async () => {
+  if (!VendorDetailPage) {
+    ({ default: VendorDetailPage } = await import('./VendorDetailPage.js'));
   }
-
-  /** Delete lives in the header "Actions for ‹name›" menu (#2213), never as a stand-alone button. */
-  async function openDeleteFromMenu(user: ReturnType<typeof userEvent.setup>) {
-    const trigger = await screen.findByRole('button', { name: 'Actions for Smith Plumbing' });
-    await user.click(trigger);
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
-    await screen.findByRole('alertdialog');
+  for (const mock of [
+    mockFetchVendor,
+    mockUpdateVendor,
+    mockDeleteVendor,
+    mockFetchDeleteImpact,
+    mockFetchAllInvoices,
+    mockDeleteInvoice,
+    mockFetchRelations,
+    mockListDiary,
+    mockListHistory,
+    mockOpenForm,
+  ] as Array<jest.Mock>) {
+    mock.mockReset();
   }
+  mockFetchVendor.mockResolvedValue(vendor());
+  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'v1', effects: [] });
+  mockFetchAllInvoices.mockResolvedValue(page([]) as never);
+  mockFetchRelations.mockResolvedValue({ workItems: [], householdItems: [], budgetLines: [] });
+  mockListDiary.mockResolvedValue({
+    items: [],
+    pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+  } as never);
+  mockListHistory.mockResolvedValue({
+    items: [],
+    pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    hiddenCount: 0,
+    object: null,
+  } as never);
+  mockDeleteVendor.mockResolvedValue(undefined);
+  mockDeleteInvoice.mockResolvedValue(undefined);
+  media = installMatchMedia({ '(min-width: 768px)': true });
+});
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+afterEach(() => media.restore());
 
-  describe('loading state', () => {
-    it('shows loading indicator while fetching vendor', () => {
-      // Never resolves — stays in loading state
-      mockFetchVendor.mockReturnValueOnce(new Promise(() => {}));
+// ─── States ──────────────────────────────────────────────────────────────────
 
-      renderPage();
+describe('VendorDetailPage states', () => {
+  it('shows a loading status and one screen-reader h1 "Company" while fetching', () => {
+    mockFetchVendor.mockReturnValue(new Promise(() => {}));
+    renderPage();
 
-      expect(screen.getByRole('status', { name: /loading vendor/i })).toBeInTheDocument();
-    });
-
-    it('keeps the Companies trail and exactly one (screen-reader) h1 while loading', () => {
-      mockFetchVendor.mockReturnValueOnce(new Promise(() => {}));
-
-      renderPage();
-
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByRole('heading', { level: 1, name: 'Companies' })).toBeInTheDocument();
-      const trail = screen.getByRole('navigation', { name: 'You are here' });
-      expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
-        'href',
-        '/companies',
-      );
-      expect(screen.queryByText(/back to vendors/i)).toBeNull();
-    });
-
-    it('hides loading indicator after data loads', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByText(/loading vendor/i)).not.toBeInTheDocument();
-      });
-    });
+    expect(screen.getByRole('status', { name: 'Loading company' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: 'Company' })).toBeInTheDocument();
   });
 
-  // ─── Vendor detail display ─────────────────────────────────────────────────
+  it('redirects to the Companies list when the route has no id', async () => {
+    renderPage({ initial: '/x', vendorPath: '/x' });
 
-  describe('vendor detail display', () => {
-    it('renders vendor name as page heading', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /smith plumbing/i, level: 1 }),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('renders vendor trade', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Trade name appears in the info list; getCategoryDisplayName falls back to
-        // vendor.trade.name when translationKey is null
-        const tradeElements = screen.getAllByText('Plumbing');
-        expect(tradeElements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders stat card for invoice count', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/total invoices/i)).toBeInTheDocument();
-        expect(screen.getByText('3')).toBeInTheDocument();
-      });
-    });
-
-    it('renders stat card for outstanding balance', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/outstanding balance/i)).toBeInTheDocument();
-        // €2,500.00 formatted via Intl.NumberFormat (EUR)
-        expect(screen.getByText(/€2,500\.00/)).toBeInTheDocument();
-      });
-    });
-
-    it('renders €0.00 outstanding balance when vendor has no invoices', async () => {
-      mockFetchVendor.mockResolvedValueOnce(vendorWithNoStats);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/€0\.00/)).toBeInTheDocument();
-      });
-    });
-
-    it('renders vendor phone as a tel link', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        const phoneLink = screen.getByRole('link', { name: '+1 555-1234' });
-        expect(phoneLink).toHaveAttribute('href', 'tel:+1 555-1234');
-      });
-    });
-
-    it('renders vendor email as a mailto link', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        const emailLink = screen.getByRole('link', { name: 'smith@plumbing.com' });
-        expect(emailLink).toHaveAttribute('href', 'mailto:smith@plumbing.com');
-      });
-    });
-
-    it('renders vendor address', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('123 Main St, Springfield')).toBeInTheDocument();
-      });
-    });
-
-    it('renders vendor notes', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Very reliable contractor.')).toBeInTheDocument();
-      });
-    });
-
-    it('renders createdBy display name', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Admin User')).toBeInTheDocument();
-      });
-    });
-
-    it('renders "—" for optional null fields', async () => {
-      mockFetchVendor.mockResolvedValueOnce(vendorWithNoStats);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Multiple dashes for null specialty, phone, email, address
-        const dashes = screen.getAllByText('—');
-        expect(dashes.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders Edit and the header ⋯ menu when not in edit mode, with no stand-alone Delete button', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-        expect(
-          screen.getByRole('button', { name: 'Actions for Smith Plumbing' }),
-        ).toBeInTheDocument();
-      });
-      expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
-    });
-
-    it('offers Delete as the destructive item of the header menu', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-
-      await user.click(await screen.findByRole('button', { name: 'Actions for Smith Plumbing' }));
-
-      const items = await screen.findAllByRole('menuitem');
-      expect(items.map((i) => i.textContent)).toEqual(['Delete']);
-      expect(screen.getByTestId('company-header-delete')).toBe(items[0]);
-    });
-
-    it('hides the header menu while editing', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-
-      await user.click(await screen.findByRole('button', { name: /^edit$/i }));
-
-      expect(
-        screen.queryByRole('button', { name: 'Actions for Smith Plumbing' }),
-      ).not.toBeInTheDocument();
-    });
-
-    it('renders "Vendor Information" section heading', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /vendor information/i })).toBeInTheDocument();
-      });
-    });
-
-    it('shows the Companies trail, one company-name h1 and no "Back to Vendors" control', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await screen.findByRole('heading', { name: /smith plumbing/i, level: 1 });
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      const trail = screen.getByRole('navigation', { name: 'You are here' });
-      expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
-        'href',
-        '/companies',
-      );
-      expect(screen.queryByRole('button', { name: /back to vendors/i })).toBeNull();
-      expect(screen.queryByText(/back to vendors/i)).toBeNull();
-    });
+    expect(await screen.findByText('Companies List Page')).toBeInTheDocument();
+    expect(mockFetchVendor).not.toHaveBeenCalled();
   });
 
-  // ─── Error state ────────────────────────────────────────────────────────────
-
-  describe('error state', () => {
-    it('shows error alert with 404 message when vendor not found', async () => {
-      mockFetchVendor.mockRejectedValueOnce(
-        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(/vendor not found.*deleted/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows API error message for non-404 errors', async () => {
-      mockFetchVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(1);
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic error message for network errors', async () => {
-      mockFetchVendor.mockRejectedValueOnce(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/vendor not found.*deleted/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows a "Back to Companies" action, the trail and one h1 on error', async () => {
-      mockFetchVendor.mockRejectedValueOnce(
-        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
-      );
-
-      renderPage();
-
-      const back = await screen.findByRole('button', { name: 'Back to Companies' });
-      expect(screen.queryByText(/back to vendors/i)).toBeNull();
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeInTheDocument();
-
-      fireEvent.click(back);
-      expect(await screen.findByText('Vendors List Page')).toBeInTheDocument();
-    });
-
-    it('shows Retry button on error', async () => {
-      mockFetchVendor.mockRejectedValueOnce(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-    });
-
-    it('retries loading when Retry is clicked', async () => {
-      mockFetchVendor
-        .mockRejectedValueOnce(new Error('First failure'))
-        .mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /retry/i }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /smith plumbing/i, level: 1 }),
-        ).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Edit mode ──────────────────────────────────────────────────────────────
-
-  describe('edit mode', () => {
-    it('enters edit mode when Edit button is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      // "Save Changes" form button should appear
-      expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
-    });
-
-    it('shows the current trade name in the edit form (#2196 AC3)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      const form = screen.getByRole('button', { name: /save changes/i }).closest('form')!;
-      expect(within(form).getByText('Plumbing')).toBeInTheDocument();
-    });
-
-    it('shows no trade name in the edit form when the vendor has no trade', async () => {
-      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, trade: null });
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      const form = screen.getByRole('button', { name: /save changes/i }).closest('form')!;
-      expect(within(form).queryByText('Plumbing')).not.toBeInTheDocument();
-    });
-
-    it('pre-fills edit form with current vendor values', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      expect(screen.getByDisplayValue('Smith Plumbing')).toBeInTheDocument();
-      // The trade is a picker, not a text input: its name is asserted in the next test
-      expect(screen.queryByDisplayValue('Plumbing')).not.toBeInTheDocument();
-      expect(screen.getByDisplayValue('+1 555-1234')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('smith@plumbing.com')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('123 Main St, Springfield')).toBeInTheDocument();
-    });
-
-    it('hides Edit and Delete buttons during editing', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
-    });
-
-    it('cancels edit mode when Cancel is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-      await user.click(screen.getByRole('button', { name: /cancel/i }));
-
-      // Back to view mode — Edit button reappears
-      expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
-    });
-
-    it('"Save Changes" is disabled when name is cleared', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      // Clear the name field
-      const nameInput = screen.getByDisplayValue('Smith Plumbing');
-      await user.clear(nameInput);
-
-      expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
-    });
-
-    it('successfully saves changes and returns to view mode', async () => {
-      const updatedVendor: VendorDetail = {
-        ...sampleVendor,
-        name: 'Smith Plumbing Updated',
-        trade: {
-          id: 'trade-plumbing',
-          name: 'General Plumbing',
-          color: null,
-          translationKey: null,
-        },
-      };
-
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockUpdateVendor.mockResolvedValueOnce(updatedVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      const nameInput = screen.getByDisplayValue('Smith Plumbing');
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Smith Plumbing Updated');
-
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(mockUpdateVendor).toHaveBeenCalledWith(
-          'vendor-1',
-          expect.objectContaining({ name: 'Smith Plumbing Updated' }),
-        );
-      });
-
-      // Back to view mode after save
-      await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-    });
-
-    it('updates page heading after successful save', async () => {
-      const updatedVendor: VendorDetail = {
-        ...sampleVendor,
-        name: 'Smith Plumbing Co.',
-      };
-
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockUpdateVendor.mockResolvedValueOnce(updatedVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      const nameInput = screen.getByDisplayValue('Smith Plumbing');
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Smith Plumbing Co.');
-
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /smith plumbing co\./i, level: 1 }),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('shows edit error when save API fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockUpdateVendor.mockRejectedValueOnce(
-        new ApiClientError(400, {
-          code: 'VALIDATION_ERROR',
-          message: 'RAW-SERVER-SENTINEL',
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic edit error for non-ApiClientError failures', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockUpdateVendor.mockRejectedValueOnce(new Error('Network error'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to update vendor/i)).toBeInTheDocument();
-      });
-    });
-
-    it('stays in edit mode after save failure (does not close)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockUpdateVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^edit$/i }));
-
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      // Should still be in edit mode
-      expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
-    });
-  });
-
-  // ─── Delete modal ────────────────────────────────────────────────────────────
-
-  describe('delete confirmation modal', () => {
-    it('shows delete modal when Delete button is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      expect(
-        screen.getByRole('alertdialog', { name: 'Delete Smith Plumbing?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('vendor-delete-cancel')).toHaveFocus();
-    });
-
-    it('shows vendor name in the delete modal', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      const dialog = screen.getByRole('alertdialog');
-      expect(dialog).toHaveTextContent('Smith Plumbing');
-    });
-
-    it('closes delete modal when Cancel is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-      await user.click(screen.getByRole('button', { name: /cancel/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('navigates to vendors list after successful deletion', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockResolvedValueOnce(undefined);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteVendor).toHaveBeenCalledWith('vendor-1');
-      });
-
-      // Should navigate to the vendors list (the route stub renders "Vendors List Page")
-      await waitFor(() => {
-        expect(screen.getByText('Vendors List Page')).toBeInTheDocument();
-      });
-    });
-
-    it('goes to the companies list with a replace, so Back never lands on the deleted company', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockResolvedValueOnce(undefined);
-      const log = createRouterLog();
-      const user = userEvent.setup();
-      render(
-        <RecordingRouter entries={['/companies/vendor-1']} log={log}>
-          <Routes>
-            <Route path="/companies/:id" element={<VendorDetailPage />} />
-            <Route path="/companies" element={<div>Vendors List Page</div>} />
-          </Routes>
-        </RecordingRouter>,
-      );
-
-      await openDeleteFromMenu(user);
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => expect(screen.getByText('Vendors List Page')).toBeInTheDocument());
-      expect(log.actions).toEqual(['REPLACE /companies']);
-      expect(log.entries).toEqual(['/companies']);
-    });
-
-    it('asks the new page to take focus once it renders (focusPageHeadingWhenReady)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockResolvedValueOnce(undefined);
-      mockWhenReady.mockClear();
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => expect(mockWhenReady).toHaveBeenCalledTimes(1));
-    });
-
-    it('does not navigate or move focus when the delete fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockRejectedValueOnce(new Error('Network error'));
-      mockWhenReady.mockClear();
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await screen.findByText(/failed to delete vendor/i);
-      expect(mockWhenReady).not.toHaveBeenCalled();
-      expect(screen.queryByText('Vendors List Page')).not.toBeInTheDocument();
-    });
-
-    it('Cancel returns focus to the header ⋯ that opened the confirm (#2213)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-      await openDeleteFromMenu(user);
-
-      await user.click(screen.getByTestId('vendor-delete-cancel'));
-
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Actions for Smith Plumbing' })).toHaveFocus(),
-      );
-    });
-
-    it('Escape also returns focus to the header ⋯ (#2213)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-      await openDeleteFromMenu(user);
-
-      await user.keyboard('{Escape}');
-
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Actions for Smith Plumbing' })).toHaveFocus(),
-      );
-    });
-
-    it('shows VENDOR_IN_USE error (409) in delete modal', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockRejectedValueOnce(
-        new ApiClientError(409, {
-          code: 'VENDOR_IN_USE',
-          message: 'Vendor is in use and cannot be deleted',
-          details: { invoiceCount: 3, workItemCount: 0 },
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(
-          within(dialog).getByText(
-            "This company can't be deleted while invoices or cost lines use it. Remove those first.",
-          ),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('hides "Delete Vendor" confirm button after 409 error', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockRejectedValueOnce(
-        new ApiClientError(409, {
-          code: 'VENDOR_IN_USE',
-          message: 'Vendor is in use and cannot be deleted',
-          details: { invoiceCount: 1, workItemCount: 0 },
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-      });
-
-      expect(within(dialog).queryByTestId('vendor-delete-confirm')).not.toBeInTheDocument();
-    });
-
-    it('shows the translated errors.json text for a non-409 ApiClientError, never the server message', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic delete error for non-409 failures', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockDeleteVendor.mockRejectedValueOnce(new Error('Network error'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await openDeleteFromMenu(user);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(/failed to delete vendor/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Invoices section — loading & structure ──────────────────────────────
-
-  describe('invoices section — structure', () => {
-    it('renders "Invoices" section heading', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^invoices$/i })).toBeInTheDocument();
-      });
-    });
-
-    it('renders the "New invoice" button', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'New invoice' })).toBeInTheDocument();
-      });
-    });
-
-    it('calls fetchInvoices with the vendor ID on mount', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage('vendor-1');
-
-      await waitFor(() => {
-        expect(mockFetchInvoices).toHaveBeenCalledWith('vendor-1');
-      });
-    });
-  });
-
-  // ─── Invoices section — empty state ───────────────────────────────────────
-
-  describe('invoices section — empty state', () => {
-    it('shows empty state message when vendor has no invoices', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/no invoices yet/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows hint to add first invoice when list is empty', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Multiple elements match "add invoice" (button + hint text) — use getAllByText
-        const matches = screen.getAllByText(/add invoice/i);
-        expect(matches.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('does not show the outstanding balance badge when list is empty', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByText(/outstanding:/i)).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Invoices section — list rendering ───────────────────────────────────
-
-  describe('invoices section — list rendering', () => {
-    it('renders invoice amount formatted as currency', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders invoice number when set', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/INV-001/).length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders "—" when invoice has no invoice number (desktop table)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]); // null invoiceNumber
-
-      renderPage();
-
-      await waitFor(() => {
-        const dashes = screen.getAllByText('—');
-        expect(dashes.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders "No Invoice #" for missing invoice number (mobile card list)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/no invoice #/i)).toBeInTheDocument();
-      });
-    });
-
-    it('renders "To pay" status badge for pending invoice', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('To pay').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders "Paid" status badge for paid invoice', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([paidInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders "Submitted" status badge for claimed invoice', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('D-07: every invoice status renders through the shared Badge with its own variant class (table + mobile card)', async () => {
-      const quotationInvoice: Invoice = {
-        ...sampleInvoice,
-        id: 'invoice-4',
-        invoiceNumber: 'INV-OFFER',
-        status: 'quotation',
-      };
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([
-        sampleInvoice,
-        paidInvoice,
-        claimedInvoice,
-        quotationInvoice,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('vendor-invoice-status-invoice-1')).toBeInTheDocument();
-      });
-      const expectations = [
-        ['invoice-1', 'To pay', 'pending'],
-        ['invoice-2', 'Paid', 'paid'],
-        ['invoice-3', 'Submitted', 'claimed'],
-        ['invoice-4', 'Offer', 'offer'],
-      ] as const;
-      for (const [id, word, cls] of expectations) {
-        for (const testId of [
-          `vendor-invoice-status-${id}`,
-          `vendor-invoice-status-mobile-${id}`,
-        ]) {
-          const chip = screen.getByTestId(testId);
-          expect(chip).toHaveTextContent(word);
-          expect(chip.className).toContain('badge');
-          expect(chip.className).toContain(cls);
-        }
-      }
-      // the offer chip is never the old red quotation class
-      expect(screen.getByTestId('vendor-invoice-status-invoice-4').className).not.toContain(
-        'quotation',
-      );
-      // Submitted carries the decorative check icon, others do not
-      expect(
-        screen
-          .getByTestId('vendor-invoice-status-invoice-3')
-          .querySelector('svg[aria-hidden="true"]'),
-      ).not.toBeNull();
-      expect(screen.getByTestId('vendor-invoice-status-invoice-1').querySelector('svg')).toBeNull();
-    });
-
-    it('renders the header outstanding figure from the server value, not the invoice list', async () => {
-      // sampleVendor.outstandingBalance = 2,500; the list below would sum to 2,300 client-side
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, claimedInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-      });
-      const header = screen.getByText(/outstanding:/i);
-      expect(within(header).getByText('€2,500.00')).toBeInTheDocument();
-      expect(screen.queryByText(/€2,300\.00/)).not.toBeInTheDocument();
-    });
-
-    it('shows a neutral formatted zero in header and stat when the server balance is 0', async () => {
-      // pending invoice in the list: a client-side sum would be 1,500 and red
-      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, outstandingBalance: 0 });
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice]);
-
-      const { container } = renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-      });
-      const headerValue = within(screen.getByText(/outstanding:/i)).getByText('€0.00');
-      expect(headerValue.className).not.toContain('outstandingAmount');
-      expect(container.querySelector('[class*="statValueDanger"]')).toBeNull();
-    });
-
-    it('paints header and stat card red with the same predicate when the balance is > 0', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([paidInvoice]);
-
-      const { container } = renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-      });
-      const headerValue = within(screen.getByText(/outstanding:/i)).getByText('€2,500.00');
-      expect(headerValue.className).toContain('outstandingAmount');
-      expect(container.querySelector('[class*="statValueDanger"]')).not.toBeNull();
-    });
-
-    it('marks the stat card value and the invoices header amount as still-to-pay (#2232)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-      });
-      const marked = document.querySelectorAll('[data-figure]');
-      expect(marked).toHaveLength(2);
-      for (const el of Array.from(marked)) {
-        expect(el).toHaveAttribute('data-figure', 'still-to-pay');
-        expect(el.textContent).toBe('€2,500.00');
-      }
-      expect(within(screen.getByText(/outstanding:/i)).getByText('€2,500.00')).toHaveAttribute(
-        'data-figure',
-        'still-to-pay',
-      );
-    });
-
-    it('marks the stat card figure even when there are no invoices and the balance is 0 (#2232)', async () => {
-      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, outstandingBalance: 0 });
-      mockFetchInvoices.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(document.querySelectorAll('[data-figure="still-to-pay"]').length).toBeGreaterThan(0);
-      });
-      // No invoices: only the stat card carries the figure, the header amount is not rendered.
-      const marked = document.querySelectorAll('[data-figure]');
-      expect(marked).toHaveLength(1);
-      expect(marked[0]!.textContent).toBe('€0.00');
-    });
-
-    it('renders invoice date in readable format', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]); // date: '2026-02-01'
-
-      renderPage();
-
-      await waitFor(() => {
-        // Feb 1, 2026
-        expect(screen.getAllByText(/feb.*1.*2026/i).length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders "—" for missing due date in table', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([paidInvoice]); // dueDate: null
-
-      renderPage();
-
-      await waitFor(() => {
-        const dashes = screen.getAllByText('—');
-        expect(dashes.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders multiple invoices', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice, claimedInvoice]);
-
-      renderPage();
-
-      await waitFor(() => {
-        // All 3 amounts should appear (desktop table + mobile cards = 6 occurrences total)
-        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/€2,500\.00/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/€800\.00/).length).toBeGreaterThan(0);
-      });
-    });
-  });
-
-  // ─── Invoices section — error state ──────────────────────────────────────
-
-  describe('invoices section — error state', () => {
-    it('shows invoices error message when fetchInvoices fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(1);
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic error for non-ApiClientError invoice fetch failures', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockRejectedValueOnce(new Error('Network failure'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to load invoices/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows a Retry button on invoice load error', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockRejectedValueOnce(new Error('Network failure'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-    });
-
-    it('retries fetching invoices when Retry is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices
-        .mockRejectedValueOnce(new Error('Network failure'))
-        .mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /retry/i }));
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
-      });
-    });
-  });
-
-  // ─── New invoice (#2241) ──────────────────────────────────────────────────
-
-  describe('New invoice', () => {
-    it('shows a secondary "New invoice" button in the Invoices card, and no inline modal markup', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      renderPage();
-
-      const button = await screen.findByTestId('company-new-invoice');
-
-      expect(button).toHaveTextContent('New invoice');
-      expect(button.className).toMatch(/btnSecondary/);
-      expect(screen.queryByRole('dialog')).toBeNull();
-      expect(document.getElementById('create-invoice-number')).toBeNull();
-    });
-
-    it('opens the invoice form for this company with the page behind as origin and the button as focus target', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-
-      await user.click(await screen.findByTestId('company-new-invoice'));
-
-      expect(mockOpenForm).toHaveBeenCalledTimes(1);
-      const request = mockOpenForm.mock.calls[0]![0];
-      expect(request.kind).toBe('invoice');
-      expect(request.company).toEqual({ id: sampleVendor.id, name: sampleVendor.name });
-      expect(request.originState).toEqual({
-        origin: { to: '/companies/vendor-1', name: sampleVendor.name },
-      });
-      expect(request.returnFocusRef?.current).toBe(screen.getByTestId('company-new-invoice'));
-    });
-
-    it('has no New invoice button outside the invoice provider', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      renderPage('vendor-1', { withOpener: false });
-
-      await screen.findByRole('heading', { name: /^invoices$/i });
-
-      expect(screen.queryByTestId('company-new-invoice')).toBeNull();
-    });
-
-    it.each(['invoice', 'offer'])(
-      'reloads the invoice list and the stat cards when an %s is created behind the dialog',
-      async (kind) => {
-        mockFetchVendor.mockResolvedValue(sampleVendor);
-        renderPage();
-        await screen.findByTestId('company-new-invoice');
-        const invoiceCalls = mockFetchInvoices.mock.calls.length;
-        const vendorCalls = mockFetchVendor.mock.calls.length;
-
-        act(() => notifyObjectCreated(kind));
-
-        await waitFor(() => {
-          expect(mockFetchInvoices.mock.calls.length).toBeGreaterThan(invoiceCalls);
-          expect(mockFetchVendor.mock.calls.length).toBeGreaterThan(vendorCalls);
-        });
-      },
+  it('shows the not-found text for a 404, with Back to Companies and Try again', async () => {
+    const user = userEvent.setup();
+    mockFetchVendor.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
     );
+    renderPage();
 
-    it('shows the newly created invoice in the list after the reload', async () => {
-      mockFetchVendor.mockResolvedValue(sampleVendor);
-      renderPage();
-      await screen.findByTestId('company-new-invoice');
-      expect(screen.queryByText(sampleInvoice.invoiceNumber!)).toBeNull();
-      mockFetchInvoices.mockResolvedValue([sampleInvoice]);
-
-      act(() => notifyObjectCreated('invoice'));
-
-      expect((await screen.findAllByText(sampleInvoice.invoiceNumber!)).length).toBeGreaterThan(0);
-    });
-
-    it('does not reload for another kind of object', async () => {
-      mockFetchVendor.mockResolvedValue(sampleVendor);
-      renderPage();
-      await screen.findByTestId('company-new-invoice');
-      await act(async () => {});
-      const invoiceCalls = mockFetchInvoices.mock.calls.length;
-
-      act(() => notifyObjectCreated('company'));
-      await act(async () => {});
-
-      expect(mockFetchInvoices.mock.calls.length).toBe(invoiceCalls);
-    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This company does not exist or was deleted.',
+    );
+    mockFetchVendor.mockResolvedValue(vendor());
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await loaded();
   });
 
-  // ─── Invoice edit navigation ──────────────────────────────────────────────
+  it('shows the generic load error for a network failure and goes back to the list', async () => {
+    const user = userEvent.setup();
+    mockFetchVendor.mockRejectedValue(new Error('net'));
+    renderPage();
 
-  describe('invoice edit navigation', () => {
-    it('navigates to invoice detail page when desktop table Edit button is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This company could not be loaded. Try again.',
+    );
+    await user.click(screen.getByRole('button', { name: /Back to Companies/ }));
 
-      const user = userEvent.setup();
-      renderPage('vendor-1', { probe: true });
+    expect(await screen.findByText('Companies List Page')).toBeInTheDocument();
+  });
+});
 
-      await waitFor(() => {
-        expect(screen.getByRole('table')).toBeInTheDocument();
-      });
+// ─── Header, strip ───────────────────────────────────────────────────────────
 
-      const table = screen.getByRole('table');
-      await user.click(within(table).getByRole('button', { name: /edit invoice/i }));
+describe('VendorDetailPage header', () => {
+  it('shows the company name as the one h1 and the Call primary with the company number', async () => {
+    renderPage();
+    await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
-      });
-      expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
-      expect(probedOrigin()).toEqual({
-        to: '/companies/vendor-1',
-        name: sampleVendor.name,
-      });
-
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    it('navigates to invoice detail page when mobile card Edit button is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage('vendor-1', { probe: true });
-
-      await waitFor(() => {
-        const editButtons = screen.getAllByRole('button', { name: /edit invoice/i });
-        expect(editButtons.length).toBeGreaterThan(1);
-      });
-
-      // Index 1 is the mobile card button (index 0 is the desktop table button)
-      const editButtons = screen.getAllByRole('button', { name: /edit invoice/i });
-      await user.click(editButtons[1]!);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
-      });
-      expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
-      expect(probedOrigin()).toEqual({
-        to: '/companies/vendor-1',
-        name: sampleVendor.name,
-      });
-
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
+    const call = screen.getByTestId('company-primary-call');
+    expect(call).toHaveAttribute('href', 'tel:+15551234');
+    expect(call).toHaveAccessibleName('Call Smith Plumbing on +1 555-1234');
+    expect(call).toHaveTextContent('Call');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.queryByTestId('company-primary-add-phone')).toBeNull();
   });
 
-  // ─── Delete invoice modal ─────────────────────────────────────────────────
+  // Mutation: naming the company for a person's number would announce the wrong callee.
+  it('falls back to the first contact person with a number and names that person', async () => {
+    mockFetchVendor.mockResolvedValue(
+      vendor({ phone: null, contacts: [contact('c1', null), contact('c2', '555-0199', 'Pat')] }),
+    );
+    renderPage();
+    await loaded();
 
-  describe('deleting an invoice keeps the page mounted (#2209 final fix)', () => {
-    it('the stats reload is silent: no skeleton swap, the h1 stays mounted and the invoices heading keeps focus', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // every later fetch (the reload) stays in flight
-      mockFetchVendor.mockImplementation(() => new Promise(() => {}));
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockDeleteInvoice.mockResolvedValueOnce(undefined);
-
-      const user = userEvent.setup();
-      renderPage();
-      const h1 = await screen.findByRole('heading', { level: 1, name: sampleVendor.name });
-      await user.click(
-        (await screen.findAllByRole('button', { name: /delete invoice INV-001/i }))[0]!,
-      );
-      const confirm = await screen.findByTestId('vendor-invoice-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-      await user.click(confirm);
-
-      await waitFor(() => expect(mockDeleteInvoice).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(2));
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
-      expect(h1.isConnected).toBe(true);
-      expect(screen.getByRole('heading', { level: 1, name: sampleVendor.name })).toBe(h1);
-      const invoicesHeading = document.querySelector<HTMLElement>('h2[tabindex="-1"]')!;
-      expect(invoicesHeading.isConnected).toBe(true);
-      await waitFor(() => expect(document.activeElement).toBe(invoicesHeading));
-      expect(document.body).not.toHaveFocus();
-    });
+    const call = screen.getByTestId('company-primary-call');
+    expect(call).toHaveAttribute('href', 'tel:5550199');
+    expect(call).toHaveAccessibleName('Call Pat on 555-0199');
   });
 
-  describe('delete invoice modal', () => {
-    it('opens the delete dialog from the mobile card button too', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      const user = userEvent.setup();
-      renderPage();
+  it('offers Add phone number without any number, which opens the Phone and e-mail card on focus', async () => {
+    const user = userEvent.setup();
+    mockFetchVendor.mockResolvedValue(BARE);
+    renderPage();
+    await loaded();
+    expect(screen.queryByTestId('company-primary-call')).toBeNull();
 
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i }).length).toBe(2);
-      });
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[1]!);
+    await user.click(screen.getByTestId('company-primary-add-phone'));
 
-      expect(await screen.findByRole('alertdialog')).toHaveTextContent('INV-001');
-    });
-
-    it('opens delete invoice modal when Delete button is clicked on an invoice row', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      expect(screen.getByRole('alertdialog', { name: /^Delete .*\?$/ })).toBeInTheDocument();
-      expect(screen.getByTestId('vendor-invoice-delete-cancel')).toHaveFocus();
-    });
-
-    it('shows the invoice number in the delete modal', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      const dialog = screen.getByRole('alertdialog');
-      expect(dialog).toHaveTextContent('INV-001');
-    });
-
-    it('names the invoice in the title and, unlike the old modal, does not repeat its amount', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      const dialog = screen.getByRole('alertdialog');
-      expect(dialog).toHaveAccessibleName('Delete INV-001?');
-      expect(dialog).not.toHaveTextContent('€1,500.00');
-    });
-
-    it('closes the delete invoice modal when Cancel is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-      await user.click(
-        within(screen.getByRole('alertdialog')).getByRole('button', { name: /cancel/i }),
-      );
-
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('successfully deletes an invoice and removes it from the list', async () => {
-      mockFetchVendor.mockResolvedValue(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockDeleteInvoice.mockResolvedValueOnce(undefined);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      await user.click(await enabledConfirm('vendor-invoice-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteInvoice).toHaveBeenCalledWith('vendor-1', 'invoice-1');
-      });
-
-      // Dialog should close
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-
-      // The amount €1,500.00 should no longer be in the list (only appears in the delete modal)
-      await waitFor(() => {
-        expect(screen.queryByText(/INV-001/)).not.toBeInTheDocument();
-      });
-    });
-
-    it('shows delete invoice error when API call fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockDeleteInvoice.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-invoice-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic delete error for non-ApiClientError', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockDeleteInvoice.mockRejectedValueOnce(new Error('Network failure'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-invoice-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(/failed to delete invoice/i)).toBeInTheDocument();
-      });
-    });
-
-    it('hides the confirm button after a 409 on invoice delete', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockDeleteInvoice.mockRejectedValueOnce(
-        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!,
-        ).toBeInTheDocument();
-      });
-
-      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(await enabledConfirm('vendor-invoice-delete'));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-      });
-
-      // Confirm delete button should be hidden after error
-      expect(within(dialog).queryByTestId('vendor-invoice-delete-confirm')).not.toBeInTheDocument();
-    });
-
-    it('shows "this invoice" when invoice has no invoice number', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]); // invoiceNumber: null
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByRole('button', {
-            name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
-          })[0],
-        ).toBeInTheDocument();
-      });
-
-      await user.click(
-        screen.getAllByRole('button', {
-          name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
-        })[0]!,
-      );
-
-      const dialog = screen.getByRole('alertdialog');
-      expect(dialog).toHaveTextContent('this invoice');
-    });
+    expect(await screen.findByTestId('company-phone-email-form')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('company-field-phone')).toHaveFocus());
   });
 
-  // ── Page identity (#2202): tab title only, the h1 is unchanged ──────────────
+  it('Add phone number from another tab selects Overview first, then opens the card', async () => {
+    const user = userEvent.setup();
+    mockFetchVendor.mockResolvedValue(BARE);
+    renderPage({ initial: '/companies/v1?tab=work' });
+    await loaded();
+    expect(tab(/Work/)).toHaveAttribute('aria-selected', 'true');
 
-  describe('tab title (#2202)', () => {
-    it('shows only "Companies · <house>" while the company loads', async () => {
-      document.title = 'initial';
-      mockFetchVendor.mockReturnValueOnce(new Promise(() => {}));
+    await user.click(screen.getByTestId('company-primary-add-phone'));
 
-      renderPage();
-
-      await waitFor(() => expect(document.title).toBe('Companies · Cornerstone'));
-    });
-
-    it('shows "<company name> · Companies · <house>" once the company has loaded', async () => {
-      document.title = 'initial';
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      renderPage();
-
-      await waitFor(() =>
-        expect(document.title).toBe(`${sampleVendor.name} · Companies · Cornerstone`),
-      );
-    });
+    expect(await screen.findByTestId('company-phone-email-form')).toBeInTheDocument();
+    expect(tab(/Overview/)).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByTestId('company-field-phone')).toHaveFocus());
   });
 
-  // ─── New menu context (#2212) ───────────────────────────────────────────────
-
-  describe('create context', () => {
+  it('registers the company for the New menu', async () => {
     function PrefillProbe() {
       return <output data-testid="prefill">{JSON.stringify(useCreatePrefill())}</output>;
     }
-
-    function renderWithMenu(vendorId = 'vendor-1') {
-      return render(
-        <MemoryRouter initialEntries={[`/companies/${vendorId}`]}>
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/companies/v1']}>
           <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
             <Routes>
               <Route path="/companies/:id" element={<VendorDetailPage />} />
-              <Route path="/companies" element={<div>Vendors List Page</div>} />
             </Routes>
             <PrefillProbe />
           </CreateMenuProvider>
-        </MemoryRouter>,
-      );
-    }
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+    await loaded();
 
-    it('provides the company id once the company has loaded, so New > Invoice starts from it', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      renderWithMenu();
-      await waitFor(() =>
-        expect(JSON.parse(screen.getByTestId('prefill').textContent ?? '{}')).toEqual({
-          companyId: sampleVendor.id,
-        }),
-      );
-    });
+    await waitFor(() => expect(screen.getByTestId('prefill').textContent).toContain('v1'));
+  });
+});
 
-    it('provides nothing while loading or when the company is not found', async () => {
-      mockFetchVendor.mockRejectedValueOnce(
-        new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
-      );
-      renderWithMenu();
-      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalled());
-      expect(screen.getByTestId('prefill').textContent).toBe('{}');
-    });
+describe('VendorDetailPage summary strip', () => {
+  it('shows trade, still to pay, offers, tasks and on-site days', async () => {
+    renderPage({ probe: true });
+    await loaded();
+
+    const strip = screen.getByTestId('company-summary');
+    const fact = (id: string) => within(strip).getByTestId(`summary-fact-${id}`);
+    expect(fact('trade')).toHaveTextContent('Plumbing');
+    expect(fact('stillToPay')).toHaveTextContent('€600.00');
+    expect(fact('offers')).toHaveTextContent('€5,000.00');
+    expect(fact('offers')).toHaveTextContent('€1,200.00 paid');
+    expect(fact('tasks')).toHaveTextContent('2 open');
+    expect(fact('onSite')).toHaveTextContent('4 days');
+    expect(fact('onSite')).toHaveTextContent('last');
   });
 
-  // ─── Branch coverage: edit validation, contact fields, trade, invoice form (#2232) ───
+  it('marks Still to pay as the registry figure', async () => {
+    renderPage();
+    await loaded();
 
-  describe('edit form details (#2232 coverage)', () => {
-    async function startEdit(vendor: VendorDetail) {
-      mockFetchVendor.mockResolvedValueOnce(vendor);
-      const user = userEvent.setup();
-      renderPage(vendor.id);
-      await user.click(await screen.findByRole('button', { name: /^edit$/i }));
-      return user;
+    expect(
+      within(screen.getByTestId('company-summary'))
+        .getByTestId('summary-fact-stillToPay')
+        .querySelector('[data-figure="still-to-pay"], [data-figure]') ??
+        screen.getByTestId('company-summary').querySelector('[data-figure="still-to-pay"]'),
+    ).not.toBeNull();
+  });
+
+  it('links the trade to the filtered Companies list with the page as origin', async () => {
+    const user = userEvent.setup();
+    renderPage({ probe: true });
+    await loaded();
+
+    await user.click(
+      within(screen.getByTestId('company-summary')).getByRole('link', { name: /Plumbing/ }),
+    );
+
+    expect(probedPath()).toBe('/companies');
+    expect(screen.getByTestId('probe-search')).toHaveTextContent('tradeId=t-plumb');
+    expect(probedOrigin()).toMatchObject({ to: '/companies/v1' });
+  });
+
+  it('shows empty values for a company without trade, offers, tasks and visits', async () => {
+    mockFetchVendor.mockResolvedValue(BARE);
+    renderPage();
+    await loaded();
+
+    const strip = screen.getByTestId('company-summary');
+    expect(within(strip).getByTestId('summary-fact-offers')).toHaveTextContent('None');
+    expect(within(strip).getByTestId('summary-fact-tasks')).toHaveTextContent('None open');
+    expect(within(strip).getByTestId('summary-fact-onSite')).toHaveTextContent('None yet');
+    expect(within(strip).getByTestId('summary-fact-stillToPay')).toHaveTextContent('€0.00');
+    expect(within(strip).queryByRole('link', { name: /Plumbing/ })).toBeNull();
+  });
+
+  it('a fact selects its tab: Still to pay opens Payments, Tasks opens Work, On site opens Site diary', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+
+    await user.click(screen.getByTestId('summary-fact-stillToPay'));
+    await waitFor(() => expect(tab(/Payments/)).toHaveAttribute('aria-selected', 'true'));
+    await user.click(screen.getByTestId('summary-fact-tasks'));
+    await waitFor(() => expect(tab(/Work/)).toHaveAttribute('aria-selected', 'true'));
+    await user.click(screen.getByTestId('summary-fact-onSite'));
+    await waitFor(() => expect(tab(/Site diary/)).toHaveAttribute('aria-selected', 'true'));
+  });
+});
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+
+describe('VendorDetailPage tabs', () => {
+  it('shows Overview first with contact persons and the three cards, and loads nothing for the other tabs', async () => {
+    mockFetchVendor.mockResolvedValue(vendor({ contacts: [contact('c1', '555-0100', 'Pat')] }));
+    renderPage();
+    await loaded();
+
+    expect(screen.getByTestId('company-contacts')).toBeInTheDocument();
+    expect(screen.getByTestId('company-contacts-row-c1')).toHaveTextContent('Pat');
+    for (const id of ['company-phone-email', 'company-address', 'company-about']) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
     }
+    expect(mockFetchAllInvoices).not.toHaveBeenCalled();
+    expect(mockFetchRelations).not.toHaveBeenCalled();
+    expect(mockListHistory).not.toHaveBeenCalled();
+  });
 
-    const formOf = () => screen.getByRole('button', { name: /save changes/i }).closest('form')!;
+  it('counts Payments from the record and Site diary from the diary query loaded at mount', async () => {
+    mockListDiary.mockResolvedValue({
+      items: [diaryEntry('e1')],
+      pagination: { page: 1, pageSize: 20, totalItems: 7, totalPages: 1 },
+    } as never);
+    renderPage();
+    await loaded();
 
-    it('starts empty for a company without contact details and saves them as nulls', async () => {
-      mockUpdateVendor.mockResolvedValueOnce(vendorWithNoStats);
-      const user = await startEdit(vendorWithNoStats);
+    expect(tab(/Payments/)).toHaveTextContent('3');
+    await waitFor(() => expect(tab(/Site diary/)).toHaveTextContent('7'));
+    expect(mockListDiary).toHaveBeenCalledWith(
+      expect.objectContaining({ vendorId: 'v1', automatic: false, status: 'saved' }),
+    );
+  });
 
-      expect(document.getElementById('edit-phone')).toHaveValue('');
-      expect(document.getElementById('edit-email')).toHaveValue('');
-      expect(document.getElementById('edit-address')).toHaveValue('');
-      expect(document.getElementById('edit-notes')).toHaveValue('');
+  // D-07 is pinned in plan/restructure/defects.json: invoice status Badges on the Payments rows.
+  it('D-07: the Payments tab shows each invoice with its status Badge, the totals and the figure markers', async () => {
+    const user = userEvent.setup();
+    mockFetchAllInvoices.mockResolvedValue(
+      page([invoice('p', 'pending'), invoice('c', 'claimed'), invoice('d', 'paid')]) as never,
+    );
+    renderPage();
+    await loaded();
 
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+    await user.click(tab(/Payments/));
 
-      await waitFor(() =>
-        expect(mockUpdateVendor).toHaveBeenCalledWith('vendor-2', {
-          name: 'Jones Electric',
-          phone: null,
-          email: null,
-          address: null,
-          notes: null,
-          tradeId: null,
-        }),
-      );
+    const list = await screen.findByTestId('company-invoices');
+    expect(within(list).getByText('To pay')).toBeInTheDocument();
+    expect(within(list).getByText('Submitted')).toBeInTheDocument();
+    expect(within(list).getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByTestId('company-payments-totals')).toHaveTextContent(
+      'Paid €900.00 · Still to pay €600.00',
+    );
+    expect(screen.getByTestId('company-paid-figure')).toHaveAttribute('data-figure', 'paid');
+    expect(screen.getByTestId('company-still-to-pay-figure')).toHaveAttribute(
+      'data-figure',
+      'still-to-pay',
+    );
+    expect(mockFetchAllInvoices).toHaveBeenCalledWith(
+      expect.objectContaining({ vendorId: 'v1', pageSize: 100, page: 1 }),
+    );
+  });
+
+  it('opens the Payments tab straight from ?tab=payments', async () => {
+    mockFetchAllInvoices.mockResolvedValue(page([invoice('p', 'pending')]) as never);
+    renderPage({ initial: '/companies/v1?tab=payments' });
+    await loaded();
+
+    expect(await screen.findByTestId('company-invoices-row-p')).toBeInTheDocument();
+    expect(tab(/Payments/)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows the Work tab lists from the relations endpoint', async () => {
+    const user = userEvent.setup();
+    mockFetchRelations.mockResolvedValue({
+      workItems: [
+        { id: 'w1', title: 'Screed', status: 'in_progress', startDate: null, endDate: null },
+      ],
+      householdItems: [],
+      budgetLines: [],
     });
+    renderPage();
+    await loaded();
 
-    it('saves edited contact fields trimmed', async () => {
-      mockUpdateVendor.mockResolvedValueOnce(sampleVendor);
-      const user = await startEdit(sampleVendor);
+    await user.click(tab(/Work/));
 
-      fireEvent.change(document.getElementById('edit-phone')!, { target: { value: ' 555-0000 ' } });
-      fireEvent.change(document.getElementById('edit-email')!, {
-        target: { value: ' new@example.test ' },
-      });
-      fireEvent.change(document.getElementById('edit-address')!, {
-        target: { value: ' 1 Test Road ' },
-      });
-      fireEvent.change(document.getElementById('edit-notes')!, { target: { value: ' A note ' } });
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+    expect(await screen.findByTestId('company-tasks-row-w1')).toHaveTextContent('Screed');
+    expect(mockFetchRelations).toHaveBeenCalledWith('v1');
+  });
 
-      await waitFor(() =>
-        expect(mockUpdateVendor).toHaveBeenCalledWith('vendor-1', {
-          name: 'Smith Plumbing',
-          phone: '555-0000',
-          email: 'new@example.test',
-          address: '1 Test Road',
-          notes: 'A note',
-          tradeId: 'trade-plumbing',
-        }),
-      );
-    });
+  it('shows the Site diary tab entries', async () => {
+    const user = userEvent.setup();
+    mockListDiary.mockResolvedValue({
+      items: [diaryEntry('e1')],
+      pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    } as never);
+    renderPage();
+    await loaded();
 
-    it('asks for a name when the name is cleared', async () => {
-      await startEdit(sampleVendor);
-      fireEvent.change(document.getElementById('edit-name')!, { target: { value: '   ' } });
-      expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+    await user.click(tab(/Site diary/));
 
-      fireEvent.submit(formOf());
+    expect(await screen.findByTestId('company-diary')).toHaveTextContent('Log e1');
+    expect(screen.queryByTestId('company-diary-show-all')).toBeNull();
+  });
 
-      expect(await screen.findByText('Vendor name is required.')).toBeInTheDocument();
-      expect(mockUpdateVendor).not.toHaveBeenCalled();
-    });
+  it('shows the History tab for the company', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
 
-    it('rejects a name over 200 characters', async () => {
-      await startEdit(sampleVendor);
-      fireEvent.change(document.getElementById('edit-name')!, {
-        target: { value: 'n'.repeat(201) },
-      });
+    await user.click(tab(/History/));
 
-      fireEvent.submit(formOf());
+    expect(
+      await screen.findByText("Nothing has happened to this company's offers and invoices yet."),
+    ).toBeInTheDocument();
+    expect(mockListHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ entityType: 'vendor', entityId: 'v1' }),
+      expect.anything(),
+    );
+  });
+});
 
-      expect(
-        await screen.findByText('Vendor name must be 200 characters or less.'),
-      ).toBeInTheDocument();
-      expect(mockUpdateVendor).not.toHaveBeenCalled();
-    });
+// ─── Refresh ─────────────────────────────────────────────────────────────────
 
-    it('shows Saving… and disables the form while the update is in flight', async () => {
-      let finish: (v: VendorDetail) => void = () => {};
-      mockUpdateVendor.mockReturnValueOnce(
-        new Promise<VendorDetail>((resolve) => {
-          finish = resolve;
-        }),
-      );
-      const user = await startEdit(sampleVendor);
+describe('VendorDetailPage refresh', () => {
+  it('saving a card refreshes the record (revision) and the Payments rows reload with it', async () => {
+    const user = userEvent.setup();
+    mockUpdateVendor.mockResolvedValue(vendor());
+    mockFetchAllInvoices.mockResolvedValue(page([invoice('p', 'pending')]) as never);
+    renderPage({ initial: '/companies/v1?tab=payments' });
+    await loaded();
+    await screen.findByTestId('company-invoices-row-p');
+    const invoiceCalls = mockFetchAllInvoices.mock.calls.length;
 
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+    await user.click(tab(/Overview/));
+    await user.click(screen.getByTestId('company-address-edit'));
+    await user.type(screen.getByTestId('company-field-address'), 'x');
+    await user.click(screen.getByTestId('company-address-save'));
 
-      expect(await screen.findByRole('button', { name: /saving/i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
-      expect(document.getElementById('edit-name')).toBeDisabled();
+    await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchAllInvoices.mock.calls.length).toBeGreaterThan(invoiceCalls),
+    );
+    expect(mockUpdateVendor).toHaveBeenCalledWith('v1', { address: '123 Main Stx' });
+  });
 
-      await act(async () => {
-        finish(sampleVendor);
-      });
-      expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-    });
+  it.each(['invoice', 'offer'])(
+    'an %s created from the dialog refreshes the page record',
+    async (kind) => {
+      renderPage();
+      await loaded();
+      expect(mockFetchVendor).toHaveBeenCalledTimes(1);
 
-    it('lets a trade be picked and saved', async () => {
-      mockFetchTrades.mockResolvedValue({
-        trades: [
-          { id: 'trade-plumbing', name: 'Plumbing', color: null, translationKey: null },
-          { id: 'trade-electrics', name: 'Electrics', color: null, translationKey: null },
-        ],
-      } as never);
-      mockUpdateVendor.mockResolvedValueOnce(vendorWithNoStats);
-      const user = await startEdit(vendorWithNoStats);
+      act(() => notifyObjectCreated(kind));
 
-      await user.type(document.getElementById('edit-tradeId')!, 'Elec');
-      await user.click(await screen.findByRole('option', { name: 'Electrics' }));
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(2));
+    },
+  );
 
-      await waitFor(() =>
-        expect(mockUpdateVendor).toHaveBeenCalledWith(
-          'vendor-2',
-          expect.objectContaining({ tradeId: 'trade-electrics' }),
-        ),
-      );
-    });
+  it('ignores the creation of another kind of object', async () => {
+    renderPage();
+    await loaded();
+
+    act(() => notifyObjectCreated('task'));
+
+    expect(mockFetchVendor).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Delete ──────────────────────────────────────────────────────────────────
+
+describe('VendorDetailPage delete', () => {
+  async function openDelete(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByTestId('object-header-menu'));
+    await user.click(await screen.findByTestId('object-header-delete'));
+    await screen.findByRole('alertdialog');
+  }
+  const confirm = async (user: ReturnType<typeof userEvent.setup>) => {
+    const button = await screen.findByTestId('vendor-delete-confirm');
+    await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
+    await user.click(button);
+  };
+
+  it('asks first, naming the company, and loads what else the delete affects', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+
+    await openDelete(user);
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Delete Smith Plumbing?');
+    expect(mockFetchDeleteImpact).toHaveBeenCalledWith('vendor', 'v1');
+    expect(mockDeleteVendor).not.toHaveBeenCalled();
+  });
+
+  it('deletes, replaces the page with the Companies list and hands focus to the heading', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await openDelete(user);
+
+    await confirm(user);
+
+    expect(await screen.findByText('Companies List Page')).toBeInTheDocument();
+    expect(mockDeleteVendor).toHaveBeenCalledWith('v1');
+    expect(mockWhenReady).toHaveBeenCalled();
+  });
+
+  it('Cancel closes the dialog and returns focus to the heading', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+    await openDelete(user);
+
+    await user.click(screen.getByTestId('vendor-delete-cancel'));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Smith Plumbing' })).toHaveFocus(),
+    );
+  });
+
+  it('a 409 shows the blocked text and removes the confirm action', async () => {
+    const user = userEvent.setup();
+    mockDeleteVendor.mockRejectedValue(
+      new ApiClientError(409, { code: 'VENDOR_IN_USE', message: 'in use' }),
+    );
+    renderPage();
+    await loaded();
+    await openDelete(user);
+
+    await confirm(user);
+
+    await waitFor(() => expect(screen.queryByTestId('vendor-delete-confirm')).toBeNull());
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/./);
+    expect(screen.queryByText('Companies List Page')).toBeNull();
+  });
+
+  it('another API error shows its translated text and keeps the confirm action', async () => {
+    const user = userEvent.setup();
+    mockDeleteVendor.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+    );
+    renderPage();
+    await loaded();
+    await openDelete(user);
+
+    await confirm(user);
+
+    await waitFor(() => expect(screen.getByRole('alertdialog')).toHaveTextContent(/./));
+    expect(screen.getByTestId('vendor-delete-confirm')).toBeInTheDocument();
+    expect(screen.queryByText('Companies List Page')).toBeNull();
+  });
+
+  it('a non-API failure shows the generic delete error', async () => {
+    const user = userEvent.setup();
+    mockDeleteVendor.mockRejectedValue(new Error('net'));
+    renderPage();
+    await loaded();
+    await openDelete(user);
+
+    await confirm(user);
+
+    expect(
+      await screen.findByText('The company could not be deleted. Try again.'),
+    ).toBeInTheDocument();
+  });
+
+  it('ignores Cancel while the delete is running', async () => {
+    const user = userEvent.setup();
+    let finish!: () => void;
+    mockDeleteVendor.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderPage();
+    await loaded();
+    await openDelete(user);
+    await confirm(user);
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    finish();
+    expect(await screen.findByText('Companies List Page')).toBeInTheDocument();
   });
 });

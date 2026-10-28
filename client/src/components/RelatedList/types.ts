@@ -15,6 +15,8 @@ export interface RelatedListRow {
   readonly facts?: ReactNode;
   /** Formatted money, right-aligned. The host adds data-figure when it is a registry figure. */
   readonly amount?: ReactNode;
+  /** A Call button between the amount and Edit; below 640px of the list's width it is a full-width line. */
+  readonly call?: { readonly phone: string; readonly name: string };
   /** Host items shown before Remove. */
   readonly menuItems?: readonly OverflowMenuItem[];
   /** Default true. */

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
  *
  * Mutation that must fail this test: re-adding any one of the files below (for example an empty
  * `components/budget/BudgetLineCard.tsx`), or importing `useBudgetSection` from any source file; re-adding `ConvertQuotationModal.tsx` or
- * `useConvertQuotation.ts` (the convert dialog and its hook, #2240), or `InvoiceEditModal.tsx` (folded into the invoice ObjectForm, #2241).
+ * `useConvertQuotation.ts` (the convert dialog and its hook, #2240), or `InvoiceEditModal.tsx` (folded into the invoice ObjectForm, #2241), or `VendorContactsSection.tsx` / `useVendorContacts.ts` (#2244).
  */
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -35,6 +35,9 @@ const RETIRED = [
   'ConvertQuotationModal',
   'useConvertQuotation',
   'InvoiceEditModal',
+  // #2244 AC7: the company page's contact persons are a RelatedList + ObjectForm now.
+  'VendorContactsSection',
+  'useVendorContacts',
 ] as const;
 
 function walk(dir: string): string[] {

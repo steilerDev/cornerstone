@@ -506,6 +506,38 @@ describe('vendorContactService', () => {
     });
   });
 
+  describe('listContactsRaw order (#2244)', () => {
+    // Mutation: ordering by createdAt alone leaves tied rows in rowid (insert) order, so the
+    // company page could name a different first phone than the list's `created_at, id` subquery.
+    it('breaks a createdAt tie by id, whatever the insert order', () => {
+      const vendorId = createTestVendor();
+      const at = '2026-01-01T00:00:00.000Z';
+      for (const id of ['c-3', 'c-1', 'c-2']) {
+        app.db
+          .insert(vendorContacts)
+          .values({ id, vendorId, name: id, createdAt: at, updatedAt: at })
+          .run();
+      }
+      app.db
+        .insert(vendorContacts)
+        .values({
+          id: 'c-0',
+          vendorId,
+          name: 'c-0',
+          createdAt: '2026-02-01T00:00:00.000Z',
+          updatedAt: at,
+        })
+        .run();
+
+      expect(vendorContactService.listContactsRaw(app.db, vendorId).map((c) => c.id)).toEqual([
+        'c-1',
+        'c-2',
+        'c-3',
+        'c-0',
+      ]);
+    });
+  });
+
   // ─── restoreDeletedContact ─────────────────────────────────────────────────
 
   describe('restoreDeletedContact', () => {

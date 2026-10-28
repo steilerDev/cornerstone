@@ -405,6 +405,108 @@ describe('VendorsPage (Companies list)', () => {
     });
   });
 
+  describe('Still to pay and Offers columns (#2244)', () => {
+    const OFFERS = { count: 2, amount: 5000, paid: 1200, stillToPay: 300, remainingOnOffer: 3500 };
+
+    it('shows Still to pay and Offers by default, after Phone and before Contact persons', async () => {
+      renderPage();
+      await loaded();
+
+      const headers = screen.getAllByRole('columnheader').map((h) => h.textContent ?? '');
+      const at = (label: string) => headers.findIndex((h) => h.includes(label));
+      expect(at('Still to pay')).toBeGreaterThan(at('Trade'));
+      expect(at('Still to pay')).toBeGreaterThan(-1);
+      expect(at('Offers')).toBe(at('Still to pay') + 1);
+      expect(at('Contact persons')).toBeGreaterThan(at('Offers'));
+    });
+
+    // Mutation: dropping data-figure leaves the list's Still-to-pay unregistered (ADR-039).
+    it('marks the Still to pay amount as the still-to-pay figure with a per-row test id', async () => {
+      mockFetchVendors.mockResolvedValue(
+        response([
+          company({ id: 'c1', name: 'Owes Co', stillToPay: 1234.5, offers: OFFERS }),
+          company({ id: 'c2', name: 'Square Co', stillToPay: 0 }),
+        ]),
+      );
+      renderPage();
+      await loaded('Owes Co');
+
+      const owes = screen.getByTestId('company-still-to-pay-c1');
+      expect(owes).toHaveAttribute('data-figure', 'still-to-pay');
+      expect(owes).toHaveTextContent('€1234.50');
+      const square = screen.getByTestId('company-still-to-pay-c2');
+      expect(square).toHaveAttribute('data-figure', 'still-to-pay');
+      expect(square).toHaveTextContent('€0.00');
+      expect(owes.className).not.toBe(square.className);
+    });
+
+    it('shows €0.00 for a row from an older response without the field', async () => {
+      mockFetchVendors.mockResolvedValue(response([company({ stillToPay: undefined })]));
+      renderPage();
+      await loaded();
+
+      expect(screen.getByTestId('company-still-to-pay-c1')).toHaveTextContent('€0.00');
+    });
+
+    it('shows the offers amount with the paid part, and a dash with a screen-reader text without offers', async () => {
+      mockFetchVendors.mockResolvedValue(
+        response([
+          company({ id: 'c1', name: 'Offer Co', offers: OFFERS }),
+          company({
+            id: 'c2',
+            name: 'None Co',
+            offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+          }),
+          company({ id: 'c3', name: 'Old Co', offers: undefined }),
+        ]),
+      );
+      renderPage();
+      await loaded('Offer Co');
+
+      const cell = (id: string) => within(rowLink(id).closest('tr')!).getAllByRole('cell');
+      const withOffers = cell('c1').map((c) => c.textContent ?? '');
+      expect(withOffers.some((t) => t.includes('€5000.00') && t.includes('€1200.00 paid'))).toBe(
+        true,
+      );
+      for (const id of ['c2', 'c3']) {
+        const texts = cell(id).map((c) => c.textContent ?? '');
+        expect(texts.some((t) => t.includes('–') && t.includes('No offers'))).toBe(true);
+      }
+    });
+
+    it('sorts by Still to pay with the still_to_pay key, and Offers is not sortable', async () => {
+      renderPage();
+      await loaded();
+
+      await userEvent.setup().click(screen.getByRole('columnheader', { name: /Still to pay/ }));
+
+      await waitFor(() =>
+        expect(lastFetch()).toMatchObject({ sortBy: 'still_to_pay', sortOrder: 'asc' }),
+      );
+      expect(loc()).toContain('sortBy=still_to_pay');
+      const callsBefore = mockFetchVendors.mock.calls.length;
+      await userEvent.setup().click(screen.getByRole('columnheader', { name: /Offers/ }));
+      expect(mockFetchVendors.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('keeps every data-testid unique across the table and the cards with the new columns', async () => {
+      mockFetchVendors.mockResolvedValue(
+        response([
+          company({ stillToPay: 10, offers: OFFERS }),
+          company({ id: 'c2', name: 'Second Co', stillToPay: 0 }),
+        ]),
+      );
+      const { container } = renderPage();
+      await loaded();
+
+      expect(findDuplicateTestIds(container)).toEqual([]);
+      expect(screen.getByTestId('company-still-to-pay-mobile-c1')).toHaveAttribute(
+        'data-figure',
+        'still-to-pay',
+      );
+    });
+  });
+
   describe('phone and Call (D-34 contact phone fallback, #2197)', () => {
     const calls = () =>
       screen.queryAllByRole('link').filter((a) => a.getAttribute('href')?.startsWith('tel:'));

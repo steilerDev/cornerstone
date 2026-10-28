@@ -1,5 +1,13 @@
-import { use, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent, ReactNode, RefObject } from 'react';
+import {
+  use,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import type { FormEvent, KeyboardEvent, ReactNode, Ref, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { FormError } from '../FormError/FormError.js';
@@ -27,6 +35,15 @@ export interface SectionCardEdit {
   readonly error?: string | null;
 }
 
+/** Imperative handle for a host that opens the card from elsewhere (e.g. a header button). */
+export interface SectionCardController {
+  /**
+   * Same as the Edit button (through the scope, so a dirty neighbour asks first). While the card
+   * is already editing it focuses the first field. No-op without `edit` or while loading.
+   */
+  readonly startEdit: () => void;
+}
+
 export interface SectionCardProps {
   /** Heading id is `${id}-title`; test ids are `section-${id}-…`. */
   readonly id: string;
@@ -37,6 +54,7 @@ export interface SectionCardProps {
   readonly edit?: SectionCardEdit;
   readonly loading?: boolean;
   readonly testId?: string;
+  readonly controllerRef?: Ref<SectionCardController>;
 }
 
 type PendingFocus = 'edit' | 'field' | 'save' | null;
@@ -55,6 +73,7 @@ export function SectionCard({
   edit,
   loading = false,
   testId,
+  controllerRef,
 }: SectionCardProps) {
   const { t } = useTranslation('common');
   const scope = use(SectionCardScopeContext);
@@ -145,6 +164,14 @@ export function SectionCard({
     }
     scope.requestEdit(id, handle, begin);
   };
+
+  useImperativeHandle(controllerRef, () => ({
+    startEdit: () => {
+      if (!edit || loading) return;
+      if (editing) focusField();
+      else startEdit();
+    },
+  }));
 
   const closeToRead = () => {
     pendingFocusRef.current = 'edit';

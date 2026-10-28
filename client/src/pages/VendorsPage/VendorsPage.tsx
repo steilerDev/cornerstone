@@ -48,7 +48,7 @@ export function VendorsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const originState = useOriginState();
   const openCreate = useOpenCreate();
-  const { formatDate } = useFormatters();
+  const { formatDate, formatCurrency } = useFormatters();
   const {
     trades,
     isInitialLoading: tradesLoading,
@@ -367,6 +367,51 @@ export function VendorsPage() {
         },
       },
       {
+        key: 'stillToPay',
+        label: t('companies.list.columns.stillToPay'),
+        sortable: true,
+        sortKey: 'still_to_pay',
+        defaultVisible: true,
+        className: styles.amountCell,
+        headerClassName: styles.amountHeader,
+        render: (v, surface) => (
+          <span
+            data-figure="still-to-pay"
+            data-testid={dataTableTestId('company-still-to-pay', v.id, surface)}
+            className={(v.stillToPay ?? 0) > 0 ? undefined : styles.muted}
+          >
+            {formatCurrency(v.stillToPay ?? 0)}
+          </span>
+        ),
+      },
+      {
+        key: 'offers',
+        label: t('companies.list.columns.offers'),
+        sortable: false,
+        defaultVisible: true,
+        className: styles.amountCell,
+        headerClassName: styles.amountHeader,
+        render: (v) => {
+          const offers = v.offers;
+          if (!offers || offers.count === 0) {
+            return (
+              <>
+                <span aria-hidden="true">–</span>
+                <span className={sharedStyles.srOnly}>{t('companies.list.noOffers')}</span>
+              </>
+            );
+          }
+          return (
+            <>
+              <span>{formatCurrency(offers.amount)}</span>
+              <span className={styles.subline}>
+                {t('companies.list.offersPaid', { amount: formatCurrency(offers.paid) })}
+              </span>
+            </>
+          );
+        },
+      },
+      {
         key: 'contactCount',
         label: t('companies.list.columns.contactPersons'),
         sortable: false,
@@ -437,7 +482,7 @@ export function VendorsPage() {
         render: (v) => formatDate(v.updatedAt ?? v.createdAt),
       },
     ],
-    [t, displayName, formatDate, originState],
+    [t, displayName, formatDate, formatCurrency, originState],
   );
 
   const renderActions = (vendor: VendorListItem, surface: DataTableSurface) => (

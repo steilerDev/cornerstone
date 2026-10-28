@@ -1,232 +1,196 @@
 /**
- * Page Object Model for the Vendor Detail page (/companies/:id)
+ * Page Object Model for the Company page (/companies/:id), rebuilt on the detail template in
+ * #2244 (EPIC-21 P4.12). Legacy /settings/vendors/:id and /budget/vendors/:id redirect here.
+ * The class keeps its historic name (`VendorDetailPage`); the page itself is the Company page.
  *
- * Vendors moved from Budget section to Settings section in Story #1283.
- * Legacy routes /settings/vendors/:id and /budget/vendors/:id redirect to /companies/:id.
- *
- * The page renders:
- * - A breadcrumb row (trail "Companies", optional origin Back) — "Back to Vendors" retired in #2203
- * - A page header with vendor name, trade subtitle (EPIC-18), an Edit button and a ⋯ menu holding Delete (#2213)
- * - Stats cards: Total Invoices and Outstanding Balance
- * - An info card (dl/dt/dd list) with all vendor fields — read view
- * - An inline edit form inside the info card when isEditing is true
- * - A Contacts section with add/edit/delete contact modals
- * - An Invoices placeholder section ("coming soon")
- * - A delete ConfirmDialog (role="alertdialog", testid prefix vendor-delete); contact delete
- *   (contact-delete) and invoice-row delete (vendor-invoice-delete) use the same component
+ * Anatomy
+ * - `header` (`company-header`): h1 = the company name; ONE primary - `primaryCall`
+ *   (`company-primary-call`, a `tel:` link, "Call") or, with no number anywhere, `primaryAddPhone`
+ *   ("Add phone number", `company-primary-add-phone`); the ⋯ menu holds Delete
+ *   (`object-header-delete`). Delete asks through the ConfirmDialog prefix `vendor-delete`.
+ * - `summary` (`company-summary`, 5 columns): facts `summary-fact-<trade|stillToPay|offers|tasks|onSite>`;
+ *   Trade links to the list filtered by `tradeId`, the other four select a tab. The Still to pay
+ *   fact carries `data-figure="still-to-pay"`.
+ * - `tabs` (`company-tabs`): Overview (default) · Work · Payments · Site diary · History
+ *   (`tabs.tab('overview'|'work'|'payments'|'diary'|'history')`, `?tab=`).
+ * - Overview: Contact persons RelatedList `contacts` (`company-contacts`: header
+ *   `-add`, rows `-row-<id>`, `-edit-<id>`, `-call-<id>`, ⋯ `-actions-<id>` -> Remove with Undo),
+ *   the New / Edit contact person dialog (ObjectForm prefix `contact-person-form`), and three
+ *   SectionCards: Phone and e-mail (`company-phone-email`), Address (`company-address`), About
+ *   (`company-about`); each has `-edit` / `-save` / `-cancel` and read rows `company-detail-*`.
+ * - Payments: `paymentsTotals` with `paidFigure` (`data-figure="paid"`) and `stillToPayFigure`
+ *   (`data-figure="still-to-pay"`), the `submittedNote`, RelatedLists `invoices`, `offers` and
+ *   `progressPayments`, row ⋯ Delete (`company-invoice-delete-<id>`, ConfirmDialog prefix
+ *   `company-invoice-delete`). A company with no records shows one EmptyState with a "New invoice"
+ *   button instead of the totals and the lists.
+ * - Work: RelatedLists `tasks`, `purchases`, `costLines` (read only).
+ * - Site diary: FeedGroup `diary` (`company-diary`) and `diaryShowAll`.
+ * - History: SectionCard `history` (`section-company-history`), `historyShowAll`.
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
+import { ObjectHeaderControl } from './components/ObjectHeaderControl.js';
+import { ObjectTabsControl } from './components/ObjectTabsControl.js';
+import { RelatedListControl } from './components/RelatedListControl.js';
+import { SummaryStripControl } from './components/SummaryStripControl.js';
+import { ToastRegion } from './components/ToastRegion.js';
 
-export interface EditVendorData {
-  name?: string;
+export type CompanyTab = 'overview' | 'work' | 'payments' | 'diary' | 'history';
+export type CompanyCard = 'company-phone-email' | 'company-address' | 'company-about';
+
+export interface ContactPersonData {
+  firstName?: string;
+  lastName?: string;
+  role?: string;
   phone?: string;
   email?: string;
-  address?: string;
   notes?: string;
 }
 
 export class VendorDetailPage {
   readonly page: Page;
 
-  // Navigation
   readonly breadcrumbs: BreadcrumbsBar;
+  readonly header: ObjectHeaderControl;
+  readonly summary: SummaryStripControl;
+  readonly tabs: ObjectTabsControl;
+  readonly toasts: ToastRegion;
 
-  // Page header
+  // Header
   readonly pageTitle: Locator;
-  readonly editButton: Locator;
-  /** The header ⋯ menu trigger ("Actions for <name>"); Delete lives inside it (#2213). */
+  readonly primaryCall: Locator;
+  readonly primaryAddPhone: Locator;
+  /** The header ⋯ menu trigger. */
   readonly actionsTrigger: Locator;
   /** The Delete item of the header ⋯ menu; exists only while the menu is open. */
   readonly deleteButton: Locator;
 
-  // Stats
-  readonly statsGrid: Locator;
-  readonly totalInvoicesStat: Locator;
-  readonly outstandingBalanceStat: Locator;
-  /** Every Still to pay marker on the page (stat card and invoices header, #2232). */
-  readonly stillToPayFigures: Locator;
-
-  // Info card (read view)
-  readonly infoCard: Locator;
-  readonly infoList: Locator;
-
-  // Edit form (shown when isEditing = true, inside the info card)
-  readonly editNameInput: Locator;
-  readonly editPhoneInput: Locator;
-  readonly editEmailInput: Locator;
-  readonly editAddressInput: Locator;
-  readonly editNotesInput: Locator;
-  readonly saveChangesButton: Locator;
-  readonly cancelEditButton: Locator;
-  readonly editErrorBanner: Locator;
-
-  // Contacts section
-  readonly contactsSection: Locator;
-  readonly addContactButton: Locator;
-  readonly contactsList: Locator;
-  readonly contactsEmptyState: Locator;
-
-  // Contact create modal
-  readonly createContactModal: Locator;
-  readonly createContactFirstNameInput: Locator;
-  readonly createContactLastNameInput: Locator;
-  readonly createContactRoleInput: Locator;
-  readonly createContactPhoneInput: Locator;
-  readonly createContactEmailInput: Locator;
-  readonly createContactNotesInput: Locator;
-  readonly createContactSubmitButton: Locator;
-  readonly createContactCancelButton: Locator;
-  readonly createContactErrorBanner: Locator;
-
-  // Contact edit modal
-  readonly editContactModal: Locator;
-  readonly editContactFirstNameInput: Locator;
-  readonly editContactLastNameInput: Locator;
-  readonly editContactRoleInput: Locator;
-  readonly editContactPhoneInput: Locator;
-  readonly editContactEmailInput: Locator;
-  readonly editContactNotesInput: Locator;
-  readonly editContactSubmitButton: Locator;
-  readonly editContactCancelButton: Locator;
-  readonly editContactErrorBanner: Locator;
-
-  // Invoices section
-  readonly invoicesSection: Locator;
-  readonly invoicesEmptyState: Locator;
-
-  // Error card (shown when vendor not found or load fails)
+  // Error card (not found / load failure)
   readonly errorCard: Locator;
 
-  // Delete modal
+  // Delete dialog (prefix `vendor-delete`)
+  readonly deleteDialog: ConfirmDialogControl;
   readonly deleteModal: Locator;
   readonly deleteModalTitle: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
   readonly deleteErrorBanner: Locator;
-  /** ConfirmDialog for deleting a contact person (testid prefix contact-delete). */
-  readonly contactDeleteDialog: ConfirmDialogControl;
-  /** ConfirmDialog for deleting an invoice from the Invoices section (vendor-invoice-delete). */
+
+  // Overview: contact persons
+  readonly contacts: RelatedListControl;
+  readonly newContactDialog: ObjectFormDialog;
+  readonly editContactDialog: ObjectFormDialog;
+
+  // Overview: detail cards
+  readonly phoneField: Locator;
+  readonly emailField: Locator;
+  readonly addressField: Locator;
+  readonly nameField: Locator;
+  readonly notesField: Locator;
+
+  // Payments
+  readonly paymentsTotals: Locator;
+  readonly paidFigure: Locator;
+  readonly stillToPayFigure: Locator;
+  /** Every Still to pay marker on the page (strip fact and, on Payments, the totals line). */
+  readonly stillToPayFigures: Locator;
+  readonly submittedNote: Locator;
+  readonly invoices: RelatedListControl;
+  readonly offers: RelatedListControl;
+  readonly progressPayments: RelatedListControl;
   readonly invoiceDeleteDialog: ConfirmDialogControl;
+  /** The EmptyState shown on Payments while the company has no offer, invoice or payment. */
+  readonly paymentsEmpty: Locator;
+
+  // Work
+  readonly tasks: RelatedListControl;
+  readonly purchases: RelatedListControl;
+  readonly costLines: RelatedListControl;
+
+  // Site diary and History
+  readonly diary: Locator;
+  readonly diaryShowAll: Locator;
+  readonly history: Locator;
+  readonly historyShowAll: Locator;
 
   constructor(page: Page) {
     this.page = page;
-
-    // Navigation — shared breadcrumb row (trail "Companies")
     this.breadcrumbs = new BreadcrumbsBar(page);
+    this.header = new ObjectHeaderControl(page, 'company-header');
+    this.summary = new SummaryStripControl(page, 'company-summary');
+    this.tabs = new ObjectTabsControl(page, 'company-tabs');
+    this.toasts = new ToastRegion(page);
 
-    // Page header
+    // The h1 also exists in the loading and error states, which have no ObjectHeader
     this.pageTitle = page.getByRole('heading', { level: 1 });
-    this.editButton = page.getByRole('button', { name: 'Edit', exact: true });
-    this.actionsTrigger = page.getByTestId('company-header-actions');
-    this.deleteButton = page.getByTestId('company-header-delete');
+    this.primaryCall = page.getByTestId('company-primary-call');
+    this.primaryAddPhone = page.getByTestId('company-primary-add-phone');
+    this.actionsTrigger = this.header.menuTrigger;
+    this.deleteButton = page.getByTestId('object-header-delete');
 
-    // Stats grid
-    this.statsGrid = page.locator('[class*="statsGrid"]');
-    this.totalInvoicesStat = this.statsGrid
-      .locator('[class*="statCard"]')
-      .filter({ hasText: /Total Invoices/ });
-    this.stillToPayFigures = page.locator('[data-figure="still-to-pay"]');
-    this.outstandingBalanceStat = this.statsGrid
-      .locator('[class*="statCard"]')
-      .filter({ hasText: /Outstanding Balance/ });
+    this.errorCard = page
+      .locator('[role="alert"]')
+      .filter({ hasText: /not exist|could not|deleted/i });
 
-    // Info card — <section> without aria-label has no implicit 'region' role,
-    // so we use locator('section').filter() instead of getByRole('region')
-    this.infoCard = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Vendor Information' }) });
-    this.infoList = this.infoCard.locator('dl');
-
-    // Edit form inputs (inside the info card's form)
-    this.editNameInput = page.locator('#edit-name');
-    this.editPhoneInput = page.locator('#edit-phone');
-    this.editEmailInput = page.locator('#edit-email');
-    this.editAddressInput = page.locator('#edit-address');
-    this.editNotesInput = page.locator('#edit-notes');
-    this.saveChangesButton = page.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-    this.cancelEditButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    this.editErrorBanner = page.locator('[class*="form"]').locator('[role="alert"]');
-
-    // Contacts section — <section> rendered by VendorContactsSection
-    this.contactsSection = page.locator('section').filter({
-      has: page.getByRole('heading', { name: 'Contacts', exact: true }),
-    });
-    this.addContactButton = this.contactsSection.getByRole('button', {
-      name: 'Add Contact',
-      exact: true,
-    });
-    this.contactsList = this.contactsSection.locator('[class*="contactsList"]');
-    // EmptyState uses a shared CSS module class; use text match for robustness
-    this.contactsEmptyState = this.contactsSection.getByText('No contacts added yet.');
-
-    // Contact create modal — opened via "Add Contact" button
-    this.createContactModal = page.getByRole('dialog', { name: 'Add Contact' });
-    this.createContactFirstNameInput = page.locator('#create-firstName');
-    this.createContactLastNameInput = page.locator('#create-lastName');
-    this.createContactRoleInput = page.locator('#create-role');
-    this.createContactPhoneInput = page.locator('#create-phone');
-    this.createContactEmailInput = page.locator('#create-email');
-    this.createContactNotesInput = page.locator('#create-notes');
-    this.createContactSubmitButton = page.getByRole('button', {
-      name: /Create Contact|Creating\.\.\./,
-    });
-    this.createContactCancelButton = this.createContactModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
-    this.createContactErrorBanner = this.createContactModal.locator('[role="alert"]');
-
-    // Contact edit modal — opened via "Edit Contact" button on a contact card
-    this.editContactModal = page.getByRole('dialog', { name: 'Edit Contact' });
-    this.editContactFirstNameInput = page.locator('#edit-firstName');
-    this.editContactLastNameInput = page.locator('#edit-lastName');
-    this.editContactRoleInput = page.locator('#edit-role');
-    this.editContactPhoneInput = page.locator('#edit-phone');
-    this.editContactEmailInput = page.locator('#edit-email');
-    this.editContactNotesInput = page.locator('#edit-notes');
-    this.editContactSubmitButton = page.getByRole('button', {
-      name: /Save Changes|Saving\.\.\./,
-    });
-    this.editContactCancelButton = this.editContactModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
-    this.editContactErrorBanner = this.editContactModal.locator('[role="alert"]');
-
-    // Invoices section — <section> without aria-label has no implicit 'region' role
-    this.invoicesSection = page.locator('section').filter({
-      has: page.getByRole('heading', { name: 'Invoices', exact: true }),
-    });
-    this.invoicesEmptyState = this.invoicesSection.getByText('No invoices yet.');
-
-    // Error card (load failure / not found) — role="alert" is on the element itself,
-    // not a descendant, so use a combined CSS selector instead of { has: ... }
-    this.errorCard = page.locator('[class*="errorCard"][role="alert"]');
-
-    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title "Delete <name>?"
-    this.deleteModal = page
-      .getByRole('alertdialog')
-      .filter({ has: page.getByTestId('vendor-delete-cancel') });
+    this.deleteDialog = new ConfirmDialogControl(page, 'vendor-delete');
+    this.deleteModal = this.deleteDialog.dialog;
     this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
-    this.deleteConfirmButton = this.deleteModal.getByTestId('vendor-delete-confirm');
-    this.deleteCancelButton = this.deleteModal.getByTestId('vendor-delete-cancel');
+    this.deleteConfirmButton = this.deleteDialog.confirmButton;
+    this.deleteCancelButton = this.deleteDialog.cancelButton;
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
-    this.contactDeleteDialog = new ConfirmDialogControl(page, 'contact-delete');
-    this.invoiceDeleteDialog = new ConfirmDialogControl(page, 'vendor-invoice-delete');
+
+    this.contacts = new RelatedListControl(page, 'company-contacts');
+    this.newContactDialog = new ObjectFormDialog(page, 'New contact person', 'contact-person-form');
+    this.editContactDialog = new ObjectFormDialog(
+      page,
+      'Edit contact person',
+      'contact-person-form',
+    );
+
+    this.phoneField = page.getByTestId('company-field-phone');
+    this.emailField = page.getByTestId('company-field-email');
+    this.addressField = page.getByTestId('company-field-address');
+    this.nameField = page.getByTestId('company-field-name');
+    this.notesField = page.getByTestId('company-field-notes');
+
+    this.paymentsTotals = page.getByTestId('company-payments-totals');
+    this.paidFigure = page.getByTestId('company-paid-figure');
+    this.stillToPayFigure = page.getByTestId('company-still-to-pay-figure');
+    this.stillToPayFigures = page.getByRole('main').locator('[data-figure="still-to-pay"]');
+    this.submittedNote = page.getByTestId('company-submitted-note');
+    this.invoices = new RelatedListControl(page, 'company-invoices');
+    this.offers = new RelatedListControl(page, 'company-offers');
+    this.progressPayments = new RelatedListControl(page, 'company-progress-payments');
+    this.invoiceDeleteDialog = new ConfirmDialogControl(page, 'company-invoice-delete');
+    this.paymentsEmpty = this.tabs
+      .panel('payments')
+      .getByText('No offers, invoices or payments for this company yet.');
+
+    this.tasks = new RelatedListControl(page, 'company-tasks');
+    this.purchases = new RelatedListControl(page, 'company-purchases');
+    this.costLines = new RelatedListControl(page, 'company-cost-lines');
+
+    this.diary = page.getByTestId('company-diary');
+    this.diaryShowAll = page.getByTestId('company-diary-show-all');
+    // ObjectHistorySection is a SectionCard without a test id: `section-<prefix>`
+    this.history = page.getByTestId('section-company-history');
+    this.historyShowAll = page.getByTestId('company-history-show-all');
   }
 
-  async goto(vendorId: string): Promise<void> {
-    await this.page.goto(routeUrl('company', { id: vendorId }));
+  /** Open the page (optionally on a tab) and wait for the header and the summary strip. */
+  async goto(vendorId: string, tab?: CompanyTab): Promise<void> {
+    const query = tab && tab !== 'overview' ? { tab } : undefined;
+    await this.page.goto(routeUrl('company', { id: vendorId }, query));
     await this.pageTitle.waitFor({ state: 'visible' });
+    await this.summary.root.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Navigate back to the vendors list using the "Companies" trail link.
-   */
+  /** Navigate back to the list through the "Companies" trail link. */
   async goBackToVendors(): Promise<void> {
     await this.breadcrumbs.trailLink('Companies').click();
     // Compare the path only: below 1024px Back restores the list through history, which keeps
@@ -234,112 +198,24 @@ export class VendorDetailPage {
     await this.page.waitForURL((url) => url.pathname === routeUrl('companies'));
   }
 
-  /**
-   * Start editing the vendor by clicking the "Edit" button.
-   */
-  async startEdit(): Promise<void> {
-    await this.editButton.click();
-    await this.editNameInput.waitFor({ state: 'visible' });
-  }
+  // ─── Delete ───────────────────────────────────────────────────────────────
 
-  /**
-   * Fill the edit form fields. Only provided fields are updated.
-   */
-  async fillEditForm(data: EditVendorData): Promise<void> {
-    if (data.name !== undefined) {
-      await this.editNameInput.fill(data.name);
-    }
-    if (data.phone !== undefined) {
-      await this.editPhoneInput.fill(data.phone);
-    }
-    if (data.email !== undefined) {
-      await this.editEmailInput.fill(data.email);
-    }
-    if (data.address !== undefined) {
-      await this.editAddressInput.fill(data.address);
-    }
-    if (data.notes !== undefined) {
-      await this.editNotesInput.fill(data.notes);
-    }
-  }
-
-  /**
-   * Submit the edit form by clicking "Save Changes".
-   * Waits for the edit form to close (editNameInput becomes hidden).
-   */
-  async saveEdit(): Promise<void> {
-    await this.saveChangesButton.click();
-    await this.editNameInput.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Cancel editing without saving.
-   */
-  async cancelEdit(): Promise<void> {
-    await this.cancelEditButton.click();
-    await this.editNameInput.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Open the delete confirmation modal.
-   */
+  /** Open the delete confirmation through the header ⋯ menu. */
   async openDeleteModal(): Promise<void> {
-    await this.actionsTrigger.click();
-    await this.deleteButton.click();
-    await this.deleteModal.waitFor({ state: 'visible' });
+    await this.header.chooseMenuItem('object-header-delete');
+    await this.deleteDialog.waitForOpen();
   }
 
-  /**
-   * Confirm deletion in the modal. The page navigates away to /companies on success.
-   */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();
   }
 
-  /**
-   * Cancel the delete modal.
-   */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Read all field values from the info card's dl/dt/dd list.
-   * Returns an object with the label texts as keys and value texts as values.
-   */
-  async getInfoFields(): Promise<Record<string, string>> {
-    const rows = await this.infoList.locator('[class*="infoRow"]').all();
-    const fields: Record<string, string> = {};
-    for (const row of rows) {
-      const label = await row.locator('dt').textContent();
-      const value = await row.locator('dd').textContent();
-      if (label) {
-        fields[label.trim()] = (value ?? '').trim();
-      }
-    }
-    return fields;
-  }
-
-  /**
-   * Get the stat value displayed in the Total Invoices stat card.
-   */
-  async getTotalInvoices(): Promise<string | null> {
-    const value = this.totalInvoicesStat.locator('[class*="statValue"]');
-    return value.textContent();
-  }
-
-  /**
-   * Get the stat value displayed in the Outstanding Balance stat card.
-   */
-  async getOutstandingBalance(): Promise<string | null> {
-    const value = this.outstandingBalanceStat.locator('[class*="statValue"]');
-    return value.textContent();
-  }
-
-  /**
-   * Get the delete error banner text from the modal, or null if not visible.
-   */
+  /** The delete error banner text, or null when it never appears. */
   async getDeleteErrorText(): Promise<string | null> {
     try {
       await this.deleteErrorBanner.waitFor({ state: 'visible' });
@@ -349,186 +225,135 @@ export class VendorDetailPage {
     }
   }
 
-  /**
-   * Get the edit error banner text from the edit form, or null if not visible.
-   */
-  async getEditErrorText(): Promise<string | null> {
-    try {
-      await this.editErrorBanner.waitFor({ state: 'visible' });
-      return await this.editErrorBanner.textContent();
-    } catch {
-      return null;
-    }
+  // ─── Overview cards ───────────────────────────────────────────────────────
+
+  card(id: CompanyCard): Locator {
+    return this.page.getByTestId(id);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Contacts helpers
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Returns all contact cards currently visible in the contacts list.
-   * Each entry contains the name text and optional role text.
-   */
-  async getContactItems(): Promise<{ name: string; role: string | null }[]> {
-    const cards = await this.contactsList.locator('[class*="contactCard"]').all();
-    const results: { name: string; role: string | null }[] = [];
-    for (const card of cards) {
-      const name = (await card.locator('[class*="contactName"]').textContent()) ?? '';
-      const roleLocator = card.locator('[class*="contactRole"]');
-      const roleVisible = await roleLocator.isVisible();
-      const role = roleVisible ? ((await roleLocator.textContent()) ?? null) : null;
-      results.push({ name: name.trim(), role: role?.trim() ?? null });
-    }
-    return results;
+  cardEdit(id: CompanyCard): Locator {
+    return this.page.getByTestId(`${id}-edit`);
   }
 
-  /**
-   * Open the "Add Contact" modal by clicking the "Add Contact" button.
-   * Waits for the modal to be visible.
-   */
-  async openAddContactModal(): Promise<void> {
-    await this.addContactButton.click();
-    await this.createContactModal.waitFor({ state: 'visible' });
+  cardForm(id: CompanyCard): Locator {
+    return this.page.getByTestId(`${id}-form`);
   }
 
-  /**
-   * Fill the contact create/edit form. Only provided fields are written.
-   * Uses the create-* IDs when the create modal is open; callers must ensure
-   * the correct modal is visible before calling.
-   */
-  async fillCreateContactForm(data: {
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-    phone?: string;
-    email?: string;
-    notes?: string;
-  }): Promise<void> {
+  cardSave(id: CompanyCard): Locator {
+    return this.page.getByTestId(`${id}-save`);
+  }
+
+  cardCancel(id: CompanyCard): Locator {
+    return this.page.getByTestId(`${id}-cancel`);
+  }
+
+  /** The read-mode value of a detail row (`phone|email|address|name|trade|notes|added-by`). */
+  detail(row: 'phone' | 'email' | 'address' | 'name' | 'trade' | 'notes' | 'added-by'): Locator {
+    return this.page.getByTestId(`company-detail-${row}`);
+  }
+
+  async startEdit(id: CompanyCard): Promise<void> {
+    await this.cardEdit(id).click();
+    await this.cardForm(id).waitFor({ state: 'visible' });
+  }
+
+  /** Save the open card and wait for it to return to its read view. */
+  async saveCard(id: CompanyCard): Promise<void> {
+    await this.cardSave(id).click();
+    await this.cardForm(id).waitFor({ state: 'hidden' });
+  }
+
+  /** Cancel a card with no unsaved change. */
+  async cancelCard(id: CompanyCard): Promise<void> {
+    await this.cardCancel(id).click();
+    await this.cardForm(id).waitFor({ state: 'hidden' });
+  }
+
+  /** Cancel a card that has unsaved changes: the Discard confirmation appears and is accepted. */
+  async discardCard(id: CompanyCard): Promise<void> {
+    await this.cardCancel(id).click();
+    const confirm = new ConfirmDialogControl(this.page, `${id}-discard`);
+    await confirm.waitForOpen();
+    await confirm.confirmAndWaitClosed();
+    await this.cardForm(id).waitFor({ state: 'hidden' });
+  }
+
+  // ─── Contact persons ──────────────────────────────────────────────────────
+
+  /** A contact person's list row, found by the visible name. */
+  contactRow(name: string): Locator {
+    return this.contacts.rowWith(name);
+  }
+
+  private async fillContact(dialog: ObjectFormDialog, data: ContactPersonData): Promise<void> {
+    const byTestId = (testId: string): Locator => dialog.dialog.getByTestId(testId);
     if (data.firstName !== undefined) {
-      await this.createContactFirstNameInput.fill(data.firstName);
+      await byTestId('contact-person-first-name').fill(data.firstName);
     }
-    if (data.lastName !== undefined) {
-      await this.createContactLastNameInput.fill(data.lastName);
-    }
-    if (data.role !== undefined) {
-      await this.createContactRoleInput.fill(data.role);
-    }
-    if (data.phone !== undefined) {
-      await this.createContactPhoneInput.fill(data.phone);
-    }
-    if (data.email !== undefined) {
-      await this.createContactEmailInput.fill(data.email);
-    }
-    if (data.notes !== undefined) {
-      await this.createContactNotesInput.fill(data.notes);
-    }
+    if (data.lastName !== undefined) await byTestId('contact-person-last-name').fill(data.lastName);
+    const more = [data.role, data.phone, data.email, data.notes].some((v) => v !== undefined);
+    if (more) await dialog.expandMoreDetails();
+    if (data.role !== undefined) await byTestId('contact-person-role').fill(data.role);
+    if (data.phone !== undefined) await byTestId('contact-person-phone').fill(data.phone);
+    if (data.email !== undefined) await byTestId('contact-person-email').fill(data.email);
+    if (data.notes !== undefined) await byTestId('contact-person-notes').fill(data.notes);
   }
 
-  /**
-   * Submit the create contact form and wait for the modal to close.
-   * Registers a waitForResponse on POST /api/vendors/.../contacts before clicking.
-   */
-  async submitCreateContact(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (r) => r.url().includes('/contacts') && r.request().method() === 'POST',
-    );
-    await this.createContactSubmitButton.click();
-    await responsePromise;
-    await this.createContactModal.waitFor({ state: 'hidden' });
+  async openNewContact(): Promise<void> {
+    // The header button once a person exists, the EmptyState's own button while the list is empty
+    await this.contacts.addButton.or(this.contacts.addAction('New contact person')).first().click();
+    await this.newContactDialog.waitForOpen();
   }
 
-  /**
-   * Open the edit modal for the contact with the given name.
-   * Clicks the "Edit Contact" button on the matching contact card.
-   */
-  async openEditContactModal(contactName: string): Promise<void> {
-    const card = this.contactsList
-      .locator('[class*="contactCard"]')
-      .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
-    // aria-label is "Edit Contact <name>" (includes contact name), so omit exact:true
-    await card.getByRole('button', { name: 'Edit Contact' }).click();
-    await this.editContactModal.waitFor({ state: 'visible' });
+  /** Add a contact person through the dialog and wait for it to close. */
+  async addContact(data: ContactPersonData): Promise<void> {
+    await this.openNewContact();
+    await this.fillContact(this.newContactDialog, data);
+    await this.newContactDialog.save();
+    await this.newContactDialog.waitForClosed();
   }
 
-  /**
-   * Fill the edit contact form fields. Only provided fields are written.
-   */
-  async fillEditContactForm(data: {
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-    phone?: string;
-    email?: string;
-    notes?: string;
-  }): Promise<void> {
-    if (data.firstName !== undefined) {
-      await this.editContactFirstNameInput.clear();
-      await this.editContactFirstNameInput.fill(data.firstName);
-    }
-    if (data.lastName !== undefined) {
-      await this.editContactLastNameInput.clear();
-      await this.editContactLastNameInput.fill(data.lastName);
-    }
-    if (data.role !== undefined) {
-      await this.editContactRoleInput.fill(data.role);
-    }
-    if (data.phone !== undefined) {
-      await this.editContactPhoneInput.fill(data.phone);
-    }
-    if (data.email !== undefined) {
-      await this.editContactEmailInput.fill(data.email);
-    }
-    if (data.notes !== undefined) {
-      await this.editContactNotesInput.fill(data.notes);
-    }
+  async openEditContact(contactId: string): Promise<void> {
+    await this.contacts.editButton(contactId).click();
+    await this.editContactDialog.waitForOpen();
   }
 
-  /**
-   * Submit the edit contact form. Registers a waitForResponse on PATCH before clicking.
-   */
-  async submitEditContact(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (r) => r.url().includes('/contacts/') && r.request().method() === 'PATCH',
-    );
-    await this.editContactSubmitButton.click();
-    await responsePromise;
-    await this.editContactModal.waitFor({ state: 'hidden' });
+  /** Edit a contact person (fields given are overwritten) and wait for the dialog to close. */
+  async editContact(contactId: string, data: ContactPersonData): Promise<void> {
+    await this.openEditContact(contactId);
+    await this.fillContact(this.editContactDialog, data);
+    await this.editContactDialog.save();
+    await this.editContactDialog.waitForClosed();
   }
 
-  /**
-   * Delete the contact with the given name by clicking its "Delete Contact" button
-   * and confirming the ConfirmDialog.
-   */
-  async deleteContactByName(contactName: string): Promise<void> {
-    const card = this.contactsList
-      .locator('[class*="contactCard"]')
-      .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
+  // ─── Payments ─────────────────────────────────────────────────────────────
 
-    // #2209: the delete asks via the shared ConfirmDialog (no native window.confirm)
-    const responsePromise = this.page.waitForResponse(
-      (r) => r.url().includes('/contacts/') && r.request().method() === 'DELETE',
-    );
-    // aria-label is "Delete Contact <name>" (includes contact name), so omit exact:true
-    await card.getByRole('button', { name: 'Delete Contact' }).click();
-    await this.contactDeleteDialog.confirm();
-    await responsePromise;
-    await this.contactDeleteDialog.dialog.waitFor({ state: 'hidden' });
-  }
-
-  // ─── Money truth (#2194) ──────────────────────────────────────────────────
-
-  /** The "Outstanding" figure in the Invoices section header (same server figure as the stat). */
-  get invoicesHeaderOutstanding(): Locator {
-    return this.invoicesSection.locator('[class*="outstandingBalance"] strong');
-  }
-
-  /** Stat card value element of Outstanding Balance. */
-  get outstandingBalanceValue(): Locator {
-    return this.outstandingBalanceStat.locator('[class*="statValue"]');
-  }
-
-  /** "New invoice" button in the Invoices card header (#2241); opens the New invoice dialog. */
+  /** "New invoice": the Invoices list button, or the EmptyState button while nothing exists. */
   get newInvoiceButton(): Locator {
-    return this.page.getByTestId('company-new-invoice');
+    return this.invoices.addButton
+      .or(this.tabs.panel('payments').getByRole('button', { name: 'New invoice', exact: true }))
+      .first();
+  }
+
+  /** The row ⋯ trigger of an invoice or offer, whichever list holds it. */
+  recordActions(id: string): Locator {
+    return this.invoices.actionsTrigger(id).or(this.offers.actionsTrigger(id));
+  }
+
+  /** The row ⋯ -> Delete item of an invoice or offer. */
+  recordDeleteItem(id: string): Locator {
+    return this.page.getByTestId(`company-invoice-delete-${id}`);
+  }
+
+  /** Open the delete confirmation of an invoice or offer through its row menu. */
+  async openRecordDelete(id: string): Promise<void> {
+    await this.recordActions(id).click();
+    await this.recordDeleteItem(id).click();
+    await this.invoiceDeleteDialog.waitForOpen();
+  }
+
+  /** The Payments tab once its lists have loaded (totals shown, or the EmptyState). */
+  async waitForPaymentsLoaded(): Promise<void> {
+    await expect(this.paymentsTotals.or(this.paymentsEmpty)).toBeVisible();
   }
 }

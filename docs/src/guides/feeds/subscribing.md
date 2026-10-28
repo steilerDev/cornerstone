@@ -105,10 +105,10 @@ If your contacts app does not support feed subscriptions, you can import the con
 
 1. Open `http://<your-cornerstone-host>/feeds/contacts.vcf` in your browser -- it will download a `.vcf` file
 2. Open the file with your contacts app, or use the app's **Import** function to load it
-3. Repeat this process whenever you want to refresh your vendor contacts
+3. Repeat this process whenever you want to refresh your company contacts
 
 :::tip
-Bookmark the contacts feed URL in your browser so you can quickly re-download it when vendor information changes.
+Bookmark the contacts feed URL in your browser so you can quickly re-download it when company information changes.
 :::
 
 ## Refresh Behavior
@@ -128,7 +128,7 @@ Cornerstone uses **ETags** for caching -- when your app re-fetches a feed and no
 
 ### Calendar or contacts are empty
 
-- Verify that your Cornerstone instance has data -- work items with dates for the calendar feed, or vendors for the contacts feed
+- Verify that your Cornerstone instance has data -- work items with dates for the calendar feed, or companies for the contacts feed
 - Check that the feed URL is correct and accessible from the device where your app is running
 - Try opening the feed URL directly in a browser to confirm it returns data
 

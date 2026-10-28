@@ -58,7 +58,6 @@ const mockFetchHouseholdItemSubsidyPayback = jest.fn() as jest.MockedFunction<
   () => Promise<object>
 >;
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
-const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 
 // ─── Mock ApiClientError ──────────────────────────────────────────────────────
 
@@ -215,7 +214,6 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchInvoices: mockFetchInvoices,
   fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
   fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
@@ -360,7 +358,6 @@ describe('HouseholdItemDetailPage — handlers and arms', () => {
     mockCreateHouseholdItemDep.mockReset();
     mockDeleteHouseholdItemDep.mockReset();
     mockListMilestones.mockReset();
-    mockFetchInvoices.mockReset();
 
     // Deferred import: ensures mocks are in place before the component module loads
     if (!HouseholdItemDetailPageModule) {
@@ -398,7 +395,6 @@ describe('HouseholdItemDetailPage — handlers and arms', () => {
       undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
     });
     mockListMilestones.mockResolvedValue([]);
-    mockFetchInvoices.mockResolvedValue([]);
   });
 
   function renderPage(itemId = 'item-1') {

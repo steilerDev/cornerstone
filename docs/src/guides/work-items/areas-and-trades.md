@@ -74,9 +74,9 @@ Trades are managed on the **Companies** page. Open the **Trades** list there (**
 
 You can also create a trade from a company's **Trade** field. Type the name and choose **New trade ‹text›**. A small dialog asks only for the name, and the new trade is selected once you save it.
 
-### Linking Vendors to Trades
+### Linking Companies to Trades
 
-Each vendor can be assigned a trade to indicate their specialty. When creating or editing a vendor, type in the **Trade** field to search for one. This makes it easy to see which vendors cover which types of work.
+Each company can be assigned a trade to indicate its specialty. When creating or editing a company, type in the **Trade** field to search for one. This makes it easy to see which companies cover which types of work.
 
 ## Managing Areas & Trades
 

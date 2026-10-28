@@ -127,6 +127,7 @@ export function ObjectFormField({
         step={kind === 'number' ? field.step : undefined}
         inputMode={kind === 'number' ? field.inputMode : undefined}
         maxLength={field.maxLength}
+        autoComplete={field.autoComplete}
         placeholder={field.placeholder}
         readOnly={busy}
         onChange={(event) => onChange(event.target.value)}

@@ -58,7 +58,6 @@ const mockFetchHouseholdItemDeps =
   jest.fn<typeof HouseholdItemDepsApiTypes.fetchHouseholdItemDeps>();
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
-const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 const mockFetchHouseholdItemCategories = jest.fn() as jest.MockedFunction<
   () => Promise<{ categories: [] }>
 >;
@@ -202,7 +201,6 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchInvoices: mockFetchInvoices,
   fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
   fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
@@ -406,7 +404,6 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
     mockFetchHouseholdItemDeps.mockReset();
     mockListMilestones.mockReset();
     mockListWorkItems.mockReset();
-    mockFetchInvoices.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
 
     // Deferred import — ESM mocks must be registered before the module is imported
@@ -429,7 +426,6 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
     mockFetchHouseholdItemSubsidyPayback.mockResolvedValue(makeSubsidyPayback());
     mockFetchHouseholdItemDeps.mockResolvedValue([]);
     mockListMilestones.mockResolvedValue([]);
-    mockFetchInvoices.mockResolvedValue([]);
     mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
   });
 

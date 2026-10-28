@@ -374,6 +374,15 @@ export function resolveSourceEntity(
         return { title: result?.name ?? null, exists: result !== undefined };
       }
 
+      case 'vendor': {
+        const result = db
+          .select({ name: vendors.name })
+          .from(vendors)
+          .where(eq(vendors.id, sourceEntityId))
+          .get();
+        return { title: result?.name ?? null, exists: result !== undefined };
+      }
+
       default:
         return { title: null, exists: undefined };
     }

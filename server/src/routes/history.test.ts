@@ -182,6 +182,16 @@ describe('GET /api/history', () => {
     });
   });
 
+  it('accepts entityType=vendor (the company History tab, #2244)', async () => {
+    const res = await get('?entityType=vendor&entityId=co-1');
+    expect(res.statusCode).toBe(200);
+    expect(res.json<HistoryListResponse>().object).toMatchObject({
+      entityType: 'vendor',
+      entityId: 'co-1',
+      exists: false,
+    });
+  });
+
   it('rejects an unknown entityType', async () => {
     const res = await get('?entityType=budget_sourcez&entityId=src-1');
     expect(res.statusCode).toBe(400);

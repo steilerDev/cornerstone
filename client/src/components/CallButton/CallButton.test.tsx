@@ -102,6 +102,25 @@ describe('CallButton', () => {
       expect(link).not.toHaveAttribute('data-testid');
     });
 
+    // Mutation: replacing the module classes with className drops the button styling.
+    it('appends a host className after its own classes', () => {
+      const { rerender } = render(<CallButton phone="555-0142" name="Sample Roofing Co" />);
+      const plain = screen.getByRole('link').className;
+      rerender(<CallButton phone="555-0142" name="Sample Roofing Co" className="hostClass" />);
+      const link = screen.getByRole('link');
+
+      expect(link.className).toBe(`${plain} hostClass`);
+      expect(link).toHaveClass('button');
+    });
+
+    it('renders the shared phone glyph with the icon class', () => {
+      render(<CallButton phone="555-0142" name="Sample Roofing Co" />);
+      const svg = screen.getByRole('link').querySelector('svg')!;
+
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+      expect(svg).toHaveClass('icon');
+    });
+
     it('adds the full-width class only when asked', () => {
       const { rerender } = render(<CallButton phone="555-0142" name="Sample Roofing Co" />);
       const plainClass = screen.getByRole('link').className;

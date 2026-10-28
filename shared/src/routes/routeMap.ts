@@ -516,7 +516,17 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['q', 'sortBy', 'sortOrder', 'page', 'pageSize', 'filters', 'create', 'trades'],
+    carries: [
+      'q',
+      'sortBy',
+      'sortOrder',
+      'page',
+      'pageSize',
+      'filters',
+      'create',
+      'trades',
+      'tradeId',
+    ],
     stage: 'done',
   },
   {

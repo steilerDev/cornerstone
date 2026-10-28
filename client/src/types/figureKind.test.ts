@@ -35,7 +35,8 @@ const FIGURE_FILES = [
   'client/src/pages/BudgetSourcesPage/FinancingSourceCard.tsx',
   'client/src/pages/HomePage/PulseSection.tsx',
   'client/src/pages/InvoicesPage/InvoicesPage.tsx',
-  'client/src/pages/VendorDetailPage/VendorDetailPage.tsx',
+  'client/src/pages/VendorDetailPage/CompanyPaymentsPanel.tsx',
+  'client/src/pages/VendorsPage/VendorsPage.tsx',
 ] as const;
 
 const REGISTER_HINT =

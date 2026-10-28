@@ -78,4 +78,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Invoice dialog specs](invoice-dialog-specs.md) — async ctx writes hit the top step, Number(null) finite, redirect `to` wipes carried params, false UX premises
 - [Financing pages specs](financing-pages-specs.md) — new screen ≤1 primary (host in old dirs), required header primary, AC field w/o column, mixed figure spans, history types, orphaned search terms
 - [Bank report specs](bank-report-specs.md) — NavAnchor ignores target, ConfirmDialog danger-only, aria-disabled unstyled on shared btns, revert batchId, real closure measure
+- [Company page specs](company-page-specs.md) — array-literal `to` counts as destination, alias removal on client rebuild, per-list delete focus, retry clears failure, subject history filters
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

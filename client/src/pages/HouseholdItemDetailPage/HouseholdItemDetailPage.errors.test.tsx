@@ -214,9 +214,7 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
 }));
 
 // Mock invoicesApi to avoid unhandled promise rejection
-const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchInvoices: mockFetchInvoices,
   fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
   fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
@@ -373,7 +371,6 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     mockCreateHouseholdItemDep.mockReset();
     mockDeleteHouseholdItemDep.mockReset();
     mockListMilestones.mockReset();
-    mockFetchInvoices.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
@@ -411,7 +408,6 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
       undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
     });
     mockListMilestones.mockResolvedValue([]);
-    mockFetchInvoices.mockResolvedValue([]);
     // Use id 'furniture' to match the category value on the test item (category: 'furniture')
     mockFetchHouseholdItemCategories.mockResolvedValue({
       categories: [

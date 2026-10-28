@@ -846,4 +846,125 @@ describe('historyService.listHistory', () => {
       expect(ids({ entityType: 'budget_source', entityId: "src-a' OR '1'='1" })).toEqual([]);
     });
   });
+
+  describe('vendor object (#2244)', () => {
+    function insertVendor(id: string, name: string): void {
+      db.insert(schema.vendors)
+        .values({ id, name, createdAt: at(0), updatedAt: at(0) })
+        .run();
+    }
+
+    function insertVendorInvoice(id: string, vendorId: string): void {
+      db.insert(schema.invoices)
+        .values({
+          id,
+          vendorId,
+          amount: 100,
+          date: '2026-03-01',
+          status: 'pending',
+          createdAt: at(0),
+          updatedAt: at(0),
+        })
+        .run();
+    }
+
+    beforeEach(() => {
+      insertVendor('co-a', 'Company A');
+      insertVendor('co-b', 'Company B');
+      insertVendorInvoice('inv-a', 'co-a');
+      insertVendorInvoice('inv-b', 'co-b');
+    });
+
+    it("lists the events of the company's invoices and no other company's", () => {
+      auto({ id: 'a-event', createdAt: at(1), sourceEntityId: 'inv-a' });
+      auto({ id: 'b-event', createdAt: at(2), sourceEntityId: 'inv-b' });
+
+      expect(ids({ entityType: 'vendor', entityId: 'co-a' })).toEqual(['a-event']);
+      expect(ids({ entityType: 'vendor', entityId: 'co-b' })).toEqual(['b-event']);
+    });
+
+    // Mutation: dropping the metadata clause hides the creation of an invoice deleted since.
+    it('keeps invoice_created of a deleted invoice through metadata.vendorId', () => {
+      auto({
+        id: 'gone-created',
+        createdAt: at(1),
+        entryType: 'invoice_created',
+        sourceEntityId: 'inv-deleted',
+        metadata: JSON.stringify({ v: 1, event: 'created', vendorId: 'co-a', subjectLabel: 'R-9' }),
+      });
+      auto({
+        id: 'gone-of-b',
+        createdAt: at(2),
+        entryType: 'invoice_created',
+        sourceEntityId: 'inv-deleted-b',
+        metadata: JSON.stringify({ v: 1, event: 'created', vendorId: 'co-b' }),
+      });
+
+      expect(ids({ entityType: 'vendor', entityId: 'co-a' })).toEqual(['gone-created']);
+    });
+
+    // Mutation: an OR that lets the metadata clause win over the owner check would leak b's row.
+    it("excludes another company's invoice event even when its metadata names a different vendorId", () => {
+      auto({
+        id: 'b-meta-a',
+        createdAt: at(1),
+        sourceEntityId: 'inv-b',
+        metadata: statusMeta('paid', { vendorId: 'co-other' }),
+      });
+      auto({ id: 'a-own', createdAt: at(2), sourceEntityId: 'inv-a' });
+
+      expect(ids({ entityType: 'vendor', entityId: 'co-a' })).toEqual(['a-own']);
+    });
+
+    it('requires the invoice source type and survives invalid or missing metadata', () => {
+      auto({
+        id: 'wrong-type',
+        createdAt: at(1),
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'inv-a',
+      });
+      auto({
+        id: 'bad-json',
+        createdAt: at(2),
+        sourceEntityId: 'inv-unknown',
+        metadata: '{not json',
+      });
+      auto({ id: 'no-meta', createdAt: at(3), sourceEntityId: 'inv-unknown', metadata: null });
+      auto({ id: 'ok', createdAt: at(4), sourceEntityId: 'inv-a' });
+
+      expect(ids({ entityType: 'vendor', entityId: 'co-a' })).toEqual(['ok']);
+    });
+
+    it('does not collapse bank-report batches: every member row is returned raw', () => {
+      batchEvent('m-1', 1, 'batch-1', 'inv-a', { amount: 100 });
+      insertVendorInvoice('inv-a2', 'co-a');
+      batchEvent('m-2', 2, 'batch-1', 'inv-a2', { amount: 50 });
+      batchEvent('m-3', 3, 'batch-1', 'inv-b', { amount: 70 });
+
+      const r = list({ entityType: 'vendor', entityId: 'co-a', pageSize: 100 });
+
+      expect(r.items.map((i) => i.id).sort()).toEqual(['m-1', 'm-2']);
+      expect(r.items.every((i) => i.batch === undefined || i.batch === null)).toBe(true);
+    });
+
+    it('resolves object.title to the company name, and exists=false for an unknown company', () => {
+      expect(list({ entityType: 'vendor', entityId: 'co-a' }).object).toEqual({
+        entityType: 'vendor',
+        entityId: 'co-a',
+        title: 'Company A',
+        exists: true,
+      });
+      expect(list({ entityType: 'vendor', entityId: 'co-gone' }).object).toEqual({
+        entityType: 'vendor',
+        entityId: 'co-gone',
+        title: null,
+        exists: false,
+      });
+    });
+
+    it('treats the id as data: a quote in it matches nothing', () => {
+      auto({ id: 'a-event', createdAt: at(1), sourceEntityId: 'inv-a' });
+      expect(ids({ entityType: 'vendor', entityId: "co-a' OR '1'='1" })).toEqual([]);
+    });
+  });
 });

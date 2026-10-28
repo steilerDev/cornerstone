@@ -10,7 +10,7 @@
  *   1. Company with 2 contact persons: counts, initial focus on Cancel, Escape returns focus
  *   2. Area with a sub-area (on the Areas index): count, confirm deletes both (200 with Undo)
  *   2b. After a confirmed area delete focus is not on the body
- *   3. Contact person delete asks via the dialog (no native confirm)
+ *   3. Contact person Remove acts at once with Undo (no dialog, no native confirm; #2244)
  *      (the DAV revoke dialog is covered in tests/profile/dav-access.spec.ts, Scenario 6b)
  *   4. Area in use: the dialog is blocked before confirm (no Delete action, only Close)
  *   5. Diary draft discard: "Discard this entry?" with Keep entry / Discard
@@ -102,11 +102,11 @@ test.describe('ConfirmDialog — company delete with counts', { tag: '@responsiv
       // Initial focus is on the safe action
       await expect(dialog.cancelButton).toBeFocused();
 
-      // Escape cancels and focus returns to the ⋯ trigger that opened the menu (the Delete item
-      // itself is gone once chosen)
+      // Escape cancels and focus returns to the page heading (the company page's return target,
+      // #2244; the Delete item that opened the dialog is gone once chosen)
       await page.keyboard.press('Escape');
       await expect(dialog.dialog).toBeHidden();
-      await expect(detail.actionsTrigger).toBeFocused();
+      await expect(detail.header.heading).toBeFocused();
     } finally {
       await deleteVendorViaApi(page, vendorId);
     }
@@ -206,11 +206,11 @@ test.describe('ConfirmDialog — area delete', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: contact person delete (native confirm replaced)
+// Scenario 3: contact person remove (Undo instead of a confirmation, #2244)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('ConfirmDialog — contact person delete', { tag: '@responsive' }, () => {
-  test('Deleting a contact asks in the dialog, not with a native confirm', async ({
+test.describe('ConfirmDialog — contact person remove', { tag: '@responsive' }, () => {
+  test('Removing a contact acts at once with Undo: no dialog and no native confirm', async ({
     page,
     testPrefix,
   }) => {
@@ -226,23 +226,18 @@ test.describe('ConfirmDialog — contact person delete', { tag: '@responsive' },
         data: { firstName: 'Casey', lastName: 'Sample' },
       });
       expect(created.ok(), 'POST contact').toBeTruthy();
+      const contactId = ((await created.json()) as { contact: { id: string } }).contact.id;
 
       const detail = new VendorDetailPage(page);
       await detail.goto(vendorId);
-      await expect(detail.contactsList.getByText('Casey Sample')).toBeVisible();
+      await expect(detail.contactRow('Casey Sample')).toBeVisible();
 
-      await detail.contactsList
-        .locator('[class*="contactCard"]')
-        .filter({ hasText: 'Casey Sample' })
-        .getByRole('button', { name: 'Delete Contact' })
-        .click();
+      await detail.contacts.remove(contactId);
 
-      await detail.contactDeleteDialog.waitForOpen();
-      await expect(detail.contactDeleteDialog.dialog).toContainText('Delete Casey Sample?');
-      await expect(detail.contactDeleteDialog.cancelButton).toBeFocused();
-
-      await detail.contactDeleteDialog.confirmAndWaitClosed();
-      await expect(detail.contactsList.getByText('Casey Sample')).toHaveCount(0);
+      // Removed at once; Undo is offered instead of a confirmation
+      await expect(detail.contactRow('Casey Sample')).toHaveCount(0);
+      await expect(detail.toasts.undoToastWith(/Casey Sample removed/)).toBeVisible();
+      await expect(page.getByRole('alertdialog')).toHaveCount(0);
       expect(nativeDialogs).toEqual([]);
     } finally {
       await deleteVendorViaApi(page, vendorId);

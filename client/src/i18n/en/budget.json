@@ -190,81 +190,6 @@
   "budgetSection": {
     "subsidies": "Grants"
   },
-  "vendorDetail": {
-    "loading": "Loading vendor...",
-    "error": "Error",
-    "retry": "Retry",
-    "vendorNotFound": "Vendor not found. It may have been deleted.",
-    "vendorInformation": "Vendor Information",
-    "totalInvoices": "Total Invoices",
-    "outstandingBalance": "Outstanding Balance",
-    "invoices": "Invoices",
-    "addInvoice": "New invoice",
-    "invoicesLoading": "Loading invoices...",
-    "invoiceEditAria": "Edit invoice {{number}}",
-    "invoiceDeleteAria": "Delete invoice {{number}}",
-    "noInvoicesYet": "No invoices yet.",
-    "noInvoicesHint": "Click \"Add Invoice\" to record the first invoice for this vendor.",
-    "outstanding": "Outstanding:",
-    "createdBy": "Created by",
-    "detailFields": {
-      "name": "Name",
-      "specialty": "Specialty",
-      "phone": "Phone",
-      "email": "Email",
-      "address": "Address",
-      "notes": "Notes",
-      "trade": "Trade",
-      "createdBy": "Created by"
-    },
-    "form": {
-      "name": "Name",
-      "specialty": "Specialty",
-      "phone": "Phone",
-      "email": "Email",
-      "address": "Address",
-      "notes": "Notes",
-      "trade": "Trade",
-      "required": "*",
-      "tradePlaceholder": "Select a trade...",
-      "placeholders": {
-        "specialty": "e.g., Plumbing, Electrical, Roofing",
-        "phone": "e.g., +1 555-123-4567",
-        "email": "e.g., contact@vendor.com",
-        "address": "e.g., 123 Main St, Springfield, IL 62701"
-      }
-    },
-    "buttons": {
-      "edit": "Edit",
-      "delete": "Delete",
-      "save": "Save Changes",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "retry": "Retry",
-      "editRow": "Edit",
-      "deleteRow": "Delete"
-    },
-    "deleteInvoiceModal": {
-      "noNumber": "this invoice"
-    },
-    "quotedLabel": "Quoted",
-    "invoiceTable": {
-      "invoiceNumber": "Invoice #",
-      "amount": "Amount",
-      "date": "Date",
-      "dueDate": "Due Date",
-      "status": "Status",
-      "actions": "Actions"
-    },
-    "invoiceCard": {
-      "noInvoiceNumber": "No Invoice #"
-    },
-    "messages": {
-      "updateError": "Failed to update vendor. Please try again.",
-      "deleteError": "Failed to delete vendor. Please try again.",
-      "invoiceDeleteError": "Failed to delete invoice. Please try again."
-    }
-  },
   "invoices": {
     "error": "Error",
     "errorMessage": "Failed to load invoices. Please try again.",
@@ -967,8 +892,12 @@
         "address": "Address",
         "notes": "Notes",
         "createdAt": "Date added",
-        "updatedAt": "Last updated"
-      }
+        "updatedAt": "Last updated",
+        "stillToPay": "Still to pay",
+        "offers": "Offers"
+      },
+      "offersPaid": "{{amount}} paid",
+      "noOffers": "No offers"
     },
     "form": {
       "title": "New company",
@@ -985,6 +914,109 @@
     },
     "picker": {
       "newNamed": "New company {{name}}"
+    }
+  },
+  "companyPage": {
+    "typeLabel": "Company",
+    "loading": "Loading company",
+    "loadError": "This company could not be loaded. Try again.",
+    "notFound": "This company does not exist or was deleted.",
+    "retry": "Try again",
+    "addPhone": "Add phone number",
+    "deleteError": "The company could not be deleted. Try again.",
+    "strip": {
+      "trade": "Trade",
+      "stillToPay": "Still to pay",
+      "offers": "Offers",
+      "offersPaid": "{{amount}} paid",
+      "none": "None",
+      "tasks": "Tasks",
+      "tasksOpen_one": "{{count}} open",
+      "tasksOpen_other": "{{count}} open",
+      "noneOpen": "None open",
+      "onSite": "On site",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "last": "last {{date}}",
+      "noneYet": "None yet"
+    },
+    "sections": {
+      "phoneEmail": "Phone and e-mail",
+      "address": "Address",
+      "about": "About"
+    },
+    "fields": {
+      "addedBy": "Added by"
+    },
+    "saveError": "The company could not be saved. Try again.",
+    "contactPersons": {
+      "title": "Contact persons",
+      "new": "New contact person",
+      "empty": "No contact persons yet. Add the people you talk to at this company.",
+      "noPhone": "No phone number",
+      "nameRequired": "Enter a first or last name.",
+      "saveError": "The contact person could not be saved. Try again.",
+      "form": {
+        "newTitle": "New contact person",
+        "editTitle": "Edit contact person",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "role": "Role",
+        "phone": "Phone",
+        "email": "E-mail",
+        "notes": "Notes"
+      }
+    },
+    "payments": {
+      "paid": "Paid",
+      "stillToPay": "Still to pay",
+      "submittedNote_one": "{{count}} submitted invoice is not counted in Still to pay.",
+      "submittedNote_other": "{{count}} submitted invoices are not counted in Still to pay.",
+      "invoices": "Invoices",
+      "offers": "Offers",
+      "progressPayments": "Progress payments",
+      "newInvoice": "New invoice",
+      "newOffer": "New offer",
+      "invoicesEmpty": "No invoices from this company yet.",
+      "offersEmpty": "No offers from this company yet.",
+      "allEmpty": "No offers, invoices or payments for this company yet.",
+      "loadError": "This company's records could not be loaded. Try again.",
+      "due": "Due {{date}}",
+      "paidAmount": "Paid {{amount}}",
+      "stillToPayAmount": "Still to pay {{amount}}",
+      "remainingOnOffer": "Remaining on offer {{amount}}",
+      "progressPaymentTitle": "Progress payment · {{date}}",
+      "deleteNameInvoice": "this invoice",
+      "deleteNameOffer": "this offer",
+      "deleteError": "The invoice could not be deleted. Try again."
+    },
+    "work": {
+      "tasks": "Tasks",
+      "purchases": "Purchases",
+      "costLines": "Cost lines",
+      "tasksEmpty": "No tasks are assigned to this company.",
+      "purchasesEmpty": "No purchases name this company as supplier.",
+      "costLinesEmpty": "No cost lines name this company.",
+      "taskEnds": "Ends {{date}}",
+      "delivery": "Delivery {{date}}",
+      "delivered": "Delivered {{date}}",
+      "untitledLine": "Cost line",
+      "loadError": "This company's work could not be loaded. Try again."
+    },
+    "diary": {
+      "title": "Site diary",
+      "srCount_one": ", {{count}} entry",
+      "srCount_other": ", {{count}} entries",
+      "showAll": "Show all in Site diary",
+      "empty": "No site diary entry names this company yet.",
+      "loadError": "The site diary entries could not be loaded. Try again."
+    },
+    "history": {
+      "title": "History",
+      "empty": "Nothing has happened to this company's offers and invoices yet.",
+      "loadError": "History could not be loaded. Try again.",
+      "retry": "Try again",
+      "showAll": "Show all in History"
     }
   },
   "convertPage": {

@@ -131,6 +131,7 @@ export type {
 export type {
   Vendor,
   VendorListItem,
+  VendorMoney,
   VendorDetail,
   CreateVendorRequest,
   UpdateVendorRequest,
@@ -140,6 +141,14 @@ export type {
   VendorDetailResponse,
 } from './types/vendor.js';
 export { VENDOR_SORT_FIELDS } from './types/vendor.js';
+
+// Vendor relations
+export type {
+  VendorRelatedWorkItem,
+  VendorRelatedHouseholdItem,
+  VendorRelatedBudgetLine,
+  VendorRelationsResponse,
+} from './types/vendorRelations.js';
 
 // Vendor Contacts
 export type {

@@ -161,6 +161,24 @@ export class VendorsPage {
     return this.callLink(name);
   }
 
+  /**
+   * The Still to pay figure of a company's visible row or card (`company-still-to-pay-<id>` on the
+   * table, `company-still-to-pay-mobile-<id>` on the phone card, #2244). It carries
+   * `data-figure="still-to-pay"`.
+   */
+  stillToPay(companyId: string): Locator {
+    return this.page
+      .locator(
+        `[data-testid="company-still-to-pay-${companyId}"], [data-testid="company-still-to-pay-mobile-${companyId}"]`,
+      )
+      .filter({ visible: true });
+  }
+
+  /** A sortable table header by its label (desktop table only; carries `aria-sort`). */
+  columnHeader(label: string | RegExp): Locator {
+    return this.tableContainer.getByRole('columnheader', { name: label });
+  }
+
   /** The row ⋯ trigger of the named company ("Actions for <name>"). */
   rowActions(name: string): Locator {
     return this.row(name).getByRole('button', { name: `Actions for ${name}`, exact: true });

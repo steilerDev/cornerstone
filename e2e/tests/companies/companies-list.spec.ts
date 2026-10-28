@@ -104,12 +104,15 @@ test.describe('Companies list - columns (AC1)', { tag: '@responsive' }, () => {
       await expect(list.row(name)).toBeVisible();
 
       if ((await page.viewportSize())!.width >= 768) {
-        // Table: Name, Trade, Phone, Contact persons, Last on site, then the row-actions column
-        // (its header is visually hidden text). Nothing else is visible by default.
+        // Table: Name, Trade, Phone, Still to pay, Offers, Contact persons, Last on site (#2244),
+        // then the row-actions column (its header is visually hidden text). Nothing else is
+        // visible by default.
         await expect(list.tableContainer.locator('thead th')).toHaveText([
           /^Name/,
           /^Trade/,
           /^Phone/,
+          /^Still to pay/,
+          /^Offers/,
           /^Contact persons/,
           /^Last on site/,
           /^Actions$/,

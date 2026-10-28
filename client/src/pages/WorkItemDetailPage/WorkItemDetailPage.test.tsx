@@ -170,7 +170,6 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
       summary: {},
     }),
   ),
-  fetchInvoices: jest.fn(),
   fetchInvoiceById: jest.fn(),
   createInvoice: jest.fn(),
   updateInvoice: jest.fn(),

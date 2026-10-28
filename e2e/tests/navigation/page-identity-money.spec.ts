@@ -604,15 +604,12 @@ test.describe('Page identity: Money (#2203)', () => {
     }) => {
       const vendorPage = new VendorDetailPage(page);
       const detail = new InvoiceDetailPage(page);
-      const openInvoice = page.getByRole('button', {
-        name: `Edit invoice ${NAMES.invoiceNumber}`,
-      });
 
-      await vendorPage.goto(seed.vendorId);
+      await vendorPage.goto(seed.vendorId, 'payments');
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
       await vendorPage.breadcrumbs.expectTrail(['Companies']);
 
-      await openInvoice.click();
+      await vendorPage.invoices.link(seed.invoiceId).click();
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('invoice', { id: seed.invoiceId }),
       );
@@ -941,9 +938,9 @@ test.describe('Page identity: Money (#2203)', () => {
       const vendorPage = new VendorDetailPage(page);
       const detail = new InvoiceDetailPage(page);
 
-      await vendorPage.goto(seed.vendorId);
+      await vendorPage.goto(seed.vendorId, 'payments');
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
-      await page.getByRole('button', { name: `Edit invoice ${NAMES.invoiceNumber}` }).click();
+      await vendorPage.invoices.link(seed.invoiceId).click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('invoice', { id: seed.invoiceId }),

@@ -7,6 +7,8 @@ import type { OverflowMenuEntry, OverflowMenuItem } from '../OverflowMenu/index.
 import { PageTitle } from '../PageLayout/PageTitle.js';
 import { StatusMenu } from '../StatusMenu/StatusMenu.js';
 import type { StatusMenuProps } from '../StatusMenu/StatusMenu.js';
+import { PhoneIcon } from '../CallButton/PhoneIcon.js';
+import { telHref } from '../CallButton/telHref.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { useEntriesLanguage } from '../../contexts/HouseNameContext.js';
 import { copyText } from '../../lib/copyText.js';
@@ -28,6 +30,14 @@ export type ObjectHeaderPrimary<S extends string = string> =
       readonly label: string;
       readonly to: string;
       readonly state?: unknown;
+      readonly testId: string;
+    }
+  /** A `tel:` link with the phone glyph, e.g. Call on a company. */
+  | {
+      readonly kind: 'tel';
+      readonly phone: string;
+      readonly label: string;
+      readonly ariaLabel: string;
       readonly testId: string;
     }
   /** Opens a dialog or runs an action on the page. */
@@ -91,6 +101,20 @@ function PrimaryControl<S extends string>({ primary, className }: PrimaryControl
       >
         {primary.label}
       </NavAnchor>
+    );
+  }
+  if (primary.kind === 'tel') {
+    return (
+      <a
+        href={telHref(primary.phone)}
+        className={className}
+        aria-label={primary.ariaLabel}
+        title={primary.phone}
+        data-testid={primary.testId}
+      >
+        <PhoneIcon />
+        {primary.label}
+      </a>
     );
   }
   return (

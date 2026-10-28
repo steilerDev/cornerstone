@@ -32,7 +32,6 @@ const mockFetchHouseholdItemDeps =
   jest.fn<typeof HouseholdItemDepsApiTypes.fetchHouseholdItemDeps>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
-const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchHouseholdItemBudgets = jest.fn() as any;
@@ -189,7 +188,6 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchInvoices: mockFetchInvoices,
   fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
   fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
@@ -345,7 +343,6 @@ describe('HouseholdItemDetailPage — dependency area breadcrumb', () => {
     mockFetchHouseholdItemDeps.mockReset();
     mockListWorkItems.mockReset();
     mockListMilestones.mockReset();
-    mockFetchInvoices.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
     mockFetchBudgetCategories.mockReset();
     mockFetchBudgetSources.mockReset();
@@ -381,7 +378,6 @@ describe('HouseholdItemDetailPage — dependency area breadcrumb', () => {
     });
     mockFetchHouseholdItemDeps.mockResolvedValue([]);
     mockListMilestones.mockResolvedValue([]);
-    mockFetchInvoices.mockResolvedValue([]);
     mockFetchHouseholdItemCategories.mockResolvedValue({
       categories: [
         {

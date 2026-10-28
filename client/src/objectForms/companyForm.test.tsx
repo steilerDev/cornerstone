@@ -135,6 +135,32 @@ describe('companyForm (ObjectForm schema)', () => {
       });
     });
 
+    // Mutation: kind 'text' loses the phone keypad and e-mail keyboard on phones.
+    it('types the phone as tel and the e-mail as email, each with its autocomplete token (#2244)', () => {
+      const fields = schemaNow().fields;
+
+      expect(fields.find((f) => f.name === 'phone')).toMatchObject({
+        kind: 'tel',
+        autoComplete: 'tel',
+      });
+      expect(fields.find((f) => f.name === 'email')).toMatchObject({
+        kind: 'email',
+        autoComplete: 'email',
+      });
+      expect(fields.find((f) => f.name === 'address')?.autoComplete).toBeUndefined();
+    });
+
+    it('renders the phone and e-mail inputs with the matching type and autocomplete', () => {
+      renderForm({ name: 'Co' });
+      const phone = screen.getByTestId('company-phone-input');
+      const email = screen.getByTestId('company-email-input');
+
+      expect(phone).toHaveAttribute('type', 'tel');
+      expect(phone).toHaveAttribute('autocomplete', 'tel');
+      expect(email).toHaveAttribute('type', 'email');
+      expect(email).toHaveAttribute('autocomplete', 'email');
+    });
+
     it('names its fields like the API body keys', () => {
       const schema = schemaNow();
       expect(Object.keys(schema.initialValues ?? {}).sort()).toEqual(
@@ -155,6 +181,15 @@ describe('companyForm (ObjectForm schema)', () => {
         name: 'Use at most 200 characters.',
       });
       expect(errorsFor({ name: 'x'.repeat(200) })).toEqual({});
+    });
+
+    it('accepts a blank or well-formed e-mail and rejects a malformed one (shared isEmailAddress)', () => {
+      expect(errorsFor({ name: 'Co', email: '' })).toEqual({});
+      expect(errorsFor({ name: 'Co', email: '  ' })).toEqual({});
+      expect(errorsFor({ name: 'Co', email: ' a@b.co ' })).toEqual({});
+      expect(errorsFor({ name: 'Co', email: 'a b@c.de' })).toEqual({
+        email: 'Enter a valid e-mail address.',
+      });
     });
 
     it('measures the name after trimming', () => {

@@ -447,7 +447,17 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "create", "trades"],
+    "carries": [
+      "q",
+      "sortBy",
+      "sortOrder",
+      "page",
+      "pageSize",
+      "filters",
+      "create",
+      "trades",
+      "tradeId"
+    ],
     "note": "Companies list (moved from /settings/vendors), flat A–Z. ?trades=1 opens the Trades sheet (Back closes it). ?create=1 is replaced by the New company dialog (/companies/new). #2213."
   },
   {
@@ -472,7 +482,7 @@
     "gate": "none",
     "permanent": true,
     "carries": ["tab"],
-    "note": "Company page (served since #2213; the redesign with Overview, Work, Payments, Site diary, History is 5.10b). Permanent (vCard URL)."
+    "note": "Company page (#2244): Overview, Work, Payments, Site diary, History; ?tab= carried. Permanent (vCard URL)."
   },
   {
     "from": "/areas",

@@ -6,6 +6,7 @@
 import type { UserSummary } from './workItem.js';
 import type { VendorContact } from './vendorContact.js';
 import type { TradeSummary } from './trade.js';
+import type { MoneyOfferTotals } from './money.js';
 
 /**
  * Vendor entity as returned by the API in list responses.
@@ -27,6 +28,7 @@ export const VENDOR_SORT_FIELDS = [
   'name',
   'trade',
   'last_on_site',
+  'still_to_pay',
   'created_at',
   'updated_at',
 ] as const;
@@ -46,16 +48,38 @@ export interface VendorListItem extends Vendor {
   contactCount?: number;
   /** YYYY-MM-DD of the latest saved daily log naming the company; null when none (#2213). */
   lastOnSite?: string | null;
+  /** Still to pay (ADR-039). Always sent by GET /api/vendors (#2244). Optional so plain Vendor objects stay assignable. */
+  stillToPay?: number;
+  /** Paid (ADR-039). Always sent by GET /api/vendors (#2244). */
+  paid?: number;
+  /** The company's offers. Always sent by GET /api/vendors (#2244). */
+  offers?: MoneyOfferTotals;
+}
+
+/** ADR-039 figures of one company's offers and invoices (money engine computePayments over its records). */
+export interface VendorMoney {
+  /** Still to pay: submitted (claimed) and paid never count; pending progress payments do. */
+  stillToPay: number;
+  /** Paid: paid + submitted, progress payments included, refunds netted. */
+  paid: number;
+  /** The company's offers (status quotation): count, amount, paid, stillToPay, remainingOnOffer. */
+  offers: MoneyOfferTotals;
 }
 
 /**
- * Vendor entity with computed invoice statistics.
+ * Vendor entity with computed money figures, counts and contacts.
  * Used in single-vendor responses (GET by ID, PATCH).
  */
-export interface VendorDetail extends Vendor {
+export interface VendorDetail extends Vendor, VendorMoney {
+  /** Offers and invoices of the company (all statuses). */
   invoiceCount: number;
-  outstandingBalance: number;
   contacts: VendorContact[];
+  /** Tasks assigned to the company whose status is not completed. */
+  openTaskCount: number;
+  /** Distinct dates of saved, manual daily logs naming the company. */
+  onSiteDays: number;
+  /** Latest of those dates (YYYY-MM-DD); null when none. */
+  lastOnSite: string | null;
 }
 
 /**

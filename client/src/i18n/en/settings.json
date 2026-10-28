@@ -318,39 +318,6 @@
       "off": "Automatic backups are off."
     }
   },
-  "vendors": {
-    "contacts": {
-      "heading": "Contacts",
-      "addContact": "Add Contact",
-      "editContact": "Edit Contact",
-      "deleteContact": "Delete Contact",
-      "empty": "No contacts added yet.",
-      "emptyAction": "Add your first contact",
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "role": "Role / Title",
-      "phone": "Phone",
-      "email": "Email",
-      "notes": "Notes",
-      "nameRequired": "At least first name or last name is required.",
-      "saveError": "Failed to save contact. Please try again.",
-      "deleteError": "Failed to delete contact. Please try again.",
-      "cancel": "Cancel",
-      "creating": "Creating...",
-      "createContactSubmit": "Create Contact",
-      "saving": "Saving...",
-      "saveChanges": "Save Changes",
-      "loading": "Loading contacts...",
-      "contactAdded": "Contact {{name}} added",
-      "contactUpdated": "Contact {{name}} updated",
-      "contactDeleted": "Contact {{name}} deleted",
-      "errors": {
-        "loadFailed": "Failed to load contacts. Please try again.",
-        "createFailed": "Failed to create contact. Please try again.",
-        "updateFailed": "Failed to update contact. Please try again."
-      }
-    }
-  },
   "tradesManager": {
     "title": "Trades",
     "newLabel": "New trade",

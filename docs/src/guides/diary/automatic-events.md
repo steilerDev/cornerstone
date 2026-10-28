@@ -38,7 +38,7 @@ The type chips are always shown above the list. Choose one kind of change, such 
 The other filters are below the chips:
 
 - **Object** -- Pick a task, invoice, grant or milestone to see only its history. The filter shows the object's name. If the object was deleted, it shows "No longer exists"
-- **Search** -- Type a word to find matching changes, for example the name of a vendor
+- **Search** -- Type a word to find matching changes, for example the name of a company
 - **From** and **To** -- Limit the list to a range of dates
 
 On phones, a **Filters** button opens these filters. On larger screens they are always visible.

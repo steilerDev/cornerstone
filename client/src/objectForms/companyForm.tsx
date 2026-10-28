@@ -8,6 +8,7 @@ import type {
 import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
 import { getCategoryDisplayName } from '../lib/categoryUtils.js';
 import { useTrades } from '../hooks/useTrades.js';
+import { isEmailAddress } from '../lib/emailAddress.js';
 import { createVendor } from '../lib/vendorsApi.js';
 
 /** A company as a picker offers it. */
@@ -17,7 +18,6 @@ export interface CompanyOption {
 }
 
 const NAME_MAX_LENGTH = 200;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -79,14 +79,16 @@ export function useCompanyFormSchema(): ObjectFormSchema {
       {
         name: 'phone',
         label: t('companies.form.phone'),
-        kind: 'text',
+        kind: 'tel',
+        autoComplete: 'tel',
         maxLength: 50,
         testId: 'company-phone-input',
       },
       {
         name: 'email',
         label: t('companies.form.email'),
-        kind: 'text',
+        kind: 'email',
+        autoComplete: 'email',
         maxLength: 255,
         testId: 'company-email-input',
       },
@@ -111,7 +113,7 @@ export function useCompanyFormSchema(): ObjectFormSchema {
       if (!name) errors.name = t('companies.form.nameRequired');
       else if (name.length > NAME_MAX_LENGTH) errors.name = t('companies.form.nameTooLong');
       const email = text(values.email);
-      if (email && !EMAIL_PATTERN.test(email)) errors.email = t('companies.form.emailInvalid');
+      if (email && !isEmailAddress(email)) errors.email = t('companies.form.emailInvalid');
       return errors;
     },
     submit: async (values) => {

@@ -72,7 +72,7 @@ export function listContactsRaw(db: DbType, vendorId: string): VendorContact[] {
     .select()
     .from(vendorContacts)
     .where(eq(vendorContacts.vendorId, vendorId))
-    .orderBy(vendorContacts.createdAt)
+    .orderBy(vendorContacts.createdAt, vendorContacts.id)
     .all();
 
   return rows.map(toVendorContact);

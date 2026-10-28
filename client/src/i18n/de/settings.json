@@ -318,39 +318,6 @@
       "off": "Automatische Sicherungen sind aus."
     }
   },
-  "vendors": {
-    "contacts": {
-      "heading": "Kontakte",
-      "addContact": "Kontakt hinzufügen",
-      "editContact": "Kontakt bearbeiten",
-      "deleteContact": "Kontakt löschen",
-      "empty": "Noch keine Kontakte hinzugefügt.",
-      "emptyAction": "Ersten Kontakt hinzufügen",
-      "firstName": "Vorname",
-      "lastName": "Nachname",
-      "role": "Rolle / Titel",
-      "phone": "Telefon",
-      "email": "E-Mail",
-      "notes": "Notizen",
-      "nameRequired": "Mindestens Vorname oder Nachname ist erforderlich.",
-      "saveError": "Kontakt konnte nicht gespeichert werden. Bitte erneut versuchen.",
-      "deleteError": "Kontakt konnte nicht gelöscht werden. Bitte erneut versuchen.",
-      "cancel": "Abbrechen",
-      "creating": "Erstellen...",
-      "createContactSubmit": "Kontakt erstellen",
-      "saving": "Speichern...",
-      "saveChanges": "Änderungen speichern",
-      "loading": "Kontakte werden geladen...",
-      "contactAdded": "Kontakt {{name}} hinzugefügt",
-      "contactUpdated": "Kontakt {{name}} aktualisiert",
-      "contactDeleted": "Kontakt {{name}} gelöscht",
-      "errors": {
-        "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuche es erneut.",
-        "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuche es erneut.",
-        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuche es erneut."
-      }
-    }
-  },
   "tradesManager": {
     "title": "Gewerke",
     "newLabel": "Neues Gewerk",

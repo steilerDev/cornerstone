@@ -464,12 +464,12 @@ test.describe(
 
       const vendorPage = new VendorDetailPage(page);
       await vendorPage.goto(vendor.id);
-      await vendorPage.startEdit();
+      await vendorPage.startEdit('company-about');
 
-      // SearchPicker with a current selection renders its title as text (not an input)
-      const tradeField = page.locator('label[for="edit-tradeId"]').locator('..');
-      await expect(tradeField).toContainText(tradeName);
-      await expect(tradeField.getByRole('button', { name: 'Clear selection' })).toBeVisible();
+      // The Trade picker with a current selection shows its name and a clear control
+      const aboutForm = vendorPage.cardForm('company-about');
+      await expect(aboutForm).toContainText(tradeName);
+      await expect(aboutForm.getByRole('button', { name: 'Clear selection' })).toBeVisible();
     });
 
     test('Diary workers use a plural-aware label in English and German', async ({

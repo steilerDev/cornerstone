@@ -1,15 +1,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
-  listVendorContacts,
   createVendorContact,
   updateVendorContact,
   deleteVendorContact,
 } from './vendorContactsApi.js';
-import type {
-  VendorContactListResponse,
-  VendorContactResponse,
-  VendorContact,
-} from '@cornerstone/shared';
+import type { VendorContactResponse, VendorContact } from '@cornerstone/shared';
 
 const makeContact = (overrides?: Partial<VendorContact>): VendorContact => ({
   id: 'contact-1',
@@ -38,82 +33,6 @@ describe('vendorContactsApi', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-  });
-
-  describe('listVendorContacts', () => {
-    it('sends GET request to /api/vendors/:vendorId/contacts', async () => {
-      const mockResponse: VendorContactListResponse = { contacts: [] };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      await listVendorContacts('vendor-1');
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/vendors/vendor-1/contacts', expect.any(Object));
-    });
-
-    it('returns the contacts list from the response', async () => {
-      const contact = makeContact();
-      const mockResponse: VendorContactListResponse = { contacts: [contact] };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await listVendorContacts('vendor-1');
-
-      expect(result.contacts).toHaveLength(1);
-      expect(result.contacts[0]!.id).toBe('contact-1');
-      expect(result.contacts[0]!.name).toBe('John Smith');
-    });
-
-    it('returns empty contacts array when vendor has no contacts', async () => {
-      const mockResponse: VendorContactListResponse = { contacts: [] };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await listVendorContacts('vendor-1');
-
-      expect(result.contacts).toEqual([]);
-    });
-
-    it('uses the vendorId in the URL path', async () => {
-      const mockResponse: VendorContactListResponse = { contacts: [] };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      await listVendorContacts('vendor-abc-123');
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/vendors/vendor-abc-123/contacts',
-        expect.any(Object),
-      );
-    });
-
-    it('throws error when vendor not found (404)', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Vendor not found' } }),
-      } as Response);
-
-      await expect(listVendorContacts('nonexistent')).rejects.toThrow();
-    });
-
-    it('throws error when response is not OK', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
-      } as Response);
-
-      await expect(listVendorContacts('vendor-1')).rejects.toThrow();
-    });
   });
 
   describe('createVendorContact', () => {

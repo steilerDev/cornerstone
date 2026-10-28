@@ -1495,7 +1495,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Delete (modal); Companies > Company page > Payments tab > row ⋯ > Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2244: Companies › Company page › Payments › Invoices and Offers rows › ⋯ › Delete (ConfirmDialog with counts; the invoice DELETE answers 204, so no Undo)."
   },
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
@@ -1873,11 +1873,11 @@
   "MNY-134": {
     "name": "Browse vendors with trade and contact details",
     "from": "/settings/vendors > table (Name, Trade, Contact; hidden Address, Notes, Date Added, Last Updated)",
-    "to": "Companies > Companies list (/companies; flat A–Z; columns Name, Trade, Phone with Call, Contact persons, Last on site; Still to pay and Offers arrive with P4.12; hidden by default: Address, E-mail, Notes, Date added, Last updated)",
+    "to": "Companies > Companies list (/companies; flat A–Z; columns Name, Trade, Phone with Call, Contact persons, Last on site, Still to pay, Offers; hidden by default: Address, E-mail, Notes, Date added, Last updated)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2213: served at /companies; group by Trade dropped (the Trade chips filter instead)."
+    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2213: served at /companies; group by Trade dropped (the Trade chips filter instead). #2244: the columns Still to pay (right-aligned, marked as a Still to pay figure) and Offers (amount, with what is paid on them) are on the list; Still to pay is the ADR-039 figure of GET /api/vendors."
   },
   "MNY-135": {
     "name": "Search, filter, sort and paginate vendors",
@@ -1886,7 +1886,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2213: GET /api/vendors q uses the /api/search vendor matcher; translated trade names via tradeIds; the Trade header filter became chips."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2213: GET /api/vendors q uses the /api/search vendor matcher; translated trade names via tradeIds; the Trade header filter became chips. #2244: the list sorts by Still to pay (sortBy=still_to_pay, server-side, ties by name); Offers is not sortable."
   },
   "MNY-136": {
     "name": "Call or e-mail a vendor or vendor contact",
@@ -1894,7 +1894,7 @@
     "to": "Companies > Companies list > row Call button; Companies > Company page > primary 'Call', contact persons first; Global > Search results > Call",
     "change": "promoted",
     "gate": "none",
-    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2210: GET /api/search matches company name, trade, phone, e-mail and contact persons (name, phone, e-mail) and returns the call number (company phone, else the first contact person's); #2211: company results carry a Call button (tel:), Shift+Enter calls the active company. #2213: shared CallButton in list rows and phone cards (tel:), the same component in the command search; e-mail stays on the Company page and as the hidden E-mail column."
+    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2210: GET /api/search matches company name, trade, phone, e-mail and contact persons (name, phone, e-mail) and returns the call number (company phone, else the first contact person's); #2211: company results carry a Call button (tel:), Shift+Enter calls the active company. #2213: shared CallButton in list rows and phone cards (tel:), the same component in the command search; e-mail stays on the Company page and as the hidden E-mail column. #2244: the company page primary is a tel: Call with the phone glyph; the number is the company phone, else the first contact person's, and the accessible name then names the person. With no number anywhere the primary is 'Add phone number', which opens Phone and e-mail in edit mode. Contact person rows carry their own Call."
   },
   "MNY-137": {
     "name": "Create a vendor",
@@ -1920,7 +1920,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Companies › Company page › summary ('Outstanding Balance', the legacy label until 4.12): both amounts carry `data-figure=\"still-to-pay\"` and are tested equal to the company's server balance."
+    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Companies › Company page › summary ('Outstanding Balance', the legacy label until 4.12): both amounts carry `data-figure=\"still-to-pay\"` and are tested equal to the company's server balance. #2244: the strip is Trade (link to the filtered list), Still to pay (data-figure=\"still-to-pay\"), Offers (amount, paid on offers), Tasks (open) and On site (days, last date); each fact opens its tab. Paid and Still to pay on the Payments tab are marked figures (data-figure=\"paid\" and \"still-to-pay\"). outstandingBalance is gone from GET /api/vendors/:id."
   },
   "MNY-140": {
     "name": "View and edit vendor master data",
@@ -1929,7 +1929,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Edit form shows the saved trade."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Edit form shows the saved trade. #2244: three cards on Overview (Phone and e-mail, Address, About), each with its own Edit and explicit Save; only changed fields are sent."
   },
   "MNY-141": {
     "name": "List all invoices of a vendor",
@@ -1938,16 +1938,16 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Row action says Open, not Edit (VRD-15). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2203: an invoice opened from the company page shows \"‹ Back to ‹company›\"."
+    "note": "Row action says Open, not Edit (VRD-15). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2203: an invoice opened from the company page shows \"‹ Back to ‹company›\". #2244: Payments lists Invoices, Offers and Progress payments from GET /api/invoices?vendorId=; New invoice and New offer open the one dialog with the company set. Rows open the offer or invoice page; there is no Overdue or Offer status badge."
   },
   "MNY-142": {
     "name": "Manage a vendor's contact persons",
     "from": "/settings/vendors/:id > 'Contacts' section > 'Add Contact' modal (first/last name, role, phone, email, notes) / 'Edit' / 'Delete'",
-    "to": "Companies > Company page > Overview tab > Contact persons (Add / Edit / Delete)",
+    "to": "Companies > Company page > Overview tab > Contact persons (New contact person, row Edit, row ⋯ Remove with Undo)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Contact persons on the first screen (WALK 8b). #2209: Companies › Company page › Contact persons › Delete (ConfirmDialog, replaces window.confirm)."
+    "note": "Contact persons on the first screen (WALK 8b). #2209: Companies › Company page › Contact persons › Delete (ConfirmDialog, replaces window.confirm). #2244: contact persons use the ObjectForm dialog (first or last name required), row Edit, and row ⋯ Remove with an Undo toast (no confirm dialog)."
   },
   "MNY-146": {
     "name": "Configure currency and VAT rate for all money formatting and VAT gross-up",
