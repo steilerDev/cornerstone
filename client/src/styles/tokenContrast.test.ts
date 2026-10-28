@@ -9,8 +9,9 @@ import { fileURLToPath } from 'node:url';
  * are read from the source CSS on disk. Pure `fs` — no DOM.
  *
  * Mutations that must fail this file: dark `--color-bg-primary` -> slate-800 (card vs page
- * rows), light `--color-primary` -> blue-500 (5.17 rows), dark `--color-gantt-bar-not-started`
- * -> slate-400 (gantt rows), dark `--color-budget-projected` -> rgba(...) (non-opaque check),
+ * rows), light `--color-primary` -> blue-500 (5.17 rows), `--color-gantt-bar-not-started`
+ * -> gray-400 in light or slate-400 in dark (gantt rows), `--color-gantt-bar-late-hatch` -> the
+ * bar fill it sits on (hatch rows), `--color-gantt-bar-ghost-stroke` -> `--color-border` (ghost rows), dark `--color-budget-projected` -> rgba(...) (non-opaque check),
  * `.statusClosed` back to `--color-text-muted` (rule scan).
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -96,6 +97,7 @@ function tokenRatio(theme: Theme, fg: string, bg: string, map = tokens): number 
 }
 
 const BARS = [
+  '--color-gantt-bar-not-started',
   '--color-gantt-bar-in-progress',
   '--color-gantt-bar-completed',
   '--color-gantt-bar-blocked',
@@ -105,6 +107,13 @@ const SURFACES = [
   '--color-bg-primary',
   '--color-bg-secondary',
   '--color-bg-tertiary',
+];
+
+/** Fills a late bar's hatch stripe is drawn over. */
+const LATE_FILLS = [
+  '--color-gantt-bar-not-started',
+  '--color-gantt-bar-in-progress',
+  '--color-gantt-bar-blocked',
 ];
 
 type Row = [theme: Theme | 'both', fg: string, bg: string, min: number];
@@ -119,14 +128,25 @@ const rows: Row[] = [
   ['dark', '--color-text-muted', '--color-bg-hover', 4.5], // 4.89
   ['dark', '--color-text-secondary', '--color-bg-tertiary', 4.5], // 6.97
   ['both', '--color-nav-active-text', '--color-nav-active-bg', 4.5], // 5.17
-  ['dark', '--color-gantt-bar-not-started', '--color-gantt-row-even', 3], // 5.71
-  ['dark', '--color-gantt-bar-not-started', '--color-gantt-row-odd', 3], // 4.89
+  // Schedule Gantt (#2247): every bar fill, the critical border, the late hatch, the planned
+  // ghost, the reschedule preview outline and the late outline, in both themes (3:1 non-text)
   ...BARS.flatMap((bar): Row[] => [
-    ['dark', bar, '--color-gantt-row-even', 3],
-    ['dark', bar, '--color-gantt-row-odd', 3],
+    ['both', bar, '--color-gantt-row-even', 3],
+    ['both', bar, '--color-gantt-row-odd', 3],
   ]),
+  ['both', '--color-gantt-bar-critical-border', '--color-gantt-row-even', 3],
+  ['both', '--color-gantt-bar-critical-border', '--color-gantt-row-odd', 3],
   ['dark', '--color-gantt-arrow-default', '--color-bg-primary', 3], // 5.71
-  ['dark', '--color-gantt-arrow-critical', '--color-bg-primary', 3], // 8.67
+  ['both', '--color-gantt-arrow-critical', '--color-bg-primary', 3], // 8.67 dark
+  ...LATE_FILLS.map((fill): Row => ['both', '--color-gantt-bar-late-hatch', fill, 3]),
+  ...[
+    '--color-gantt-bar-ghost-stroke',
+    '--color-gantt-bar-preview-stroke',
+    '--color-danger',
+  ].flatMap((stroke): Row[] => [
+    ['both', stroke, '--color-gantt-row-even', 3],
+    ['both', stroke, '--color-gantt-row-odd', 3],
+  ]),
   ['dark', '--color-budget-projected', '--color-budget-track', 3], // 5.74
   ['dark', '--color-primary-text', '--color-primary', 4.5], // 6.98
   ['dark', '--color-primary-text', '--color-primary-hover', 4.5], // 9.84

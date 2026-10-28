@@ -118,6 +118,13 @@
   flex: 0 0 auto;
 }
 
+.check {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--spacing-4);
+  text-align: center;
+}
+
 .itemIcon {
   display: flex;
   align-items: center;

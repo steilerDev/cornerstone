@@ -187,7 +187,7 @@ describe('GanttHouseholdItems', () => {
       expect(circles).toHaveLength(1);
     });
 
-    it('layer aria-label includes household item count', () => {
+    it('the layer carries no hard-coded English label (the chart is aria-hidden, D8)', () => {
       renderHouseholdItems({
         householdItems: [HI_NOT_ORDERED, HI_ORDERED],
         hiRowIndices: new Map([
@@ -195,8 +195,7 @@ describe('GanttHouseholdItems', () => {
           ['hi-3', 1],
         ]),
       });
-      const layer = screen.getByTestId('gantt-hi-layer');
-      expect(layer.getAttribute('aria-label')).toContain('2');
+      expect(screen.getByTestId('gantt-hi-layer')).not.toHaveAttribute('aria-label');
     });
 
     it('circle has role="graphics-symbol"', () => {
@@ -205,61 +204,21 @@ describe('GanttHouseholdItems', () => {
       expect(circle.getAttribute('role')).toBe('graphics-symbol');
     });
 
-    it('circle has correct aria-label including name, status, and delivery date', () => {
-      // Default render uses HI_ORDERED: targetDeliveryDate: '2026-06-01', status: 'purchased'
+    it('circle is named from the translated purchase sentence, without dates or statuses', () => {
       renderHouseholdItems();
       const circle = screen.getByTestId('gantt-hi-circle');
-      const ariaLabel = circle.getAttribute('aria-label');
-      expect(ariaLabel).toBeDefined();
-      expect(ariaLabel).toContain('Dining Table');
-      expect(ariaLabel).toContain('purchased');
+      expect(circle).toHaveAttribute('aria-label', 'Purchase: Dining Table');
     });
 
-    it('aria-label uses targetDeliveryDate when present and no actualDeliveryDate', () => {
-      // HI_ORDERED has targetDeliveryDate: '2026-06-01', actualDeliveryDate: null
+    it('the label does not depend on the delivery dates', () => {
       renderHouseholdItems({
-        householdItems: [HI_ORDERED],
+        householdItems: [{ ...HI_ORDERED, actualDeliveryDate: '2026-06-15', status: 'arrived' }],
         hiRowIndices: new Map([['hi-3', 0]]),
       });
-      const circle = screen.getByTestId('gantt-hi-circle');
-      const ariaLabel = circle.getAttribute('aria-label');
-      expect(ariaLabel).toBeDefined();
-      expect(ariaLabel).toContain('Dining Table');
-      expect(ariaLabel).toContain('2026-06-01');
-      expect(ariaLabel).not.toContain('unknown');
-    });
-
-    it('aria-label uses actualDeliveryDate when present (not targetDeliveryDate)', () => {
-      // HI_DELIVERED has actualDeliveryDate: '2026-04-18', no targetDeliveryDate
-      renderHouseholdItems({
-        householdItems: [HI_DELIVERED],
-        hiRowIndices: new Map([['hi-2', 0]]),
-      });
-      const circle = screen.getByTestId('gantt-hi-circle');
-      const ariaLabel = circle.getAttribute('aria-label');
-      expect(ariaLabel).toBeDefined();
-      expect(ariaLabel).toContain('Kitchen Fridge');
-      expect(ariaLabel).toContain('arrived');
-      // actualDeliveryDate takes priority in aria-label (targetDeliveryDate is null for HI_DELIVERED)
-      expect(ariaLabel).toContain('2026-04-18');
-    });
-
-    it('aria-label uses actualDeliveryDate when both actual and target are set', () => {
-      const hiWithBothDates: TimelineHouseholdItem = {
-        ...HI_ORDERED,
-        id: 'hi-both',
-        targetDeliveryDate: '2026-06-01',
-        actualDeliveryDate: '2026-06-15',
-        status: 'arrived',
-      };
-      renderHouseholdItems({
-        householdItems: [hiWithBothDates],
-        hiRowIndices: new Map([['hi-both', 0]]),
-      });
-      const circle = screen.getByTestId('gantt-hi-circle');
-      const ariaLabel = circle.getAttribute('aria-label')!;
-      expect(ariaLabel).toContain('2026-06-15'); // actual takes priority
-      expect(ariaLabel).not.toContain('2026-06-01'); // target should not appear
+      expect(screen.getByTestId('gantt-hi-circle')).toHaveAttribute(
+        'aria-label',
+        'Purchase: Dining Table',
+      );
     });
   });
 
@@ -366,32 +325,30 @@ describe('GanttHouseholdItems', () => {
   // ── Keyboard accessibility ─────────────────────────────────────────────────
 
   describe('keyboard accessibility', () => {
-    it('circle is focusable (tabIndex=0)', () => {
+    it('circle is a pointer target only (tabIndex=-1)', () => {
       renderHouseholdItems();
       const circle = screen.getByTestId('gantt-hi-circle');
-      expect(circle.getAttribute('tabindex')).toBe('0');
+      expect(circle.getAttribute('tabindex')).toBe('-1');
     });
 
-    it('Enter key triggers onHiClick with the item id', () => {
+    it('Enter key does not trigger onHiClick (the row button opens the panel)', () => {
       const onHiClick = jest.fn();
       renderHouseholdItems({ onHiClick });
 
       const circle = screen.getByTestId('gantt-hi-circle');
       fireEvent.keyDown(circle, { key: 'Enter' });
 
-      expect(onHiClick).toHaveBeenCalledTimes(1);
-      expect(onHiClick).toHaveBeenCalledWith('hi-3');
+      expect(onHiClick).not.toHaveBeenCalled();
     });
 
-    it('Space key triggers onHiClick with the item id', () => {
+    it('Space key does not trigger onHiClick', () => {
       const onHiClick = jest.fn();
       renderHouseholdItems({ onHiClick });
 
       const circle = screen.getByTestId('gantt-hi-circle');
       fireEvent.keyDown(circle, { key: ' ' });
 
-      expect(onHiClick).toHaveBeenCalledTimes(1);
-      expect(onHiClick).toHaveBeenCalledWith('hi-3');
+      expect(onHiClick).not.toHaveBeenCalled();
     });
 
     it('other keys do NOT trigger onHiClick', () => {
@@ -521,5 +478,33 @@ describe('GanttHouseholdItems', () => {
         expect(Number(c.getAttribute('cy'))).toBe(EXPECTED_Y);
       }
     });
+  });
+});
+
+describe('GanttHouseholdItems pointer and focus callbacks (#2247)', () => {
+  it('forwards mouse move, focus and blur to the handlers', () => {
+    const onHiMouseMove = jest.fn();
+    const onHiFocus = jest.fn();
+    const onHiBlur = jest.fn();
+    renderHouseholdItems({ onHiMouseMove, onHiFocus, onHiBlur });
+    const circle = screen.getByTestId('gantt-hi-circle');
+    fireEvent.mouseMove(circle);
+    fireEvent.focus(circle);
+    fireEvent.blur(circle);
+    expect(onHiMouseMove).toHaveBeenCalledTimes(1);
+    expect(onHiFocus).toHaveBeenCalledTimes(1);
+    expect(onHiBlur).toHaveBeenCalledWith(expect.objectContaining({ id: 'hi-3' }));
+  });
+
+  it('works without any handlers', () => {
+    renderHouseholdItems();
+    const circle = screen.getByTestId('gantt-hi-circle');
+    fireEvent.mouseEnter(circle);
+    fireEvent.mouseMove(circle);
+    fireEvent.mouseLeave(circle);
+    fireEvent.focus(circle);
+    fireEvent.blur(circle);
+    fireEvent.click(circle);
+    expect(circle).toBeInTheDocument();
   });
 });

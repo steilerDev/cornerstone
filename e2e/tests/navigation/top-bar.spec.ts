@@ -75,9 +75,9 @@ test.describe('Top bar (desktop)', () => {
       const timeline = new TimelinePage(page);
       await page.goto(routeUrl('scheduleGantt'));
       await timeline.waitForLoaded();
-      const row = timeline.ganttSidebarRow(taskId);
-      await row.waitFor({ state: 'visible' });
-      await row.click();
+      // A row opens the panel since #2247; "Open task" in it navigates (agenda row on a phone)
+      await timeline.openTaskPanel(taskId);
+      await timeline.openTaskPage();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('workItem', { id: taskId }));
     }
 

@@ -22,6 +22,7 @@ import {
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
   CRITICAL_LINE_LEVELS,
+  DEPENDENCY_TYPES,
   DOCUMENT_LINK_ENTITY_TYPES,
   DEFECT_STATUS_ACTIONS,
   DIARY_INSPECTION_OUTCOMES,
@@ -67,6 +68,12 @@ import { COST_LINE_DOCUMENT_KINDS } from '../components/CostLineTable/costLineDo
 import { COST_LINE_STATES } from '../components/CostLineTable/costLineState.js';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
 import { OBJECT_TAB_IDS } from '../components/ObjectTabs/objectTabIds.js';
+import {
+  SCHEDULE_GROUPS,
+  SCHEDULE_PHONE_VIEWS,
+  SCHEDULE_SHOW_KEYS,
+  SCHEDULE_SUBJECT_KINDS,
+} from '../lib/scheduleViewKeys.js';
 import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
 import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
@@ -86,6 +93,7 @@ export type UnionKeyNamespace =
   | 'common'
   | 'history'
   | 'home'
+  | 'schedule'
   | 'workItems';
 
 export interface UnionKeySet<U extends string> {
@@ -324,4 +332,20 @@ export const I18N_UNION_KEYS = {
   homeSetupHint: unionKeySet('home', 'setup.hint', HOME_SETUP_STEPS),
   /** home — kind word of a This week item (#2230). */
   homeAgendaKind: unionKeySet('home', 'week.kind', HOME_AGENDA_KINDS),
+  /** schedule — Show menu toggle label (#2247). */
+  scheduleShowItem: unionKeySet('schedule', 'view.toolbar.showItem', SCHEDULE_SHOW_KEYS),
+  /** schedule — Group menu option (#2247). */
+  scheduleGroup: unionKeySet('schedule', 'view.toolbar.groupOption', SCHEDULE_GROUPS),
+  /** schedule — phone Agenda | Chart toggle (#2247). */
+  schedulePhoneView: unionKeySet('schedule', 'view.phoneView', SCHEDULE_PHONE_VIEWS),
+  /** schedule — "Open task / milestone / purchase" link of the side panel (#2247). */
+  scheduleOpenSubject: unionKeySet('schedule', 'view.panel.open', SCHEDULE_SUBJECT_KINDS),
+  /** schedule — side-panel relation sentence of a predecessor (#2247). */
+  scheduleWaitsForRelation: unionKeySet(
+    'schedule',
+    'view.panel.waitsForRelation',
+    DEPENDENCY_TYPES,
+  ),
+  /** schedule — side-panel relation sentence of a successor (#2247). */
+  scheduleHoldsUpRelation: unionKeySet('schedule', 'view.panel.holdsUpRelation', DEPENDENCY_TYPES),
 } as const;

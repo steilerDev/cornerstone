@@ -15,7 +15,7 @@ The purchases system provides:
 - **Budget Integration** -- Add cost lines with a basis, cost categories, and financing sources -- purchase costs appear in the project-wide budget overview
 - **Task Linking** -- Link purchases to tasks for installation coordination (e.g., "Kitchen sink" depends on "Plumbing rough-in")
 - **Delivery Scheduling** -- Track order dates, delivery windows (earliest/latest), actual delivery dates, and late detection
-- **Timeline Dependencies** -- Add dependencies on tasks and milestones so delivery dates integrate with the project Gantt chart
+- **Timeline Dependencies** -- Add dependencies on tasks and milestones so delivery dates integrate with the project schedule chart
 - **Invoice Linking** -- Link company offers and invoices to purchase cost lines to track actual costs
 - **Document Linking** -- Attach documents from [Paperless-ngx](/guides/documents) (product specs, receipts, warranties) to purchases
 - **Areas & Notes** -- Assign items to project areas and add timestamped notes

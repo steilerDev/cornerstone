@@ -7,3 +7,5 @@ export { AnchoredPanel } from './AnchoredPanel.js';
 export type { AnchoredPanelProps } from './AnchoredPanel.js';
 export { useFocusRestore } from './useFocusRestore.js';
 export type { UseFocusRestoreOptions } from './useFocusRestore.js';
+export { SidePanel, SIDE_PANEL_DOCKED_QUERY } from './SidePanel.js';
+export type { SidePanelProps } from './SidePanel.js';

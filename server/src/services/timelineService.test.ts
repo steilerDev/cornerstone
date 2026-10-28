@@ -398,7 +398,12 @@ describe('getTimeline service', () => {
       expect(first.area).toBeNull();
       expect(first.assignedVendor).toBeNull();
       const second = result.workItems.find((w) => w.id === noTrade)!;
-      expect(second.assignedVendor).toEqual({ id: 'vendor-1', name: 'Company One', trade: null });
+      expect(second.assignedVendor).toEqual({
+        id: 'vendor-1',
+        name: 'Company One',
+        trade: null,
+        phone: null,
+      });
       expect(result.householdItems.find((h) => h.id === 'hi-lost')!.area).toBeNull();
     });
   });
@@ -645,6 +650,55 @@ describe('getTimeline service', () => {
       expect(wi.assignedVendor!.trade!.id).toBe(tradeId);
       expect(wi.assignedVendor!.trade!.name).toBe('Custom Test Plumbing');
       expect(wi.assignedVendor!.trade!.color).toBe('#0000FF');
+    });
+
+    it('includes the vendor phone so the Schedule panel can offer a Call button', () => {
+      const userId = insertUser(db);
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({
+          id: 'vendor-phone',
+          name: 'Phone Vendor',
+          tradeId: null,
+          phone: '+49 30 1234567',
+          email: null,
+          address: null,
+          notes: null,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertWorkItem(db, userId, { startDate: '2026-03-01', assignedVendorId: 'vendor-phone' });
+
+      const wi = getTimeline(db).workItems[0]!;
+
+      expect(wi.assignedVendor!.phone).toBe('+49 30 1234567');
+    });
+
+    it('sends phone as null (not undefined) when the vendor has no phone number', () => {
+      const userId = insertUser(db);
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({
+          id: 'vendor-nophone',
+          name: 'Silent Vendor',
+          tradeId: null,
+          phone: null,
+          email: null,
+          address: null,
+          notes: null,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertWorkItem(db, userId, { startDate: '2026-03-01', assignedVendorId: 'vendor-nophone' });
+
+      const vendor = getTimeline(db).workItems[0]!.assignedVendor!;
+
+      expect(vendor).toHaveProperty('phone', null);
+      expect(JSON.parse(JSON.stringify(vendor))).toHaveProperty('phone', null);
     });
 
     it('includes assignedVendor with null trade when vendor has no trade', () => {

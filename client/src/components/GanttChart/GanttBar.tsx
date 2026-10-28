@@ -1,9 +1,5 @@
 import { memo } from 'react';
-import type {
-  MouseEvent as ReactMouseEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-  FocusEvent as ReactFocusEvent,
-} from 'react';
+import type { MouseEvent as ReactMouseEvent, FocusEvent as ReactFocusEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
@@ -40,6 +36,12 @@ export interface GanttBarProps {
    * - 'default': no arrow hover active
    */
   interactionState?: BarInteractionState;
+  /** Late or held up (D7): draws the hatch overlay and the danger outline. */
+  isLate?: boolean;
+  /** Id of the SVG `<pattern>` the hatch overlay fills with. */
+  hatchPatternId?: string;
+  /** Resolved danger color for the late outline. */
+  lateOutlineColor?: string;
 
   // ---- Tooltip support (optional) ----
 
@@ -67,6 +69,10 @@ export interface GanttBarProps {
  * - Click-to-navigate
  * - Hover tooltip
  * - Critical path accent stripe
+ * - Late hatch overlay and outline
+ *
+ * The bar sits inside the aria-hidden chart SVG, so it is a pointer target only
+ * (tabIndex -1); the sidebar row buttons are the keyboard and screen-reader route.
  *
  * Uses React.memo to avoid unnecessary re-renders when scrolling.
  */
@@ -90,6 +96,9 @@ export const GanttBar = memo(function GanttBar({
   isCritical = false,
   criticalBorderColor,
   interactionState = 'default',
+  isLate = false,
+  hatchPatternId,
+  lateOutlineColor,
   tooltipId,
   onMouseEnter,
   onMouseLeave,
@@ -120,25 +129,17 @@ export const GanttBar = memo(function GanttBar({
     onClick?.(id);
   }
 
-  function handleKeyDown(e: ReactKeyboardEvent<SVGGElement>) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick?.(id);
-    }
-  }
-
   return (
     <g
       className={`${styles.bar} ${interactionClass}`}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onMouseMove={onMouseMove}
       onFocus={onFocus}
       onBlur={onBlur}
       role="graphics-symbol"
-      tabIndex={0}
+      tabIndex={-1}
       aria-label={ariaLabel}
       aria-describedby={tooltipId}
       data-testid={`gantt-bar-${id}`}
@@ -156,6 +157,21 @@ export const GanttBar = memo(function GanttBar({
         strokeWidth={isCritical && criticalBorderColor ? 2 : undefined}
         className={styles.rect}
       />
+      {/* Late: hatch overlay with a danger outline (D7) */}
+      {isLate && hatchPatternId && (
+        <rect
+          x={x}
+          y={barY}
+          width={width}
+          height={BAR_HEIGHT}
+          rx={4}
+          fill={`url(#${hatchPatternId})`}
+          stroke={lateOutlineColor}
+          strokeWidth={2}
+          pointerEvents="none"
+          data-testid={`gantt-bar-late-${id}`}
+        />
+      )}
     </g>
   );
 });

@@ -22,6 +22,7 @@ export type PreferenceKey =
   | 'home.movedNoticeSeen' // 'true' once the "what moved where" notice was dismissed
   | 'home.setupDismissed' // 'true' once set-up mode was skipped
   | 'attention.snoozed' // JSON object { "<attention row key>": "YYYY-MM-DD" } (snoozed until, exclusive)
+  | 'schedule.view' // JSON { show, zoom, group, areaId, legendOpen, phoneView } (Schedule view, #2247)
   | 'theme' // 'light' | 'dark' | 'system'
   | 'locale'; // ISO 639-1 language code (e.g., 'en', 'de')
 

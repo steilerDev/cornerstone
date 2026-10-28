@@ -4,6 +4,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   FocusEvent as ReactFocusEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimelineHouseholdItem } from '@cornerstone/shared';
 import { dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
 import type { ChartRange, ZoomLevel } from './ganttUtils.js';
@@ -65,18 +66,16 @@ export const GanttHouseholdItems = memo(function GanttHouseholdItems({
   onHiBlur,
   onHiClick,
 }: GanttHouseholdItemsProps) {
+  const { t } = useTranslation('schedule');
   if (householdItems.length === 0) return null;
 
   return (
-    <g
-      aria-label={`Household item markers (${householdItems.length})`}
-      data-testid="gantt-hi-layer"
-    >
+    <g data-testid="gantt-hi-layer">
       {householdItems.map((hi) => {
         const isDelivered = hi.status === 'arrived';
         const fill = isDelivered ? colors.arrivedFill : colors.fill;
         const stroke = isDelivered ? colors.arrivedStroke : colors.stroke;
-        const ariaLabel = `Household item: ${hi.name}, ${hi.status}, delivery ${hi.actualDeliveryDate ?? hi.targetDeliveryDate ?? 'unknown'}`;
+        const ariaLabel = t('gantt.aria.sidebarHouseholdItem', { name: hi.name });
 
         const rowIndex = hiRowIndices.get(hi.id) ?? 0;
         const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
@@ -99,7 +98,7 @@ export const GanttHouseholdItems = memo(function GanttHouseholdItems({
             key={hi.id}
             role="graphics-symbol"
             aria-label={ariaLabel}
-            tabIndex={0}
+            tabIndex={-1}
             className={`${styles.hiMarker} ${interactionClass}`}
             style={{ '--hi-hover-glow': colors.hoverGlow } as CSSProperties}
             onMouseEnter={(e) => onHiMouseEnter?.(hi, e)}
@@ -108,12 +107,6 @@ export const GanttHouseholdItems = memo(function GanttHouseholdItems({
             onFocus={(e) => onHiFocus?.(hi, e)}
             onBlur={() => onHiBlur?.(hi)}
             onClick={() => onHiClick?.(hi.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onHiClick?.(hi.id);
-              }
-            }}
             data-testid="gantt-hi-circle"
           >
             {/* Hit area */}

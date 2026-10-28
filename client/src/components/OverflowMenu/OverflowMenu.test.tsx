@@ -6,6 +6,7 @@ import { createRef, useRef } from 'react';
 import { Modal } from '../Modal/Modal.js';
 import { Sheet } from '../Modal/Sheet.js';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   OverflowMenu,
   type OverflowMenuControl,
@@ -1534,5 +1535,130 @@ describe('OverflowMenu portal flip (#2233 coverage)', () => {
     renderMenu({ usePortal: true, placement: 'top-end', menuTestId: 'panel' });
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     expect(screen.getByTestId('panel').style.top).toBe('396px');
+  });
+});
+
+describe('OverflowMenu toggle items (#2247)', () => {
+  function toggle(
+    id: string,
+    checked: boolean,
+    o: Partial<Extract<OverflowMenuEntry, { kind: 'toggle' }>> = {},
+  ): OverflowMenuEntry {
+    return {
+      kind: 'toggle',
+      id,
+      label: `Toggle ${id}`,
+      checked,
+      onChange: jest.fn<(checked: boolean) => void>(),
+      testId: `toggle-${id}`,
+      ...o,
+    };
+  }
+
+  function openWith(items: OverflowMenuEntry[]) {
+    render(<OverflowMenu items={items} triggerAriaLabel="Show" />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Show' }), { key: 'ArrowDown' });
+  }
+
+  const activeLabel = () => (document.activeElement as HTMLElement | null)?.textContent ?? '';
+
+  it('renders a menuitemcheckbox whose aria-checked mirrors checked, with a mark only when on', () => {
+    openWith([toggle('on', true), toggle('off', false)]);
+    const on = screen.getByRole('menuitemcheckbox', { name: /Toggle on/ });
+    const off = screen.getByRole('menuitemcheckbox', { name: /Toggle off/ });
+    expect(on).toHaveAttribute('aria-checked', 'true');
+    expect(off).toHaveAttribute('aria-checked', 'false');
+    expect(on.textContent).toContain('✓');
+    expect(off.textContent).not.toContain('✓');
+    expect(on).toHaveAttribute('tabindex', '-1');
+    expect(on).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('activation calls onChange with the inverted value and keeps the menu open', () => {
+    const onChange = jest.fn<(checked: boolean) => void>();
+    openWith([toggle('a', true, { onChange }), toggle('b', false)]);
+    fireEvent.click(screen.getByTestId('toggle-a'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(false);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('an unchecked toggle reports true', () => {
+    const onChange = jest.fn<(checked: boolean) => void>();
+    openWith([toggle('a', false, { onChange })]);
+    fireEvent.click(screen.getByTestId('toggle-a'));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('Enter and Space on a focused toggle activate it', async () => {
+    const onChange = jest.fn<(checked: boolean) => void>();
+    openWith([toggle('a', false, { onChange })]);
+    const item = screen.getByTestId('toggle-a');
+    item.focus();
+    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard(' ');
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('ariaDisabled is focusable and inert, with the description as its accessible description', () => {
+    const onChange = jest.fn<(checked: boolean) => void>();
+    openWith([
+      toggle('last', true, { onChange, ariaDisabled: true, description: 'Keep at least one kind' }),
+    ]);
+    const item = screen.getByRole('menuitemcheckbox', { name: /Toggle last/ });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    expect(item).not.toBeDisabled();
+    expect(item).toHaveAccessibleDescription('Keep at least one kind');
+    item.focus();
+    expect(item).toHaveFocus();
+    fireEvent.click(item);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('has no description reference when none is given', () => {
+    openWith([toggle('a', true)]);
+    expect(screen.getByTestId('toggle-a')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('opening by keyboard focuses a leading toggle, and End reaches a trailing one', () => {
+    openWith([
+      toggle('first', true),
+      { id: 'act', label: 'Action', onClick: jest.fn<() => void>() },
+      toggle('lastone', false),
+    ]);
+    expect(activeLabel()).toContain('Toggle first');
+    const menu = screen.getByRole('menu');
+    fireEvent.keyDown(menu, { key: 'End' });
+    expect(activeLabel()).toContain('Toggle lastone');
+    fireEvent.keyDown(menu, { key: 'Home' });
+    expect(activeLabel()).toContain('Toggle first');
+  });
+
+  it('arrow keys move through toggles and actions alike, wrapping at both ends', () => {
+    openWith([
+      toggle('a', true),
+      { kind: 'separator', id: 'sep' },
+      { id: 'act', label: 'Action', onClick: jest.fn<() => void>() },
+      toggle('b', false, { ariaDisabled: true }),
+    ]);
+    const menu = screen.getByRole('menu');
+    expect(activeLabel()).toContain('Toggle a');
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(activeLabel()).toBe('Action');
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(activeLabel()).toContain('Toggle b');
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(activeLabel()).toContain('Toggle a');
+    fireEvent.keyDown(menu, { key: 'ArrowUp' });
+    expect(activeLabel()).toContain('Toggle b');
+  });
+
+  it('Escape still closes a menu holding toggles and returns focus to the trigger', () => {
+    openWith([toggle('a', true)]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show' })).toHaveFocus();
   });
 });

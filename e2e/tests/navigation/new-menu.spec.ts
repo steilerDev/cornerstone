@@ -25,7 +25,14 @@
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { routeUrl } from '../../../shared/src/routes/index.js';
-import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createAreaViaApi,
+  createVendorViaApi,
+  createWorkItemViaApi,
+  deleteAreaViaApi,
+  deleteWorkItemViaApi,
+  deleteVendorViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { FinancingFormDialog } from '../../pages/FinancingFormDialog.js';
@@ -456,6 +463,55 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
       await expect(createPage.targetDateInput).toHaveValue(today);
       // The Calendar stays behind the dialog
       await expect(timeline.calendarHeading).toBeVisible();
+    });
+
+    test('N4: on the Schedule there is no Add menu; New carries the week on screen and the chosen area (#2247)', async ({
+      page,
+      testPrefix,
+    }) => {
+      const createMenu = new CreateMenu(page);
+      const timeline = new TimelinePage(page);
+      let areaId: string | null = null;
+      let taskId: string | null = null;
+
+      try {
+        areaId = await createAreaViaApi(page, { name: `${testPrefix} Prefill Area` });
+        // An area with nothing in it shows the "Nothing to show" state, so give it a task
+        taskId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} Prefill Task`,
+          areaId,
+          startDate: localToday(),
+          endDate: localToday(),
+        });
+        await page.goto(`${routeUrl('scheduleGantt')}?areaId=${areaId}`);
+        await timeline.heading.waitFor({ state: 'visible' });
+        const surface = await timeline.surface();
+
+        // The Schedule's own Add menu is gone: the global New menu creates objects
+        await expect(page.getByTestId('timeline-add-button')).toHaveCount(0);
+
+        await createMenu.open();
+        const diaryHref = await createMenu.row('diaryEntry').getAttribute('href');
+        const params = new URL(diaryHref!, 'http://localhost').searchParams;
+        expect(params.get('areaId')).toBe(areaId);
+        const date = params.get('date');
+        expect(date, 'the diary entry starts on the week on screen').toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        // Always a Monday: the agenda shows the current week, the chart the week at its left edge
+        expect(new Date(`${date}T00:00:00Z`).getUTCDay()).toBe(1);
+        if (surface === 'agenda') {
+          const today = new Date(`${localToday()}T00:00:00Z`);
+          const monday = new Date(today);
+          monday.setUTCDate(today.getUTCDate() - ((today.getUTCDay() + 6) % 7));
+          expect(date).toBe(monday.toISOString().slice(0, 10));
+        }
+        await expect(createMenu.row('task')).toHaveAttribute(
+          'href',
+          routeUrl('workItemNew', undefined, { areaId }),
+        );
+      } finally {
+        if (taskId) await deleteWorkItemViaApi(page, taskId);
+        if (areaId) await deleteAreaViaApi(page, areaId);
+      }
     });
 
     test('N4: invalid or unknown pre-fill values are dropped, never shown', async ({ page }) => {

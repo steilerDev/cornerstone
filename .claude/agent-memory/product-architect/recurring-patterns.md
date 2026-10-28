@@ -2240,3 +2240,22 @@ API-params builder. Purchases did it for `category` in both but for `areaId` onl
 `?areaId=a1,__none__` displayed "a1" while the server unioned both subtrees — and a unit test pinned
 the full CSV. When a spec says "legacy X uses its first id", grep the `…ListApiParams` builder for
 each named param, not just the filter component.
+
+## Capmap `clicks` is per-capability (≤ 2), not a journey count (#2247)
+
+`build-capmap.mjs` rejects any `clicks` > `MAX_CLICKS` (2) and checks it equals the highest `(n)`
+marker in `clickPath`. A spec that says "set `clicks: 4`" is quoting a **journey** target (J07 from
+Home, ADR-038 §5 "from the stated start page"), which belongs in the `note`. The capability count
+starts on the object's page: WRK-109 / WRK-136 are 2 from the Schedule (bar (1) > panel action (2)).
+Also: `plan:check` passing does **not** prove the figure guard — a new `data-figure` file still has
+to be added to `figureKind.test.ts` and the `PENDING_SURFACES` entry moved in `figureSurfaces.ts`.
+
+## Prediction of a write path needs an agreement test (PR #2348, #2247)
+
+A read-only preview that predicts what a write path will store (`settleGraph` in
+`schedulePreviewService.ts` vs `autoReschedule`'s write loop) is a forked function with a
+deliberately different predicate. Unit tests against hand-written expectations never catch drift.
+Ask for one route test that runs preview → the real write (PATCH) → the read endpoint and asserts that
+the preview's figures equal the stored result. Same review: `?.`/`??` on refs that are always mounted and
+on `findIndex`-guaranteed elements were the leftover unreachable branches. Grep `current?.` in
+mount effects and `?? null` right after a `findIndex` guard.

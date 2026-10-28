@@ -25,7 +25,7 @@
  */
 
 import type { Locator, Page } from '@playwright/test';
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import {
   createAreaViaApi,
   createDiaryEntryViaApi,
@@ -39,7 +39,7 @@ import {
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
 } from '../../fixtures/apiHelpers.js';
-import { enableDarkTheme, expectLegibleInDark } from '../../fixtures/darkMode.js';
+import { expectLegibleInDark, settleTransitions } from '../../fixtures/darkMode.js';
 import { API } from '../../fixtures/testData.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
@@ -605,6 +605,10 @@ async function heightOf(locator: Locator): Promise<number> {
 }
 
 test.describe('EntityPicker - sizes and themes (R1-R3)', { tag: '@responsive' }, () => {
+  // R3 switches the theme: a dedicated user keeps any stored theme preference of the shared admin
+  // (written by other specs) from racing the server sync with the theme the test sets
+  test.use({ isolatedUserPerTest: { emailPrefix: 'picker-theme' } });
+
   test('R1: the picker input and the selected chip are 44px tall; Clear selection has a 44px hit area', async ({
     page,
     testPrefix,
@@ -690,11 +694,12 @@ test.describe('EntityPicker - sizes and themes (R1-R3)', { tag: '@responsive' },
       await picker.type(`${testPrefix} Hall`);
       const light = await ancestorColor();
 
-      // Switch the theme with the list closed, then search again: the open list is portaled and
-      // re-rendering it mid-switch made the page background read stale
-      await page.keyboard.press('Escape');
-      await expect(picker.dropdown).toBeHidden();
-      await enableDarkTheme(page);
+      // Switch the theme the way the app stores it and load the page again, so the theme provider
+      // (not a hand-set attribute that a late preference sync could overwrite) owns the attribute
+      await page.evaluate(() => localStorage.setItem('theme', 'dark'));
+      await task.goto();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await settleTransitions(page);
       await picker.type(`${testPrefix} Hall`);
       const option = picker.optionNamed(`${seed.rootName}, ${seed.childName}`);
       await expect(option).toBeVisible();

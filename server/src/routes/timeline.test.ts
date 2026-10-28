@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type {
   TimelineResponse,
@@ -28,6 +29,7 @@ import {
   milestoneWorkItems,
   areas,
   householdItems,
+  vendors,
 } from '../db/schema.js';
 
 describe('Timeline Routes', () => {
@@ -328,6 +330,59 @@ describe('Timeline Routes', () => {
       expect(wi.assignedUser).toBeNull();
       expect(wi.area).toBeNull();
       expect(wi.assignedVendor).toBeNull();
+    });
+
+    it('returns the assigned vendor with its phone number over HTTP', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'vendor-phone@example.com',
+        'Test User',
+        'password123',
+      );
+      const now = new Date().toISOString();
+      app.db
+        .insert(vendors)
+        .values({
+          id: 'vendor-phone-1',
+          name: 'Roof Co',
+          phone: '+49 40 555 0100',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(vendors)
+        .values({ id: 'vendor-phone-2', name: 'Silent Co', createdAt: now, updatedAt: now })
+        .run();
+      const withPhone = createTestWorkItem(userId, 'Roof', { startDate: '2026-03-01' });
+      const withoutPhone = createTestWorkItem(userId, 'Quiet', { startDate: '2026-03-01' });
+      app.db
+        .update(workItems)
+        .set({ assignedVendorId: 'vendor-phone-1' })
+        .where(eq(workItems.id, withPhone))
+        .run();
+      app.db
+        .update(workItems)
+        .set({ assignedVendorId: 'vendor-phone-2' })
+        .where(eq(workItems.id, withoutPhone))
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const byId = new Map(response.json<TimelineResponse>().workItems.map((w) => [w.id, w]));
+      expect(byId.get(withPhone)!.assignedVendor).toMatchObject({
+        id: 'vendor-phone-1',
+        name: 'Roof Co',
+        phone: '+49 40 555 0100',
+      });
+      expect(byId.get(withoutPhone)!.assignedVendor).toMatchObject({
+        id: 'vendor-phone-2',
+        phone: null,
+      });
     });
 
     it('returns a TimelineDependency with all required fields', async () => {

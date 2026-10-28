@@ -358,7 +358,12 @@ export {
 export { SUBSIDY_APPLICATION_STATUSES, GRANT_ITEM_TYPES } from './types/subsidyProgram.js';
 export { HOUSEHOLD_ITEM_STATUSES, HOUSEHOLD_ITEM_LIST_SORTS } from './types/householdItem.js';
 export { DIARY_SOURCE_ENTITY_TYPES, DIARY_ISSUE_RESOLUTIONS } from './types/diary.js';
-export { SCHEDULE_SIGNALS } from './types/schedule.js';
+export {
+  SCHEDULE_SIGNALS,
+  SCHEDULE_OVERRIDES_MAX,
+  SCHEDULE_DURATION_DAYS_MAX,
+} from './types/schedule.js';
+export { DEPENDENCY_TYPES } from './types/dependency.js';
 export { MILESTONE_DISPLAY_STATUSES } from './types/milestone.js';
 export { BUDGET_VERDICTS } from './types/budgetOverview.js';
 export { CONFIDENCE_LEVELS } from './types/budget.js';
@@ -393,11 +398,17 @@ export type {
   ScheduleWarningType,
   ScheduleWarning,
   ScheduleSignal,
+  ScheduleOverride,
+  ScheduleImpactItem,
+  ScheduleImpactMilestone,
+  ScheduleImpact,
+  SchedulePreviewResponse,
 } from './types/schedule.js';
 
 // Timeline
 export type {
   TimelineWorkItem,
+  TimelineVendorSummary,
   TimelineDependency,
   TimelineMilestone,
   TimelineHouseholdItem,

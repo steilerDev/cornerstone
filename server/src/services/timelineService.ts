@@ -35,7 +35,7 @@ import type {
   HouseholdItemStatus,
   AreaSummary,
   AreaAncestor,
-  VendorSummary,
+  TimelineVendorSummary,
   TradeSummary,
 } from '@cornerstone/shared';
 import {
@@ -85,7 +85,7 @@ function toAreaSummaryInternal(
 function toVendorSummaryWithTrade(
   vendor: typeof vendors.$inferSelect | null,
   tradeMap: Map<string, typeof trades.$inferSelect>,
-): VendorSummary | null {
+): TimelineVendorSummary | null {
   if (!vendor) return null;
   let trade: TradeSummary | null = null;
   if (vendor.tradeId) {
@@ -103,6 +103,7 @@ function toVendorSummaryWithTrade(
     id: vendor.id,
     name: vendor.name,
     trade,
+    phone: vendor.phone,
   };
 }
 

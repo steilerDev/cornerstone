@@ -5,6 +5,7 @@ export {
   type OverflowMenuTriggerProps,
   type OverflowMenuItem,
   type OverflowMenuLinkItem,
+  type OverflowMenuToggleItem,
   type OverflowMenuSeparator,
   type OverflowMenuChoiceOption,
   type OverflowMenuChoiceGroup,

@@ -97,12 +97,11 @@ describe('GanttBar', () => {
     expect(group).toBeInTheDocument();
   });
 
-  it('has tabIndex=0 for keyboard navigation', () => {
+  it('is a pointer target only: tabIndex=-1 (the sidebar row is the keyboard route, D8)', () => {
     renderInSvg(DEFAULT_PROPS);
     const group = screen.getByRole('graphics-symbol');
-    // SVG elements use lowercase 'tabindex' attribute (per SVG spec),
-    // unlike HTML elements which use 'tabIndex'.
-    expect(group).toHaveAttribute('tabindex', '0');
+    // SVG elements use lowercase 'tabindex' attribute (per SVG spec).
+    expect(group).toHaveAttribute('tabindex', '-1');
   });
 
   it('builds aria-label from title and status', () => {
@@ -250,24 +249,22 @@ describe('GanttBar', () => {
 
   // ── Keyboard interactions ──────────────────────────────────────────────────
 
-  it('calls onClick with item id when Enter key is pressed', () => {
+  it('does not handle Enter on the bar (the row button opens the panel instead)', () => {
     const handleClick = jest.fn<(id: string) => void>();
     renderInSvg({ ...DEFAULT_PROPS, id: 'wi-enter-test', onClick: handleClick });
 
-    const group = screen.getByTestId('gantt-bar-wi-enter-test');
-    fireEvent.keyDown(group, { key: 'Enter' });
+    fireEvent.keyDown(screen.getByTestId('gantt-bar-wi-enter-test'), { key: 'Enter' });
 
-    expect(handleClick).toHaveBeenCalledWith('wi-enter-test');
+    expect(handleClick).not.toHaveBeenCalled();
   });
 
-  it('calls onClick with item id when Space key is pressed', () => {
+  it('does not handle Space on the bar', () => {
     const handleClick = jest.fn<(id: string) => void>();
     renderInSvg({ ...DEFAULT_PROPS, id: 'wi-space-test', onClick: handleClick });
 
-    const group = screen.getByTestId('gantt-bar-wi-space-test');
-    fireEvent.keyDown(group, { key: ' ' });
+    fireEvent.keyDown(screen.getByTestId('gantt-bar-wi-space-test'), { key: ' ' });
 
-    expect(handleClick).toHaveBeenCalledWith('wi-space-test');
+    expect(handleClick).not.toHaveBeenCalled();
   });
 
   it('does not call onClick for other keys', () => {
@@ -500,7 +497,7 @@ describe('GanttBar', () => {
       }).not.toThrow();
     });
 
-    it('bar group still fires onClick on Enter when onFocus/onBlur are also wired', () => {
+    it('bar group fires onFocus and onBlur and no click on Enter when all are wired', () => {
       const onClick = jest.fn<(id: string) => void>();
       const onFocus = jest.fn<(event: React.FocusEvent<SVGGElement>) => void>();
       const onBlur = jest.fn<() => void>();
@@ -511,7 +508,7 @@ describe('GanttBar', () => {
       fireEvent.keyDown(group, { key: 'Enter' });
       fireEvent.blur(group);
 
-      expect(onClick).toHaveBeenCalledWith(DEFAULT_PROPS.id);
+      expect(onClick).not.toHaveBeenCalled();
       expect(onFocus).toHaveBeenCalledTimes(1);
       expect(onBlur).toHaveBeenCalledTimes(1);
     });
@@ -532,5 +529,50 @@ describe('GanttBar', () => {
 
       expect(callOrder).toEqual(['focus', 'blur']);
     });
+  });
+});
+
+describe('GanttBar late overlay (#2247, D7)', () => {
+  const LATE = {
+    ...DEFAULT_PROPS,
+    isLate: true,
+    hatchPatternId: 'hatch-1',
+    lateOutlineColor: '#cc0000',
+  };
+
+  it('draws a hatch rect over the bar with the danger outline', () => {
+    renderInSvg(LATE);
+    const overlay = screen.getByTestId(`gantt-bar-late-${LATE.id}`);
+    expect(overlay.getAttribute('fill')).toBe('url(#hatch-1)');
+    expect(overlay.getAttribute('stroke')).toBe('#cc0000');
+    expect(overlay.getAttribute('stroke-width')).toBe('2');
+    expect(overlay.getAttribute('pointer-events')).toBe('none');
+  });
+
+  it('draws nothing when the bar is not late', () => {
+    renderInSvg({ ...LATE, isLate: false });
+    expect(screen.queryByTestId(`gantt-bar-late-${LATE.id}`)).toBeNull();
+  });
+
+  it('draws nothing when no pattern id is given', () => {
+    renderInSvg({ ...LATE, hatchPatternId: undefined });
+    expect(screen.queryByTestId(`gantt-bar-late-${LATE.id}`)).toBeNull();
+  });
+});
+
+describe('GanttBar critical border (#2247)', () => {
+  it('draws the critical border only with isCritical and a colour', () => {
+    const { unmount } = renderInSvg({
+      ...DEFAULT_PROPS,
+      isCritical: true,
+      criticalBorderColor: '#aa5500',
+    });
+    const rect = screen.getByTestId(`gantt-bar-${DEFAULT_PROPS.id}`).querySelector('rect')!;
+    expect(rect.getAttribute('stroke')).toBe('#aa5500');
+    expect(rect.getAttribute('stroke-width')).toBe('2');
+    unmount();
+    renderInSvg({ ...DEFAULT_PROPS, isCritical: true });
+    const plain = screen.getByTestId(`gantt-bar-${DEFAULT_PROPS.id}`).querySelector('rect')!;
+    expect(plain.getAttribute('stroke')).toBeNull();
   });
 });

@@ -9,7 +9,7 @@
   bottom: calc(
     var(--spacing-6) + var(--shell-bottom-height) + var(--sticky-action-bar-height, 0rem)
   );
-  right: var(--spacing-6);
+  right: calc(var(--spacing-6) + var(--docked-panel-width, 0rem));
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;

@@ -446,3 +446,48 @@ describe('GanttHeader', () => {
     });
   });
 });
+
+describe('GanttHeader today chip and day cells (#2247)', () => {
+  it('shows an aria-hidden Today chip at the today line', () => {
+    render(
+      <GanttHeader cells={[]} zoom="month" totalWidth={1000} todayX={321} todayColor="#ef4444" />,
+    );
+    const chip = screen.getByTestId('gantt-today-chip');
+    expect(chip).toHaveTextContent('Today');
+    expect(chip).toHaveAttribute('aria-hidden', 'true');
+    expect(chip).toHaveStyle({ left: '321px' });
+  });
+
+  it('has no Today chip when today is out of range', () => {
+    render(
+      <GanttHeader cells={[]} zoom="month" totalWidth={1000} todayX={null} todayColor="#ef4444" />,
+    );
+    expect(screen.queryByTestId('gantt-today-chip')).toBeNull();
+  });
+
+  it('highlights the today cell in day zoom and no other', () => {
+    render(
+      <GanttHeader
+        cells={[
+          makeCell({ label: '1', sublabel: 'Mon', isToday: true, width: COLUMN_WIDTHS.day }),
+          makeCell({
+            label: '2',
+            sublabel: 'Tue',
+            isToday: false,
+            x: 58,
+            date: new Date(2024, 5, 2, 12),
+            width: COLUMN_WIDTHS.day,
+          }),
+        ]}
+        zoom="day"
+        totalWidth={1000}
+        todayX={null}
+        todayColor="#ef4444"
+      />,
+    );
+    const cells = document.querySelectorAll('[class*="headerCell"]');
+    const todayCells = Array.from(cells).filter((c) => c.className.includes('headerCellToday'));
+    expect(todayCells).toHaveLength(1);
+    expect(todayCells[0]).toHaveTextContent('Mon');
+  });
+});

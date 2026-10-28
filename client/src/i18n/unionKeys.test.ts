@@ -42,6 +42,7 @@ import enHistory from './en/history.json';
 import enHome from './en/home.json';
 import enCostLines from './en/costLines.json';
 import enWorkItems from './en/workItems.json';
+import enSchedule from './en/schedule.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
@@ -52,6 +53,7 @@ import deHistory from './de/history.json';
 import deHome from './de/home.json';
 import deCostLines from './de/costLines.json';
 import deWorkItems from './de/workItems.json';
+import deSchedule from './de/schedule.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -67,6 +69,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   home: { en: enHome, de: deHome },
   workItems: { en: enWorkItems, de: deWorkItems },
   costLines: { en: enCostLines, de: deCostLines },
+  schedule: { en: enSchedule, de: deSchedule },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -95,8 +98,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 73 registered sets', () => {
-    expect(SETS).toHaveLength(73);
+  it('iterates all 79 registered sets', () => {
+    expect(SETS).toHaveLength(79);
   });
 });
 
@@ -246,6 +249,12 @@ describe('I18N_UNION_KEYS registry', () => {
       'homeSetupStep',
       'homeSetupHint',
       'homeAgendaKind',
+      'scheduleShowItem',
+      'scheduleGroup',
+      'schedulePhoneView',
+      'scheduleOpenSubject',
+      'scheduleWaitsForRelation',
+      'scheduleHoldsUpRelation',
     ]);
   });
 

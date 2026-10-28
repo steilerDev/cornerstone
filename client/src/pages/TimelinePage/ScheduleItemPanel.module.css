@@ -1,0 +1,106 @@
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  min-width: 0;
+}
+
+.headerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.openLink {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  margin-inline-start: auto;
+  text-decoration: none;
+}
+
+.back {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  flex: 0 0 auto;
+  min-height: var(--touch-target-min);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.sectionHeading {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.line {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
+.relations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.arrow {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.relationBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  min-width: 0;
+}

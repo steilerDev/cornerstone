@@ -1,60 +1,43 @@
-import { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
 import type { TimelineResponse } from '@cornerstone/shared';
 import { getTimeline } from '../lib/timelineApi.js';
-import { ApiClientError, NetworkError } from '../lib/apiClient.js';
-import { translateApiError } from '../lib/errorTranslation.js';
+import { toFetchFailure } from '../lib/fetchFailure.js';
+import type { FetchFailure } from '../lib/fetchFailure.js';
 
 export interface UseTimelineResult {
   data: TimelineResponse | null;
+  /** True until the first response or failure; a refetch never sets it again. */
   isLoading: boolean;
-  error: string | null;
-  /** `silent` keeps the current data and the loaded state while reloading. */
-  refetch: (options?: { silent?: boolean }) => void;
+  /** Why the latest load failed. A failure while data exists keeps `data`. */
+  failure: FetchFailure | null;
+  /** Reloads in place: the current data stays until the response arrives. */
+  refetch: () => void;
 }
 
 /**
- * Fetches timeline data for the Gantt chart.
- * Returns loading, error, and data states following the project's hook conventions.
+ * Fetches the schedule data. Stale-while-revalidate: only the first load is a loading state.
+ * The failure is data (not a message), so the effect never depends on the translator.
  */
 export function useTimeline(): UseTimelineResult {
-  const { t } = useTranslation('schedule');
-  const { t: tCommon } = useTranslation('common');
-  const { t: tErrors } = useTranslation('errors');
   const [data, setData] = useState<TimelineResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FetchFailure | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
-  const silentRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadTimeline() {
-      const silent = silentRef.current;
-      silentRef.current = false;
-      if (!silent) setIsLoading(true);
-      setError(null);
-
       try {
         const response = await getTimeline();
         if (!cancelled) {
           setData(response);
+          setFailure(null);
         }
       } catch (err) {
-        if (!cancelled) {
-          if (err instanceof ApiClientError) {
-            setError(translateApiError(err.error.code, tErrors));
-          } else if (err instanceof NetworkError) {
-            setError(tCommon('requestErrors.network'));
-          } else {
-            setError(t('timeline.errors.loadFailed'));
-          }
-        }
+        if (!cancelled) setFailure(toFetchFailure(err));
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -63,12 +46,11 @@ export function useTimeline(): UseTimelineResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tCommon, tErrors]);
+  }, [fetchCount]);
 
-  function refetch(options?: { silent?: boolean }) {
-    silentRef.current = options?.silent === true;
+  function refetch() {
     setFetchCount((c) => c + 1);
   }
 
-  return { data, isLoading, error, refetch };
+  return { data, isLoading, failure, refetch };
 }

@@ -64,3 +64,19 @@
   border-top: 6px solid transparent; /* color set inline from todayColor */
   pointer-events: none;
 }
+
+/* "Today" chip centred on the today line, above the triangle */
+.todayChip {
+  position: absolute;
+  top: var(--spacing-1);
+  transform: translateX(-50%);
+  padding: 0 var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+}

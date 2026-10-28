@@ -17,6 +17,7 @@
  * app runs in English here (`locale=en`), so `parseMoney` reads the en format.
  */
 
+import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import type { ServedRouteId } from '../../shared/src/routes/index.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
@@ -340,6 +341,52 @@ export const SCHEDULE_TOOLTIP_SURFACE: SubjectSurface<TaskSubject> = {
   },
 };
 
+/**
+ * The Schedule panel's Holds up sentence (#2247, story 5.3): a task's "Holds up n tasks"
+ * (`GET /api/timeline` holdsUp). The panel opens on a row click; the agenda (phone) is not read,
+ * so a caller on a phone gets no marker.
+ */
+export const SCHEDULE_PANEL_SURFACE: SubjectSurface<TaskSubject> = {
+  id: 'schedule.panel',
+  story: '5.3',
+  kind: 'holds-up',
+  async readAll(page, subject) {
+    const timeline = new TimelinePage(page);
+    await timeline.goto();
+    if ((await timeline.surface()) !== 'chart') return [];
+    await timeline.openTaskPanel(subject.workItemId);
+    const texts = await timeline.panelHoldsUpFigure.allInnerTexts();
+    return texts.map((text) => firstInteger(text));
+  },
+};
+
+/**
+ * The Reschedule preview's first line (#2247, story 5.3): "Holds up n tasks" computed by the
+ * server on the previewed projection (`impact.holdsUp`). Open Reschedule, duration + 1, read the
+ * figure once the preview is ready, Cancel. A duration change moves dates, not the successor
+ * chain, so the count equals the current one.
+ */
+export const SCHEDULE_RESCHEDULE_PREVIEW_SURFACE: SubjectSurface<TaskSubject> = {
+  id: 'schedule.reschedulePreview',
+  story: '5.3',
+  kind: 'holds-up',
+  async readAll(page, subject) {
+    const timeline = new TimelinePage(page);
+    await timeline.goto();
+    if ((await timeline.surface()) !== 'chart') return [];
+    await timeline.openTaskPanel(subject.workItemId);
+    await timeline.panelReschedule.click();
+    await timeline.rescheduleDuration.waitFor({ state: 'visible' });
+    const current = Number(await timeline.rescheduleDuration.inputValue());
+    await timeline.rescheduleDuration.fill(String(current + 1));
+    await timeline.rescheduleSave.waitFor({ state: 'visible' });
+    await expect(timeline.rescheduleSave).toBeEnabled();
+    const texts = await timeline.reschedulePreviewHoldsUp.allInnerTexts();
+    await timeline.rescheduleCancel.click();
+    return texts.map((text) => firstInteger(text));
+  },
+};
+
 /** The summary strip of an offer or invoice page (#2239, story 4.7): its Paid and Still to pay. */
 async function readInvoiceStrip(
   page: Page,
@@ -423,6 +470,8 @@ export const SUBJECT_SURFACES = [
   TASKS_LIST_HOLDS_UP_SURFACE,
   MILESTONES_LIST_HOLDS_UP_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
+  SCHEDULE_PANEL_SURFACE,
+  SCHEDULE_RESCHEDULE_PREVIEW_SURFACE,
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,
   FINANCING_SOURCE_PAID_SURFACE,
@@ -439,11 +488,5 @@ export const PENDING_SURFACES: PendingSurface[] = [
     screen: 'Task page',
     figures: ['holds-up'],
     note: 'Holds up n tasks on the task page.',
-  },
-  {
-    story: '5.3',
-    screen: 'Reschedule preview',
-    figures: ['holds-up'],
-    note: 'The Reschedule preview names the tasks it would move.',
   },
 ];

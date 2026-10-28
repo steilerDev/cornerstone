@@ -7,7 +7,8 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { ScheduleResponse, ApiErrorResponse, ScheduleRequest } from '@cornerstone/shared';
-import { workItems, workItemDependencies } from '../db/schema.js';
+import { workItems, workItemDependencies, milestones, milestoneWorkItems } from '../db/schema.js';
+import type { SchedulePreviewResponse, TimelineResponse } from '@cornerstone/shared';
 
 function futureDateStr(daysFromNow: number): string {
   const d = new Date();
@@ -824,6 +825,446 @@ describe('Schedule Routes', () => {
       const completedWarnings = body.warnings.filter((w) => w.type === 'already_completed');
       expect(completedWarnings.length).toBeGreaterThan(0);
       expect(completedWarnings[0]!.workItemId).toBe(wiB);
+    });
+  });
+
+  // ─── POST /api/schedule — overrides preview (#2247) ─────────────────────────
+
+  describe('overrides preview', () => {
+    const PAST = '2020-01-01';
+
+    async function post(cookie: string | undefined, payload: unknown) {
+      return app.inject({
+        method: 'POST',
+        url: '/api/schedule',
+        headers: cookie ? { cookie } : {},
+        payload: payload as Record<string, unknown>,
+      });
+    }
+
+    function snapshot() {
+      return {
+        workItems: app.db.select().from(workItems).all(),
+        milestones: app.db.select().from(milestones).all(),
+        deps: app.db.select().from(workItemDependencies).all(),
+      };
+    }
+
+    async function chain() {
+      const { userId, cookie } = await createUserWithSession('p@example.com', 'P', 'password123');
+      const a = createTestWorkItem(userId, 'A', { durationDays: 5, startDate: PAST });
+      const b = createTestWorkItem(userId, 'B', { durationDays: 3, startDate: PAST });
+      createTestDependency(a, b);
+      return { userId, cookie, a, b };
+    }
+
+    describe('schema rejections', () => {
+      const cases: Array<[string, unknown]> = [
+        ['0 entries', []],
+        [
+          '51 entries',
+          Array.from({ length: 51 }, (_, i) => ({ workItemId: `wi-${i}`, durationDays: 1 })),
+        ],
+        ['an entry with no date or duration', [{ workItemId: 'wi-1' }]],
+        ['an entry with no workItemId', [{ durationDays: 1 }]],
+        ['an empty workItemId', [{ workItemId: '', durationDays: 1 }]],
+        ['a malformed startDate', [{ workItemId: 'wi-1', startDate: '2026-3-1' }]],
+        ['a malformed endDate', [{ workItemId: 'wi-1', endDate: '01.03.2026' }]],
+        ['durationDays 3651', [{ workItemId: 'wi-1', durationDays: 3651 }]],
+        ['durationDays 1.5', [{ workItemId: 'wi-1', durationDays: 1.5 }]],
+        ['a negative durationDays', [{ workItemId: 'wi-1', durationDays: -1 }]],
+        ['overrides that is not an array', { workItemId: 'wi-1', durationDays: 1 }],
+      ];
+
+      it.each(cases)('rejects %s with 400 VALIDATION_ERROR', async (_name, overrides) => {
+        const { cookie } = await createUserWithSession('v@example.com', 'V', 'password123');
+        const response = await post(cookie, { mode: 'full', overrides });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('accepts exactly 50 entries and durationDays 0 and 3650 at the boundaries', async () => {
+        const { userId, cookie } = await createUserWithSession('b@example.com', 'B', 'password123');
+        const ids = Array.from({ length: 50 }, (_, i) => createTestWorkItem(userId, `T${i}`));
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: ids.map((workItemId, i) => ({
+            workItemId,
+            durationDays: i === 0 ? 0 : i === 1 ? 3650 : 1,
+          })),
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json<SchedulePreviewResponse>().impact).toBeDefined();
+      });
+
+      it('does not accept an unknown property on an override entry as a way to change a task', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 1, title: 'Renamed', status: 'completed' }],
+        });
+        // the app strips unknown properties (removeAdditional) or rejects them; never applies them
+        expect([200, 400]).toContain(response.statusCode);
+        expect(snapshot().workItems.find((w) => w.id === a)!.title).toBe('A');
+        expect(snapshot().workItems.find((w) => w.id === a)!.status).toBe('not_started');
+      });
+    });
+
+    describe('semantic validation', () => {
+      it('rejects 2026-02-30 with reason invalid_date', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, startDate: '2026-02-30' }],
+        });
+        expect(response.statusCode).toBe(400);
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('VALIDATION_ERROR');
+        expect(body.error.details).toEqual({ workItemIds: [a], reason: 'invalid_date' });
+      });
+
+      it('rejects a duplicated work item', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [
+            { workItemId: a, durationDays: 1 },
+            { workItemId: a, durationDays: 2 },
+          ],
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.details).toEqual({
+          workItemIds: [a],
+          reason: 'duplicate',
+        });
+      });
+
+      it('rejects an unknown work item', async () => {
+        const { cookie } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: 'does-not-exist', durationDays: 1 }],
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.details).toEqual({
+          workItemIds: ['does-not-exist'],
+          reason: 'unknown_work_item',
+        });
+      });
+
+      it('rejects a start after the end', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, startDate: '2030-03-05', endDate: '2030-03-01' }],
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.details).toEqual({
+          workItemIds: [a],
+          reason: 'start_after_end',
+        });
+      });
+
+      it('rejects an end before the effective start', async () => {
+        const { userId, cookie } = await createUserWithSession('e@example.com', 'E', 'password123');
+        const a = createTestWorkItem(userId, 'A', { durationDays: 5, startDate: '2030-03-10' });
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, endDate: '2030-03-01' }],
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.details).toEqual({
+          workItemIds: [a],
+          reason: 'end_before_start',
+        });
+      });
+
+      it('never puts work item titles in the error details', async () => {
+        const { cookie } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: 'nope', durationDays: 1 }],
+        });
+        expect(JSON.stringify(response.json())).not.toMatch(/"A"|"B"/);
+      });
+    });
+
+    describe('authentication', () => {
+      it('returns 401 without a session, even with valid overrides', async () => {
+        const response = await post(undefined, {
+          mode: 'full',
+          overrides: [{ workItemId: 'x', durationDays: 1 }],
+        });
+        expect(response.statusCode).toBe(401);
+      });
+
+      it('lets a member run a preview', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 1 }],
+        });
+        expect(response.statusCode).toBe(200);
+      });
+
+      it('lets an admin run a preview', async () => {
+        const { userId, cookie } = await createUserWithSession(
+          'admin@example.com',
+          'Admin',
+          'password123',
+          'admin',
+        );
+        const a = createTestWorkItem(userId, 'A');
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 1 }],
+        });
+        expect(response.statusCode).toBe(200);
+      });
+    });
+
+    describe('response', () => {
+      it('adds impact with the pushed successor, the overridden task excluded', async () => {
+        const { cookie, a, b } = await chain();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 10 }],
+        });
+        expect(response.statusCode).toBe(200);
+        const body = response.json<SchedulePreviewResponse>();
+        expect(Object.keys(body.impact).sort()).toEqual([
+          'holdsUp',
+          'milestones',
+          'movedItems',
+          'projectEnd',
+        ]);
+        expect(body.impact.movedItems).toHaveLength(1);
+        expect(body.impact.movedItems[0]).toMatchObject({ workItemId: b, deltaDays: 5 });
+        expect(body.impact.holdsUp.count).toBe(1);
+        expect(body.impact.projectEnd.previousDate).not.toBeNull();
+        expect(body.impact.projectEnd.newDate! > body.impact.projectEnd.previousDate!).toBe(true);
+        // the scheduled items reflect the override
+        const scheduledA = body.scheduledItems.find((i) => i.workItemId === a)!;
+        const scheduledB = body.scheduledItems.find((i) => i.workItemId === b)!;
+        expect(scheduledB.scheduledStartDate).toBe(scheduledA.scheduledEndDate);
+      });
+
+      it('reports a shifted milestone', async () => {
+        const { userId, cookie, a } = await chain();
+        const now = new Date().toISOString();
+        const m = app.db
+          .insert(milestones)
+          .values({
+            title: 'Shell',
+            targetDate: '2099-01-01',
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning()
+          .get();
+        app.db.insert(milestoneWorkItems).values({ milestoneId: m.id, workItemId: a }).run();
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 10 }],
+        });
+        const body = response.json<SchedulePreviewResponse>();
+        expect(body.impact.milestones).toEqual([
+          expect.objectContaining({ milestoneId: m.id, deltaDays: 5 }),
+        ]);
+      });
+
+      it('works in cascade mode with an anchor', async () => {
+        const { cookie, a } = await chain();
+        const response = await post(cookie, {
+          mode: 'cascade',
+          anchorWorkItemId: a,
+          overrides: [{ workItemId: a, durationDays: 10 }],
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json<SchedulePreviewResponse>().impact).toBeDefined();
+      });
+
+      it('still validates the cascade anchor first', async () => {
+        const { cookie, a } = await chain();
+        const missing = await post(cookie, {
+          mode: 'cascade',
+          overrides: [{ workItemId: a, durationDays: 10 }],
+        });
+        expect(missing.statusCode).toBe(400);
+        const unknown = await post(cookie, {
+          mode: 'cascade',
+          anchorWorkItemId: 'ghost',
+          overrides: [{ workItemId: a, durationDays: 10 }],
+        });
+        expect(unknown.statusCode).toBe(404);
+      });
+
+      it('leaves a request without overrides unchanged: no impact field', async () => {
+        const { cookie } = await chain();
+        const response = await post(cookie, { mode: 'full' });
+        expect(response.statusCode).toBe(200);
+        const body = response.json<Record<string, unknown>>();
+        expect(Object.keys(body).sort()).toEqual(['criticalPath', 'scheduledItems', 'warnings']);
+        expect('impact' in body).toBe(false);
+      });
+
+      it('does not change the scheduled items of a request without overrides', async () => {
+        const { cookie, a } = await chain();
+        const plain = (await post(cookie, { mode: 'full' })).json<ScheduleResponse>();
+        const previewed = (
+          await post(cookie, { mode: 'full', overrides: [{ workItemId: a, durationDays: 10 }] })
+        ).json<ScheduleResponse>();
+        const after = (await post(cookie, { mode: 'full' })).json<ScheduleResponse>();
+        expect(after).toEqual(plain);
+        expect(previewed).not.toEqual(plain);
+      });
+    });
+
+    describe('nothing is persisted', () => {
+      it('leaves work_items, milestones and dependencies deep-equal', async () => {
+        const { userId, cookie, a, b } = await chain();
+        const now = new Date().toISOString();
+        const m = app.db
+          .insert(milestones)
+          .values({
+            title: 'M',
+            targetDate: '2099-01-01',
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning()
+          .get();
+        app.db.insert(milestoneWorkItems).values({ milestoneId: m.id, workItemId: b }).run();
+        const before = snapshot();
+
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [
+            { workItemId: a, startDate: '2031-01-01', durationDays: 40 },
+            { workItemId: b, endDate: '2032-01-01' },
+          ],
+        });
+        expect(response.statusCode).toBe(200);
+
+        expect(snapshot()).toEqual(before);
+      });
+
+      it('persists nothing when the preview is rejected', async () => {
+        const { cookie, a } = await chain();
+        const before = snapshot();
+        await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, startDate: '2026-02-30' }],
+        });
+        expect(snapshot()).toEqual(before);
+      });
+    });
+
+    describe('preview predicts what Save stores', () => {
+      it('every moved task, milestone and the project end match the timeline after PATCH', async () => {
+        const { userId, cookie } = await createUserWithSession(
+          'pv@example.com',
+          'PV',
+          'password123',
+        );
+        const d = (n: number) => futureDateStr(n);
+        // consistent with the plan, as after a normal reschedule
+        const a = createTestWorkItem(userId, 'A', {
+          durationDays: 5,
+          startDate: d(10),
+          endDate: d(15),
+        });
+        const b = createTestWorkItem(userId, 'B', {
+          durationDays: 3,
+          startDate: d(15),
+          endDate: d(18),
+        });
+        const c = createTestWorkItem(userId, 'C', {
+          durationDays: 2,
+          startDate: d(18),
+          endDate: d(20),
+        });
+        createTestDependency(a, b);
+        createTestDependency(b, c);
+        const now = new Date().toISOString();
+        const m = app.db
+          .insert(milestones)
+          .values({
+            title: 'Shell',
+            targetDate: d(60),
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning()
+          .get();
+        app.db.insert(milestoneWorkItems).values({ milestoneId: m.id, workItemId: c }).run();
+
+        const preview = await post(cookie, {
+          mode: 'cascade',
+          anchorWorkItemId: a,
+          overrides: [{ workItemId: a, durationDays: 9 }],
+        });
+        expect(preview.statusCode).toBe(200);
+        const { impact } = preview.json<SchedulePreviewResponse>();
+        expect(impact.movedItems.map((i) => i.workItemId).sort()).toEqual([b, c].sort());
+        expect(impact.milestones.map((i) => i.milestoneId)).toEqual([m.id]);
+
+        const saved = await app.inject({
+          method: 'PATCH',
+          url: `/api/work-items/${a}`,
+          headers: { cookie },
+          payload: { durationDays: 9, endDate: d(19) },
+        });
+        expect(saved.statusCode).toBe(200);
+
+        const timeline = (
+          await app.inject({ method: 'GET', url: '/api/timeline', headers: { cookie } })
+        ).json<TimelineResponse>();
+        const shownEnd = (id: string) => {
+          const w = timeline.workItems.find((x) => x.id === id)!;
+          return w.actualEndDate ?? w.projectedEndDate;
+        };
+
+        for (const moved of impact.movedItems) {
+          expect(moved.newEndDate).toBe(shownEnd(moved.workItemId));
+        }
+        for (const ms of impact.milestones) {
+          expect(ms.newProjectedDate).toBe(
+            timeline.milestones.find((x) => x.id === ms.milestoneId)!.projectedDate,
+          );
+        }
+        const latest = timeline.workItems
+          .map((w) => w.actualEndDate ?? w.projectedEndDate)
+          .filter((x): x is string => x !== null)
+          .sort()
+          .at(-1);
+        expect(impact.projectEnd.newDate).toBe(latest);
+      });
+    });
+
+    describe('circular dependencies', () => {
+      it('answers a baseline cycle with 409 CIRCULAR_DEPENDENCY', async () => {
+        const { userId, cookie } = await createUserWithSession('c@example.com', 'C', 'password123');
+        const a = createTestWorkItem(userId, 'A');
+        const b = createTestWorkItem(userId, 'B');
+        const c = createTestWorkItem(userId, 'C');
+        createTestDependency(a, b);
+        createTestDependency(b, c);
+        createTestDependency(c, a);
+        const response = await post(cookie, {
+          mode: 'full',
+          overrides: [{ workItemId: a, durationDays: 1 }],
+        });
+        expect(response.statusCode).toBe(409);
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('CIRCULAR_DEPENDENCY');
+        expect((body.error.details as { cycle: string[] }).cycle.slice().sort()).toEqual(
+          [a, b, c].sort(),
+        );
+      });
     });
   });
 });

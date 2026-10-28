@@ -1,41 +1,14 @@
 /**
  * @jest-environment jsdom
  *
- * Unit tests for the useTimeline hook.
- *
- * Tests the hook's state management: initial loading, error surfacing,
- * and refetch behavior. These are tested through a minimal React component
- * that renders hook output — following project conventions from
- * AuthContext.test.tsx and similar files.
- *
- * Coverage note: Data population on successful fetch and ApiClientError/generic
- * error surfacing are tested at the page level in TimelinePage.test.tsx, which
- * exercises the full hook-component chain. The systemic async batching behavior
- * in React 19 + jest.unstable_mockModule requires this split.
- *
- * Mock interception note: jest.unstable_mockModule registers the mock at the
- * absolute path level. The hook's static import of getTimeline is intercepted
- * when the module is first loaded after the mock is registered. However, mock
- * call counts cannot be reliably verified here because the mock reference may
- * not be the same function instance used by the hook (ESM module caching).
- * Call-count verification is done at the page level in TimelinePage.test.tsx
- * where the mock path unambiguously matches the loaded module.
+ * useTimeline (D19): stale-while-revalidate. Only the first load is a loading state; a refetch
+ * keeps the data; a failure is data (`failure`), never a translated message, and a locale change
+ * never refetches.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import type * as TimelineApiModule from '../lib/timelineApi.js';
-import type * as UseTimelineModule from './useTimeline.js';
-import type { TimelineResponse } from '@cornerstone/shared';
-import type React from 'react';
-import i18n from '../i18n/index.js';
-import enErrors from '../i18n/en/errors.json';
-import enCommon from '../i18n/en/common.json';
-import enSchedule from '../i18n/en/schedule.json';
-import deSchedule from '../i18n/de/schedule.json';
-
-// ---------------------------------------------------------------------------
-// Mock setup
-// ---------------------------------------------------------------------------
+import { makeTask, makeTimeline } from '../test/scheduleFixtures.js';
 
 const mockGetTimeline = jest.fn<typeof TimelineApiModule.getTimeline>();
 
@@ -43,288 +16,109 @@ jest.unstable_mockModule('../lib/timelineApi.js', () => ({
   getTimeline: mockGetTimeline,
 }));
 
-// Note: The TimelinePage.test.tsx uses '../../lib/timelineApi.js' which also works.
-// This confirms the mock path resolution is relative to the test file directory.
+const { useTimeline } = await import('./useTimeline.js');
+const { ApiClientError, NetworkError } = await import('../lib/apiClient.js');
 
-// ---------------------------------------------------------------------------
-// Test fixtures
-// ---------------------------------------------------------------------------
-
-const EMPTY_TIMELINE: TimelineResponse = {
-  workItems: [],
-  dependencies: [],
-  milestones: [],
-  householdItems: [],
-  criticalPath: [],
-  dateRange: null,
-};
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+const FIRST = makeTimeline({ workItems: [makeTask('a')] });
+const SECOND = makeTimeline({ workItems: [makeTask('a'), makeTask('b')] });
 
 describe('useTimeline', () => {
-  let useTimeline: () => {
-    data: TimelineResponse | null;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-  };
-
-  beforeEach(async () => {
-    if (!useTimeline) {
-      const module = await import('./useTimeline.js');
-      useTimeline = module.useTimeline;
-    }
+  beforeEach(() => {
     mockGetTimeline.mockReset();
   });
 
-  function TestComponent() {
-    const { isLoading, error, refetch } = useTimeline();
-    return (
-      <div>
-        <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
-        <span data-testid="error">{error ?? 'null'}</span>
-        <button data-testid="refetch" onClick={refetch}>
-          Refetch
-        </button>
-      </div>
-    ) as React.ReactElement;
-  }
-
-  // ── Initial state ──────────────────────────────────────────────────────────
-
-  it('starts in loading state with no error', () => {
+  it('starts loading with no data and no failure', async () => {
     mockGetTimeline.mockReturnValue(new Promise(() => {}));
-
-    render(<TestComponent />);
-
-    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
-    expect(screen.getByTestId('error')).toHaveTextContent('null');
+    const { result } = renderHook(() => useTimeline());
+    expect(result.current).toMatchObject({ data: null, isLoading: true, failure: null });
   });
 
-  // ── Loading state transitions ──────────────────────────────────────────────
-
-  it('sets isLoading to false after fetch resolves', async () => {
-    mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
-
-    render(<TestComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('done');
-    });
+  it('loads the data and stops loading', async () => {
+    mockGetTimeline.mockResolvedValue(FIRST);
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.data).toEqual(FIRST);
+    expect(result.current.failure).toBeNull();
   });
 
-  it('sets isLoading to false after fetch rejects', async () => {
-    const { NetworkError } = await import('../lib/apiClient.js');
-    mockGetTimeline.mockRejectedValue(
-      new NetworkError('Network request failed', new TypeError('Failed')),
-    );
+  it('keeps the data and never shows loading again while a refetch runs', async () => {
+    mockGetTimeline.mockResolvedValueOnce(FIRST);
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    render(<TestComponent />);
+    let resolveSecond!: (value: typeof SECOND) => void;
+    mockGetTimeline.mockReturnValueOnce(new Promise((resolve) => (resolveSecond = resolve)));
+    act(() => result.current.refetch());
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toEqual(FIRST);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('done');
-    });
-  });
-
-  // ── Error state ────────────────────────────────────────────────────────────
-
-  it('surfaces network error message for NetworkError', async () => {
-    const { NetworkError } = await import('../lib/apiClient.js');
-    const networkError = new NetworkError(
-      'Network request failed',
-      new TypeError('Failed to fetch'),
-    );
-    mockGetTimeline.mockRejectedValue(networkError);
-
-    render(<TestComponent />);
-
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText).toBe(enCommon.requestErrors.network);
-      expect(errorText).not.toContain('Failed to fetch');
-    });
-  });
-
-  describe('translated errors', () => {
-    it('surfaces the translated code copy for an ApiClientError, never the server text', async () => {
-      const { ApiClientError } = await import('../lib/apiClient.js');
-      mockGetTimeline.mockRejectedValue(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      render(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
-      });
-      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-SERVER-SENTINEL');
-    });
-
-    it('surfaces the loadFailed key text for any other error, not the local text', async () => {
-      mockGetTimeline.mockRejectedValue(new Error('RAW-LOCAL'));
-
-      render(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent(
-          enSchedule.timeline.errors.loadFailed,
-        );
-      });
-      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-LOCAL');
-    });
-
-    it('re-fetches and re-translates the error when the language changes', async () => {
-      mockGetTimeline.mockRejectedValue(new Error('RAW-LOCAL'));
-
-      render(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent(
-          enSchedule.timeline.errors.loadFailed,
-        );
-      });
-      const callsBefore = mockGetTimeline.mock.calls.length;
-
-      try {
-        await act(async () => {
-          await i18n.changeLanguage('de');
-        });
-        await waitFor(() => {
-          expect(screen.getByTestId('error')).toHaveTextContent(
-            deSchedule.timeline.errors.loadFailed,
-          );
-        });
-        expect(mockGetTimeline.mock.calls.length).toBeGreaterThan(callsBefore);
-      } finally {
-        await act(async () => {
-          await i18n.changeLanguage('en');
-        });
-      }
-    });
-  });
-
-  it('error message is cleared when refetch starts', async () => {
-    const { NetworkError } = await import('../lib/apiClient.js');
-    const networkError = new NetworkError('Network request failed', new TypeError('Failed'));
-
-    // First call rejects, second never resolves (we observe state DURING second fetch)
-    mockGetTimeline.mockRejectedValueOnce(networkError);
-    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
-
-    render(<TestComponent />);
-
-    // Wait for error state to appear
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText).not.toBe('null');
-    });
-
-    // Trigger refetch (which will never resolve — so we can check mid-fetch state)
-    act(() => {
-      screen.getByTestId('refetch').click();
-    });
-
-    // Error should be cleared (setError(null) is called at start of each fetch)
-    await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('null');
-    });
-  });
-
-  // ── refetch ────────────────────────────────────────────────────────────────
-
-  it('exposes a refetch function', () => {
-    mockGetTimeline.mockReturnValue(new Promise(() => {}));
-
-    render(<TestComponent />);
-
-    expect(screen.getByTestId('refetch')).toBeInTheDocument();
-  });
-
-  it('sets isLoading back to true when refetch is triggered', async () => {
-    mockGetTimeline.mockResolvedValueOnce(EMPTY_TIMELINE);
-    // Second fetch never resolves — to observe loading state
-    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
-
-    render(<TestComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('done');
-    });
-
-    act(() => {
-      screen.getByTestId('refetch').click();
-    });
-
-    // Should be loading again
-    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
-  });
-});
-
-describe('useTimeline silent refetch (#2212)', () => {
-  const WITH_ITEM: TimelineResponse = {
-    ...EMPTY_TIMELINE,
-    householdItems: [{ id: 'hi-1' } as never],
-  };
-
-  function SilentComponent({ useIt }: { useIt: typeof UseTimelineModule.useTimeline }) {
-    const { data, isLoading, refetch } = useIt();
-    return (
-      <div>
-        <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
-        <span data-testid="count">{String(data?.householdItems.length ?? -1)}</span>
-        <button data-testid="silent" onClick={() => refetch({ silent: true })}>
-          silent
-        </button>
-        <button data-testid="loud" onClick={() => refetch()}>
-          loud
-        </button>
-      </div>
-    );
-  }
-
-  async function setup() {
-    mockGetTimeline.mockReset();
-    mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
-    const { useTimeline } = await import('./useTimeline.js');
-    render(<SilentComponent useIt={useTimeline} />);
-    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('done'));
-    expect(screen.getByTestId('count')).toHaveTextContent('0');
-  }
-
-  it('keeps the data and never shows the loading state while a silent refetch runs', async () => {
-    await setup();
-    let resolve!: (t: TimelineResponse) => void;
-    mockGetTimeline.mockReturnValueOnce(
-      new Promise<TimelineResponse>((r) => {
-        resolve = r;
-      }),
-    );
-    act(() => screen.getByTestId('silent').click());
+    await act(async () => resolveSecond(SECOND));
+    expect(result.current.data).toEqual(SECOND);
     expect(mockGetTimeline).toHaveBeenCalledTimes(2);
-    expect(screen.getByTestId('loading')).toHaveTextContent('done');
-    expect(screen.getByTestId('count')).toHaveTextContent('0');
-    await act(async () => {
-      resolve(WITH_ITEM);
+  });
+
+  it('describes an API failure as data: code and notFound, never the server text', async () => {
+    mockGetTimeline.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'server words' }),
+    );
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.failure).not.toBeNull());
+    expect(result.current.failure).toEqual({
+      kind: 'api',
+      code: 'INTERNAL_ERROR',
+      notFound: false,
     });
-    expect(screen.getByTestId('loading')).toHaveTextContent('done');
-    expect(screen.getByTestId('count')).toHaveTextContent('1');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toBeNull();
   });
 
-  it('a normal refetch still shows the loading state', async () => {
-    await setup();
-    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
-    act(() => screen.getByTestId('loud').click());
-    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
+  it('marks a 404 as notFound', async () => {
+    mockGetTimeline.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'gone' }),
+    );
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.failure).not.toBeNull());
+    expect(result.current.failure).toMatchObject({ kind: 'api', notFound: true });
   });
 
-  it('a silent refetch does not make the next normal refetch silent', async () => {
-    await setup();
-    mockGetTimeline.mockResolvedValueOnce(WITH_ITEM);
-    await act(async () => screen.getByTestId('silent').click());
-    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
-    act(() => screen.getByTestId('loud').click());
-    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
+  it('describes any other error as kind other', async () => {
+    mockGetTimeline.mockRejectedValue(new NetworkError('offline', undefined));
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.failure).not.toBeNull());
+    expect(result.current.failure).toEqual({ kind: 'other' });
+  });
+
+  it('a failed refetch keeps the data and reports the failure; the next success clears it', async () => {
+    mockGetTimeline.mockResolvedValueOnce(FIRST);
+    const { result } = renderHook(() => useTimeline());
+    await waitFor(() => expect(result.current.data).toEqual(FIRST));
+
+    mockGetTimeline.mockRejectedValueOnce(new NetworkError('offline', undefined));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.failure).toEqual({ kind: 'other' }));
+    expect(result.current.data).toEqual(FIRST);
+
+    mockGetTimeline.mockResolvedValueOnce(SECOND);
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.data).toEqual(SECOND));
+    expect(result.current.failure).toBeNull();
+  });
+
+  it('ignores a response that arrives after unmount', async () => {
+    let resolve!: (value: typeof FIRST) => void;
+    mockGetTimeline.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { result, unmount } = renderHook(() => useTimeline());
+    unmount();
+    await act(async () => resolve(FIRST));
+    expect(result.current.data).toBeNull();
+  });
+
+  it('ignores a failure that arrives after unmount', async () => {
+    let reject!: (reason: Error) => void;
+    mockGetTimeline.mockReturnValue(new Promise((_, r) => (reject = r)));
+    const { result, unmount } = renderHook(() => useTimeline());
+    unmount();
+    await act(async () => reject(new NetworkError('late', undefined)));
+    expect(result.current.failure).toBeNull();
   });
 });

@@ -1,5 +1,13 @@
 import { describe, it, expect } from '@jest/globals';
-import { barDates, plannedRangeText, scheduleSignalOf, showsPlannedRow } from './scheduleDates.js';
+import {
+  barDates,
+  daysBetweenKeys,
+  plannedRangeText,
+  purchaseLateDays,
+  scheduleSignalOf,
+  showsPlannedRow,
+} from './scheduleDates.js';
+import { makePurchase } from '../test/scheduleFixtures.js';
 
 describe('barDates', () => {
   const base = {
@@ -144,5 +152,36 @@ describe('plannedRangeText', () => {
 
   it('returns null when no planned date is set', () => {
     expect(plannedRangeText(null, null, 'en-US', fmt)).toBeNull();
+  });
+});
+
+describe('daysBetweenKeys', () => {
+  it('counts whole days, negative backwards, across a DST change', () => {
+    expect(daysBetweenKeys('2026-03-01', '2026-03-08')).toBe(7);
+    expect(daysBetweenKeys('2026-03-08', '2026-03-01')).toBe(-7);
+    expect(daysBetweenKeys('2026-03-28', '2026-03-30')).toBe(2);
+    expect(daysBetweenKeys('2026-03-05', '2026-03-05')).toBe(0);
+  });
+});
+
+describe('purchaseLateDays', () => {
+  const TODAY = '2026-03-04';
+
+  it('is 0 when the purchase is not late', () => {
+    expect(purchaseLateDays(makePurchase('p'), TODAY)).toBe(0);
+  });
+
+  it('counts days since the latest delivery date, else the earliest', () => {
+    const late = makePurchase('p', { isLate: true, latestDeliveryDate: '2026-03-01' });
+    expect(purchaseLateDays(late, TODAY)).toBe(3);
+    const earliest = makePurchase('p', { isLate: true, earliestDeliveryDate: '2026-02-26' });
+    expect(purchaseLateDays(earliest, TODAY)).toBe(6);
+  });
+
+  it('is at least 1, and 1 without any delivery date', () => {
+    expect(
+      purchaseLateDays(makePurchase('p', { isLate: true, latestDeliveryDate: TODAY }), TODAY),
+    ).toBe(1);
+    expect(purchaseLateDays(makePurchase('p', { isLate: true }), TODAY)).toBe(1);
   });
 });

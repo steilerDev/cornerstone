@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { formatWeekdayMonthDay, toBcp47Locale } from '../../lib/formatters.js';
 import type { HeaderCell, ZoomLevel } from './ganttUtils.js';
@@ -28,6 +29,7 @@ export const GanttHeader = memo(function GanttHeader({
   todayX,
   todayColor,
 }: GanttHeaderProps) {
+  const { t } = useTranslation('schedule');
   const { resolvedLocale } = useLocale();
   const localeString = toBcp47Locale(resolvedLocale);
 
@@ -64,6 +66,18 @@ export const GanttHeader = memo(function GanttHeader({
           </div>
         );
       })}
+
+      {/* "Today" chip at the today line */}
+      {todayX !== null && (
+        <div
+          className={styles.todayChip}
+          style={{ left: todayX }}
+          aria-hidden="true"
+          data-testid="gantt-today-chip"
+        >
+          {t('view.gantt.todayChip')}
+        </div>
+      )}
 
       {/* Today marker triangle indicator (pointing down from header bottom) */}
       {todayX !== null && (
