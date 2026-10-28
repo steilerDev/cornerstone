@@ -7,7 +7,7 @@ metadata:
 
 Found while speccing #2246 (P5.2), the last DataTable list pages.
 
-1. **`normaliseListParams` drops a chip value missing from `config.chips.options`.** Options built from an async fetch (trades) are empty on mount, so a deep link `?tradeId=…` is wiped before they load. Gate the list on the options' first response (outer page component), or keep the value in the options.
+1. **`normaliseListParams` drops a chip value missing from `config.chips.options`.** Options built from an async fetch (trades) are empty on mount, so a deep link `?tradeId=…` is wiped before they load. Gate the list on the options' first response (outer page component), or keep the value in the options. Normalisation runs only on URL changes, never on config changes, so options that change later (a trade merged in a sheet that stays open) also need a host effect that resets the chip. In review I accepted "normalise makes the effect dead code", and CI E2E proved it a real defect.
 2. **A filter def on the chip's own param breaks the chip model.** `setChip('all')` writes `param=all` explicitly, the filter count treats the chip as a filter, `clearSheetFilters` clears the chip. Overflow values belong in the chip config (template `chips.overflow`), not in the Filters panel.
 3. **UX "in the template note row" claims can be false.** ObjectList's note row shows only host `note`, searching-all, grouping-unavailable and Clear filters; there is no automatic active-filter chip list.
 4. **Migrating the last hosts strands DataTable features** (date/number/entity/string filters, `customFilters`, `onRowClick`) and their E2E specs (`datatable-date-range-picker`, `datatable-ux-fixes`). Inventory host-less features and specs; decide prune vs keep explicitly.
