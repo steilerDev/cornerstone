@@ -67,7 +67,6 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   fetchWorkItemSubsidies: jest.fn(),
   linkWorkItemSubsidy: jest.fn(),
   unlinkWorkItemSubsidy: jest.fn(),
-  fetchWorkItemSubsidyPayback: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({

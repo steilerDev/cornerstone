@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
-import type { ReactNode, Ref, RefObject } from 'react';
+import type { Ref, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UpdateVendorRequest, VendorDetail } from '@cornerstone/shared';
 import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
-import { FormError } from '../../components/FormError/FormError.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
+import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
 import { telHref } from '../../components/CallButton/telHref.js';
 import { useTrades } from '../../hooks/useTrades.js';
@@ -82,62 +82,6 @@ function useCardDraft<K extends string>({
   const set = (field: K, value: string) => setDraft((prev) => ({ ...prev, [field]: value }));
 
   return { draft, set, errors, banner, dirty, discard, save };
-}
-
-interface FieldShellProps {
-  readonly id: string;
-  readonly label: string;
-  readonly required?: boolean;
-  readonly error: string | undefined;
-  readonly children: (aria: {
-    readonly invalid: true | undefined;
-    readonly describedBy: string | undefined;
-  }) => ReactNode;
-}
-
-/** Label, control and the field error next to it. */
-function FieldShell({ id, label, required = false, error, children }: FieldShellProps) {
-  const { t: tc } = useTranslation('common');
-  const errorId = `${id}-error`;
-  return (
-    <div className={styles.field}>
-      <label htmlFor={id} className={styles.label}>
-        {label}
-        {required ? <span className={styles.required}> {tc('objectForm.required')}</span> : null}
-      </label>
-      {children({
-        invalid: error ? true : undefined,
-        describedBy: error ? errorId : undefined,
-      })}
-      <FormError variant="field" id={errorId} message={error} />
-    </div>
-  );
-}
-
-/** A read-mode row: label and value, or an en dash with a screen-reader "Not set". */
-function DetailRow({
-  label,
-  testId,
-  children,
-}: {
-  readonly label: string;
-  readonly testId: string;
-  readonly children: ReactNode | null;
-}) {
-  const { t: tc } = useTranslation('common');
-  return (
-    <div className={styles.detailRow}>
-      <dt>{label}</dt>
-      <dd data-testid={testId}>
-        {children ?? (
-          <>
-            <span aria-hidden="true">–</span>
-            <span className={sharedStyles.srOnly}>{tc('summaryStrip.notSet')}</span>
-          </>
-        )}
-      </dd>
-    </div>
-  );
 }
 
 export interface CompanyDetailCardsProps {

@@ -6,10 +6,10 @@ import type {
   WorkItemListRowsResponse,
   WorkItemListQuery,
   WorkItemDetail,
+  WorkItemPageDetail,
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
   SubsidyProgram,
-  WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
 
 /** Query of the Tasks list rows: `ids` is a list here and joined for the request. */
@@ -96,8 +96,8 @@ export function listWorkItemRows(
 /**
  * Fetches a single work item by ID with full details.
  */
-export function getWorkItem(id: string): Promise<WorkItemDetail> {
-  return get<WorkItemDetail>(`/work-items/${id}`);
+export function getWorkItem(id: string): Promise<WorkItemPageDetail> {
+  return get<WorkItemPageDetail>(`/work-items/${id}`);
 }
 
 /**
@@ -147,14 +147,4 @@ export function unlinkWorkItemSubsidy(
   subsidyProgramId: string,
 ): Promise<UndoableDeleteResponse> {
   return del<UndoableDeleteResponse>(`/work-items/${workItemId}/subsidies/${subsidyProgramId}`);
-}
-
-/**
- * Fetches the expected subsidy payback for a work item.
- * Returns total payback and a per-subsidy breakdown.
- */
-export function fetchWorkItemSubsidyPayback(
-  workItemId: string,
-): Promise<WorkItemSubsidyPaybackResponse> {
-  return get<WorkItemSubsidyPaybackResponse>(`/work-items/${workItemId}/subsidy-payback`);
 }

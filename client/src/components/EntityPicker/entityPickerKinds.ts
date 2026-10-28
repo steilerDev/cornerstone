@@ -11,8 +11,10 @@ import { buildTree } from '../../lib/areaTreeUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { listPaperlessDocuments } from '../../lib/paperlessApi.js';
+import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchOrientations } from '../../lib/orientationApi.js';
 import { searchEverywhere } from '../../lib/searchApi.js';
+import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { fetchTrades } from '../../lib/tradesApi.js';
 import { searchCompanies } from '../../lib/vendorsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
@@ -29,6 +31,8 @@ export const ENTITY_PICKER_KINDS = [
   'task',
   'taskOrPurchase',
   'document',
+  'milestone',
+  'grant',
 ] as const;
 export type EntityPickerKind = (typeof ENTITY_PICKER_KINDS)[number];
 
@@ -370,4 +374,33 @@ export async function searchDocumentOptions(
         undefined,
       document: { title: doc.title, correspondent: doc.correspondent, created: doc.created },
     }));
+}
+
+// ---- milestone / grant: small lists, loaded once and filtered on the client ----
+
+/** Every milestone as an option (target date as the secondary line); the caller caches it. */
+export async function loadMilestoneOptions(
+  formatDate: (iso: string) => string,
+): Promise<EntityOption[]> {
+  const milestones = await listMilestones();
+  return milestones.map((milestone) => ({
+    id: String(milestone.id),
+    label: milestone.title,
+    secondary: formatDate(milestone.targetDate),
+  }));
+}
+
+/** Every grant (subsidy program) as an option; the caller caches it. */
+export async function loadGrantOptions(): Promise<EntityOption[]> {
+  const response = await fetchSubsidyPrograms();
+  return response.subsidyPrograms.map((program) => ({ id: program.id, label: program.name }));
+}
+
+/** Options whose label contains the query, folded. */
+export function filterOptionsByLabel(
+  options: readonly EntityOption[],
+  query: string,
+): EntityOption[] {
+  const wanted = foldSearchText(query);
+  return options.filter((option) => foldSearchText(option.label).includes(wanted));
 }

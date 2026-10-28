@@ -19,10 +19,11 @@ Cornerstone includes keyboard shortcuts for faster navigation and actions.
 
 | Shortcut | Action |
 |----------|--------|
-| `e` | Edit the task |
-| `Delete` | Delete the task |
-| `Escape` | Cancel the current action |
+| `e` | Edit the task details (title and description) |
+| `Delete` or `Backspace` | Delete the task, after a confirmation |
+| `?` | Show keyboard shortcut help |
+| `Escape` | Close the open title, description, note or checklist editor without saving, or close a dialog |
 
 :::tip
-Press `?` on the Tasks page to see all available shortcuts in a help overlay.
+Press `?` on the Tasks page or on a task page to see all available shortcuts in a help overlay.
 :::

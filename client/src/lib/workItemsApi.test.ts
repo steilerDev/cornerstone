@@ -9,7 +9,6 @@ import {
   fetchWorkItemSubsidies,
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
-  fetchWorkItemSubsidyPayback,
 } from './workItemsApi.js';
 import type {
   WorkItemListResponse,
@@ -878,26 +877,6 @@ describe('workItemsApi', () => {
       expect(url.searchParams.get('assignedVendorId')).toBe('vendor-1');
       expect(url.searchParams.get('budgetLinesMin')).toBe('0');
       expect(url.searchParams.get('budgetLinesMax')).toBe('4');
-    });
-  });
-
-  describe('fetchWorkItemSubsidyPayback', () => {
-    it('sends GET to /api/work-items/:id/subsidy-payback and resolves with the body', async () => {
-      const body = {
-        workItemId: 'work-123',
-        minTotalPayback: 0,
-        maxTotalPayback: 10,
-        subsidies: [],
-      };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
-
-      const result = await fetchWorkItemSubsidyPayback('work-123');
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/work-items/work-123/subsidy-payback',
-        expect.any(Object),
-      );
-      expect(result).toEqual(body);
     });
   });
 

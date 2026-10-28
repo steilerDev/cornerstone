@@ -164,6 +164,27 @@ export function SearchPicker<T>({
   const pendingFocusRef = useRef<'clear' | 'input' | null>(null);
   const pendingFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressFocusOpenRef = useRef(false);
+  // True from a Tab keydown until the end of that task: the focus event of a keyboard arrival
+  // fires inside it, a programmatic focus does not.
+  const tabArrivalRef = useRef(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      tabArrivalRef.current = true;
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        tabArrivalRef.current = false;
+        timer = null;
+      }, 0);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -300,11 +321,16 @@ export function SearchPicker<T>({
     }
   };
 
+  // Focus opens the list only for keyboard arrival (Tab / Shift+Tab). Pointer arrival opens it
+  // through handleClick; app-driven focus (a dialog's initial focus, focus restore, any
+  // programmatic .focus()) never does, so a picker that is a dialog's first field cannot cover
+  // the dialog footer.
   const handleFocus = () => {
     if (suppressFocusOpenRef.current) {
       suppressFocusOpenRef.current = false;
       return;
     }
+    if (!tabArrivalRef.current) return;
     openList();
   };
 

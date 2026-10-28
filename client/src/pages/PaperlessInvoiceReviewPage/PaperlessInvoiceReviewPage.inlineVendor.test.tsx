@@ -344,12 +344,12 @@ const createRowName = /^New company/;
 
 async function renderReadyEmptyField(preview: Partial<AutoItemizePreviewResponse> = {}) {
   const input = await renderReady(preview);
-  fireEvent.focus(input);
+  fireEvent.click(input);
   return input;
 }
 
 async function openCreateDialog(input: HTMLElement, rowName: string | RegExp = createRowName) {
-  fireEvent.focus(input);
+  fireEvent.click(input);
   const row = await screen.findByRole('option', { name: rowName });
   fireEvent.click(row);
   return screen.findByRole('dialog', { name: 'New company' });
@@ -394,7 +394,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
     it('offers no row for a blank extracted name and an empty field', async () => {
       const input = await renderReady({ extractedVendorName: '   ' });
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('listbox');
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -425,7 +425,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
     it('offers no row for an empty field when nothing was extracted', async () => {
       const input = await renderReady();
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('listbox');
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -435,7 +435,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'Öko Fenster' }]));
       const input = await renderReady({ extractedVendorName: 'OEKO FENSTER' });
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'Öko Fenster' });
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -480,7 +480,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         1,
       );
       const input = await renderReady();
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'Alpha Co' });
       expect(screen.queryByRole('option', { name: 'Zeta Far Away GmbH' })).not.toBeInTheDocument();
 
@@ -552,7 +552,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'OEKO FENSTER', pageSize: 50 }),
       );
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'Öko Fenster' });
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -565,7 +565,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
       );
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
 
       expect(
         await screen.findByRole('option', { name: 'New company Neue Firma' }),
@@ -600,7 +600,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
       );
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'Other Company 0' });
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
 
@@ -625,7 +625,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
       );
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
 
       expect(
         await screen.findByRole('option', { name: 'New company Neue Firma' }),
@@ -644,7 +644,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
       );
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'Alpha Co' });
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -684,7 +684,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'NEUE FIRMA' }]));
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
 
-      fireEvent.focus(input);
+      fireEvent.click(input);
       await screen.findByRole('option', { name: 'NEUE FIRMA' });
 
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
@@ -735,7 +735,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       // The extracted name still has no company, so clearing offers its row again.
       fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
       const cleared = await screen.findByPlaceholderText('Search vendors…');
-      fireEvent.focus(cleared);
+      fireEvent.click(cleared);
       expect(await screen.findByRole('option', { name: createRowName })).toBeInTheDocument();
     });
 
@@ -768,7 +768,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
 
       fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
       const freshInput = await screen.findByPlaceholderText('Search vendors…');
-      fireEvent.focus(freshInput);
+      fireEvent.click(freshInput);
 
       expect(await screen.findByRole('option', { name: 'Neue Firma' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();

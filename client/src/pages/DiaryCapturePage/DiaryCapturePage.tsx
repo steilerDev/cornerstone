@@ -171,7 +171,11 @@ export default function DiaryCapturePage() {
       mode={readyEntry ? (readyEntry.status === 'draft' ? 'draft' : 'saved') : 'new'}
       entry={readyEntry}
       photos={result?.kind === 'ready' ? result.photos : []}
-      prefill={{ areaId: prefill.areaId ?? null, date: prefill.date ?? null }}
+      prefill={{
+        areaId: prefill.areaId ?? null,
+        companyId: prefill.companyId ?? null,
+        date: prefill.date ?? null,
+      }}
       breadcrumbs={
         <PageBreadcrumbs
           objectNames={{ diaryEntry: readyEntry?.status === 'saved' ? entryTitle : null }}

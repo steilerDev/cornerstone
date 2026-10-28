@@ -1253,6 +1253,45 @@
       "doNotUse": [],
       "formerly": []
     },
+    "Not before": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Not before"
+      },
+      "de": {
+        "singular": "Frühestens ab"
+      },
+      "deSource": "approved",
+      "definition": "The earliest date a task may start. Shown in the task form and the task timing section.",
+      "doNotUse": [],
+      "formerly": ["Start After"]
+    },
+    "Start by": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Start by"
+      },
+      "de": {
+        "singular": "Spätestens ab"
+      },
+      "deSource": "approved",
+      "definition": "The latest date a task may start. Shown in the task form and the task timing section.",
+      "doNotUse": [],
+      "formerly": ["Start Before"]
+    },
+    "Waiting for this task": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Waiting for this task"
+      },
+      "de": {
+        "singular": "Wartet auf diese Aufgabe"
+      },
+      "deSource": "approved",
+      "definition": "A task that cannot start before this task is finished. Sibling of Waiting for this milestone.",
+      "doNotUse": [],
+      "formerly": []
+    },
     "Critical": {
       "groups": ["scheduleWord", "statusWord"],
       "en": {

@@ -1,0 +1,41 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.required {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-1);
+}
+
+.detailRow dt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.detailRow dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .detailRow {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--spacing-4);
+  }
+}

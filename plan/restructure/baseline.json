@@ -36,11 +36,11 @@
       "UserManagementPage": { "destinations": 0, "primaryButtons": 8, "searchFields": 1 },
       "VendorDetailPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
       "VendorsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
-      "WorkItemDetailPage": { "destinations": 3, "primaryButtons": 10, "searchFields": 1 },
+      "WorkItemDetailPage": { "destinations": 0, "primaryButtons": 6, "searchFields": 1 },
       "WorkItemsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 103,
+      "count": 102,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -64,7 +64,6 @@
         "DateChips/DateChips",
         "DateRangePicker/DateRangePicker",
         "DavAccessCard/DavAccessCard",
-        "DependencySentenceBuilder/DependencySentenceBuilder",
         "DocumentsPanel/DocumentsPanel",
         "EmptyState/EmptyState",
         "EntityPicker/EntityPicker",

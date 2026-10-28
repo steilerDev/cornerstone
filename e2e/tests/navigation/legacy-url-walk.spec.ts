@@ -545,8 +545,13 @@ test.describe('Legacy URL walk (route map)', () => {
     );
     // 10 before #2215; the six Project setup tabs are served by that page now (E1c), the
     // two Site diary ?filterMode maps by the diary page (#2224, E1d) and the Invoices
-    // ?openOnly=true map by the Invoices page (#2238, E1e)
-    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(1);
+    // ?openOnly=true map by the Invoices page (#2238, E1e), and the last one,
+    // /project/work-items/:id?depError=, by the task page (#2248: interim, served by the page)
+    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(0);
+    const depError = ENTRIES.find(
+      (entry) => entry.from.includes('/project/work-items/:id') && entry.match?.query?.depError,
+    );
+    expect(depError?.stage, '?depError= is served by the task page').toBe('interim');
 
     for (const entry of queryMaps) {
       const query = entry.match?.query ?? {};

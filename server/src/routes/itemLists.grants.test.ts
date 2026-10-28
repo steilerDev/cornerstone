@@ -75,11 +75,15 @@ describe('list rows carry grant chips', () => {
     ]);
   });
 
-  it('the detail responses do not carry grants (list rows only)', async () => {
-    const work = (await get('/api/work-items/wi-1')).json<Record<string, unknown>>();
-    expect(JSON.stringify(work)).not.toContain('"grants"');
+  it('the task detail carries grants (the task page strip, #2248); the purchase detail does not', async () => {
+    const work = (await get('/api/work-items/wi-1')).json<{
+      title: string;
+      grants: Array<{ id: string }>;
+    }>();
+    expect(work.title).toBe('Roof');
+    // rejected grants stay out, like on the list rows
+    expect(work.grants.map((g) => g.id)).toEqual(['sp-a']);
     const hi = (await get('/api/household-items/hi-1')).json<Record<string, unknown>>();
     expect(JSON.stringify(hi)).not.toContain('"grants"');
-    expect(JSON.stringify(work)).toContain('Roof');
   });
 });

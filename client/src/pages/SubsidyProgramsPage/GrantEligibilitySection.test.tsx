@@ -21,6 +21,8 @@ const mockUpdate = jest.fn<(id: string, body: UpdateSubsidyProgramRequest) => Pr
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
   updateSubsidyProgram: mockUpdate,
   createSubsidyProgram: jest.fn(),
+  // EntityPicker's grant kind imports it
+  fetchSubsidyPrograms: jest.fn(),
 }));
 
 interface MultiProps {

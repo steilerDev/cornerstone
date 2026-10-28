@@ -1,8 +1,9 @@
-import { get, post, del } from './apiClient.js';
+import { get, post, patch, del } from './apiClient.js';
 import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   WorkItemDependenciesResponse,
   CreateDependencyRequest,
+  UpdateDependencyRequest,
   DependencyCreatedResponse,
 } from '@cornerstone/shared';
 
@@ -31,4 +32,18 @@ export function deleteDependency(
   predecessorId: string,
 ): Promise<UndoableDeleteResponse> {
   return del<UndoableDeleteResponse>(`/work-items/${workItemId}/dependencies/${predecessorId}`);
+}
+
+/**
+ * Changes a dependency's type and/or lag (the successor is the task that waits).
+ */
+export function updateDependency(
+  successorId: string,
+  predecessorId: string,
+  data: UpdateDependencyRequest,
+): Promise<DependencyCreatedResponse> {
+  return patch<DependencyCreatedResponse>(
+    `/work-items/${successorId}/dependencies/${predecessorId}`,
+    data,
+  );
 }

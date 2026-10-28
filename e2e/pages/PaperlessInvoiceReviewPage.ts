@@ -341,7 +341,7 @@ export class PaperlessInvoiceReviewPage {
     if (query !== undefined) {
       await this.vendorInput.fill(query);
     } else {
-      await this.vendorInput.focus();
+      await this.vendorInput.click();
     }
     await this.vendorPortalDropdown.waitFor({ state: 'visible' });
     await this.vendorCreateOption.click();

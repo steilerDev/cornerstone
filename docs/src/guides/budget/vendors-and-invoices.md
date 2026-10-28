@@ -399,7 +399,7 @@ If the invoice has a Paperless document linked and you have configured an LLM pr
 
 If a line already exists on a task or purchase without an offer or invoice, you can link it instead of creating a new one. In the form, choose **Use an existing cost line**, pick the line, and confirm. A line can be linked to only one offer or invoice, and the amount you link must fit within what is still left to split.
 
-See [Work Item Budgets](work-item-budgets#linking-to-invoices) for linking from the task's side.
+See [Task Costs](work-item-budgets#linking-to-invoices) for linking from the task's side.
 
 ### Removing a Line from the Invoice
 

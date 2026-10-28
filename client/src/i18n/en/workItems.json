@@ -82,197 +82,193 @@
     }
   },
   "create": {
-    "thisItemLabel": "This item",
     "fields": {
       "title": "Title",
-      "titlePlaceholder": "Enter work item title",
+      "titlePlaceholder": "What needs doing?",
       "titleRequiredError": "Title is required",
       "description": "Description",
       "descriptionPlaceholder": "Describe the work to be done",
       "status": "Status",
-      "assignedTo": "Assigned To",
+      "assignedTo": "Who",
       "unassigned": "Unassigned",
       "area": "Area",
       "durationDays": "Duration (days)",
       "durationError": "Duration must be a positive number",
-      "startAfter": "Start After",
-      "startBefore": "Start Before",
-      "constraintsError": "Start after date must be before or equal to start before date",
+      "startAfter": "Not before",
+      "startBefore": "Start by",
+      "constraintsError": "Start by can't be before Not before.",
       "tags": "Tags",
-      "dependencies": "Dependencies"
-    },
-    "pendingDeps": {
-      "ariaLabel": "Dependencies to add",
-      "thisItemPredecessor": "This item must {{predecessorVerb}} before \"{{otherItemTitle}}\" can {{successorVerb}}",
-      "otherItemPredecessor": "\"{{otherItemTitle}}\" must {{predecessorVerb}} before this item can {{successorVerb}}",
-      "removeAriaLabel": "Remove dependency involving {{otherItemTitle}}"
+      "dependencies": "Waits for"
     },
     "errors": {
       "loadFailed": "Failed to load form data. Please try again."
     },
-    "added": "Task ‘{{title}}’ added."
+    "added": "Task ‘{{title}}’ added.",
+    "waitsFor": {
+      "remove": "Remove {{title}}",
+      "count_one": "{{count}} selected",
+      "count_other": "{{count}} selected"
+    }
   },
-  "detail": {
-    "loading": "Loading work item...",
-    "error": {
-      "title": "Error",
-      "retry": "Retry"
+  "taskPage": {
+    "typeLabel": "Task",
+    "strip": {
+      "when": "When",
+      "where": "Where",
+      "who": "Who",
+      "cost": "Expected cost",
+      "waitsFor": "Waits for",
+      "holdsUp": "Holds up",
+      "noDates": "No dates yet",
+      "dateRange": "{{start}} – {{end}}",
+      "nothing": "Nothing",
+      "taskCount_one": "{{count}} task",
+      "taskCount_other": "{{count}} tasks",
+      "grantsMore_one": "{{name}} and {{count}} more",
+      "grantsMore_other": "{{name}} and {{count}} more"
     },
-    "titleEdit": {
-      "save": "Save",
-      "cancel": "Cancel"
-    },
-    "sections": {
+    "retry": "Retry",
+    "loading": "Loading the task…",
+    "overview": {
+      "details": "Details",
+      "title": "Title",
+      "titleRequired": "Enter a title.",
       "description": "Description",
-      "schedule": "Schedule",
-      "scheduleDescription": "Start and end dates are computed by the scheduling engine based on constraints and dependencies.",
-      "assignment": "Assignment",
+      "noDescription": "No description yet",
+      "whoWhere": "Who and where",
+      "who": "Who",
       "area": "Area",
-      "tags": "Tags",
-      "notes": "Notes",
-      "subtasks": "Subtasks",
-      "constraints": "Constraints",
-      "dependentHouseholdItems": "Dependent Household Items"
+      "saveError": "Couldn't save the task.",
+      "add": "Add",
+      "addMenu": "Add to this task",
+      "addChecklistItem": "Checklist item",
+      "addNote": "Note",
+      "usersLoadError": "Couldn't load the household members."
     },
-    "description": {
-      "noDescription": "No description",
-      "clickToEdit": "Click to edit",
-      "save": "Save",
-      "cancel": "Cancel"
-    },
-    "schedule": {
-      "startDate": "Start Date",
-      "endDate": "End Date",
-      "notScheduled": "Not scheduled",
-      "plannedRange": "Planned: {{range}}"
-    },
-    "assignment": {
-      "assignedTo": "Assigned To",
-      "unassigned": "Unassigned"
-    },
-    "area": {
-      "label": "Area"
+    "checklist": {
+      "title": "Checklist",
+      "newItem": "New checklist item",
+      "add": "Add",
+      "actions": "Actions for {{title}}",
+      "rename": "Rename",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "delete": "Delete",
+      "renameTitle": "Rename checklist item",
+      "name": "Name",
+      "nameRequired": "Enter a name.",
+      "addError": "Couldn't add the checklist item.",
+      "updateError": "Couldn't update the checklist item.",
+      "deleteError": "Couldn't delete the checklist item.",
+      "position": "{{title}} moved to position {{position}} of {{count}}."
     },
     "notes": {
-      "placeholder": "Add a note...",
-      "adding": "Adding...",
-      "addNote": "Add Note",
-      "noNotes": "No notes yet. Use the form above to add one.",
-      "save": "Save",
-      "cancel": "Cancel",
+      "title": "Notes",
+      "add": "Add note",
+      "addTitle": "Add note",
+      "editTitle": "Edit note",
+      "note": "Note",
+      "noteRequired": "Write the note first.",
+      "byline": "{{name}} · {{date}}",
+      "unknownAuthor": "Unknown",
+      "actions": "Actions for the note from {{date}}",
       "edit": "Edit",
       "delete": "Delete",
-      "unknown": "Unknown"
+      "deleteTitle": "Delete this note?",
+      "deleteError": "Couldn't delete the note.",
+      "loadError": "Couldn't load the notes."
     },
-    "subtasks": {
-      "placeholder": "Add a subtask...",
-      "adding": "Adding...",
-      "add": "Add",
-      "noSubtasks": "No subtasks yet. Add one above.",
-      "save": "Save",
-      "cancel": "Cancel",
-      "moveUp": "Move up",
-      "moveDown": "Move down"
-    },
-    "constraints": {
+    "timing": {
+      "dates": "Dates",
+      "start": "Start",
+      "end": "End",
+      "planned": "Planned: {{range}}",
+      "started": "Started",
+      "finished": "Finished",
       "duration": "Duration",
-      "durationDays": "Duration (days)",
-      "dateConstraints": "Date Constraints",
-      "startAfter": "Start After",
-      "startBefore": "Start Before",
-      "actualStart": "Actual Start",
-      "actualEnd": "Actual End",
-      "clearStartAfter": "Clear start after date",
-      "clearStartBefore": "Clear start before date",
-      "clearActualStart": "Clear actual start date",
-      "clearActualEnd": "Clear actual end date",
-      "dependencies": "Dependencies",
-      "dependencyBuilder": {
-        "searchPlaceholder": "Search work items...",
-        "finish": "finish",
-        "start": "start",
-        "before": "before",
-        "can": "can",
-        "must": "must",
-        "predecessorVerbAriaLabel": "Predecessor verb",
-        "successorVerbAriaLabel": "Successor verb"
-      },
-      "requiredMilestones": "Required Milestones",
-      "requiredMilestonesDesc": "Milestones that must be completed before this work item can start.",
-      "noRequiredMilestones": "No required milestones",
-      "linkedMilestones": "Linked Milestones",
-      "linkedMilestonesDesc": "Milestones this work item contributes to.",
-      "noLinkedMilestones": "No linked milestones",
-      "selectMilestone": "Select milestone...",
-      "selectMilestonePlaceholder": "Select milestone...",
-      "removeRequiredMilestoneAria": "Remove required milestone: {{name}}",
-      "removeLinkedMilestoneAria": "Remove linked milestone: {{name}}",
-      "selectRequiredMilestoneAriaLabel": "Select required milestone to add",
-      "selectLinkedMilestoneAriaLabel": "Select milestone to link",
-      "addMilestone": "Add",
-      "adding": "Adding...",
-      "linkMilestone": "Link",
-      "linking": "Linking...",
-      "removeRequiredMilestoneAriaLabel": "Remove required milestone: {{name}}",
-      "removeLinkedMilestoneAriaLabel": "Remove linked milestone: {{name}}"
+      "durationDays_one": "{{count}} day",
+      "durationDays_other": "{{count}} days",
+      "durationLabel": "Duration in days",
+      "durationError": "Enter a whole number of days, 0 or more.",
+      "finishedBeforeStarted": "Finished can't be before Started.",
+      "notScheduled": "Not scheduled",
+      "reschedule": "Reschedule…",
+      "constraints": "Constraints",
+      "notBefore": "Not before",
+      "startBy": "Start by",
+      "constraintsError": "Start by can't be before Not before.",
+      "saveError": "Couldn't save the dates.",
+      "waitsFor": "Waits for",
+      "waitsForEmpty": "This task doesn't wait for another task.",
+      "waitingForThis": "Waiting for this task",
+      "waitingForThisEmpty": "No task waits for this one.",
+      "add": "Add",
+      "lag_one": "{{count}} day later",
+      "lag_other": "{{count}} days later",
+      "lead_one": "{{count}} day earlier",
+      "lead_other": "{{count}} days earlier",
+      "milestones": "Milestones",
+      "milestonesEmpty": "Not linked to a milestone.",
+      "linkMilestone": "Link milestone",
+      "relationRequired": "Waits for",
+      "relationLinked": "Counts toward",
+      "purchases": "Purchases waiting for this task",
+      "depError": "Couldn't add these dependencies: {{titles}}",
+      "loadError": "Couldn't load the links."
     },
-    "householdItems": {
-      "noItems": "No household items depend on this work item."
+    "dependencyDialog": {
+      "addWaitsForTitle": "Add a task this one waits for",
+      "addWaitingTitle": "Add a task that waits for this one",
+      "editTitle": "Dependency: {{title}}",
+      "task": "Task",
+      "taskRequired": "Choose a task.",
+      "type": "How they connect",
+      "lag": "Lag in days",
+      "lagHint": "A negative number lets them overlap.",
+      "lagError": "Enter a whole number of days."
     },
-    "footer": {
-      "createdBy": "Created by {{name}} on {{date}}",
-      "lastUpdated": "Last updated {{date}}",
-      "deleteWorkItem": "Delete Work Item"
+    "milestoneDialog": {
+      "title": "Link milestone",
+      "relation": "Relation",
+      "relationRequired": "This task waits for the milestone",
+      "relationLinked": "This task counts toward the milestone",
+      "milestone": "Milestone",
+      "milestoneRequired": "Choose a milestone."
     },
-    "modals": {
-      "deleteNote": {
-        "title": "Delete this note?"
-      },
-      "removeDependency": {
-        "title": "Remove dependency?",
-        "textPredecessor": "This item will no longer depend on \"{{title}}\".",
-        "textSuccessor": "This item will no longer block \"{{title}}\".",
-        "remove": "Remove",
-        "removing": "Removing…"
-      }
+    "cost": {
+      "grants": "Grants",
+      "grantsEmpty": "No grant covers this task.",
+      "add": "Add",
+      "loadError": "Couldn't load the list.",
+      "linkError": "Couldn't add it. Try again."
     },
-    "inlineErrors": {
-      "updateTitle": "Failed to update title",
-      "updateDescription": "Failed to update description",
-      "updateAssignment": "Failed to update assignment",
-      "updateArea": "Failed to update area",
-      "updateDuration": "Failed to update duration",
-      "updateStartAfter": "Failed to update startAfter",
-      "updateStartBefore": "Failed to update startBefore",
-      "updateActualStartDate": "Failed to update actual start date",
-      "updateActualEndDate": "Failed to update actual end date",
-      "addNote": "Failed to add note",
-      "updateNote": "Failed to update note",
-      "deleteNote": "Failed to delete note",
-      "addSubtask": "Failed to add subtask",
-      "updateSubtask": "Failed to update subtask",
-      "deleteSubtask": "Failed to delete subtask",
-      "reorderSubtasks": "Failed to reorder subtasks",
-      "addDependency": "Failed to add dependency",
-      "removeDependency": "Failed to remove dependency",
-      "addRequiredMilestone": "Failed to add required milestone",
-      "requiredMilestoneAlreadyLinked": "This milestone is already a required dependency",
-      "removeRequiredMilestone": "Failed to remove required milestone",
-      "addLinkedMilestone": "Failed to add linked milestone",
-      "linkedMilestoneAlreadyLinked": "This milestone is already linked",
-      "removeLinkedMilestone": "Failed to remove linked milestone",
-      "loadFailed": "Failed to load work item. Please try again.",
-      "linkSubsidy": "Could not link the grant to this item.",
-      "unlinkSubsidy": "Could not unlink the grant from this item.",
-      "alreadyLinkedSubsidy": "This grant is already linked to this item.",
-      "deleteWorkItem": "Failed to delete work item"
+    "diary": {
+      "title": "Site diary",
+      "logForTask": "Log for this task",
+      "forCompany": "Entries for {{company}}",
+      "forTask": "Entries for this task",
+      "otherEntries": "Other entries",
+      "fromPhotoTags": "from photo tags and dates",
+      "empty": "No entries for this task yet.",
+      "loadError": "Couldn't load the entries.",
+      "showAll": "Show all in the Site diary",
+      "srCount_one": "{{count}} entry",
+      "srCount_other": "{{count}} entries"
     },
-    "dismissError": "Dismiss error",
+    "history": {
+      "title": "History",
+      "empty": "Nothing has happened to this task yet.",
+      "loadError": "Couldn't load the history.",
+      "showAll": "Show all in History",
+      "created": "Created by {{name}} on {{date}}",
+      "createdUnknown": "Created on {{date}}",
+      "updated": "Last updated {{date}}"
+    },
+    "deleteError": "Couldn't delete the task.",
     "shortcuts": {
-      "editTitle": "Edit title",
-      "deleteWorkItem": "Delete work item (Delete / Backspace)",
-      "cancelOrClose": "Cancel edit or close dialog",
-      "showShortcuts": "Show keyboard shortcuts"
+      "edit": "Edit the task details",
+      "delete": "Delete the task",
+      "help": "Show keyboard shortcuts"
     }
   }
 }

@@ -6,7 +6,7 @@
  *   W1  Who (New task dialog `#assignment`): "Companies" group before "Household members",
  *       ArrowDown from the input reaches the first company option (never a heading), one pick
  *       only (member -> clear -> company), the suffix on the chip, Save persists exactly one
- *   W2  Who on the task page (`#work-item-assignment`): member pick persists across a reload
+ *   W2  Who on the task page (Who and where card): member pick persists across a reload
  *   W3  "New company ‹text›" row: opens the company form prefilled; Cancel refocuses the input,
  *       Save selects the new company and focuses "Clear selection"
  *   W4  An exact (case/umlaut folded) company name shows no create row
@@ -179,7 +179,7 @@ test.describe('EntityPicker - Who (W1-W4)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('W2: on the task page a household member is saved and shown after a reload', async ({
+  test('W2: on the task page a household member is saved from the Who and where card and shown after a reload', async ({
     page,
     testPrefix,
   }) => {
@@ -188,19 +188,23 @@ test.describe('EntityPicker - Who (W1-W4)', { tag: '@responsive' }, () => {
     const workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Who detail` });
     try {
       const detail = new WorkItemDetailPage(page);
-      const picker = detail.assignmentPicker;
+      const picker = detail.whoPicker;
       await detail.goto(workItemId);
 
+      await detail.whoWhereCard.startEdit();
       await picker.type(memberName);
       await expect(picker.optionsInGroup('Household members')).toHaveCount(1);
       await picker.choose(
         picker.optionsInGroup('Household members').filter({ hasText: memberName }),
       );
-      await expect(picker.selectedDisplay()).toContainText(memberName);
-      await expect(picker.selectedSuffix()).toHaveText('Household member');
+      await expect(detail.selectedWho).toContainText(memberName);
+      await expect(detail.selectedWho.locator('[class*="selectedSuffix"]')).toHaveText(
+        'Household member',
+      );
+      await detail.whoWhereCard.save();
 
       await page.reload();
-      await expect(picker.selectedDisplay()).toContainText(memberName);
+      await expect(detail.whoText).toContainText(memberName);
       const saved = await getWorkItem(page, workItemId);
       expect(saved.assignedUser?.displayName).toBe(memberName);
       expect(saved.assignedVendor).toBeNull();

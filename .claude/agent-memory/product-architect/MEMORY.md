@@ -40,6 +40,7 @@
 - [Legacy CSV first-id rule](recurring-patterns.md) — apply in the API-params builder too, not only the picker display (areaId, PR #2347)
 - [Capmap clicks ≤ 2 vs journey counts](recurring-patterns.md) — a spec's `clicks: 4` is a journey; put it in the note, count from the object's page (#2247)
 - [Preview of a write path](recurring-patterns.md) — require a preview→PATCH→read agreement test; unreachable `?.` on mounted refs (PR #2348)
+- [Unkeyed detail view](recurring-patterns.md) — `useParams` id to an unkeyed child: one render of the old record under the new URL; `key={id}` (PR #2349)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Per-line payment attribution](per-line-payment-attribution.md) — #2237 ADR-039 §5: sub-cent reconcile; tagged payments to the tagged source's lines (option B); residual gaps vs Rail A/B

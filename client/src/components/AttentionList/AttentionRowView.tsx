@@ -349,8 +349,7 @@ export function AttentionRowView({
         return (
           <NavAnchor
             key={action}
-            // Interim until the Timing tab of the task page (story 5.2).
-            to={`${routeUrl('workItem', { id: row.subject.id })}#constraints`}
+            to={`${routeUrl('workItem', { id: row.subject.id }, { tab: 'timing' })}#reschedule`}
             state={originState}
             className={styles.actionLink}
             onNavigate={onNavigate}

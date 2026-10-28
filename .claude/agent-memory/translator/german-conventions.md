@@ -28,6 +28,7 @@ metadata:
 - "Avg" in the cost perspective toggle → Ø.
 - Photo tags → Zuordnung (see [photo tags](photo-tags-zuordnung-2226.md)).
 - Total → Gesamt. Not yet split → Nicht aufgeschlüsselt. Unlink → Verknüpfung lösen. Company → Firma.
+- Date-label "Start" (task timing, #2248) → Beginn, not Start: the glossary canon Start is the Home page name (de `Home` → `Start`), and the audit flags the word as glossary leakage.
 - Done/close buttons: "Fertig" (never "Abgeschlossen"). Close → Schließen.
 
 **Glossary-canon money words.** "Invoiced" → Berechnet (never "Abgerechnet"; it reads as settled). "Paid" → Bezahlt. "Submitted" → Eingereicht. "After grants" → Nach Förderung. "Net" → Netto, and "Gross" → Brutto.

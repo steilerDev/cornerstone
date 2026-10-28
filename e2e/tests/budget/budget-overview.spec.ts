@@ -1144,7 +1144,7 @@ test.describe('Money overview — offers at face value (AC9)', () => {
 
       // The task page shows the same line at the same amount
       const task = new WorkItemDetailPage(page);
-      await task.goto(workItemId);
+      await task.goto(workItemId, { tab: 'cost' });
       await task.costLines.waitForLoaded();
       const row = task.costLines.row(`${testPrefix} Offer line`);
       await expect(row).toBeVisible();

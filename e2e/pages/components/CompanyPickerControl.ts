@@ -4,7 +4,7 @@
  * Used for the Paperless review (`#vendor-picker`), the Edit details dialog (`#vendorId`), the
  * diary daily log (`#daily-log-vendor`), the New invoice dialog (`#vendorId`) and the
  * purchase form and purchase edit page (`#vendorId`), the cost line form (`#budget-vendor`), the
- * task detail assignment (`#work-item-assignment`) and the New task dialog (`#assignment`, the Who
+ * task page Who and where card (via `EntityPickerControl`) and the New task dialog (`#assignment`, the Who
  * kind: a "Companies" group, then "Household members"; one pick only). `pick(name)` chooses an existing company by keyboard. The dropdown is
  * portaled to the body (`[data-search-picker-dropdown]`),
  * the create row is the last `role="option"` and appears only when no result's label equals the

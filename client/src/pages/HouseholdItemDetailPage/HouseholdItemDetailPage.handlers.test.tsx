@@ -531,7 +531,7 @@ describe('HouseholdItemDetailPage — handlers and arms', () => {
         mockUpdateHouseholdItem.mockResolvedValue(makeItem());
         renderPage();
         await waitForPageLoad();
-        fireEvent.focus(screen.getByPlaceholderText(enCommon.aria.selectArea));
+        fireEvent.click(screen.getByPlaceholderText(enCommon.aria.selectArea));
         fireEvent.click(await screen.findByText(enCommon.aria.noArea));
         await waitFor(() =>
           expect(mockUpdateHouseholdItem).toHaveBeenCalledWith('item-1', { areaId: null }),

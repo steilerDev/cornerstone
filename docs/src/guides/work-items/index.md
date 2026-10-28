@@ -1,33 +1,35 @@
 ---
 sidebar_position: 3
-title: Work Items
+title: Tasks
 ---
 
-# Work Items
+# Tasks
 
-Work items are the core of Cornerstone. Each work item represents a task in your construction project -- from "Install kitchen cabinets" to "Schedule electrical inspection."
+Tasks are the core of Cornerstone. Each task is a piece of work in your construction project -- from "Install kitchen cabinets" to "Schedule electrical inspection."
 
 ## Overview
 
-Work items support:
+Tasks support:
 
 - **Statuses** -- Not started, In progress, or Done
-- **Dates and scheduling** -- Start dates, end dates, durations, and scheduling constraints
-- **User assignment** -- Assign tasks to any user on your instance
-- **Areas** -- Hierarchical location assignment (e.g., "House / Ground Floor / Kitchen") with the full ancestor path shown as a breadcrumb wherever the work item appears
+- **Dates and scheduling** -- Planned dates, durations, "Not before" and "Start by" constraints, and rescheduling
+- **Who** -- A company or a household member does each task
+- **Areas** -- Hierarchical location assignment (e.g., "House / Ground Floor / Kitchen") with the full ancestor path shown as a breadcrumb wherever the task appears
 - **Notes** -- Timestamped comments with author attribution
-- **Subtasks** -- Checklist items within a work item
-- **Dependencies** -- Relationships between work items (what must happen before or after)
+- **Checklist** -- Small to-dos within a task
+- **Dependencies** -- Tasks that wait for other tasks or milestones, with the type of link and any lag between them
+- **Cost** -- Cost lines and grants that pay for the task
+- **Site diary** and **History** -- The diary entries about the task and a record of its changes
 - **Document links** -- Attach documents from [Paperless-ngx](/guides/documents) (contracts, receipts, plans)
 
 ## Area Breadcrumbs
 
-Every work item now displays the full **area ancestor path** as a breadcrumb -- for example, `House / Ground Floor / Kitchen` -- so you always know where a task belongs without having to open its detail page. Breadcrumbs appear on:
+Every task now displays the full **area ancestor path** as a breadcrumb -- for example, `House / Ground Floor / Kitchen` -- so you always know where a task belongs without having to open its detail page. Breadcrumbs appear on:
 
-- The work item list (next to each row)
-- The work item detail page
-- Work item pickers (as a secondary line under the title)
-- Embedded references from diary entries, invoices, and household items that link to a work item
+- The task list (next to each row)
+- The task page
+- Task pickers (as a secondary line under the title)
+- Embedded references from diary entries, invoices, and household items that link to a task
 
 See [Areas & Trades](areas-and-trades) for how areas are organized and nested.
 
@@ -46,7 +48,7 @@ All filter, group, and sort settings are synced to the URL, so your view is book
 
 On desktop the tasks appear in a table. On phones and tablets each task is shown as a card with the same actions.
 
-![Work items list page](/img/screenshots/work-items-list-light.png)
+![Task list page](/img/screenshots/work-items-list-light.png)
 
 ### Time Groups
 
@@ -115,16 +117,81 @@ Tick the checkboxes at the start of the rows, or tick the header checkbox to sel
 - **Set status** -- Change every selected task to **Not started**, **In progress**, or **Done**
 - **Set area** -- Pick an area in a dialog. The area is applied as soon as you pick it.
 
-## Detail View
+## Task Page
 
-Click any work item to see its full detail page with all fields, notes, subtasks, dependencies, and linked documents. Linked documents open from the **Documents (n)** button.
+Click any task to open its page. The page has a header, a summary strip, and five tabs: **Overview**, **Timing**, **Cost**, **Site diary**, and **History**.
 
-![Work item detail page](/img/screenshots/work-item-detail-light.png)
+:::info Screenshot needed
+The task page does not have a screenshot yet. One will be added with the next stable release.
+:::
+
+### Header
+
+- The breadcrumb starts with **Tasks**, which returns you to the list. If you opened the task from another page, such as a company or a milestone, a back link returns you there as well
+- The task title is the page heading. To change it, open **Overview** and select **Edit** in the **Details** card. There is no inline title editing
+- The main button sets the status. A task that is not started shows **Start**. A task in progress shows **Mark done**. The status menu next to it lets you pick any status
+- **Start** and **Mark done** ask for the date. Choose **Today**, **As planned** (the planned date), or **Pick a date**. A short **Undo** notification follows the change in case it was a mistake
+- Once the task is done, the main button becomes **Log**. It opens the capture screen with the task's area and company filled in. See [Manual Diary Entries](/guides/diary/manual-entries#logging-for-a-task)
+- The **⋯** menu has **Delete**. It asks for confirmation and lists what goes with the task, such as its cost lines and the tasks that no longer wait for it
+
+### Summary Strip
+
+The strip shows the facts that matter most at a glance. Select a fact to open the tab where you change it.
+
+| Fact | What it shows |
+|------|---------------|
+| **When** | The planned dates, or **No dates yet** |
+| **Where** | The area as a breadcrumb, or an empty value (shown as a dash) when no area is set |
+| **Who** | The company or household member doing the task. A company with a phone number also gets a **Call** button |
+| **Expected cost** | The expected cost, with the name of the grant that covers it. If several grants apply, the strip names the first and says how many more |
+| **Waits for** | The first unfinished task this one waits for, followed by a **+n** count (for example, **+2**) when there are others, or **Nothing** |
+| **Holds up** | How many tasks wait for this one (for example, **3 tasks**), or **Nothing** |
+| **Documents** | The linked Paperless-ngx documents. Opens the list of documents |
+
+### Overview
+
+The **Overview** tab holds the task's description and who does it:
+
+- **Details** -- The description comes first. **Edit** opens the title and description together. Without a description, the card says **No description yet**
+- **Who and where** -- The company or household member, and the area. Select **Edit** to change them
+- **Checklist** and **Notes** -- These cards appear once they have content. Until then, the **Add** menu offers **Checklist item** and **Note**
+- **Checklist** -- Use the **⋯** menu on an item to **Move up**, **Move down**, **Rename**, or **Delete** it
+- **Notes** -- Each note can be edited or deleted. Deleting a note asks for confirmation first
+
+### Timing
+
+The **Timing** tab holds everything about when the task happens:
+
+- **Dates** -- The planned start and end, with the duration in days. Once the task is started or finished, the actual **Started** and **Finished** dates are shown too
+- **Constraints** -- **Not before** (the earliest start) and **Start by** (the latest start). **Start by** cannot be earlier than **Not before**
+- **Reschedule…** -- Opens a preview of the new dates and what they move. Select **Save** to apply them, then **Undo** if you change your mind
+- **Waits for** and **Waiting for this task** -- The links to other tasks. Select **Add** to create a link, **Edit** to change its type and lag, or remove it. A removal can be undone. See [Dependencies](dependencies)
+- **Milestones** -- Select **Link milestone** to tie the task to a milestone. The relation is either **This task waits for the milestone** or **This task counts toward the milestone**
+- **Purchases waiting for this task** -- Purchases that wait for this task to finish
+
+### Cost
+
+The **Cost** tab shows the money side of the task:
+
+- **Cost lines** -- The estimates come first, then one group for each offer or invoice the lines are linked to. **Add cost line** adds a line, **New invoice** creates an invoice, and **Link to offer or invoice** connects an estimate to an existing document. See [Task Costs](/guides/budget/work-item-budgets)
+- **Grants** -- The grants that cover this task. **Add** links a grant. **Remove** unlinks one, and an **Undo** notification follows
+
+### Site Diary
+
+The **Site diary** tab lists the diary entries for the task. Entries for the task's company come first. Entries that match the task only through photo tags and dates are folded under **Other entries**. Select **Log for this task** to write a new entry, which starts with the task's area and company filled in. **Show all in the Site diary** opens the full diary, filtered to match.
+
+### History
+
+The **History** tab shows when the task was created, who created it, and when it was last updated, followed by its change history. **Show all in History** opens the full history.
+
+### Keyboard Shortcuts on the Task Page
+
+Press `e` to edit the task details, `Delete` to delete the task, and `?` to see all shortcuts. See [Keyboard Shortcuts](keyboard-shortcuts#task-detail).
 
 ## Next Steps
 
 - [Creating Tasks](creating-work-items) -- How to create and edit tasks
 - [Areas & Trades](areas-and-trades) -- Organize by location and specialty
-- [Notes & Subtasks](notes-and-subtasks) -- Add comments and checklists
-- [Dependencies](dependencies) -- Link work items together
+- [Notes & Checklists](notes-and-subtasks) -- Add comments and checklist items
+- [Dependencies](dependencies) -- Link tasks together
 - [Keyboard Shortcuts](keyboard-shortcuts) -- Navigate faster with keyboard shortcuts

@@ -5,13 +5,15 @@
  * server answers 409 with the top-level CIRCULAR_DEPENDENCY code, and the page shows the
  * translated copy (not the developer-facing server message) in the inline error banner.
  *
- * Note: the dependency builder excludes items that already have a direct dependency with the
- * current item, so a direct B -> A reversal cannot be attempted from the UI. A 3-item cycle
- * keeps C selectable from A's page.
+ * Note: the dependency dialog excludes tasks that already have a direct dependency with the
+ * current task, so a direct B -> A reversal cannot be attempted from the UI. A 3-task cycle
+ * keeps C selectable from A's page (Timing tab, "Waits for" Add dialog; the error shows under the
+ * Task field since #2248).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import { WorkItemDetailPage, dependencyDialogTitles } from '../../pages/WorkItemDetailPage.js';
+import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -43,20 +45,24 @@ test.describe('Circular dependency error', () => {
         expect(response.ok()).toBeTruthy();
       }
 
-      await detailPage.goto(idA);
+      await detailPage.goto(idA, { tab: 'timing' });
       await expect(detailPage.heading).toBeVisible();
 
-      // Sentence builder: "<C> must finish before <this item> can start" -> C -> A closes the cycle
-      const picker = detailPage.constraintsSection.getByPlaceholder('Search work items...').first();
-      await picker.fill(titleC);
-      await page.getByRole('option', { name: titleC }).click();
-      await detailPage.dependencyAddButton.click();
+      // Add dialog of "Waits for": A waits for C closes the cycle A -> B -> C -> A
+      await detailPage.dependencyAdd(detailPage.waitsFor).click();
+      const dialog = detailPage.dependencyDialog(dependencyDialogTitles.addWaitsFor);
+      await dialog.waitForOpen();
+      const picker = new EntityPickerControl(page, 'task', dialog.dialog);
+      await picker.pick(titleC);
+      await dialog.save();
 
-      await expect(detailPage.errorBanner).toBeVisible();
-      await expect(detailPage.errorBanner).toContainText(
-        'This would create a circular dependency.',
-      );
-      await expect(detailPage.errorBanner).not.toContainText('Circular dependency detected');
+      // The server answers 409 CIRCULAR_DEPENDENCY: the field shows the translated copy
+      const error = dialog.fieldError('task');
+      await expect(error).toBeVisible();
+      await expect(error).toContainText('This would create a circular dependency.');
+      await expect(error).not.toContainText('Circular dependency detected');
+      // The dialog stays open so the choice can be changed
+      await expect(dialog.dialog).toBeVisible();
     } finally {
       for (const id of ids) await deleteWorkItemViaApi(page, id);
     }

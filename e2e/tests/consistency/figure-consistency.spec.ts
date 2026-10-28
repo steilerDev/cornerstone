@@ -49,6 +49,7 @@ import {
   SCHEDULE_RESCHEDULE_PREVIEW_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   TASKS_LIST_HOLDS_UP_SURFACE,
+  TASK_PAGE_HOLDS_UP_SURFACE,
 } from '../../fixtures/figureSurfaces.js';
 import type { ProjectFigure } from '../../fixtures/figureSurfaces.js';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
@@ -465,6 +466,10 @@ test.describe('Figure consistency', () => {
       });
       if (tasksList.length > 0) expect(tasksList).toEqual([2]);
 
+      // Task page: the Holds up fact of the strip reads the same number (#2248)
+      const taskPage = await TASK_PAGE_HOLDS_UP_SURFACE.readAll(page, { workItemId: a });
+      expect(taskPage).toEqual([2]);
+
       // Schedule: the same number in the tooltip, while the list shows the one direct successor
       const tooltip = await SCHEDULE_TOOLTIP_SURFACE.readAll(page, { workItemId: a });
       expect(tooltip).toEqual([2]);
@@ -606,6 +611,8 @@ test.describe('Figure surface registry', () => {
     expect(COMPANY_PAID_SURFACE.story).toBe('4.12');
     expect(COMPANIES_LIST_SURFACE.story).toBe('4.12');
     expect(MILESTONES_LIST_HOLDS_UP_SURFACE.story).toBe('5.2');
+    expect(TASK_PAGE_HOLDS_UP_SURFACE.story).toBe('5.4');
+    expect(PENDING_SURFACES).toEqual([]);
     expect(FINANCING_SOURCE_PAID_SURFACE.story).toBe('4.10');
     expect(FINANCING_READY_SURFACE.story).toBe('4.10');
     for (const pending of gated) {

@@ -84,7 +84,7 @@ test.describe('Cost line Unlink with Undo - task page (U1)', { tag: '@responsive
     const { taskId, invoiceNumber, names } = await seedLinked(page, testPrefix, 1);
     const line = names[0]!;
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await expect(panel.groupHeading(`Invoice ${invoiceNumber}`)).toBeVisible();
 
@@ -230,7 +230,7 @@ test.describe('Cost line Delete still asks (U4)', { tag: '@responsive' }, () => 
       includesVat: true,
     });
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(name), 'Delete');
@@ -254,7 +254,7 @@ test.describe('Cost line Undo - conflict (U5)', { tag: '@responsive' }, () => {
     );
     const line = names[0]!;
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(line), 'Unlink');

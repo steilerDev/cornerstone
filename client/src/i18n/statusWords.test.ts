@@ -94,7 +94,9 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
     expect(de.get('common.statusVocabulary.milestone.upcoming')).toBe('Anstehend');
     expect(en.has('schedule.milestones.status.pending')).toBe(false);
     expect(de.has('schedule.milestones.status.pending')).toBe(false);
-    expect(en.get('workItems.create.pendingDeps.ariaLabel')).toBe('Dependencies to add');
+    // The pending-dependencies list was replaced by the Waits for picker (#2248)
+    expect(en.has('workItems.create.pendingDeps.ariaLabel')).toBe(false);
+    expect(de.has('workItems.create.pendingDeps.ariaLabel')).toBe(false);
   });
 });
 

@@ -168,10 +168,10 @@
   "WRK-022": {
     "name": "Define dependencies on other work items before the new item exists",
     "from": "/project/work-items/new > Dependencies > sentence builder + pending-dependency chips (× to remove)",
-    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > More details > 'Waits for' picker",
+    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > 'Waits for' picker",
     "change": "same",
     "gate": "none",
-    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2248: the sentence builder is retired; the New task form's 'Waits for' field is an EntityMultiPicker (kind 'task') that creates finish-to-start dependencies with no lag; type and lag are edited afterwards on the task page (Timing tab). A dependency error redirects to the task page with ?tab=timing&depError=. Labels renamed: Who, Not before, Start by, Waits for."
   },
   "WRK-023": {
     "name": "Open a work item's full detail page",
@@ -179,7 +179,7 @@
     "to": "Tasks > Task page (/project/work-items/:id, URL kept)",
     "change": "same",
     "gate": "none",
-    "note": "One object template: header, summary strip, 5 tabs. #2196: two-column grid can no longer overflow on phones (long titles wrap). #2202: every in-app opener passes origin, so the task page offers Back to it."
+    "note": "One object template: header, summary strip, 5 tabs. #2196: two-column grid can no longer overflow on phones (long titles wrap). #2202: every in-app opener passes origin, so the task page offers Back to it. #2248: built on the object template: ObjectHeader (StatusMenu chip, primary Start / Mark done, ⋯ Delete), SummaryStrip (When, Where, Who, Expected cost, Waits for, Holds up, Documents), ObjectTabs Overview · Timing · Cost · Site diary · History. Loading, not-found and error states each keep an h1."
   },
   "WRK-024": {
     "name": "Return to where you came from (work-item list or schedule) from the detail page",
@@ -192,11 +192,11 @@
   "WRK-025": {
     "name": "Rename a work item inline",
     "from": "/project/work-items/:id > click the title (h1) or press \"e\" > input + Save / Cancel (Enter / Esc)",
-    "to": "Tasks > Task page > section Edit (explicit Save) > Title",
+    "to": "Tasks > Task page > Overview tab > Details card Edit (explicit Save) > Title",
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Title field; Save.",
-    "note": "Click-to-edit h1 retired; one edit model (PAT-02)."
+    "note": "Click-to-edit h1 retired; one edit model (PAT-02). #2248: Title and Description edit together in the Overview tab's Details card (key e opens it)."
   },
   "WRK-026": {
     "name": "Change a work item's status (Not Started / In Progress / Completed)",
@@ -204,16 +204,16 @@
     "to": "Tasks > Task page > header StatusMenu + primary 'Start' / 'Mark done' (date prompt: Today · planned date · Pick); Tasks > Tasks list > row command; Home > Needs attention > inline 'Start' / 'Mark done'",
     "change": "promoted",
     "gate": "none",
-    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2209: Tasks › Task page › header StatusMenu chip (Start / Mark done with date chips; Back to “…”); the status select is removed."
+    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2209: Tasks › Task page › header StatusMenu chip (Start / Mark done with date chips; Back to “…”); the status select is removed. #2248: the task page header carries the StatusMenu chip and the primary Start / Mark done (date step Today / As planned / Pick, Undo toast); once done the primary is Log for this task."
   },
   "WRK-027": {
     "name": "Edit a work item's description inline",
     "from": "/project/work-items/:id > Description section > click text > textarea + Save / Cancel",
-    "to": "Tasks > Task page > section Edit (explicit Save) > Description",
+    "to": "Tasks > Task page > Overview tab > Details card Edit (explicit Save) > Description",
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Description field; Save.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2248: the Details card shows the description first in read mode (or 'No description yet')."
   },
   "WRK-028": {
     "name": "See the scheduler-computed start and end dates of a work item",
@@ -221,61 +221,61 @@
     "to": "Tasks > Task page > summary strip > When",
     "change": "promoted",
     "gate": "none",
-    "note": "Dates in the first screen (P09)."
+    "note": "Dates in the first screen (P09). #2248: the strip's When fact shows the shown start and end dates (the same dates as the Schedule bar) and opens the Timing tab."
   },
   "WRK-029": {
     "name": "See a \"Delayed by N days\" warning on a not-started work item",
     "from": "/project/work-items/:id > Schedule section > ⚠ indicator",
-    "to": "Tasks > Task page > header 'Late · n d' chip; Tasks > Tasks list > Late group; Home > Needs attention (N1, N2)",
+    "to": "Tasks > Task page > summary strip > When (Late / schedule-signal chip); Tasks > Tasks list > Late group; Home > Needs attention (N1, N2)",
     "change": "promoted",
     "gate": "none",
-    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs. #2229: N1/N2 rows use contract 4's isLate (the Late definition for every surface), with holds-up counts incl. milestone gates; UI in 3.3, Tasks list in 5.1. #2230: Home UI shipped: N1/N2 rows in Needs attention (Mark done / Start, Reschedule -> the task page's Constraints section until the 5.2 Timing tab; Not now with Undo) and the catch-up dialog when 3 or more tasks are late."
+    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs. #2229: N1/N2 rows use contract 4's isLate (the Late definition for every surface), with holds-up counts incl. milestone gates; UI in 3.3, Tasks list in 5.1. #2230: Home UI shipped: N1/N2 rows in Needs attention (Mark done / Start, Reschedule -> the task page's Constraints section until the 5.2 Timing tab; Not now with Undo) and the catch-up dialog when 3 or more tasks are late. #2248 deviation: the Late chip sits in the strip's When fact (schedule-signal Badge next to the dates), not in the header. The Needs attention Reschedule link now opens the task page's Timing tab and the Reschedule panel (?tab=timing#reschedule)."
   },
   "WRK-030": {
     "name": "Assign or change a work item's area",
     "from": "/project/work-items/:id > Area section > searchable AreaPicker (× to clear, saves on change)",
-    "to": "Tasks > Task page > section Edit (explicit Save) > Area",
+    "to": "Tasks > Task page > Overview tab > Who and where card Edit (explicit Save) > Area",
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Area picker; Save.",
-    "note": "180 px single-field card retired. #2236: the interim Area card on the Task page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.2."
+    "note": "180 px single-field card retired. #2236: the interim Area card on the Task page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.2. #2248: Area sits in the Who and where card; the strip's Where fact links to the area (interim: the Areas page until P5.7), or opens this card in edit mode when no area is set."
   },
   "WRK-031": {
     "name": "Assign or reassign a work item to a household member or a vendor",
     "from": "/project/work-items/:id > Assignment section > \"Assigned To\" select (saves on change)",
-    "to": "Tasks > Task page > Overview section Edit > Who (company or household member; one picker)",
+    "to": "Tasks > Task page > Overview tab > Who and where card Edit > Who (company or household member; one picker)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Who picker (company or household member; clearing allowed); Save.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2196: assigning both a user and a vendor answers 400 instead of 500. #2236: the interim Assignment card on the Task page uses EntityPicker kind 'who' (one picker, companies then household members); AssignmentPicker retired. The section Edit placement arrives with 5.2."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2196: assigning both a user and a vendor answers 400 instead of 500. #2236: the interim Assignment card on the Task page uses EntityPicker kind 'who' (one picker, companies then household members); AssignmentPicker retired. The section Edit placement arrives with 5.2. #2248: Who is the first field of the Who and where card; the strip's Who fact opens the card in edit mode. A company with a phone gets a Call button beside the Who fact."
   },
   "WRK-032": {
     "name": "Set or clear a work item's duration (days)",
     "from": "/project/work-items/:id > Constraints > Duration (days) input (saves on blur, autosave indicator)",
-    "to": "Tasks > Task page > Timing tab > Reschedule… (impact preview) / Timing section Edit > Duration",
+    "to": "Tasks > Task page > Timing tab > Dates card Edit > Duration; Tasks > Task page > Timing tab > Reschedule… (impact preview)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Timing tab > Timing section Edit > Duration (set or clear) and ReschedulePanel duration with preview.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2248: Duration is edited in the Timing tab's Dates card (explicit Save); the Dates card also has Reschedule… for the impact preview. Autosave on blur is retired."
   },
   "WRK-033": {
     "name": "Set or clear start-after / start-before date constraints",
     "from": "/project/work-items/:id > Constraints > Date Constraints > Start After / Start Before (save on blur, × clears)",
-    "to": "Tasks > Task page > Timing tab > Reschedule… (Not before / Start by, with impact preview)",
+    "to": "Tasks > Task page > Timing tab > Constraints card Edit (Not before / Start by)",
     "change": "merged",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page > Timing tab (1) > Timing section Edit (2)",
     "acceptance": "Task page > Timing tab > Timing section Edit > Not before / Start by (set or clear) and ReschedulePanel.",
-    "note": "Constraint editing next to the dates it drives (P20)."
+    "note": "Constraint editing next to the dates it drives (P20). #2248 deviation: the constraints are edited in their own Constraints card, not inside Reschedule (the shared ReschedulePanel has no constraint fields). The legacy #constraints link opens this card in edit mode."
   },
   "WRK-034": {
     "name": "Record or override actual start and end dates",
     "from": "/project/work-items/:id > Constraints > Date Constraints > Actual Start / Actual End (save on blur, × clears)",
-    "to": "Tasks > Task page > Timing tab > Actual dates (auto-filled by status; editable in the Timing section Edit)",
+    "to": "Tasks > Task page > Timing tab > Dates card (Started / Finished; auto-filled by status, editable in the card's Edit)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2248: Started and Finished are read and edited in the Dates card."
   },
   "WRK-035": {
     "name": "Add a note (comment) to a work item",
@@ -285,7 +285,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > 'Add ▾' (1) > Note (2)",
-    "note": "Notes have 0 real uses; the group appears once a note exists (SIM-16), still 2 clicks away (C-04)."
+    "note": "Notes have 0 real uses; the group appears once a note exists (SIM-16), still 2 clicks away (C-04). #2248: Overview › Add ▾ › Note opens the note dialog (ObjectForm); Add ▾ only offers what is not shown yet."
   },
   "WRK-036": {
     "name": "Read a work item's notes with author and date",
@@ -295,17 +295,17 @@
     "gate": "none",
     "clicks": 0,
     "clickPath": "Task page (Overview) shows the Notes group as soon as a note exists",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2248: the Notes card shows author and date per note."
   },
   "WRK-037": {
     "name": "Edit or delete a note",
     "from": "/project/work-items/:id > Notes > note \"Edit\" / \"Delete\" (delete opens confirm modal)",
-    "to": "Tasks > Task page > Overview tab > Notes > note ⋯ > Edit / Delete (Undo toast)",
+    "to": "Tasks > Task page > Overview tab > Notes > note ⋯ > Edit (note dialog) / Delete (ConfirmDialog)",
     "change": "demoted",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > note ⋯ (1) > Edit / Delete (2)",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2209: Tasks › Task page › Notes › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2209: Tasks › Task page › Notes › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist). #2248 deviation: Delete keeps its ConfirmDialog because the notes DELETE answers 204 without a snapshot; it becomes an Undo toast once snapshots exist. Edit uses the note dialog (ObjectForm)."
   },
   "WRK-038": {
     "name": "Add a subtask (checklist item) to a work item",
@@ -315,7 +315,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > 'Add ▾' (1) > Checklist item (2)",
-    "note": "Checklists have 0 real uses; the group appears once it has an item (SIM-16)."
+    "note": "Checklists have 0 real uses; the group appears once it has an item (SIM-16). #2248: Overview › Add ▾ › Checklist item shows the Checklist card and its add field."
   },
   "WRK-039": {
     "name": "Tick a subtask done or reopen it",
@@ -325,45 +325,45 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Task page (Overview) > checklist checkbox (1)",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2248: built in the Overview tab's Checklist card."
   },
   "WRK-040": {
     "name": "Rename a subtask inline",
     "from": "/project/work-items/:id > Subtasks > click subtask title > input + Save / Cancel (Enter / Esc)",
-    "to": "Tasks > Task page > Overview tab > Checklist > item ⋯ > Rename",
+    "to": "Tasks > Task page > Overview tab > Checklist > item ⋯ > Rename (dialog)",
     "change": "demoted",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > checklist item ⋯ (1) > Rename (2)",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2248: Rename opens a one-field dialog (ObjectForm), no inline edit."
   },
   "WRK-041": {
     "name": "Reorder subtasks",
     "from": "/project/work-items/:id > Subtasks > ↑ / ↓ buttons per row",
-    "to": "Tasks > Task page > Overview tab > Checklist > drag handle",
+    "to": "Tasks > Task page > Overview tab > Checklist > item ⋯ > Move up / Move down",
     "change": "demoted",
     "gate": "none",
     "clicks": 1,
     "clickPath": "Task page (Overview) > checklist drag handle (1)",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2248 deviation: reorder is ⋯ › Move up / Move down instead of a drag handle (keyboard-reachable, no drag-only path)."
   },
   "WRK-042": {
     "name": "Delete a subtask with confirmation",
     "from": "/project/work-items/:id > Subtasks > × > confirm modal",
-    "to": "Tasks > Task page > Overview tab > Checklist > item ⋯ > Delete (Undo toast)",
+    "to": "Tasks > Task page > Overview tab > Checklist > item ⋯ > Delete (ConfirmDialog)",
     "change": "demoted",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > checklist item ⋯ (1) > Delete (2)",
-    "note": "Sub-record removal uses Undo instead of a modal. #2209: Tasks › Task page › Subtasks › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
+    "note": "Sub-record removal uses Undo instead of a modal. #2209: Tasks › Task page › Subtasks › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist). #2248 deviation: Delete keeps its ConfirmDialog because the subtasks DELETE answers 204 without a snapshot; it becomes an Undo toast once snapshots exist."
   },
   "WRK-043": {
     "name": "See a work item's predecessors and successors as plain-language sentences",
     "from": "/project/work-items/:id > Constraints > Dependencies > sentence list (e.g. \"Must start before this can start: X\") with links",
-    "to": "Tasks > Task page > summary strip 'Waits for' / 'Holds up n tasks' (n = every unfinished task that moves if this one slips, milestone gates included; same n on Home, Tasks list and the Reschedule preview); Tasks > Task page > Timing tab > Waits for · Holds up",
+    "to": "Tasks > Task page > summary strip 'Waits for' / 'Holds up n tasks' (n = every unfinished task that moves if this one slips, milestone gates included; same n on Home, Tasks list and the Reschedule preview); Tasks > Task page > Timing tab > Waits for · Waiting for this task",
     "change": "promoted",
     "gate": "none",
-    "note": "One definition (R-M1): on real data the floor-heating task holds up 28 tasks (8 through dependencies, 20 through one milestone), 8 of them due to start within 2 weeks."
+    "note": "One definition (R-M1): on real data the floor-heating task holds up 28 tasks (8 through dependencies, 20 through one milestone), 8 of them due to start within 2 weeks. #2248 deviation: the Timing list of direct successors is titled 'Waiting for this task', not 'Holds up', so it never shows a second, smaller count under the strip's transitive 'Holds up n tasks' label (#2232). The strip figures come from GET /api/work-items/:id, computed by the same helper as the Tasks list rows."
   },
   "WRK-044": {
     "name": "Add a dependency with the sentence builder (finish/start × finish/start = FS, SS, FF, SF)",
@@ -373,7 +373,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page > Timing tab (1) > Waits for > Add (2) — type is a field of the dialog",
-    "note": "The type is a field of the add dialog instead of an 'Advanced' step (C-04): 2 clicks from the task page. #2236: the sentence builder's task picker is EntityPicker kind 'task' (status as a word, no colour border; WorkItemPicker retired). Removing a dependency now returns an Undo token; the Waits for RelatedList and the add dialog arrive with 5.4."
+    "note": "The type is a field of the add dialog instead of an 'Advanced' step (C-04): 2 clicks from the task page. #2236: the sentence builder's task picker is EntityPicker kind 'task' (status as a word, no colour border; WorkItemPicker retired). Removing a dependency now returns an Undo token; the Waits for RelatedList and the add dialog arrive with 5.4. #2248: built: Timing › Waits for › Add opens the dependency dialog (task picker, Type as a schedule sentence, Lag days); the sentence builder is deleted."
   },
   "WRK-045": {
     "name": "Remove a dependency with confirmation",
@@ -381,23 +381,23 @@
     "to": "Tasks > Task page > Timing tab > dependency row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Task page › Dependencies › Remove (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Task page › Dependencies › Remove (ConfirmDialog, no list; becomes an Undo toast when snapshots exist). #2248: built: RelatedList row ⋯ › Remove applies at once with an Undo toast."
   },
   "WRK-046": {
     "name": "Gate a work item on milestones (\"Required Milestones\")",
     "from": "/project/work-items/:id > Constraints > Required Milestones > select \"Select milestone...\" + \"Add\"; chip × to remove",
-    "to": "Tasks > Task page > Timing tab > Milestones > 'Waits for milestone' > Add",
+    "to": "Tasks > Task page > Timing tab > Milestones > Link milestone (Relation: Waits for)",
     "change": "same",
     "gate": "none",
-    "note": "Renamed from 'Required Milestones'."
+    "note": "Renamed from 'Required Milestones'. #2248 deviation: one Milestones list instead of two; each row names its relation as text (Waits for / Counts toward) and the target date. Link milestone opens a dialog with a Relation select and a milestone picker (EntityPicker kind 'milestone')."
   },
   "WRK-047": {
     "name": "Let a work item contribute to milestones (\"Linked Milestones\")",
     "from": "/project/work-items/:id > Constraints > Linked Milestones > select + \"Link\"; chip × to remove",
-    "to": "Tasks > Task page > Timing tab > Milestones > 'Counts toward' > Add",
+    "to": "Tasks > Task page > Timing tab > Milestones > Link milestone (Relation: Counts toward)",
     "change": "same",
     "gate": "none",
-    "note": "Renamed from 'Linked Milestones'."
+    "note": "Renamed from 'Linked Milestones'. #2248 deviation: shares the one Milestones list and Link milestone dialog with WRK-046 (Relation: Counts toward)."
   },
   "WRK-048": {
     "name": "See which household-item deliveries wait for this work item",
@@ -405,7 +405,7 @@
     "to": "Tasks > Task page > Timing tab > 'Purchases waiting for this task'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2196: linked-purchase category chip resolves the category name; no empty chip."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2196: linked-purchase category chip resolves the category name; no empty chip. #2248: built as a RelatedList in the Timing tab."
   },
   "WRK-053": {
     "name": "Read each budget line card on a work item or household item: planned amount, confidence margin, invoiced/quoted amount, description and category / source / vendor chips",
@@ -413,7 +413,7 @@
     "to": "Task / Purchase page > Cost tab > cost line rows (one CostLine renderer)",
     "change": "same",
     "gate": "none",
-    "note": "One renderer replaces 6 (D3 §6.1); state badge Planned/Offered/Invoiced/Paid/Submitted. #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: rows come from the one renderer CostLineTable; the state chip reads Estimate / Offered / Invoiced / Paid / Submitted, derived from the linked offer or invoice; the ten old line components are deleted."
+    "note": "One renderer replaces 6 (D3 §6.1); state badge Planned/Offered/Invoiced/Paid/Submitted. #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: rows come from the one renderer CostLineTable; the state chip reads Estimate / Offered / Invoiced / Paid / Submitted, derived from the linked offer or invoice; the ten old line components are deleted. #2248: the Cost tab exists; the Cost lines section moved into it unchanged."
   },
   "WRK-062": {
     "name": "See each linked subsidy's reduction (percentage or fixed) on a work item or household item",
@@ -421,17 +421,17 @@
     "to": "Task / Purchase page > Cost tab > Grants",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). Owner 7 Oct: fixed-amount grants are dropped for now (none used); the Grants list shows the rate."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). Owner 7 Oct: fixed-amount grants are dropped for now (none used); the Grants list shows the rate. #2248: Task page › Cost tab › Grants (RelatedList: rate as a fact, application status badge; Add via EntityPicker kind 'grant', Remove with Undo). The strip's Expected cost fact names the grant(s)."
   },
   "WRK-067": {
     "name": "See who created a work item and when it was last updated",
     "from": "/project/work-items/:id > footer",
-    "to": "Tasks > Task page > History tab (created by / updated)",
+    "to": "Tasks > Task page > History tab (line: Created by ‹name› on ‹date› · Last updated ‹date›)",
     "change": "demoted",
     "gate": "none",
     "clicks": 1,
     "clickPath": "Task page > History tab (1)",
-    "note": "Footer metadata moves into History."
+    "note": "Footer metadata moves into History. #2248 deviation: no task-created event exists, so the History tab opens with a muted created / last-updated line above the change history."
   },
   "WRK-068": {
     "name": "Delete a work item from its detail page",
@@ -439,7 +439,7 @@
     "to": "Tasks > Task page > header ⋯ > Delete (modal with consequences); key Del",
     "change": "same",
     "gate": "none",
-    "note": "Moved from page footer to the header ⋯ menu (one delete placement). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts)."
+    "note": "Moved from page footer to the header ⋯ menu (one delete placement). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2248: header ⋯ › Delete (ConfirmDialog with delete-impact counts), key Delete or Backspace; returns to the Tasks list and focuses its heading."
   },
   "WRK-069": {
     "name": "Use keyboard shortcuts on list pages and open the shortcut help overlay",
@@ -455,7 +455,7 @@
     "to": "Tasks > Task page > shortcuts e (edit), Del (delete), ? (help) via global registry",
     "change": "same",
     "gate": "none",
-    "note": "Help texts translated."
+    "note": "Help texts translated. #2248: e (Details edit), Delete / Backspace (delete), ? (help) through the global shortcut registry, with translated descriptions."
   },
   "WRK-071": {
     "name": "Browse all milestones in a table",
@@ -879,7 +879,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page > Timing tab (1) > dependency row 'Edit' icon (2)",
-    "note": "API-only today. The row's own Edit opens the dialog with type and lag, no separate Advanced step (C-04): 2 clicks from the task page."
+    "note": "API-only today. The row's own Edit opens the dialog with type and lag, no separate Advanced step (C-04): 2 clicks from the task page. #2248: built: the row Edit opens the same dependency dialog with Type and Lag days only."
   },
   "WRK-136": {
     "name": "Preview a full or cascade reschedule without saving (API only)",
@@ -1188,12 +1188,12 @@
   "MNY-044": {
     "name": "Link or unlink a subsidy program on a work item or household item",
     "from": "/project/work-items/:id > Budget section > 'Subsidies' subsection > program select + 'Add Subsidy' / unlink x | /project/household-items/:id > Budget section > 'Subsidies' subsection > same controls | /project/work-items/:id > Budget > Subsidies > \"Select subsidy program...\" dropdown + \"Add Subsidy\" | /project/work-items/:id > Budget > Subsidies > × on a linked program | /project/household-items/:id > \"Budget\" > \"Subsidies\" subsection > \"Select subsidy program…\" + \"Add Subsidy\" | /project/household-items/:id > \"Subsidies\" list > \"×\"",
-    "to": "Money > Grant page > Work tab > 'Link tasks / purchases' (multi-select) [done in #2242]; Task / Purchase page > Cost tab > Grants > Add / Remove [stays until P5.4 / P5.5]",
+    "to": "Money > Grant page > Work tab > 'Link tasks / purchases' (multi-select) [done in #2242]; Task page > Cost tab > Grants > Add / Remove [done in #2248]; Purchase page > Cost tab > Grants [stays until P5.5]",
     "change": "promoted",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Purchase page > Cost tab (1) > Grants > Add (2)",
-    "note": "Reverse entry from the grant (J12 34 clicks -> ~15). #2242: Grant side done: Work tab › Covered items (RelatedList): each row shows the computed share (no Edit, the amount is not stored), Remove with Undo, and Link tasks / purchases (multi-select, one atomic request). Task and purchase pages are unchanged until P5.4 / P5.5."
+    "note": "Reverse entry from the grant (J12 34 clicks -> ~15). #2242: Grant side done: Work tab › Covered items (RelatedList): each row shows the computed share (no Edit, the amount is not stored), Remove with Undo, and Link tasks / purchases (multi-select, one atomic request). Task and purchase pages are unchanged until P5.4 / P5.5. #2248: task side done: Cost › Grants RelatedList, Add via EntityPicker kind 'grant', Remove with Undo. The purchase page is unchanged until P5.5."
   },
   "MNY-045": {
     "name": "See expected cost, planned cost and expected payback for one work item or household item",
@@ -1641,7 +1641,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > row ⋯ > Remove from invoice (Undo); Task / Purchase page > Cost tab > row ⋯ > Unlink",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm). #2236: Undo delivered. Remove from invoice / Remove from offer (document host) and Unlink (task and purchase pages) apply at once with an Undo toast (DELETE /api/invoices/:invoiceId/budget-lines/:id returns { undo }); no ConfirmDialog. Deleting a cost line keeps its ConfirmDialog. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm). #2236: Undo delivered. Remove from invoice / Remove from offer (document host) and Unlink (task and purchase pages) apply at once with an Undo toast (DELETE /api/invoices/:invoiceId/budget-lines/:id returns { undo }); no ConfirmDialog. Deleting a cost line keeps its ConfirmDialog. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2248: on the task page this lives in the Cost tab."
   },
   "MNY-102": {
     "name": "Assign an unassigned (orphan) invoice line to a work item or household item",
@@ -1657,7 +1657,7 @@
     "to": "Task / Purchase page > Cost tab > 'Add cost line'",
     "change": "same",
     "gate": "none",
-    "note": "Form defaults follow real use: unit pricing, net (VRD-20). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: \"Add cost line\" opens CostLineForm with unit pricing and Net as defaults; \"Add lines (grid)\" adds many estimates at once."
+    "note": "Form defaults follow real use: unit pricing, net (VRD-20). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: \"Add cost line\" opens CostLineForm with unit pricing and Net as defaults; \"Add lines (grid)\" adds many estimates at once. #2248: the task page's Cost tab is built (the purchase page follows in P5.5)."
   },
   "MNY-106": {
     "name": "Price a budget line by quantity x unit price",
@@ -1705,7 +1705,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Edit (Cost line dialog) / Delete (Undo)",
     "change": "same",
     "gate": "none",
-    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Edit opens CostLineForm; row ⋯ › Delete confirms with ConfirmDialog, blocked state on 409 (D4: Undo comes with P4.4 #2236)."
+    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Edit opens CostLineForm; row ⋯ › Delete confirms with ConfirmDialog, blocked state on 409 (D4: Undo comes with P4.4 #2236). #2248: the task page's Cost tab is built (the purchase page follows in P5.5)."
   },
   "MNY-112": {
     "name": "Move an un-invoiced budget line to another item of the same type (work item to work item, household item to household item)",
@@ -1721,7 +1721,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Link to invoice",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2194: compact one-line rows with the amount left per invoice; a fully allocated invoice is neutral, never a red error (D-27). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Link to invoice opens LinkInvoiceForm (offers and invoices, amount left per document)."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2194: compact one-line rows with the amount left per invoice; a fully allocated invoice is neutral, never a red error (D-27). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Link to invoice opens LinkInvoiceForm (offers and invoices, amount left per document). #2248: the task page's Cost tab is built (the purchase page follows in P5.5)."
   },
   "MNY-114": {
     "name": "See an item's budget lines grouped by invoice",
@@ -1729,7 +1729,7 @@
     "to": "Task / Purchase page > Cost tab > grouped by offer / invoice, estimates first",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones. #2203: an invoice opened from a task or purchase shows \"‹ Back to ‹that name›\". #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: CostLineTable mode=\"item\" groups Estimates first, then one group per offer or invoice with company and totals."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones. #2203: an invoice opened from a task or purchase shows \"‹ Back to ‹that name›\". #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: CostLineTable mode=\"item\" groups Estimates first, then one group per offer or invoice with company and totals. #2248: the task page's Cost tab is built (the purchase page follows in P5.5)."
   },
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",

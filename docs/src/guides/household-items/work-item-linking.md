@@ -1,28 +1,26 @@
 ---
 sidebar_position: 3
-title: Work Item Linking
+title: Task Linking
 ---
 
-# Work Item Linking
+# Task Linking
 
-Household items can be linked to work items to coordinate installation. For example, you might link "Kitchen faucet" to the "Plumbing rough-in" work item so you know the faucet needs to arrive before plumbing work begins.
+Purchases can be linked to tasks to coordinate installation. For example, you might link "Kitchen faucet" to the "Plumbing rough-in" task so you know the faucet needs to arrive before plumbing work begins.
 
-## Linking from a Work Item
+A link is a dependency: the purchase waits for the task. It is added from the purchase, and the task shows it in return.
 
-On a work item detail page, a **Household Items** section shows all linked household items. Click **+ Link Household Item** to open a picker with search and filtering. Select an item to create the link.
+## Linking from a Purchase
 
-Each linked household item card shows the item name, category, status, and delivery dates.
+On the purchase page, the **Dependencies** card lists everything the purchase waits for. Use the search field in that card, labelled **Search work items or milestones to add...**, to find a task or a milestone and add it. Remove a link with the remove control on its row, which asks for confirmation first.
 
-## Linking from a Household Item
+Tasks are found by search on the server, so type a few letters of the task title to find it.
 
-On a household item detail page, linked work items appear in the **Work Items** section. You can also manage links from this direction.
+## Seeing Purchases on a Task
 
-## Unlinking
-
-Click the **Unlink** button on a linked item card to remove the association. This does not delete either the work item or the household item -- it only removes the link between them.
+Purchases that wait for a task are listed on that task's **Timing** tab, under **Purchases waiting for this task**. The task page does not have a separate linking section, so change the link from the purchase when you need to.
 
 ## Use Cases
 
-- **Installation coordination** -- Link items to the work item that will install them so you can verify the item has arrived before scheduling the work
-- **Room planning** -- Link all items destined for a specific room to the work item that prepares that room
+- **Installation coordination** -- Link a purchase to the task that will install it so you can verify the item has arrived before scheduling the work
+- **Room planning** -- Link all purchases destined for a specific room to the task that prepares that room
 - **Dependency tracking** -- Combined with [timeline dependencies](delivery-and-dependencies), linking ensures delivery dates align with the construction schedule

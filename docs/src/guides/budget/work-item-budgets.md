@@ -1,19 +1,19 @@
 ---
 sidebar_position: 3
-title: Work Item Budgets
+title: Task Costs
 ---
 
-# Work Item Budgets
+# Task Costs
 
-Each task can have one or more **cost lines** that track what that task costs. A cost line is one priced line on a task or purchase. It is either an **estimate** you made yourself or a line from a vendor's **offer** or **invoice**. Each cost line connects a work item to a cost category and a [financing source](financing-sources).
+Each task can have one or more **cost lines** that track what that task costs. A cost line is one priced line on a task or purchase. It is either an **estimate** you made yourself or a line from a company's **offer** or **invoice**. Each cost line connects a task to a cost category and a [financing source](financing-sources).
 
 :::note Renamed from budget lines
 Earlier versions called these **budget lines**. The same lines are now called **cost lines** everywhere in the app.
 :::
 
-## The Cost Lines Section
+## The Cost Tab
 
-On the task detail page, scroll to the **Cost** section. Its **Cost lines** list shows every cost line on the task, with the **Estimates** first and then one group for each offer or invoice the lines are linked to. The page has no tabs.
+On the task page, open the **Cost** tab. Its **Cost lines** list shows every cost line on the task, with the **Estimates** first and then one group for each offer or invoice the lines are linked to. **Add cost line** adds a line, **New invoice** creates an invoice, and the **Grants** list below shows the grants that cover the task.
 
 Each line shows a **state chip** that tells you where its amount comes from:
 
@@ -29,7 +29,7 @@ Amounts are shown **gross**, which means including VAT. Hover over an amount, or
 
 ## Adding a Cost Line
 
-Click **Add cost line** in the Cost lines section. The form asks for:
+Click **Add cost line** on the **Cost** tab. The form asks for:
 
 - **Description** -- What the cost is (e.g., "Oak flooring", "Electrician labour")
 - **Pricing** -- **Unit pricing** (quantity times unit price, the default) or **Direct amount** (one total)
@@ -60,7 +60,7 @@ Once a line is linked to an offer or invoice, its basis is set by that document 
 When a company's offer or invoice arrives for work covered by a cost line, you can link the line to it. You can do this from either direction:
 
 - **From the invoice or offer page** -- split the document into cost lines on tasks and purchases. See [Invoices & Companies](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
-- **From the Cost section of the task page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice. Enter the amount that applies to this line.
+- **From the Cost tab of the task page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice. Enter the amount that applies to this line.
 
 A cost line can be linked to **at most one** offer or invoice. When several lines on the same task belong to the same document, they appear together in one group, headed by the document number and its total.
 
@@ -82,6 +82,12 @@ The link to the offer or invoice is kept when you move the line. Only the item i
 The link is removed at once, with no confirmation dialog. A message appears with an **Undo** button. Select **Undo** to link the line to the same offer or invoice again. If the line has changed since, Undo does not restore the link, and the message says so.
 
 **Delete** removes the cost line, after a confirmation dialog. A line linked to an offer or invoice cannot be deleted until you remove the link.
+
+## Grants
+
+A [grant](subsidies) can pay back part of the cost of a task. On the **Cost** tab, the **Grants** list shows every grant that covers the task. Select **Add** to link a grant to the task. Select **Remove** on a grant to unlink it. An **Undo** notification follows, so you can restore the link if you removed the wrong one. When no grant covers the task, the list says so.
+
+The grants on a task also appear in its summary strip as **Expected cost**, with the name of the first grant and a count of any others.
 
 ## Multiple Cost Lines per Task
 

@@ -158,7 +158,7 @@ test.describe('Scenario 1 — Prefilled inline vendor create', { tag: '@smoke' }
         extractedVendorName: vendorName,
       });
 
-      await reviewPage.vendorInput.focus();
+      await reviewPage.vendorInput.click();
       await expect(reviewPage.vendorPortalDropdown).toBeVisible();
       await expect(reviewPage.vendorCreateOption).toBeVisible();
       await reviewPage.vendorCreateOption.click();
@@ -553,7 +553,7 @@ test.describe('Scenario 8 — Dark mode', { tag: '@responsive' }, () => {
         extractedVendorName: `${testPrefix} Dark Co`,
       });
 
-      await reviewPage.vendorInput.focus();
+      await reviewPage.vendorInput.click();
       await expect(reviewPage.vendorCreateOption).toBeVisible();
       const contrast = await reviewPage.vendorCreateOption.evaluate((el) => {
         const label = el.querySelector('[class*="createOptionLabel"]') ?? el;
@@ -594,7 +594,7 @@ test.describe('Scenario 9 — Existing company, no create row', () => {
       const { reviewPage } = await openReviewPage(page, {
         extractedVendorName: `${testPrefix} Extracted Only Co`,
       });
-      await reviewPage.vendorInput.focus();
+      await reviewPage.vendorInput.click();
       await expect(reviewPage.vendorCreateOption).toBeVisible();
 
       // ... but a name that is already a company never offers to create it again

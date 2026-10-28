@@ -358,7 +358,7 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
       await linkPurchaseToWorkItem(page, purchaseId, workItemId);
 
       const detail = new WorkItemDetailPage(page);
-      await detail.goto(workItemId);
+      await detail.goto(workItemId, { tab: 'cost' });
       await setTheme(page, theme);
 
       // The cost lines (state chip, long description, long offer title) must fit the viewport,
@@ -424,7 +424,7 @@ test.describe(
       await expect(chip).not.toHaveText(/^hic-/);
     });
 
-    test('Task page lists a linked purchase with a category chip that is never empty', async ({
+    test('Task page lists a linked purchase with a status chip that is never empty', async ({
       page,
       testPrefix,
     }) => {
@@ -433,16 +433,16 @@ test.describe(
       await linkPurchaseToWorkItem(page, purchaseId, workItemId);
 
       const detail = new WorkItemDetailPage(page);
-      await detail.goto(workItemId);
+      await detail.goto(workItemId, { tab: 'timing' });
 
-      const chips = page.locator('[class*="householdItemCategoryBadge"]');
-      await expect(chips.first()).toBeVisible();
-      const texts = await chips.allTextContents();
-      expect(texts.length).toBeGreaterThan(0);
-      for (const text of texts) {
-        expect(text.trim(), 'every category chip has text').not.toBe('');
-        expect(text.trim()).not.toMatch(/^hic-/);
-      }
+      // "Purchases waiting for this task" names the purchase and shows its status as a chip
+      const row = detail.purchases.row(purchaseId);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText(`${testPrefix} Test Armchair`);
+      const chip = page.getByTestId(`task-purchase-status-${purchaseId}`);
+      await expect(chip).toBeVisible();
+      await expect(chip).toHaveText(/\S/);
+      await expect(chip).not.toHaveText(/^hic-/);
     });
 
     test('Company edit form shows the current trade', async ({ page, testPrefix }) => {

@@ -195,14 +195,18 @@ test.describe('StatusMenu — task status', { tag: '@responsive' }, () => {
       await expect(detail.statusMenu.trigger).toHaveText('Not started');
       expect((await fetchWorkItem(page, id)).status).toBe('not_started');
 
-      // With focus in a text field the shortcut belongs to the field (text undo), not the toast
+      // With focus in a text field the shortcut belongs to the field (text undo), not the toast.
+      // The field is opened first: clicking Edit later would move the pointer off the toast.
+      await detail.detailsCard.startEdit();
+      await detail.titleInput.fill('typing here');
       await detail.statusMenu.chooseToday('in_progress');
       await expect(toasts.undoToast).toBeVisible();
       // Hover pauses the 6 s undo clock, so a slow runner cannot dismiss the toast before the
-      // final cleanup click (it did on CI, #2287).
+      // final cleanup click (it did on CI, #2287). Focus moves by script, not by mouse.
       await toasts.undoToast.hover();
-      await detail.noteTextarea.fill('typing here');
-      await expect(detail.noteTextarea).toBeFocused();
+      await expect(detail.statusMenu.trigger).toHaveText('In progress');
+      await detail.titleInput.focus();
+      await expect(detail.titleInput).toBeFocused();
       await page.keyboard.press('Control+z');
 
       await expect(toasts.undoToast).toBeVisible();

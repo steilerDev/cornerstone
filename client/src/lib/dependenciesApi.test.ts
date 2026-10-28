@@ -7,7 +7,12 @@ import type {
   CreateDependencyRequest,
   DependencyCreatedResponse,
 } from '@cornerstone/shared';
-import { getDependencies, createDependency, deleteDependency } from './dependenciesApi.js';
+import {
+  getDependencies,
+  createDependency,
+  deleteDependency,
+  updateDependency,
+} from './dependenciesApi.js';
 import { ApiClientError } from './apiClient.js';
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -296,6 +301,48 @@ describe('dependenciesApi', () => {
       } as Response);
 
       await expect(deleteDependency('nonexistent', 'work-0')).rejects.toThrow(ApiClientError);
+    });
+  });
+
+  describe('updateDependency', () => {
+    it('sends PATCH to the successor/predecessor path with the type and lag', async () => {
+      const created: DependencyCreatedResponse = {
+        predecessorId: 'work-0',
+        successorId: 'work-1',
+        dependencyType: 'start_to_start',
+        leadLagDays: 3,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => created,
+      } as Response);
+
+      const result = await updateDependency('work-1', 'work-0', {
+        dependencyType: 'start_to_start',
+        leadLagDays: 3,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/work-items/work-1/dependencies/work-0',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ dependencyType: 'start_to_start', leadLagDays: 3 }),
+        }),
+      );
+      expect(result).toEqual(created);
+    });
+
+    it('throws ApiClientError when the dependency does not exist', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Dependency not found' } }),
+      } as Response);
+
+      await expect(updateDependency('work-1', 'work-0', { leadLagDays: 1 })).rejects.toThrow(
+        ApiClientError,
+      );
     });
   });
 });

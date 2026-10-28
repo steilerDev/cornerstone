@@ -244,7 +244,7 @@ describe('SearchPicker server search', () => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
-    it('focuses the input after "Clear selection" and opens the list (showItemsOnFocus)', async () => {
+    it('focuses the input after "Clear selection"; the list opens on ArrowDown, not by the app-driven focus', async () => {
       renderPicker({ initialTitle: 'Alpha Widget', value: 'item-1' });
 
       await user.click(screen.getByRole('button', { name: 'Clear selection' }));
@@ -252,6 +252,8 @@ describe('SearchPicker server search', () => {
       const input = screen.getByPlaceholderText('Search...');
       await waitFor(() => expect(document.activeElement).toBe(input));
       expect(document.activeElement).not.toBe(document.body);
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      await user.keyboard('{ArrowDown}');
       expect(await screen.findByRole('option', { name: 'Alpha Widget' })).toBeInTheDocument();
     });
 

@@ -1139,6 +1139,50 @@ describe('Work Item Routes', () => {
       expect(detail.dependencies).toBeDefined();
     });
 
+    it('returns the task page figures and the company phone, and no isCritical (#2248)', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'page@example.com',
+        'User',
+        'password',
+      );
+      const ts = '2026-01-01T00:00:00.000Z';
+      app.db
+        .insert(schema.vendors)
+        .values({
+          id: 'ven-page',
+          name: 'Company One',
+          phone: '+49 30 555',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      const workItem = workItemService.createWorkItem(app.db, userId, {
+        title: 'Page Task',
+        assignedVendorId: 'ven-page',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as Record<string, unknown>;
+      expect(body).toMatchObject({
+        id: workItem.id,
+        expectedCost: null,
+        grants: [],
+        waitsFor: null,
+        holdsUp: null,
+        assignedVendor: { id: 'ven-page', name: 'Company One', phone: '+49 30 555' },
+      });
+      for (const key of ['expectedCost', 'grants', 'waitsFor', 'holdsUp']) {
+        expect(body).toHaveProperty(key);
+      }
+      expect(body).not.toHaveProperty('isCritical');
+    });
+
     it('returns 404 for non-existent ID (UAT-3.2-25)', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');

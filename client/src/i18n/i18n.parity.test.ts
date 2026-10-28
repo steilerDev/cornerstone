@@ -436,8 +436,9 @@ describe('#2196 visual-defects keys', () => {
       expect(b.home.attention.empty).toMatch(/\S/);
     });
 
-    it(`${locale}: the retired workItems detail.householdItems.categories map is gone`, () => {
-      expect(b.workItems.detail.householdItems).not.toHaveProperty('categories');
+    it(`${locale}: the retired workItems detail.* block is gone (replaced by taskPage.*, #2248)`, () => {
+      expect(b.workItems).not.toHaveProperty('detail');
+      expect(b.workItems).toHaveProperty('taskPage');
     });
   }
 });

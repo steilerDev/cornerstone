@@ -1,2561 +1,347 @@
 /**
  * @jest-environment jsdom
+ *
+ * The task page shell (#2248): states, header, strip, tabs, deep-link intents, delete and
+ * shortcuts. The panels are covered per module; here they are stubs that expose their props.
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { useEffect } from 'react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
-import type {
-  WorkItemDetail,
-  WorkItemSummary,
-  MilestoneSummary,
-  ErrorCode,
-} from '@cornerstone/shared';
-import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import enErrors from '../../i18n/en/errors.json';
-import enCommon from '../../i18n/en/common.json';
-import enWorkItems from '../../i18n/en/workItems.json';
-import i18n from '../../i18n/index.js';
-import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  Link,
+  useLocation,
+  useNavigationType,
+  useSearchParams,
+} from 'react-router-dom';
+import type { WorkItemPageDetail } from '@cornerstone/shared';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
+import { makeTaskPage } from '../../test/taskPageFixtures.js';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as StatusApiTypes from '../../lib/statusChangeApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
-import type * as NotesApiTypes from '../../lib/notesApi.js';
-import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
-import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
-import type * as UsersApiTypes from '../../lib/usersApi.js';
-import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
-import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
-import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
-import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
-import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
-import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
-import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
-import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
-import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
+import type * as StatusHookTypes from '../../hooks/useUndoableStatusChange.js';
+import type * as CreateMenuTypes from '../../components/CreateMenu/CreateMenuContext.js';
+import type * as EventsTypes from '../../lib/objectCreatedEvents.js';
+import type * as PageModule from './WorkItemDetailPage.js';
 
-// Module-scope mocks
-const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
 const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
-const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
-const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
-const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
-const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
-const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
-const mockFetchWorkItemSubsidyPayback =
-  jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidyPayback>();
-const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
-const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
-const mockUpdateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>();
-const mockDeleteWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.deleteWorkItemBudget>();
-const mockListNotes = jest.fn<typeof NotesApiTypes.listNotes>();
-const mockCreateNote = jest.fn<typeof NotesApiTypes.createNote>();
-const mockUpdateNote = jest.fn<typeof NotesApiTypes.updateNote>();
-const mockDeleteNote = jest.fn<typeof NotesApiTypes.deleteNote>();
-const mockListSubtasks = jest.fn<typeof SubtasksApiTypes.listSubtasks>();
-const mockCreateSubtask = jest.fn<typeof SubtasksApiTypes.createSubtask>();
-const mockUpdateSubtask = jest.fn<typeof SubtasksApiTypes.updateSubtask>();
-const mockDeleteSubtask = jest.fn<typeof SubtasksApiTypes.deleteSubtask>();
-const mockReorderSubtasks = jest.fn<typeof SubtasksApiTypes.reorderSubtasks>();
-const mockGetDependencies = jest.fn<typeof DependenciesApiTypes.getDependencies>();
-const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
-const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependency>();
-const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
-const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
-const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
-const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
-const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
-const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
-const mockGetWorkItemMilestones =
-  jest.fn<typeof WorkItemMilestonesApiTypes.getWorkItemMilestones>();
-const mockAddRequiredMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addRequiredMilestone>();
-const mockRemoveRequiredMilestone =
-  jest.fn<typeof WorkItemMilestonesApiTypes.removeRequiredMilestone>();
-const mockAddLinkedMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addLinkedMilestone>();
-const mockRemoveLinkedMilestone =
-  jest.fn<typeof WorkItemMilestonesApiTypes.removeLinkedMilestone>();
-const mockFetchLinkedHouseholdItems =
-  jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedHouseholdItems>();
-
-// Mock AuthContext
-// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
-jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
-  const localeValue = {
-    locale: 'en',
-    resolvedLocale: 'en',
-    currency: 'EUR',
-    vatRate: 0.19,
-    setLocale: jest.fn(),
-    syncWithServer: jest.fn(),
-  };
-  return {
-    LocaleProvider: ({ children }: { children: unknown }) => children,
-    useLocale: () => localeValue,
-  };
-});
-
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: mockUseAuth,
-}));
-
-// The cost lines section has its own tests; here it is a stub that records its props.
-const mockCostLinesSection = jest.fn<(props: unknown) => void>();
-jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
-  CostLinesSection: (props: { onChanged: () => Promise<void> | void }) => {
-    mockCostLinesSection(props);
-    return (
-      <div data-testid="cost-lines-stub">
-        <button type="button" onClick={() => void props.onChanged()}>
-          stub-changed
-        </button>
-      </div>
-    );
-  },
-}));
-
-// Mock all API modules — do NOT mock react-router-dom (causes OOM)
-jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
-  getWorkItem: mockGetWorkItem,
-  updateWorkItem: mockUpdateWorkItem,
-  deleteWorkItem: mockDeleteWorkItem,
-  listWorkItems: mockListWorkItems,
-  fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
-  linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
-  unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
-  fetchWorkItemSubsidyPayback: mockFetchWorkItemSubsidyPayback,
-}));
-
-jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
-  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
-  createWorkItemBudget: mockCreateWorkItemBudget,
-  updateWorkItemBudget: mockUpdateWorkItemBudget,
-  deleteWorkItemBudget: mockDeleteWorkItemBudget,
-}));
-
-// The status hook, the Documents panel and the cost line grid call useToast; the page has no ToastProvider in these tests.
-const mockShowToast = jest.fn();
-const mockShowUndoToast = jest.fn();
-jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  ToastProvider: ({ children }: { children: unknown }) => children,
-  useToast: () => ({
-    toasts: [],
-    showToast: mockShowToast,
-    showUndoToast: mockShowUndoToast,
-    dismissToast: jest.fn(),
-  }),
-}));
-
-// The delete dialog loads what else the delete affects (#2209).
+const mockChangeStatus = jest.fn<typeof StatusApiTypes.changeWorkItemStatus>();
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+const mockRunStatusChange =
+  jest.fn<ReturnType<typeof StatusHookTypes.useUndoableStatusChange>['run']>();
+const mockUseCreateContext = jest.fn<typeof CreateMenuTypes.useCreateContext>();
+const startEditDetails = jest.fn<() => void>();
+const startEditWhoWhere = jest.fn<() => void>();
+let documentsFact: SummaryFact | null = null;
+let diaryCount: number | null = 3;
+
+const realWorkItemsApi = await import('../../lib/workItemsApi.js');
+const realStatusApi = await import('../../lib/statusChangeApi.js');
+const realCreateMenu = await import('../../components/CreateMenu/CreateMenuContext.js');
+
+jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
+  ...realWorkItemsApi,
+  getWorkItem: mockGetWorkItem,
+  deleteWorkItem: mockDeleteWorkItem,
+}));
+jest.unstable_mockModule('../../lib/statusChangeApi.js', () => ({
+  ...realStatusApi,
+  changeWorkItemStatus: mockChangeStatus,
+}));
 jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
   fetchDeleteImpact: mockFetchDeleteImpact,
 }));
-
-/** The delete action is aria-disabled until the "also affects" counts have loaded. */
-async function enabledConfirm(prefix: string): Promise<HTMLElement> {
-  const btn = await screen.findByTestId(`${prefix}-confirm`);
-  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-  return btn;
-}
-
-// The Link to Invoice modal loads the invoice list (#2194); an empty list keeps its plain amount
-// input, which carries the page-provided defaultAmount.
-jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchAllInvoices: jest.fn(() =>
-    Promise.resolve({
-      invoices: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      summary: {},
-    }),
+jest.unstable_mockModule('../../hooks/useUndoableStatusChange.js', () => ({
+  useUndoableStatusChange: () => ({ run: mockRunStatusChange }),
+}));
+jest.unstable_mockModule('../../components/CreateMenu/CreateMenuContext.js', () => ({
+  ...realCreateMenu,
+  useCreateContext: mockUseCreateContext,
+}));
+jest.unstable_mockModule('../../components/ObjectHeader/useLogPrimary.js', () => ({
+  useLogPrimary: (testId: string) => ({
+    kind: 'link',
+    label: 'Log',
+    to: '/diary/new',
+    state: undefined,
+    testId,
+  }),
+}));
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  useDocumentsPanel: () => ({ fact: documentsFact, panel: <div data-testid="stub-documents" /> }),
+}));
+jest.unstable_mockModule('../../components/FeedRow/ObjectHistorySection.js', () => ({
+  ObjectHistorySection: (props: { entityType: string; entityId: string; revision: number }) => (
+    <div
+      data-testid="stub-history"
+      data-entity={`${props.entityType}:${props.entityId}`}
+      data-revision={props.revision}
+    />
   ),
-  fetchInvoiceById: jest.fn(),
-  createInvoice: jest.fn(),
-  updateInvoice: jest.fn(),
-  deleteInvoice: jest.fn(),
 }));
-
-jest.unstable_mockModule('../../lib/notesApi.js', () => ({
-  listNotes: mockListNotes,
-  createNote: mockCreateNote,
-  updateNote: mockUpdateNote,
-  deleteNote: mockDeleteNote,
+jest.unstable_mockModule('./useTaskDiary.js', () => ({
+  useTaskDiary: () => ({
+    primary: { items: [], totalItems: diaryCount, scope: 'company' },
+    other: null,
+    failure: null,
+    reload: () => undefined,
+    count: diaryCount,
+  }),
 }));
-
-jest.unstable_mockModule('../../lib/subtasksApi.js', () => ({
-  listSubtasks: mockListSubtasks,
-  createSubtask: mockCreateSubtask,
-  updateSubtask: mockUpdateSubtask,
-  deleteSubtask: mockDeleteSubtask,
-  reorderSubtasks: mockReorderSubtasks,
+jest.unstable_mockModule('./TaskOverviewPanel.js', () => ({
+  TaskOverviewPanel: (props: {
+    detailsCardRef: { current: unknown };
+    whoWhereCardRef: { current: unknown };
+  }) => {
+    useEffect(() => {
+      props.detailsCardRef.current = { startEdit: startEditDetails };
+      props.whoWhereCardRef.current = { startEdit: startEditWhoWhere };
+    }, [props.detailsCardRef, props.whoWhereCardRef]);
+    return <div data-testid="stub-overview" />;
+  },
 }));
-
-jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
-  getDependencies: mockGetDependencies,
-  createDependency: mockCreateDependency,
-  deleteDependency: mockDeleteDependency,
-}));
-
-jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  listUsers: mockListUsers,
-}));
-
-jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
-  fetchBudgetCategories: mockFetchBudgetCategories,
-}));
-
-jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
-  fetchBudgetSources: mockFetchBudgetSources,
-}));
-
-jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
-  searchCompanies: makeSearchCompanies(mockFetchVendors),
-}));
-
-jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
-  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
-}));
-
-jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
-  listMilestones: mockListMilestones,
-  getMilestone: jest.fn(),
-  createMilestone: jest.fn(),
-  updateMilestone: jest.fn(),
-  deleteMilestone: jest.fn(),
-  linkWorkItem: jest.fn(),
-  unlinkWorkItem: jest.fn(),
-  addDependentWorkItem: jest.fn(),
-  removeDependentWorkItem: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
-  getWorkItemMilestones: mockGetWorkItemMilestones,
-  addRequiredMilestone: mockAddRequiredMilestone,
-  removeRequiredMilestone: mockRemoveRequiredMilestone,
-  addLinkedMilestone: mockAddLinkedMilestone,
-  removeLinkedMilestone: mockRemoveLinkedMilestone,
-}));
-
-// The linked-documents section loads on mount; without this mock its real fetch fails with a
-// NetworkError whose banner reuses the common network copy and skews error-copy counts.
-jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
-  listDocumentLinks: jest.fn(() => Promise.resolve([])),
-  createDocumentLink: jest.fn(),
-  deleteDocumentLink: jest.fn(),
-  listAllLinkedDocumentIds: jest.fn(() => Promise.resolve([])),
-  updateDocumentLinkAttachmentType: jest.fn(),
-}));
-
-// The Documents panel host reads the Paperless status; configured with no links shows the button.
-jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
-  getPaperlessStatus: jest.fn(() =>
-    Promise.resolve({
-      configured: true,
-      reachable: true,
-      error: null,
-      paperlessUrl: 'https://paperless.example.test',
-    }),
+jest.unstable_mockModule('./TaskTimingPanel.js', () => ({
+  TaskTimingPanel: (props: {
+    intent: string | null;
+    depError: string | null;
+    onIntentConsumed: () => void;
+    onDepErrorDismiss: () => void;
+  }) => (
+    <div
+      data-testid="stub-timing"
+      data-intent={props.intent ?? ''}
+      data-deperror={props.depError ?? ''}
+    >
+      <button type="button" data-testid="stub-consume" onClick={props.onIntentConsumed} />
+      <button type="button" data-testid="stub-dismiss" onClick={props.onDepErrorDismiss} />
+    </div>
   ),
-  listPaperlessDocuments: jest.fn(),
-  listPaperlessTags: jest.fn(),
-  getPaperlessDocument: jest.fn(),
-  getDocumentThumbnailUrl: jest.fn(),
-  getDocumentPreviewUrl: jest.fn(),
+}));
+jest.unstable_mockModule('./TaskCostPanel.js', () => ({
+  TaskCostPanel: () => <div data-testid="stub-cost" />,
+}));
+jest.unstable_mockModule('./TaskDiaryPanel.js', () => ({
+  TaskDiaryPanel: () => <div data-testid="stub-diary" />,
+}));
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: { id: 'u-me', role: 'admin' } }),
 }));
 
-jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
-  fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
-}));
+let Page: typeof PageModule;
+let Events: typeof EventsTypes;
 
-// Linked-purchase category chips resolve names via the categories API (#2196 AC3)
-const mockFetchHouseholdItemCategories =
-  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
-jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
-  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
-}));
-
-// Mock useAreas hook — WorkItemDetailPage uses useAreas to render AreaPicker
-const mockUseAreas = jest.fn(() => ({
-  areas: [],
-  isLoading: false,
-  error: null,
-  refetch: jest.fn(),
-  createArea: jest.fn(),
-  updateArea: jest.fn(),
-  deleteArea: jest.fn(),
-}));
-jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
-  useAreas: mockUseAreas,
-}));
-
-// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
-
-jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  return {
-    toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
-    formatDayRange: (start: Date, end: Date) =>
-      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
-    formatCurrency: fmtCurrency,
-    formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-      formatDayMonth: (d: string | null | undefined) => d ?? '',
-    }),
-  };
+const TASK = makeTaskPage({
+  title: 'Pour slab',
+  createdBy: { id: 'u-1', displayName: 'Pat Sample', email: 'pat@example.test' },
+  createdAt: '2026-01-05T08:00:00.000Z',
+  updatedAt: '2026-02-10T08:00:00.000Z',
+  budgets: [{ id: 'b1' }, { id: 'b2' }] as never,
 });
 
-describe('WorkItemDetailPage', () => {
-  let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
+interface Seen {
+  keys: string[];
+  type: string;
+  path: string;
+  search: string;
+  hash: string;
+  state: unknown;
+}
+const seen: Seen = { keys: [], type: '', path: '', search: '', hash: '', state: null };
 
-  const mockWorkItem: WorkItemDetail = {
-    id: 'work-1',
-    title: 'Test Work Item',
-    description: 'This is a test work item',
-    status: 'in_progress',
-    startDate: '2024-01-01',
-    endDate: '2024-01-31',
-    projectedStartDate: '2024-01-01',
-    projectedEndDate: '2024-01-31',
-    isLate: false,
-    lateDays: null,
-    isHeldUp: false,
-    durationDays: 30,
-    actualStartDate: null,
-    actualEndDate: null,
-    startAfter: null,
-    startBefore: null,
-    assignedUser: {
-      id: 'user-1',
-      displayName: 'Assigned User',
-      email: 'assigned@example.com',
-    },
-    assignedVendor: null,
-    area: null,
-    createdBy: {
-      id: 'user-1',
-      displayName: 'Creator User',
-      email: 'creator@example.com',
-    },
-    subtasks: [],
-    dependencies: {
-      predecessors: [],
-      successors: [],
-    },
-    budgets: [],
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-15T00:00:00Z',
-  };
+function Probe() {
+  const location = useLocation();
+  const type = useNavigationType();
+  const [params] = useSearchParams();
+  seen.type = type;
+  seen.path = location.pathname;
+  seen.search = location.search;
+  seen.hash = location.hash;
+  seen.state = location.state;
+  useEffect(() => {
+    seen.keys.push(location.key);
+  }, [location.key]);
+  return (
+    <>
+      <div data-testid="probe-tab">{params.get('tab') ?? ''}</div>
+      <Link data-testid="go-wi-2" to="/project/work-items/wi-2">
+        Other task
+      </Link>
+    </>
+  );
+}
 
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com',
-    displayName: 'Test User',
-    role: 'member' as const,
-    authProvider: 'local' as const,
-    oidcLinked: false,
-    createdAt: '2024-01-01T00:00:00Z',
-  };
-
-  beforeEach(async () => {
-    // Reset all mocks
-    mockUseAuth.mockReset();
-    mockGetWorkItem.mockReset();
-    mockUpdateWorkItem.mockReset();
-    mockDeleteWorkItem.mockReset();
-    mockShowToast.mockReset();
-    mockShowUndoToast.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'work_item', id: 'work-1', effects: [] });
-    mockListWorkItems.mockReset();
-    mockFetchWorkItemSubsidies.mockReset();
-    mockLinkWorkItemSubsidy.mockReset();
-    mockUnlinkWorkItemSubsidy.mockReset();
-    mockFetchWorkItemSubsidyPayback.mockReset();
-    mockFetchWorkItemBudgets.mockReset();
-    mockCreateWorkItemBudget.mockReset();
-    mockUpdateWorkItemBudget.mockReset();
-    mockDeleteWorkItemBudget.mockReset();
-    mockCostLinesSection.mockReset();
-    mockListNotes.mockReset();
-    mockCreateNote.mockReset();
-    mockUpdateNote.mockReset();
-    mockDeleteNote.mockReset();
-    mockListSubtasks.mockReset();
-    mockCreateSubtask.mockReset();
-    mockUpdateSubtask.mockReset();
-    mockDeleteSubtask.mockReset();
-    mockReorderSubtasks.mockReset();
-    mockGetDependencies.mockReset();
-    mockCreateDependency.mockReset();
-    mockDeleteDependency.mockReset();
-    mockListUsers.mockReset();
-    mockFetchBudgetCategories.mockReset();
-    mockFetchBudgetSources.mockReset();
-    mockFetchVendors.mockReset();
-    mockFetchSubsidyPrograms.mockReset();
-    mockListMilestones.mockReset();
-    mockGetWorkItemMilestones.mockReset();
-    mockAddRequiredMilestone.mockReset();
-    mockRemoveRequiredMilestone.mockReset();
-    mockAddLinkedMilestone.mockReset();
-    mockRemoveLinkedMilestone.mockReset();
-    mockFetchLinkedHouseholdItems.mockReset();
-    mockFetchHouseholdItemCategories.mockReset();
-
-    if (!WorkItemDetailPageModule) {
-      WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
-    }
-
-    mockUseAuth.mockReturnValue({
-      user: mockUser,
-      status: 'authenticated',
-      setupRequired: false,
-      isLoading: false,
-      error: null,
-      refreshAuth: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      oidcEnabled: false,
-    });
-
-    // Setup default successful API responses
-    mockGetWorkItem.mockResolvedValue(mockWorkItem);
-    mockListNotes.mockResolvedValue({ notes: [] });
-    mockListSubtasks.mockResolvedValue({ subtasks: [] });
-    mockGetDependencies.mockResolvedValue({ predecessors: [], successors: [] });
-    mockListUsers.mockResolvedValue({ users: [] });
-    // WorkItemPicker in DependencySentenceBuilder may call listWorkItems on focus
-    mockListWorkItems.mockResolvedValue({
-      items: [],
-      pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
-    });
-    // Budget-related defaults
-    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-    mockFetchVendors.mockResolvedValue({
-      vendors: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    });
-    mockFetchWorkItemBudgets.mockResolvedValue([]);
-    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
-    mockFetchWorkItemSubsidies.mockResolvedValue([]);
-    mockFetchWorkItemSubsidyPayback.mockResolvedValue({
-      expectedTotalPayback: 0,
-      workItemId: 'work-1',
-      minTotalPayback: 0,
-      maxTotalPayback: 0,
-      subsidies: [],
-    });
-    // Milestone-related defaults
-    mockListMilestones.mockResolvedValue([]);
-    mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
-    // Household item work items defaults
-    mockFetchLinkedHouseholdItems.mockResolvedValue([]);
-    mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
-  });
-
-  function renderPage(id = 'work-1', hash = '') {
-    return render(
-      <MemoryRouter initialEntries={[`/project/work-items/${id}${hash}`]}>
+function renderPage(
+  entry:
+    | string
+    | {
+        pathname: string;
+        search?: string;
+        hash?: string;
+        state?: unknown;
+      } = '/project/work-items/wi-1',
+) {
+  return render(
+    <ToastProvider>
+      <MemoryRouter initialEntries={[entry]}>
+        <Probe />
         <Routes>
-          <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+          <Route path="/project/work-items/:id" element={<Page.default />} />
+          <Route path="/project/work-items" element={<div data-testid="tasks-list" />} />
+          <Route path="/needs-no-id" element={<Page.default />} />
+          <Route path="*" element={null} />
         </Routes>
-      </MemoryRouter>,
-    );
-  }
+      </MemoryRouter>
+    </ToastProvider>,
+  );
+}
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+async function loaded(entry?: Parameters<typeof renderPage>[0]) {
+  const view = renderPage(entry);
+  await screen.findByRole('heading', { level: 1, name: /Pour slab|Untitled task/ });
+  return view;
+}
 
-  describe('Documents panel (#2233)', () => {
-    it('shows the Documents button with the link count and opens the panel for the task', async () => {
-      mockGetWorkItem.mockResolvedValue(mockWorkItem);
+const h1s = () => screen.queryAllByRole('heading', { level: 1 });
 
-      renderPage();
-
-      const button = await screen.findByTestId('documents-panel-button');
-      await waitFor(() => expect(button).toHaveTextContent('Documents (0)'));
-      fireEvent.click(button);
-
-      expect(await screen.findByRole('heading', { name: 'Documents (0)' })).toBeInTheDocument();
-      expect(screen.getByTestId('documents-link-document')).toBeInTheDocument();
-    });
-  });
-
-  describe('schedule signal chip (contract 4, #2199)', () => {
-    const lateItem: WorkItemDetail = {
-      ...mockWorkItem,
-      status: 'not_started',
-      startDate: '2024-01-01',
-      endDate: '2024-01-31',
-      projectedStartDate: '2024-01-06',
-      projectedEndDate: '2024-02-05',
-      isLate: true,
-      lateDays: 5,
-    };
-
-    it('shows the Late chip with the day count in the header', async () => {
-      mockGetWorkItem.mockResolvedValue(lateItem);
-      renderPage();
-
-      const chip = await screen.findByTestId('work-item-schedule-signal');
-      expect(chip).toHaveTextContent('Late · 5 d');
-    });
-
-    it('shows the Held up chip in the header', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        ...mockWorkItem,
-        status: 'not_started',
-        isHeldUp: true,
-        projectedStartDate: '2024-01-06',
-      });
-      renderPage();
-
-      expect(await screen.findByTestId('work-item-schedule-signal')).toHaveTextContent('Held up');
-    });
-
-    it('lets Late win over Held up', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...lateItem, isHeldUp: true });
-      renderPage();
-
-      expect(await screen.findByTestId('work-item-schedule-signal')).toHaveTextContent(
-        'Late · 5 d',
-      );
-    });
-
-    it('shows no chip for an on-time item', async () => {
-      mockGetWorkItem.mockResolvedValue(mockWorkItem);
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
-    });
-
-    it('never computes lateness itself: a past start with isLate false shows no "Delayed by" text', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        ...mockWorkItem,
-        status: 'not_started',
-        startDate: '2000-01-01',
-        endDate: '2000-01-31',
-        projectedStartDate: '2000-01-01',
-        projectedEndDate: '2000-01-31',
-        isLate: false,
-        lateDays: null,
-      });
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-      expect(screen.queryByText(/Delayed by/i)).not.toBeInTheDocument();
-      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
-    });
-
-    it('shows no "Delayed by" text for a late item either (the chip replaces it)', async () => {
-      mockGetWorkItem.mockResolvedValue(lateItem);
-      renderPage();
-
-      await screen.findByTestId('work-item-schedule-signal');
-      expect(screen.queryByText(/Delayed by/i)).not.toBeInTheDocument();
-    });
-
-    it('renders an undated task without chip and with an empty planned start', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        ...mockWorkItem,
-        status: 'not_started',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: '2024-01-10',
-        projectedEndDate: '2024-01-12',
-      });
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
-    });
-
-    describe('forecast dates and the planned line', () => {
-      it('shows the forecast in Start/End and the planned range on a second line for a late task', async () => {
-        mockGetWorkItem.mockResolvedValue(lateItem);
-        renderPage();
-
-        const planned = await screen.findByTestId('work-item-planned-dates');
-        expect(planned).toHaveTextContent('Planned:');
-        expect(planned).toHaveTextContent('2024');
-        // Start/End show the forecast (Jan 6 / Feb 5), not the planned Jan 1 / Jan 31
-        expect(screen.getByText('Jan 6, 2024')).toBeInTheDocument();
-        expect(screen.getByText('Feb 5, 2024')).toBeInTheDocument();
-        expect(screen.queryByText('Jan 1, 2024')).not.toBeInTheDocument();
-      });
-
-      it('shows no planned line for an on-time task', async () => {
-        mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'not_started' });
-        renderPage();
-
-        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-        expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
-        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
-      });
-
-      it('shows the forecast and no planned line for an undated task', async () => {
-        mockGetWorkItem.mockResolvedValue({
-          ...mockWorkItem,
-          status: 'not_started',
-          startDate: null,
-          endDate: null,
-          projectedStartDate: '2024-01-10',
-          projectedEndDate: '2024-01-12',
-        });
-        renderPage();
-
-        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-        expect(screen.getByText('Jan 10, 2024')).toBeInTheDocument();
-        expect(screen.getByText('Jan 12, 2024')).toBeInTheDocument();
-        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
-      });
-
-      it('shows "Not scheduled" when neither actual nor forecast dates exist', async () => {
-        mockGetWorkItem.mockResolvedValue({
-          ...mockWorkItem,
-          status: 'completed',
-          startDate: null,
-          endDate: null,
-          projectedStartDate: null,
-          projectedEndDate: null,
-        });
-        renderPage();
-
-        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
-        expect(screen.getAllByText(enWorkItems.detail.schedule.notScheduled).length).toBe(2);
-      });
-    });
-
-    describe('title edit buttons', () => {
-      afterEach(async () => {
-        await act(async () => {
-          await i18n.changeLanguage('en');
-        });
-      });
-
-      it('labels Save and Cancel from the common vocabulary', async () => {
-        mockGetWorkItem.mockResolvedValue(mockWorkItem);
-        renderPage();
-        fireEvent.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
-
-        expect(screen.getByRole('button', { name: enCommon.button.save })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: enCommon.button.cancel })).toBeInTheDocument();
-      });
-
-      it('shows the German Save and Cancel labels when the language is German', async () => {
-        await act(async () => {
-          await i18n.changeLanguage('de');
-        });
-        mockGetWorkItem.mockResolvedValue(mockWorkItem);
-        renderPage();
-        fireEvent.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
-
-        expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('status menu (#2209)', () => {
-    const TOKEN = { token: `u_${'d'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
-    let realFetch: typeof globalThis.fetch;
-    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
-
-    function respond(body: unknown) {
-      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+describe('WorkItemDetailPage', () => {
+  beforeEach(async () => {
+    installMatchMedia({ '(min-width: 768px)': true });
+    for (const mock of [
+      mockGetWorkItem,
+      mockDeleteWorkItem,
+      mockChangeStatus,
+      mockFetchDeleteImpact,
+      mockRunStatusChange,
+      mockUseCreateContext,
+      startEditDetails,
+      startEditWhoWhere,
+    ]) {
+      mock.mockReset();
     }
-
-    /** Requests that change data (the page also issues unrelated reads through fetch). */
-    function writes() {
-      return mockFetch.mock.calls.filter(
-        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
-      );
+    mockGetWorkItem.mockResolvedValue(TASK);
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'work_item', id: 'wi-1', effects: [] });
+    mockRunStatusChange.mockResolvedValue(undefined);
+    mockDeleteWorkItem.mockResolvedValue(undefined);
+    documentsFact = null;
+    diaryCount = 3;
+    seen.keys = [];
+    document.title = 'initial';
+    if (!Page) {
+      Page = await import('./WorkItemDetailPage.js');
+      Events = await import('../../lib/objectCreatedEvents.js');
     }
-
-    function lastRequest() {
-      const [url, init] = writes()[writes().length - 1]!;
-      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
-    }
-
-    beforeEach(() => {
-      realFetch = globalThis.fetch;
-      mockFetch = jest.fn<typeof globalThis.fetch>();
-      globalThis.fetch = mockFetch;
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'not_started' });
-    });
-
-    afterEach(() => {
-      globalThis.fetch = realFetch;
-    });
-
-    async function loaded() {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-    }
-
-    it('starting a task asks when it started, sends the actual start date and offers Undo', async () => {
-      respond({ ...mockWorkItem, status: 'in_progress', undo: TOKEN });
-      await loaded();
-
-      fireEvent.click(screen.getByTestId('work-item-status'));
-      fireEvent.click(screen.getByTestId('work-item-status-option-in_progress'));
-      expect(screen.getByRole('dialog', { name: 'When did it start?' })).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId('work-item-status-date-today'));
-
-      await waitFor(() => expect(writes()).toHaveLength(1));
-      const req = lastRequest();
-      expect(req.url).toBe('/api/work-items/work-1');
-      expect(req.method).toBe('PATCH');
-      expect(req.body).toEqual({
-        status: 'in_progress',
-        actualStartDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      });
-      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
-      expect(mockShowUndoToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Test Work Item is now “In progress”.',
-          dedupeKey: 'task:work-1',
-        }),
-      );
-    });
-
-    it('marking done sends the actual end date', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
-      respond({ ...mockWorkItem, status: 'completed' });
-      await loaded();
-
-      fireEvent.click(screen.getByTestId('work-item-status'));
-      fireEvent.click(screen.getByTestId('work-item-status-option-completed'));
-      fireEvent.click(screen.getByTestId('work-item-status-date-today'));
-
-      await waitFor(() => expect(writes()).toHaveLength(1));
-      expect(lastRequest().body).toEqual({
-        status: 'completed',
-        actualEndDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      });
-      expect(mockShowUndoToast).not.toHaveBeenCalled();
-    });
-
-    it('going back sends only the status (no date)', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
-      respond({ ...mockWorkItem, status: 'not_started', undo: TOKEN });
-      await loaded();
-
-      fireEvent.click(screen.getByTestId('work-item-status'));
-      fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
-
-      await waitFor(() => expect(writes()).toHaveLength(1));
-      expect(lastRequest().body).toEqual({ status: 'not_started' });
-    });
-
-    it('reloads the task after the change and after an Undo', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
-      respond({ ...mockWorkItem, status: 'not_started', undo: TOKEN });
-      await loaded();
-      const loadsBefore = mockGetWorkItem.mock.calls.length;
-
-      fireEvent.click(screen.getByTestId('work-item-status'));
-      fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
-      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
-      expect(mockGetWorkItem.mock.calls.length).toBeGreaterThan(loadsBefore);
-
-      const loadsAfterChange = mockGetWorkItem.mock.calls.length;
-      respond({ restored: [], retractedEventIds: [] });
-      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
-      await act(async () => {
-        await options.onUndo();
-      });
-      expect(lastRequest().url).toBe(`/api/undo/${TOKEN.token}`);
-      expect(lastRequest().method).toBe('POST');
-      expect(mockGetWorkItem.mock.calls.length).toBeGreaterThan(loadsAfterChange);
-    });
-
-    it('a completed task offers only the way back', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'completed' });
-      await loaded();
-      fireEvent.click(screen.getByTestId('work-item-status'));
-      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
-        `Back to “${enCommon.statusVocabulary.task.in_progress}”`,
-      ]);
-    });
   });
 
-  describe('initial render', () => {
-    it('shows loading state initially', async () => {
-      renderPage();
-
-      expect(screen.getByText('Loading work item...')).toBeInTheDocument();
-
-      await waitFor(() => {
-        expect(screen.queryByText('Loading work item...')).not.toBeInTheDocument();
-      });
-    });
-
-    it('shows the status as a StatusMenu chip listing only the allowed transitions', async () => {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-
-      const chip = screen.getByTestId('work-item-status');
-      expect(chip).toHaveTextContent(enCommon.statusVocabulary.task.in_progress);
-      expect(screen.queryByRole('combobox', { name: /status/i })).toBeNull();
-
-      fireEvent.click(chip);
-      const rows = screen.getAllByRole('menuitem').map((r) => r.textContent);
-      expect(rows).toEqual([
-        `${enCommon.statusAction.task.markDone}›`,
-        `Back to “${enCommon.statusVocabulary.task.not_started}”`,
-      ]);
-    });
-
-    it('renders work item title after loading', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('renders work item description', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('This is a test work item')).toBeInTheDocument();
-      });
-    });
-
-    it('renders all property sections', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Description')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Schedule')).toBeInTheDocument();
-      expect(screen.getByText('Constraints')).toBeInTheDocument();
-      expect(screen.getByText('Assignment')).toBeInTheDocument();
-      // Tags section removed in migration 0028 (areas_trades_rework)
-      expect(screen.queryByText('Tags')).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Cost', level: 2 })).toBeInTheDocument();
-      expect(screen.getByText('Notes')).toBeInTheDocument();
-      expect(screen.getByText('Subtasks')).toBeInTheDocument();
-      expect(screen.getByText('Dependencies')).toBeInTheDocument();
-    });
-  });
-
-  describe('error states', () => {
-    it('shows error message when work item not found', async () => {
-      mockGetWorkItem.mockRejectedValue(
-        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Task not found', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeInTheDocument();
-    });
-
-    it('shows generic error message on other errors', async () => {
-      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load work item. Please try again.')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('work item with no description', () => {
-    it('shows placeholder text when description is null', async () => {
-      const workItemNoDescription = { ...mockWorkItem, description: null };
-      mockGetWorkItem.mockResolvedValue(workItemNoDescription);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('No description')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Schedule section — read-only date fields', () => {
-    it('renders Schedule section heading', async () => {
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByText('Schedule')).toBeInTheDocument();
-      });
-    });
-
-    it('renders startDate as read-only text (not an input)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Start Date')).toBeInTheDocument();
-      });
-
-      // startDate '2024-01-01' should appear as formatted text, not an input
-      // (Constraints section has startAfter/startBefore date inputs, not startDate/endDate)
-      const startDateLabel = screen.getByText('Start Date');
-      // The sibling/nearby element should be a span, not an input
-      const propertyValue = startDateLabel.closest('[class]')?.querySelector('span:last-child');
-      expect(propertyValue?.tagName).not.toBe('INPUT');
-    });
-
-    it('renders endDate as read-only text (not an input)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('End Date')).toBeInTheDocument();
-      });
-
-      const endDateLabel = screen.getByText('End Date');
-      const propertyValue = endDateLabel.closest('[class]')?.querySelector('span:last-child');
-      expect(propertyValue?.tagName).not.toBe('INPUT');
-    });
-
-    it('renders "Not scheduled" for null startDate', async () => {
-      const workItemNoStart = { ...mockWorkItem, startDate: null, projectedStartDate: null };
-      mockGetWorkItem.mockResolvedValue(workItemNoStart);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Should find "Not scheduled" text near the start date label
-        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
-    it('renders "Not scheduled" for null endDate', async () => {
-      const workItemNoEnd = { ...mockWorkItem, endDate: null, projectedEndDate: null };
-      mockGetWorkItem.mockResolvedValue(workItemNoEnd);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
-    it('renders "Not scheduled" for both dates when both are null', async () => {
-      const workItemNoDates = {
-        ...mockWorkItem,
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-      };
-      mockGetWorkItem.mockResolvedValue(workItemNoDates);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Both dates should show "Not scheduled"
-        expect(screen.getAllByText('Not scheduled')).toHaveLength(2);
-      });
-    });
-
-    it('renders description text explaining dates are computed by scheduling engine', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/computed by the scheduling engine/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Constraints section', () => {
-    it('renders Constraints section heading', async () => {
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByText('Constraints')).toBeInTheDocument();
-      });
-    });
-
-    it('renders duration input in Constraints section (editable number input)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Duration (days)')).toBeInTheDocument();
-      });
-
-      // Duration should be an editable number input — find inputs with type="number"
-      // that are siblings to the Duration label inside the constraints section
-      const durationLabel = screen.getByText('Duration (days)');
-      // The label and input are siblings inside a property div
-      const propertyDiv = durationLabel.parentElement;
-      const durationInput = propertyDiv?.querySelector('input[type="number"]');
-      expect(durationInput).toBeInTheDocument();
-      expect((durationInput as HTMLInputElement)?.disabled).toBe(false);
-    });
-
-    it('renders startAfter date input in Constraints section', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Start After')).toBeInTheDocument();
-      });
-
-      const startAfterLabel = screen.getByText('Start After');
-      const propertyDiv = startAfterLabel.parentElement;
-      const dateInput = propertyDiv?.querySelector('input[type="date"]');
-      expect(dateInput).toBeInTheDocument();
-      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
-    });
-
-    it('renders startBefore date input in Constraints section', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Start Before')).toBeInTheDocument();
-      });
-
-      const startBeforeLabel = screen.getByText('Start Before');
-      const propertyDiv = startBeforeLabel.parentElement;
-      const dateInput = propertyDiv?.querySelector('input[type="date"]');
-      expect(dateInput).toBeInTheDocument();
-      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
-    });
-  });
-
-  describe('notes display', () => {
-    it('shows empty state when no notes exist', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('No notes yet. Use the form above to add one.'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('renders existing notes', async () => {
-      mockListNotes.mockResolvedValue({
-        notes: [
-          {
-            id: 'note-1',
-            content: 'First note',
-            createdBy: {
-              id: 'user-1',
-              displayName: 'Test User',
-            },
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('First note')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Test User')).toBeInTheDocument();
-    });
-  });
-
-  describe('subtasks display', () => {
-    it('shows empty state when no subtasks exist (via the workItems:detail.subtasks.noSubtasks i18n key, not a hardcoded literal)', async () => {
-      renderPage();
-
-      // This text is now sourced from the `detail.subtasks.noSubtasks` translation
-      // key (client/src/i18n/en/workItems.json) rather than a hardcoded JSX literal.
-      // The English wording is unchanged, so the assertion string stays the same,
-      // but it now exercises the real i18n lookup rather than a static string.
-      await waitFor(() => {
-        expect(screen.getByText('No subtasks yet. Add one above.')).toBeInTheDocument();
-      });
-    });
-
-    it('renders existing subtasks', async () => {
-      mockListSubtasks.mockResolvedValue({
-        subtasks: [
-          {
-            id: 'subtask-1',
-            title: 'First subtask',
-            isCompleted: false,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('First subtask')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('dependencies display', () => {
-    it('shows no dependency groups when no dependencies exist', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      // With no dependencies, DependencySentenceDisplay renders null (no group headers)
-      expect(screen.queryByText(/must finish before/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/must start before/i)).not.toBeInTheDocument();
-    });
-
-    it('renders existing predecessors with sentence group header', async () => {
-      const predecessorWorkItem: WorkItemSummary = {
-        id: 'work-0',
-        title: 'Foundation work',
-        status: 'completed',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-        isLate: false,
-        lateDays: null,
-        isHeldUp: false,
-        durationDays: null,
-        actualStartDate: null,
-        actualEndDate: null,
-        assignedUser: null,
-        assignedVendor: null,
-        area: null,
-        budgetLineCount: 0,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      };
-
-      mockGetDependencies.mockResolvedValue({
-        predecessors: [
-          {
-            workItem: predecessorWorkItem,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
-          },
-        ],
-        successors: [],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation work')).toBeInTheDocument();
-      });
-
-      // The new sentence builder shows predecessors under a group header like:
-      // "Must finish before this can start:"
-      expect(screen.getByText(/must finish before/i)).toBeInTheDocument();
-    });
-
-    it('renders existing successors with sentence group header', async () => {
-      const successorWorkItem: WorkItemSummary = {
-        id: 'work-3',
-        title: 'Roofing',
-        status: 'not_started',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-        isLate: false,
-        lateDays: null,
-        isHeldUp: false,
-        durationDays: null,
-        actualStartDate: null,
-        actualEndDate: null,
-        assignedUser: null,
-        assignedVendor: null,
-        area: null,
-        budgetLineCount: 0,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      };
-
-      mockGetDependencies.mockResolvedValue({
-        predecessors: [],
-        successors: [
-          {
-            workItem: successorWorkItem,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
-          },
-        ],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Roofing')).toBeInTheDocument();
-      });
-
-      // Successors show "This must finish before ... can start:" header
-      expect(screen.getByText(/this must finish before/i)).toBeInTheDocument();
-    });
-
-    it('renders dependency sentence builder form', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      // The sentence builder contains verb selects
-      expect(screen.getByRole('combobox', { name: /predecessor verb/i })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: /successor verb/i })).toBeInTheDocument();
-      // Conjunction words indicate the sentence builder form is rendered
-      expect(screen.getByText('must')).toBeInTheDocument();
-      expect(screen.getByText('before')).toBeInTheDocument();
-      expect(screen.getByText('can')).toBeInTheDocument();
-    });
-
-    it('does not render direction toggle buttons (old UX removed)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      // Old direction toggle buttons should NOT be present
-      expect(
-        screen.queryByRole('button', { name: /this item depends on/i }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /this item blocks/i })).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Linked/Dependent Household Items section (Story #415) ──────────────────
-
-  describe('Linked Household Items section', () => {
-    it('renders "Dependent Household Items" section heading', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      // Section heading appears on the page
-      expect(screen.getByText('Dependent Household Items')).toBeInTheDocument();
-    });
-
-    it('shows empty state text when no household items are linked', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('No household items depend on this work item.')).toBeInTheDocument();
-    });
-
-    it('renders linked household items when data is present', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-1',
-          name: 'Leather Sofa',
-          category: 'furniture' as const,
-          status: 'planned' as const,
-          targetDeliveryDate: null,
-          earliestDeliveryDate: '2026-05-15',
-          latestDeliveryDate: '2026-06-01',
-        },
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Leather Sofa')).toBeInTheDocument();
-      });
-    });
-
-    it('shows earliestDeliveryDate and latestDeliveryDate as a date range', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-2',
-          name: 'Dining Table',
-          category: 'furniture' as const,
-          status: 'purchased' as const,
-          targetDeliveryDate: '2026-06-01',
-          earliestDeliveryDate: '2026-05-20',
-          latestDeliveryDate: '2026-06-10',
-        },
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Dining Table')).toBeInTheDocument();
-      });
-
-      // The date range should be rendered (e.g., "May 20, 2026 – Jun 10, 2026")
-      // We check for the "–" separator that indicates a range
-      const dateRangeEl = screen.getByText(/–/);
-      expect(dateRangeEl).toBeInTheDocument();
-    });
-
-    it('falls back to targetDeliveryDate when no scheduling window dates', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-3',
-          name: 'Lamp',
-          category: 'decor' as const,
-          status: 'planned' as const,
-          targetDeliveryDate: '2026-04-15',
-          earliestDeliveryDate: null,
-          latestDeliveryDate: null,
-        },
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Lamp')).toBeInTheDocument();
-      });
-
-      // Should fall back to rendering targetDeliveryDate (no "–" separator)
-      // The text contains the formatted expected date without a range separator
-      expect(screen.queryByText(/–/)).not.toBeInTheDocument();
-    });
-
-    it('renders multiple linked household items', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-a',
-          name: 'Sofa',
-          category: 'furniture' as const,
-          status: 'planned' as const,
-          targetDeliveryDate: null,
-          earliestDeliveryDate: '2026-05-15',
-          latestDeliveryDate: '2026-06-01',
-        },
-        {
-          id: 'hi-b',
-          name: 'Chair',
-          category: 'furniture' as const,
-          status: 'purchased' as const,
-          targetDeliveryDate: null,
-          earliestDeliveryDate: '2026-06-10',
-          latestDeliveryDate: '2026-07-01',
-        },
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Chair')).toBeInTheDocument();
-    });
-
-    it('shows count badge in section heading when items exist', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-count',
-          name: 'Fridge',
-          category: 'appliances' as const,
-          status: 'purchased' as const,
-          targetDeliveryDate: null,
-          earliestDeliveryDate: '2026-04-01',
-          latestDeliveryDate: '2026-04-15',
-        },
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Fridge')).toBeInTheDocument();
-      });
-
-      // Count badge "1" should be visible in the heading area
-      expect(screen.getByText('1')).toBeInTheDocument();
-    });
-  });
-
-  // ── #2196 AC3: linked-purchase category chip resolves the name from the id ──
-
-  describe('Linked purchase category chip (#2196 AC3)', () => {
-    const linkedPurchase = {
-      id: 'hi-chip',
-      name: 'Oak Table',
-      category: 'cat-furniture-id' as never,
-      status: 'planned' as const,
-      targetDeliveryDate: null,
-      earliestDeliveryDate: null,
-      latestDeliveryDate: null,
-    };
-
-    async function waitForPage() {
-      await waitFor(() => {
-        expect(screen.getByText('Oak Table')).toBeInTheDocument();
-      });
-    }
-
-    it('shows the category name when the id resolves', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
-      mockFetchHouseholdItemCategories.mockResolvedValue({
-        categories: [
-          {
-            id: 'cat-furniture-id',
-            name: 'Furniture',
-            translationKey: null,
-            color: null,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      } as never);
-
-      renderPage();
-      await waitForPage();
-
-      expect(await screen.findByText('Furniture')).toBeInTheDocument();
-      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
-    });
-
-    it('renders no chip for an unknown category id', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
-
-      renderPage();
-      await waitForPage();
-      await waitFor(() => {
-        expect(mockFetchHouseholdItemCategories).toHaveBeenCalled();
-      });
-
-      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
-    });
-
-    it('renders no chip and no error banner when the categories fetch rejects', async () => {
-      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
-      mockFetchHouseholdItemCategories.mockRejectedValue(new Error('boom'));
-
-      renderPage();
-      await waitForPage();
-      await waitFor(() => {
-        expect(consoleError).toHaveBeenCalled();
-      });
-
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
-      consoleError.mockRestore();
-    });
-
-    it('does not fetch categories when there are no linked purchases', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([]);
-
-      renderPage();
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      expect(mockFetchHouseholdItemCategories).not.toHaveBeenCalled();
-    });
-  });
-
-  // Issue #1812: i18n sweep — modals and action labels that previously had zero
-  // test coverage now that their text/aria-labels are wired through t().
-  describe('modals and action labels (Issue #1812)', () => {
-    it('opens the delete-subtask confirmation modal with translated title/text/buttons', async () => {
-      mockListSubtasks.mockResolvedValue({
-        subtasks: [
-          {
-            id: 'subtask-1',
-            title: 'First subtask',
-            isCompleted: false,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-
-      const { container } = renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('First subtask')).toBeInTheDocument();
-      });
-
-      const deleteButton = container.querySelector('.subtaskItem .deleteButton');
-      expect(deleteButton).not.toBeNull();
-      fireEvent.click(deleteButton!);
-
-      expect(
-        await screen.findByRole('alertdialog', { name: 'Delete First subtask?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
-      expect(screen.getByTestId('subtask-delete-cancel')).toHaveFocus();
-      expect(screen.getByTestId('subtask-delete-confirm')).toHaveTextContent('Delete');
-
-      // Cancel closes the modal without calling the delete API
-      fireEvent.click(screen.getByTestId('subtask-delete-cancel'));
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-      expect(mockDeleteSubtask).not.toHaveBeenCalled();
-    });
-
-    it('shows title attributes on move-up and move-down subtask buttons', async () => {
-      mockListSubtasks.mockResolvedValue({
-        subtasks: [
-          {
-            id: 'subtask-1',
-            title: 'First subtask',
-            isCompleted: false,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-          {
-            id: 'subtask-2',
-            title: 'Second subtask',
-            isCompleted: false,
-            sortOrder: 1,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Second subtask')).toBeInTheDocument();
-      });
-
-      const moveUpButtons = screen.getAllByTitle('Move up');
-      const moveDownButtons = screen.getAllByTitle('Move down');
-      expect(moveUpButtons).toHaveLength(2);
-      expect(moveDownButtons).toHaveLength(2);
-      // First subtask's "Move up" is disabled (already at top); second's "Move down" is disabled.
-      expect(moveUpButtons[0]).toBeDisabled();
-      expect(moveDownButtons[1]).toBeDisabled();
-    });
-
-    it('shows the 4 clear-date aria-labels when constraint dates are set', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        ...mockWorkItem,
-        startAfter: '2024-02-01',
-        startBefore: '2024-02-15',
-        actualStartDate: '2024-01-05',
-        actualEndDate: '2024-01-20',
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
-        ).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('button', { name: 'Clear start after date' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear start before date' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear actual start date' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear actual end date' })).toBeInTheDocument();
-    });
-
-    it('opens the remove-dependency modal with the predecessor sentence (no duplicated "cannot be undone" text)', async () => {
-      const predecessorWorkItem: WorkItemSummary = {
-        id: 'work-0',
-        title: 'Foundation work',
-        status: 'completed',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-        isLate: false,
-        lateDays: null,
-        isHeldUp: false,
-        durationDays: null,
-        actualStartDate: null,
-        actualEndDate: null,
-        assignedUser: null,
-        assignedVendor: null,
-        area: null,
-        budgetLineCount: 0,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      };
-
-      mockGetDependencies.mockResolvedValue({
-        predecessors: [
-          { workItem: predecessorWorkItem, dependencyType: 'finish_to_start', leadLagDays: 0 },
-        ],
-        successors: [],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation work')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Foundation work' }));
-
-      expect(
-        await screen.findByRole('alertdialog', { name: 'Remove dependency?' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText('This item will no longer depend on "Foundation work".'),
-      ).toBeInTheDocument();
-      // A dependency is re-addable, so the dialog does not claim "can't be undone".
-      expect(screen.queryByText(/can't be undone/)).toBeNull();
-      expect(screen.getByTestId('dependency-remove-confirm')).toHaveTextContent('Remove');
-
-      fireEvent.click(screen.getByTestId('dependency-remove-cancel'));
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-      expect(mockDeleteDependency).not.toHaveBeenCalled();
-    });
-
-    it('opens the remove-dependency modal with the successor sentence', async () => {
-      const successorWorkItem: WorkItemSummary = {
-        id: 'work-3',
-        title: 'Roofing',
-        status: 'not_started',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-        isLate: false,
-        lateDays: null,
-        isHeldUp: false,
-        durationDays: null,
-        actualStartDate: null,
-        actualEndDate: null,
-        assignedUser: null,
-        assignedVendor: null,
-        area: null,
-        budgetLineCount: 0,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      };
-
-      mockGetDependencies.mockResolvedValue({
-        predecessors: [],
-        successors: [
-          { workItem: successorWorkItem, dependencyType: 'finish_to_start', leadLagDays: 0 },
-        ],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Roofing')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Roofing' }));
-
-      expect(
-        await screen.findByRole('alertdialog', { name: 'Remove dependency?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByText('This item will no longer block "Roofing".')).toBeInTheDocument();
-      expect(screen.queryByText(/can.t be undone/)).toBeNull();
-    });
-  });
-
-  // ── #2129 / #2131: translated error handling (never raw server text) ────────
-
-  describe('translated API errors (#2129, #2131)', () => {
-    const SENTINEL = 'RAW-SERVER-SENTINEL';
-    const apiError = (status: number, code: ErrorCode) =>
-      new ApiClientError(status, { code, message: SENTINEL });
-
-    const milestone: MilestoneSummary = {
-      id: 7,
-      title: 'Roof Done',
-      description: null,
-      targetDate: '2024-06-01',
-      isCompleted: false,
-      completedAt: null,
-      color: null,
-      workItemCount: 0,
-      dependentWorkItemCount: 0,
-      createdBy: null,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    };
-
-    const predecessorCandidate: WorkItemSummary = {
-      id: 'wi-other',
-      title: 'Foundation',
-      status: 'completed',
-      startDate: null,
-      endDate: null,
-      projectedStartDate: null,
-      projectedEndDate: null,
-      isLate: false,
-      lateDays: null,
-      isHeldUp: false,
-      durationDays: null,
-      actualStartDate: null,
-      actualEndDate: null,
-      assignedUser: null,
-      assignedVendor: null,
-      area: null,
-      budgetLineCount: 0,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    };
-
-    async function submitDependency() {
-      const user = userEvent.setup();
-      mockListWorkItems.mockResolvedValue({
-        items: [predecessorCandidate],
-        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
-      });
-      renderPage();
-      await waitFor(() => expect(screen.getByText('Dependencies')).toBeInTheDocument());
-      const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]!);
-      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
-      await user.click(screen.getByText('Foundation'));
-      let scope: HTMLElement | null = screen.getByRole('combobox', {
-        name: /predecessor verb/i,
-      }).parentElement;
-      while (scope && within(scope).queryAllByRole('button', { name: 'Add' }).length === 0) {
-        scope = scope.parentElement;
-      }
-      await user.click(within(scope as HTMLElement).getAllByRole('button', { name: 'Add' })[0]!);
-    }
-
-    it('shows the circular-dependency copy for 409 CIRCULAR_DEPENDENCY on add dependency', async () => {
-      mockCreateDependency.mockRejectedValue(apiError(409, 'CIRCULAR_DEPENDENCY'));
-      await submitDependency();
-      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('shows the duplicate-dependency copy for 409 DUPLICATE_DEPENDENCY on add dependency', async () => {
-      mockCreateDependency.mockRejectedValue(apiError(409, 'DUPLICATE_DEPENDENCY'));
-      await submitDependency();
-      expect(await screen.findAllByText(enErrors.DUPLICATE_DEPENDENCY)).toHaveLength(1);
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('shows the network copy for a NetworkError on add dependency', async () => {
-      mockCreateDependency.mockRejectedValue(new NetworkError('RAW-LOCAL', new Error('cause')));
-      await submitDependency();
-      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('shows the fallback copy for a plain Error on add dependency', async () => {
-      mockCreateDependency.mockRejectedValue(new Error('RAW-LOCAL'));
-      await submitDependency();
-      expect(
-        await screen.findAllByText(enWorkItems.detail.inlineErrors.addDependency),
-      ).toHaveLength(1);
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    async function pickMilestone(
-      ariaLabel: string,
-      rejection: unknown,
-      addMock: typeof mockAddRequiredMilestone,
-    ) {
-      mockListMilestones.mockResolvedValue([milestone]);
-      addMock.mockRejectedValue(rejection);
-      renderPage();
-      const select = await screen.findByLabelText(ariaLabel);
-      fireEvent.change(select, { target: { value: '7' } });
-      const row = select.parentElement as HTMLElement;
-      const buttonName =
-        ariaLabel === enWorkItems.detail.constraints.selectLinkedMilestoneAriaLabel
-          ? enWorkItems.detail.constraints.linkMilestone
-          : enWorkItems.detail.constraints.addMilestone;
-      fireEvent.click(within(row).getByRole('button', { name: buttonName }));
-    }
-
-    const requiredLabel = enWorkItems.detail.constraints.selectRequiredMilestoneAriaLabel;
-    const linkedLabel = enWorkItems.detail.constraints.selectLinkedMilestoneAriaLabel;
-
-    it('required milestone 409 DUPLICATE_DEPENDENCY shows the already-linked copy', async () => {
-      await pickMilestone(
-        requiredLabel,
-        apiError(409, 'DUPLICATE_DEPENDENCY'),
-        mockAddRequiredMilestone,
-      );
-      expect(
-        await screen.findAllByText(enWorkItems.detail.inlineErrors.requiredMilestoneAlreadyLinked),
-      ).toHaveLength(1);
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('required milestone 409 CIRCULAR_DEPENDENCY shows the circular copy, not already-linked', async () => {
-      await pickMilestone(
-        requiredLabel,
-        apiError(409, 'CIRCULAR_DEPENDENCY'),
-        mockAddRequiredMilestone,
-      );
-      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
-      expect(
-        screen.queryByText(enWorkItems.detail.inlineErrors.requiredMilestoneAlreadyLinked),
-      ).toBeNull();
-    });
-
-    it('required milestone NetworkError and plain Error use network / fallback copy', async () => {
-      await pickMilestone(
-        requiredLabel,
-        new NetworkError('RAW-LOCAL', new Error('cause')),
-        mockAddRequiredMilestone,
-      );
-      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
-    });
-
-    it('required milestone plain Error uses the fallback copy', async () => {
-      await pickMilestone(requiredLabel, new Error('RAW-LOCAL'), mockAddRequiredMilestone);
-      expect(
-        await screen.findAllByText(enWorkItems.detail.inlineErrors.addRequiredMilestone),
-      ).toHaveLength(1);
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('linked milestone 409 DUPLICATE_DEPENDENCY shows the already-linked copy', async () => {
-      await pickMilestone(
-        linkedLabel,
-        apiError(409, 'DUPLICATE_DEPENDENCY'),
-        mockAddLinkedMilestone,
-      );
-      expect(
-        await screen.findAllByText(enWorkItems.detail.inlineErrors.linkedMilestoneAlreadyLinked),
-      ).toHaveLength(1);
-    });
-
-    it('linked milestone 409 CIRCULAR_DEPENDENCY shows the circular copy', async () => {
-      await pickMilestone(
-        linkedLabel,
-        apiError(409, 'CIRCULAR_DEPENDENCY'),
-        mockAddLinkedMilestone,
-      );
-      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('linked milestone NetworkError shows network copy; plain Error shows fallback', async () => {
-      await pickMilestone(
-        linkedLabel,
-        new NetworkError('RAW-LOCAL', new Error('cause')),
-        mockAddLinkedMilestone,
-      );
-      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
-    });
-
-    it('linked milestone plain Error shows the fallback copy', async () => {
-      await pickMilestone(linkedLabel, new Error('RAW-LOCAL'), mockAddLinkedMilestone);
-      expect(
-        await screen.findAllByText(enWorkItems.detail.inlineErrors.addLinkedMilestone),
-      ).toHaveLength(1);
-    });
-
-    it('shows the translated load-failed copy (not the server text) when loading fails', async () => {
-      mockGetWorkItem.mockRejectedValue(apiError(500, 'INTERNAL_ERROR'));
-      renderPage();
-      expect(await screen.findAllByText(enWorkItems.detail.inlineErrors.loadFailed)).toHaveLength(
-        1,
-      );
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-  });
-
-  // ── #2129 (D4): every mutation failure shows operation-specific translated copy ──
-
-  describe('mutation failures show translated operation-specific copy (#2129)', () => {
-    const ie = enWorkItems.detail.inlineErrors;
-
-    async function expectInlineError(text: string) {
-      const matches = await screen.findAllByText(text);
-      expect(matches).toHaveLength(1);
-      // Page-level errors live in the top banner, outside every section (not in the Cost section)
-      expect(matches[0]!.closest('[role="alert"]')!.closest('section')).toBeNull();
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    }
-
-    const sampleNote = {
-      id: 'note-1',
-      content: 'First note',
-      createdBy: { id: 'user-1', displayName: 'Test User' },
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    };
-
-    const sampleSubtask = (id: string, title: string, sortOrder: number) => ({
-      id,
-      title,
-      isCompleted: false,
-      sortOrder,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    });
-
-    beforeEach(() => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    });
-
-    it('a budget-originated error (link subsidy) renders exactly once, in the Cost section banner and not the top banner', async () => {
-      const user = userEvent.setup();
-      mockFetchSubsidyPrograms.mockResolvedValue({
-        subsidyPrograms: [
-          {
-            id: 'sub-1',
-            name: 'Energy Grant',
-            description: null,
-            eligibility: null,
-            reductionType: 'percentage',
-            reductionValue: 10,
-            applicationStatus: 'eligible',
-            applicationDeadline: null,
-            notes: null,
-            maximumAmount: null,
-            applicableCategories: [],
-            includesNoCategoryItems: true,
-            createdBy: null,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
-      renderPage();
-
-      await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
-        'sub-1',
-      );
-      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
-
-      const matches = await screen.findAllByText(ie.linkSubsidy);
-      expect(matches).toHaveLength(1);
-      expect(screen.getAllByRole('alert')).toHaveLength(1);
-      const banner = matches[0]!.closest('[role="alert"]');
-      expect(banner).toBe(screen.getByRole('alert'));
-      // The budget banner lives inside the budget section; the top banner is outside any section
-      expect(banner!.closest('section')).not.toBeNull();
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    async function renderLoaded() {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-    }
-
-    it('title save failure', async () => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(screen.getByRole('heading', { name: 'Test Work Item', level: 1 }));
-      fireEvent.change(screen.getByDisplayValue('Test Work Item'), {
-        target: { value: 'Renamed' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await expectInlineError(ie.updateTitle);
-    });
-
-    it('description save failure', async () => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(screen.getByText('This is a test work item'));
-      fireEvent.change(screen.getByDisplayValue('This is a test work item'), {
-        target: { value: 'Changed' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: enWorkItems.detail.description.save }));
-      await expectInlineError(ie.updateDescription);
-    });
-
-    it('status change failure toasts the translated copy and shows no banner or raw text', async () => {
-      const realFetch = globalThis.fetch;
-      globalThis.fetch = jest
-        .fn<typeof globalThis.fetch>()
-        .mockRejectedValue(new Error('RAW-LOCAL'));
-      try {
-        await renderLoaded();
-        fireEvent.click(screen.getByTestId('work-item-status'));
-        fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
-        await waitFor(() =>
-          expect(mockShowToast).toHaveBeenCalledWith('error', enCommon.statusMenu.changeFailed),
-        );
-        expect(mockShowUndoToast).not.toHaveBeenCalled();
-        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-        expect(screen.queryAllByRole('alert')).toHaveLength(0);
-      } finally {
-        globalThis.fetch = realFetch;
-      }
-    });
-
-    it('duration blur failure', async () => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      const input = screen.getByDisplayValue('30');
-      fireEvent.change(input, { target: { value: '31' } });
-      fireEvent.blur(input);
-      await expectInlineError(ie.updateDuration);
-    });
-
-    it.each([
-      ['Start After', 'startAfter', ie.updateStartAfter],
-      ['Start Before', 'startBefore', ie.updateStartBefore],
-      [enWorkItems.detail.constraints.actualStart, 'actualStart', ie.updateActualStartDate],
-      [enWorkItems.detail.constraints.actualEnd, 'actualEnd', ie.updateActualEndDate],
-    ])('%s blur failure shows its own copy (%s)', async (label, _field, expected) => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      const input = screen
-        .getByText(label)
-        .parentElement?.querySelector('input[type="date"]') as HTMLInputElement;
-      fireEvent.change(input, { target: { value: '2024-03-01' } });
-      fireEvent.blur(input);
-      await expectInlineError(expected);
-    });
-
-    it('assignment change failure', async () => {
-      mockListUsers.mockResolvedValue({
-        users: [
-          {
-            id: 'user-1',
-            displayName: 'Assigned User',
-            email: 'assigned@example.com',
-            role: 'member',
-            authProvider: 'local',
-            oidcLinked: false,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-            deactivatedAt: null,
-          },
-        ],
-      });
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      const section = (
-        await screen.findByRole('heading', { name: enWorkItems.detail.sections.assignment })
-      ).closest('section')!;
-      fireEvent.click(within(section).getByRole('button', { name: 'Clear selection' }));
-      await expectInlineError(ie.updateAssignment);
-    });
-
-    it('area change failure', async () => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.focus(screen.getByPlaceholderText(enCommon.aria.selectArea));
-      fireEvent.click(await screen.findByText(enCommon.aria.noArea));
-      await expectInlineError(ie.updateArea);
-    });
-
-    it('add note failure', async () => {
-      mockCreateNote.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.change(screen.getByPlaceholderText(enWorkItems.detail.notes.placeholder), {
-        target: { value: 'New note' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: enWorkItems.detail.notes.addNote }));
-      await expectInlineError(ie.addNote);
-    });
-
-    it('update note failure', async () => {
-      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
-      mockUpdateNote.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByDisplayValue('First note'), { target: { value: 'Edited' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await expectInlineError(ie.updateNote);
-    });
-
-    it('delete note failure', async () => {
-      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
-      mockDeleteNote.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-      expect(
-        await screen.findByRole('alertdialog', { name: 'Delete this note?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('note-delete-cancel')).toHaveFocus();
-      fireEvent.click(await enabledConfirm('note-delete'));
-      // #2209: the failure is shown inside the open dialog, which stays open for a retry.
-      const dialog = await screen.findByRole('alertdialog');
-      await waitFor(() =>
-        expect(within(dialog).getByRole('alert')).toHaveTextContent(ie.deleteNote),
-      );
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-      expect(screen.getByTestId('note-delete-confirm')).toBeInTheDocument();
-    });
-
-    it('delete note success deletes once, closes the dialog and returns focus to a control', async () => {
-      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
-      mockDeleteNote.mockResolvedValue(undefined);
-      await renderLoaded();
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-      fireEvent.click(await enabledConfirm('note-delete'));
-      await waitFor(() => expect(mockDeleteNote).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(document.body).not.toHaveFocus();
-    });
-
-    it('add subtask failure', async () => {
-      mockCreateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      const input = screen.getByPlaceholderText(enWorkItems.detail.subtasks.placeholder);
-      fireEvent.change(input, { target: { value: 'New subtask' } });
-      fireEvent.submit(input.closest('form')!);
-      await expectInlineError(ie.addSubtask);
-    });
-
-    it('toggle subtask failure', async () => {
-      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
-      mockUpdateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(await screen.findByRole('checkbox'));
-      await expectInlineError(ie.updateSubtask);
-    });
-
-    it('rename subtask failure', async () => {
-      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
-      mockUpdateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(await screen.findByText('Sub one'));
-      fireEvent.change(screen.getByDisplayValue('Sub one'), { target: { value: 'Sub two' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await expectInlineError(ie.updateSubtask);
-    });
-
-    it('delete subtask failure', async () => {
-      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
-      mockDeleteSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
-      const { container } = renderPage();
-      await screen.findByText('Sub one');
-      fireEvent.click(container.querySelector('.subtaskItem .deleteButton')!);
-      fireEvent.click(await enabledConfirm('subtask-delete'));
-      const dialog = await screen.findByRole('alertdialog');
-      await waitFor(() =>
-        expect(within(dialog).getByRole('alert')).toHaveTextContent(ie.deleteSubtask),
-      );
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('reorder subtasks failure', async () => {
-      mockListSubtasks.mockResolvedValue({
-        subtasks: [sampleSubtask('st-1', 'Sub one', 0), sampleSubtask('st-2', 'Sub two', 1)],
-      });
-      mockReorderSubtasks.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      await screen.findByText('Sub two');
-      fireEvent.click(screen.getAllByTitle(enWorkItems.detail.subtasks.moveUp)[1]!);
-      await expectInlineError(ie.reorderSubtasks);
-    });
-
-    it('remove dependency failure', async () => {
-      const predecessor: WorkItemSummary = {
-        id: 'work-0',
-        title: 'Foundation work',
-        status: 'completed',
-        startDate: null,
-        endDate: null,
-        projectedStartDate: null,
-        projectedEndDate: null,
-        isLate: false,
-        lateDays: null,
-        isHeldUp: false,
-        durationDays: null,
-        actualStartDate: null,
-        actualEndDate: null,
-        assignedUser: null,
-        assignedVendor: null,
-        area: null,
-        budgetLineCount: 0,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      };
-      mockGetDependencies.mockResolvedValue({
-        predecessors: [
-          { workItem: predecessor, dependencyType: 'finish_to_start', leadLagDays: 0 },
-        ],
-        successors: [],
-      });
-      mockDeleteDependency.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Remove dependency on Foundation work' }),
-      );
-      fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
-      await expectInlineError(ie.removeDependency);
-    });
-
-    it('delete work item failure', async () => {
-      mockDeleteWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(
-        screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
-      );
-      fireEvent.click(await enabledConfirm('work-item-delete'));
-      await expectInlineError(ie.deleteWorkItem);
-    });
-
-    it('remove required / linked milestone failures', async () => {
-      mockGetWorkItemMilestones.mockResolvedValue({
-        required: [{ id: 1, name: 'M-req', targetDate: null }],
-        linked: [{ id: 2, name: 'M-link', targetDate: null }],
-      });
-      mockRemoveRequiredMilestone.mockRejectedValue(new Error('RAW-LOCAL'));
-      mockRemoveLinkedMilestone.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Remove required milestone: M-req' }),
-      );
-      await expectInlineError(ie.removeRequiredMilestone);
-      fireEvent.click(screen.getByRole('button', { name: 'Remove linked milestone: M-link' }));
-      await expectInlineError(ie.removeLinkedMilestone);
-    });
-  });
-
-  describe('Cost section (#2235)', () => {
-    const lineWith = (id: string, plannedAmount: number) => ({
-      id,
-      workItemId: 'work-1',
-      description: 'Tiles',
-      plannedAmount,
-      confidence: 'own_estimate' as const,
-      confidenceMargin: 0.2,
-      budgetCategory: null,
-      budgetSource: null,
-      vendor: null,
-      actualCost: 0,
-      actualCostPaid: 0,
-      invoiceCount: 0,
-      invoiceLink: null,
-      createdBy: null,
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: '2024-01-15T10:00:00Z',
-      quantity: null,
-      unit: null,
-      unitPrice: null,
-      includesVat: true,
-    });
-
-    const lastProps = () =>
-      mockCostLinesSection.mock.calls[mockCostLinesSection.mock.calls.length - 1]![0] as {
-        host: unknown;
-        lines: unknown[];
-        headingLevel: number;
-        linkState: unknown;
-        onChanged: () => Promise<void>;
-      };
-
-    it('renders the Cost h2, the cost lines section and the Subsidies h3 in one section', async () => {
-      renderPage();
-      const heading = await screen.findByRole('heading', { name: 'Cost', level: 2 });
-      const section = heading.closest('section') as HTMLElement;
-      expect(section).toHaveAttribute('aria-labelledby', heading.id);
-      expect(within(section).getByTestId('cost-lines-stub')).toBeInTheDocument();
-      expect(
-        within(section).getByRole('heading', { name: 'Grants', level: 3 }),
-      ).toBeInTheDocument();
-    });
-
-    it('hands the host, the fetched lines, h3 and the origin state to the section', async () => {
-      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
-      renderPage();
-      await screen.findByTestId('cost-lines-stub');
-      await waitFor(() => expect(lastProps().lines).toHaveLength(1));
-      const props = lastProps();
-      expect(props.host).toEqual({ kind: 'work_item', id: 'work-1', label: 'Test Work Item' });
-      expect(props.headingLevel).toBe(3);
-      expect(props.linkState).toBeTruthy();
-    });
-
-    it('shows the cost overview only once there are lines', async () => {
-      renderPage();
-      await screen.findByTestId('cost-lines-stub');
-      expect(screen.queryByText('Expected cost')).toBeNull();
-    });
-
-    it('shows Expected cost and Planned cost for lines without grants', async () => {
-      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
-      renderPage();
-      expect(await screen.findByText('Expected cost')).toBeInTheDocument();
-      expect(screen.getByText('Planned cost')).toBeInTheDocument();
-      expect(screen.queryByText('After grants')).toBeNull();
-    });
-
-    it('labels the first row After grants when a grant pays back', async () => {
-      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
-      mockFetchWorkItemSubsidyPayback.mockResolvedValue({
-        workItemId: 'work-1',
-        minTotalPayback: 10,
-        maxTotalPayback: 10,
-        subsidies: [
-          { subsidyProgramId: 's1', name: 'Energy Grant', minPayback: 10, maxPayback: 10 },
-        ],
-      } as never);
-      renderPage();
-      expect(await screen.findByText('After grants')).toBeInTheDocument();
-      expect(screen.queryByText('Expected cost')).toBeNull();
-    });
-
-    it('onChanged reloads the lines and the grant payback, and clears a stale budget error', async () => {
-      const user = userEvent.setup();
-      mockFetchSubsidyPrograms.mockResolvedValue({
-        subsidyPrograms: [
-          {
-            id: 'sub-1',
-            name: 'Energy Grant',
-            description: null,
-            eligibility: null,
-            reductionType: 'percentage',
-            reductionValue: 10,
-            applicationStatus: 'eligible',
-            applicationDeadline: null,
-            notes: null,
-            maximumAmount: null,
-            applicableCategories: [],
-            includesNoCategoryItems: true,
-            createdBy: null,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      renderPage();
-      await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
-        'sub-1',
-      );
-      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
-      await screen.findByRole('alert');
-
-      const budgetCalls = mockFetchWorkItemBudgets.mock.calls.length;
-      const paybackCalls = mockFetchWorkItemSubsidyPayback.mock.calls.length;
-      await user.click(screen.getByRole('button', { name: 'stub-changed' }));
-
-      await waitFor(() => expect(mockFetchWorkItemBudgets.mock.calls.length).toBe(budgetCalls + 1));
-      expect(mockFetchWorkItemSubsidyPayback.mock.calls.length).toBe(paybackCalls + 1);
-      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-      jest.restoreAllMocks();
-    });
-
-    it('dismisses the grant error banner with its close button', async () => {
-      const user = userEvent.setup();
-      mockFetchSubsidyPrograms.mockResolvedValue({
-        subsidyPrograms: [
-          {
-            id: 'sub-1',
-            name: 'Energy Grant',
-            description: null,
-            eligibility: null,
-            reductionType: 'percentage',
-            reductionValue: 10,
-            applicationStatus: 'eligible',
-            applicationDeadline: null,
-            notes: null,
-            maximumAmount: null,
-            applicableCategories: [],
-            includesNoCategoryItems: true,
-            createdBy: null,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-      });
-      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      renderPage();
-      await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
-        'sub-1',
-      );
-      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
-      const alert = await screen.findByRole('alert');
-      await user.click(within(alert).getByRole('button'));
-      expect(screen.queryByRole('alert')).toBeNull();
-      jest.restoreAllMocks();
-    });
-  });
-
-  // ── Page identity (#2202): h1 rule, tab title, breadcrumbs, origin Back ─────
-
-  describe('page identity (#2202)', () => {
-    function LocationProbe() {
-      const location = useLocation();
-      const type = useNavigationType();
-      return (
-        <div data-testid="probe">
-          {JSON.stringify({ path: location.pathname, state: location.state, type })}
-        </div>
-      );
-    }
-
-    function renderWith(entry: string | { pathname: string; state?: unknown }) {
-      return render(
-        <MemoryRouter initialEntries={[entry]}>
-          <Routes>
-            <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
-            <Route path="*" element={<LocationProbe />} />
-          </Routes>
-        </MemoryRouter>,
-      );
-    }
-
-    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
-
-    beforeEach(() => {
-      document.title = 'initial';
+  describe('route and states', () => {
+    it('sends a route without a task id back to the Tasks list', async () => {
+      renderPage('/needs-no-id');
+      expect(await screen.findByTestId('probe-tab')).toBeInTheDocument();
+      await waitFor(() => expect(seen.path).toBe('/project/work-items'));
+      expect(seen.type).toBe('REPLACE');
+      expect(mockGetWorkItem).not.toHaveBeenCalled();
     });
 
     it('shows exactly one h1 with the task title and sets the tab title', async () => {
-      renderWith('/project/work-items/work-1');
-
-      expect(
-        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }),
-      ).toBeVisible();
+      await loaded();
       expect(h1s()).toHaveLength(1);
-      await waitFor(() => expect(document.title).toBe('Test Work Item · Tasks · Cornerstone'));
+      expect(screen.getByRole('heading', { name: 'Pour slab', level: 1 })).toBeVisible();
+      await waitFor(() => expect(document.title).toBe('Pour slab · Tasks · Cornerstone'));
+      expect(mockGetWorkItem).toHaveBeenCalledWith('wi-1');
+    });
+
+    it('shows the loading heading, not the first task, when the route moves to another task', async () => {
+      mockGetWorkItem.mockImplementation((id) =>
+        id === 'wi-2' ? new Promise(() => {}) : Promise.resolve(TASK),
+      );
+      const view = renderPage();
+      await screen.findByRole('heading', { level: 1, name: 'Pour slab' });
+      fireEvent.click(screen.getByTestId('go-wi-2'));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Task' })).toBeVisible();
+      expect(screen.queryByRole('heading', { level: 1, name: 'Pour slab' })).toBeNull();
+      expect(mockGetWorkItem).toHaveBeenCalledWith('wi-2');
+      view.unmount();
     });
 
     it('falls back to "Untitled task" for a whitespace-only title', async () => {
-      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, title: '   ' });
-
-      renderWith('/project/work-items/work-1');
-
+      mockGetWorkItem.mockResolvedValue(makeTaskPage({ title: '   ' }));
+      renderPage();
       expect(await screen.findByRole('heading', { name: 'Untitled task', level: 1 })).toBeVisible();
       expect(h1s()).toHaveLength(1);
       await waitFor(() => expect(document.title).toBe('Untitled task · Tasks · Cornerstone'));
     });
 
-    it('shows the typed h1 "Task" with the breadcrumb while loading', async () => {
+    it('shows the typed h1 "Task" with the breadcrumb and a skeleton while loading', async () => {
       mockGetWorkItem.mockReturnValue(new Promise(() => {}));
-
-      renderWith('/project/work-items/work-1');
-
+      renderPage();
       expect(screen.getByRole('heading', { name: 'Task', level: 1 })).toBeVisible();
       expect(h1s()).toHaveLength(1);
       expect(screen.getByRole('link', { name: /Tasks/ })).toHaveAttribute(
         'href',
         '/project/work-items',
       );
+      expect(screen.getByRole('status', { name: 'Loading the task…' })).toBeInTheDocument();
       await waitFor(() => expect(document.title).toBe('Task · Tasks · Cornerstone'));
     });
 
-    it('shows one "Task not found" h1, the breadcrumb and Back to Tasks on 404', async () => {
+    it('shows one "Task not found" h1, the breadcrumb and Back to Tasks on 404, without Retry', async () => {
       mockGetWorkItem.mockRejectedValue(
         new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
       );
-
-      renderWith('/project/work-items/missing');
-
+      renderPage('/project/work-items/missing');
       expect(
         await screen.findByRole('heading', { name: 'Task not found', level: 1 }),
       ).toBeVisible();
       expect(h1s()).toHaveLength(1);
       expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
-      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeVisible();
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
       await waitFor(() => expect(document.title).toBe('Task not found · Tasks · Cornerstone'));
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Tasks' }));
+      expect(await screen.findByTestId('tasks-list')).toBeInTheDocument();
     });
 
-    it('shows h1 "Task" above the error card (which keeps its h2) on a generic error', async () => {
-      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
-
-      renderWith('/project/work-items/work-1');
-
-      expect(await screen.findByRole('heading', { name: 'Error', level: 2 })).toBeVisible();
+    it('keeps h1 "Task" above an alert with the translated message, Back and Retry on an API error', async () => {
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      renderPage();
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/.+/);
       expect(screen.getByRole('heading', { name: 'Task', level: 1 })).toBeVisible();
       expect(h1s()).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeVisible();
-      expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
+      expect(within(alert).getByRole('button', { name: 'Back to Tasks' })).toBeVisible();
+      expect(within(alert).getByRole('button', { name: 'Retry' })).toBeVisible();
     });
 
-    it('D-37: trails only the Tasks parent and drops the old back and To Schedule buttons', async () => {
-      renderWith('/project/work-items/work-1');
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+    it('uses the generic sentence for a network failure, and Retry loads the task again', async () => {
+      mockGetWorkItem.mockRejectedValueOnce(new Error('down'));
+      renderPage();
+      expect(await screen.findByRole('alert')).toHaveTextContent(/.+/);
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByRole('heading', { name: 'Pour slab', level: 1 })).toBeVisible();
+      expect(mockGetWorkItem).toHaveBeenCalledTimes(2);
+    });
+  });
 
+  describe('page identity and origin', () => {
+    it('D-37: trails only the Tasks parent and drops the old back and To Schedule buttons', async () => {
+      await loaded();
       const nav = screen.getByRole('navigation', { name: 'You are here' });
       expect(within(nav).getAllByRole('link')).toHaveLength(1);
       expect(within(nav).getByRole('link', { name: /Tasks/ })).toHaveAttribute(
         'href',
         '/project/work-items',
       );
-      expect(nav).not.toHaveTextContent('Test Work Item');
+      expect(nav).not.toHaveTextContent('Pour slab');
       expect(screen.queryByRole('button', { name: /to schedule/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /back to work items/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /back to schedule/i })).not.toBeInTheDocument();
@@ -2564,12 +350,10 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('offers Back to the exact Calendar URL the user came from', async () => {
-      renderWith({
-        pathname: '/project/work-items/work-1',
+      await loaded({
+        pathname: '/project/work-items/wi-1',
         state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
       });
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-
       expect(screen.getByRole('link', { name: /Back to Calendar/ })).toHaveAttribute(
         'href',
         '/schedule/calendar?calendarMode=week',
@@ -2577,95 +361,356 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('offers no Back when the origin is the Tasks list (the nearest parent)', async () => {
-      renderWith({
-        pathname: '/project/work-items/work-1',
+      await loaded({
+        pathname: '/project/work-items/wi-1',
         state: { origin: { to: '/project/work-items?status=in_progress' } },
       });
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-
       expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
 
-    it('keeps exactly one (screen-reader) h1 while the title is being edited', async () => {
-      const user = userEvent.setup();
-      renderWith('/project/work-items/work-1');
-      await user.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
-
-      expect(await screen.findByDisplayValue('Test Work Item')).toBeVisible();
-      expect(h1s()).toHaveLength(1);
-      expect(h1s()[0]).toHaveTextContent('Test Work Item');
-    });
-
-    it('passes origin (with the task title) to the linked purchase link', async () => {
-      mockFetchLinkedHouseholdItems.mockResolvedValue([
-        {
-          id: 'hi-1',
-          name: 'Leather Sofa',
-          category: 'furniture' as const,
-          status: 'planned' as const,
-          targetDeliveryDate: null,
-          earliestDeliveryDate: null,
-          latestDeliveryDate: null,
-        },
-      ]);
-      const user = userEvent.setup();
-      renderWith('/project/work-items/work-1?tab=x');
-
-      await user.click(await screen.findByRole('link', { name: 'Leather Sofa' }));
-
-      const probe = JSON.parse((await screen.findByTestId('probe')).textContent ?? '{}') as {
-        path: string;
-        state: { origin: { to: string; name?: string } };
-      };
-      expect(probe.path).toBe('/project/household-items/hi-1');
-      expect(probe.state.origin).toEqual({
-        to: '/project/work-items/work-1?tab=x',
-        name: 'Test Work Item',
-      });
-    });
-
-    it('replaces the history entry after deleting the task', async () => {
-      mockDeleteWorkItem.mockResolvedValue(undefined);
-      const user = userEvent.setup();
-      renderWith('/project/work-items/work-1');
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-
-      await user.click(
-        screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
+    it('carries the page as origin (with the task title) on strip links', async () => {
+      mockGetWorkItem.mockResolvedValue(
+        makeTaskPage({
+          title: 'Pour slab',
+          area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
+        } as Partial<WorkItemPageDetail>),
       );
-      await user.click(await enabledConfirm('work-item-delete'));
-
-      const probe = JSON.parse((await screen.findByTestId('probe')).textContent ?? '{}') as {
-        path: string;
-        type: string;
-      };
-      expect(probe.path).toBe('/project/work-items');
-      expect(probe.type).toBe('REPLACE');
+      await loaded('/project/work-items/wi-1?tab=timing');
+      fireEvent.click(screen.getByTestId('summary-fact-where'));
+      await waitFor(() => expect(seen.path).toBe('/areas'));
+      expect(seen.state).toEqual({
+        origin: { to: '/project/work-items/wi-1?tab=timing', name: 'Pour slab' },
+      });
     });
   });
 
-  describe('#constraints section anchor (#2230, Reschedule target)', () => {
-    it('renders the Constraints section with its focusable heading', async () => {
-      renderPage();
-      const heading = await screen.findByRole('heading', { name: /constraints/i, level: 2 });
-      expect(heading).toHaveAttribute('id', 'constraints-heading');
-      expect(heading).toHaveAttribute('tabindex', '-1');
-      expect(document.getElementById('constraints')).toContainElement(heading);
+  describe('header', () => {
+    it('shows the status chip and a Start primary for a not started task', async () => {
+      await loaded();
+      expect(screen.getByTestId('task-header')).toBeInTheDocument();
+      expect(screen.getByTestId('work-item-status')).toBeInTheDocument();
+      expect(screen.getByTestId('task-primary-start')).toBeInTheDocument();
+      expect(screen.queryByTestId('task-primary-done')).toBeNull();
     });
 
-    it('moves focus to the Constraints heading in a frame when the URL has #constraints', async () => {
-      renderPage('work-1', '#constraints');
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-      await waitFor(() => {
-        expect(document.activeElement).toBe(document.getElementById('constraints-heading'));
+    it('offers Mark done for a task in progress', async () => {
+      mockGetWorkItem.mockResolvedValue(
+        makeTaskPage({ title: 'Pour slab', status: 'in_progress' }),
+      );
+      await loaded();
+      expect(screen.getByTestId('task-primary-done')).toBeInTheDocument();
+      expect(screen.queryByTestId('task-primary-start')).toBeNull();
+    });
+
+    it('offers the Log link for a finished task', async () => {
+      mockGetWorkItem.mockResolvedValue(makeTaskPage({ title: 'Pour slab', status: 'completed' }));
+      await loaded();
+      expect(screen.getByTestId('task-primary-log')).toHaveAttribute('href', '/diary/new');
+      expect(screen.queryByTestId('task-primary-start')).toBeNull();
+      expect(screen.queryByTestId('task-primary-done')).toBeNull();
+    });
+
+    it('starting a task sends the actual start date, names the task, and refreshes on change and on undo', async () => {
+      mockChangeStatus.mockResolvedValue({ record: TASK, undo: null } as never);
+      await loaded();
+      fireEvent.click(screen.getByTestId('task-primary-start'));
+      fireEvent.click(await screen.findByTestId('task-primary-start-date-today'));
+
+      await waitFor(() => expect(mockRunStatusChange).toHaveBeenCalledTimes(1));
+      const options = mockRunStatusChange.mock.calls[0]![0] as unknown as {
+        request: () => Promise<unknown>;
+        recordName: string;
+        statusLabel: string;
+        dedupeKey: string;
+        onChanged: () => void;
+        onUndone: () => Promise<void>;
+      };
+      expect(options.recordName).toBe('Pour slab');
+      expect(options.statusLabel).toBe('In progress');
+      expect(options.dedupeKey).toBe('task:wi-1');
+      await options.request();
+      expect(mockChangeStatus).toHaveBeenCalledWith('wi-1', {
+        status: 'in_progress',
+        actualStartDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+      const loads = mockGetWorkItem.mock.calls.length;
+      await act(async () => options.onChanged());
+      await waitFor(() => expect(mockGetWorkItem.mock.calls.length).toBe(loads + 1));
+      await act(async () => options.onUndone());
+      expect(mockGetWorkItem.mock.calls.length).toBe(loads + 2);
+    });
+  });
+
+  describe('strip and tabs', () => {
+    it('shows the strip with the facts of the task and the Documents fact when there is one', async () => {
+      documentsFact = { id: 'documents', kind: 'static', label: 'Documents', value: '2' };
+      await loaded();
+      expect(screen.getByTestId('task-summary')).toBeInTheDocument();
+      for (const id of ['when', 'where', 'who', 'cost', 'waitsFor', 'holdsUp', 'documents']) {
+        expect(screen.getByTestId(`summary-fact-${id}`)).toBeInTheDocument();
+      }
+      expect(screen.getByTestId('stub-documents')).toBeInTheDocument();
+    });
+
+    it('leaves the Documents fact out when there is none', async () => {
+      await loaded();
+      expect(screen.queryByTestId('summary-fact-documents')).toBeNull();
+    });
+
+    it('lists Overview, Timing, Cost, Site diary and History with the cost and diary counts', async () => {
+      await loaded();
+      const tabs = screen.getByRole('tablist');
+      expect(within(tabs).getAllByRole('tab')).toHaveLength(5);
+      expect(within(tabs).getByRole('tab', { name: /Cost/ })).toHaveTextContent('2');
+      expect(within(tabs).getByRole('tab', { name: /diary/i })).toHaveTextContent('3');
+      expect(screen.getByTestId('stub-overview')).toBeInTheDocument();
+      expect(screen.queryByTestId('stub-timing')).toBeNull();
+    });
+
+    it('mounts each panel on its first visit', async () => {
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /Timing/ }));
+      expect(await screen.findByTestId('stub-timing')).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: /Cost/ }));
+      expect(await screen.findByTestId('stub-cost')).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      expect(await screen.findByTestId('stub-diary')).toBeInTheDocument();
+    });
+
+    it('History shows who created the task and when it was last updated, then the history list', async () => {
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /History/ }));
+      const line = await screen.findByTestId('task-history-created');
+      expect(line).toHaveTextContent('Created by Pat Sample on');
+      expect(line).toHaveTextContent('Last updated');
+      expect(screen.getByTestId('stub-history')).toHaveAttribute('data-entity', 'work_item:wi-1');
+    });
+
+    it('History says "Created on" when the creator is unknown', async () => {
+      mockGetWorkItem.mockResolvedValue(makeTaskPage({ title: 'Pour slab', createdBy: null }));
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /History/ }));
+      const line = await screen.findByTestId('task-history-created');
+      expect(line).toHaveTextContent(/^Created on/);
+      expect(line).not.toHaveTextContent('Created by');
+    });
+
+    it('registers the task area and company as the creation context', async () => {
+      mockGetWorkItem.mockResolvedValue(
+        makeTaskPage({
+          title: 'Pour slab',
+          area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
+          assignedVendor: { id: 'v-1', name: 'Acme', trade: null, phone: null },
+        } as Partial<WorkItemPageDetail>),
+      );
+      await loaded();
+      expect(mockUseCreateContext).toHaveBeenLastCalledWith({ areaId: 'a-1', companyId: 'v-1' });
+    });
+
+    it('registers no area or company for a task without them', async () => {
+      await loaded();
+      expect(mockUseCreateContext).toHaveBeenLastCalledWith({
+        areaId: undefined,
+        companyId: undefined,
       });
     });
 
-    it('does not steal focus to the Constraints heading without the hash', async () => {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-      expect(document.activeElement).not.toBe(document.getElementById('constraints-heading'));
+    it('refreshes the task when an invoice was created from its dialog, and only then', async () => {
+      await loaded();
+      const loads = mockGetWorkItem.mock.calls.length;
+      act(() => Events.notifyObjectCreated('purchase'));
+      expect(mockGetWorkItem.mock.calls.length).toBe(loads);
+      act(() => Events.notifyObjectCreated('invoice'));
+      await waitFor(() => expect(mockGetWorkItem.mock.calls.length).toBe(loads + 1));
+    });
+  });
+
+  describe('Who and Where facts open the Who and where card', () => {
+    it('on the Overview tab it starts editing right away', async () => {
+      await loaded();
+      fireEvent.click(screen.getByTestId('summary-fact-who'));
+      expect(startEditWhoWhere).toHaveBeenCalledTimes(1);
+    });
+
+    it('from another tab it selects Overview first, then starts editing', async () => {
+      await loaded('/project/work-items/wi-1?tab=timing');
+      expect(screen.queryByTestId('stub-overview')).toBeNull();
+      fireEvent.click(screen.getByTestId('summary-fact-who'));
+      expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+      await waitFor(() => expect(startEditWhoWhere).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('probe-tab')).toHaveTextContent('');
+    });
+  });
+
+  describe('deep links (read once, one replace)', () => {
+    it('does not navigate without an intent or depError', async () => {
+      await loaded('/project/work-items/wi-1?tab=cost#something');
+      expect(seen.keys).toHaveLength(1);
+      expect(seen.type).toBe('POP');
+      expect(seen.hash).toBe('#something');
+    });
+
+    it.each(['reschedule', 'constraints'])(
+      '#%s opens the Timing tab with the intent, drops the hash, replaces once and keeps the state',
+      async (intent) => {
+        const state = { origin: { to: '/schedule', name: 'Schedule' } };
+        await loaded({ pathname: '/project/work-items/wi-1', hash: `#${intent}`, state });
+        expect(await screen.findByTestId('stub-timing')).toHaveAttribute('data-intent', intent);
+        expect(seen.search).toBe('?tab=timing');
+        expect(seen.hash).toBe('');
+        expect(seen.type).toBe('REPLACE');
+        expect(seen.state).toEqual(state);
+        expect(seen.keys).toHaveLength(2);
+      },
+    );
+
+    it('ignores an unknown hash', async () => {
+      await loaded('/project/work-items/wi-1#nonsense');
+      expect(seen.keys).toHaveLength(1);
+      expect(seen.search).toBe('');
+    });
+
+    it('?depError= goes to the Timing tab with the titles in the panel, and leaves the URL', async () => {
+      await loaded('/project/work-items/wi-1?depError=Dig%20trench%2C%20Order%20pipes');
+      expect(await screen.findByTestId('stub-timing')).toHaveAttribute(
+        'data-deperror',
+        'Dig trench, Order pipes',
+      );
+      expect(seen.search).toBe('?tab=timing');
+      expect(seen.type).toBe('REPLACE');
+      expect(seen.keys).toHaveLength(2);
+    });
+
+    it('keeps other query parameters while replacing', async () => {
+      await loaded('/project/work-items/wi-1?foo=bar&depError=X#reschedule');
+      await screen.findByTestId('stub-timing');
+      expect(new URLSearchParams(seen.search).get('foo')).toBe('bar');
+      expect(new URLSearchParams(seen.search).get('tab')).toBe('timing');
+      expect(new URLSearchParams(seen.search).has('depError')).toBe(false);
+      expect(seen.hash).toBe('');
+    });
+
+    it('the panel consumes the intent and dismisses the dependency error', async () => {
+      await loaded('/project/work-items/wi-1?depError=X#constraints');
+      const timing = await screen.findByTestId('stub-timing');
+      expect(timing).toHaveAttribute('data-intent', 'constraints');
+      fireEvent.click(screen.getByTestId('stub-consume'));
+      fireEvent.click(screen.getByTestId('stub-dismiss'));
+      expect(timing).toHaveAttribute('data-intent', '');
+      expect(timing).toHaveAttribute('data-deperror', '');
+    });
+  });
+
+  describe('delete', () => {
+    async function openByKey(key: string) {
+      await loaded();
+      fireEvent.keyDown(document.body, { key });
+      return screen.findByRole('alertdialog');
+    }
+
+    it('opens from the header menu with the task name and loads the delete impact', async () => {
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+      const dialog = await screen.findByRole('alertdialog');
+      expect(dialog).toHaveTextContent('Pour slab');
+      await waitFor(() => expect(mockFetchDeleteImpact).toHaveBeenCalledWith('work_item', 'wi-1'));
+    });
+
+    it.each(['Delete', 'Backspace'])('opens with the %s key', async (key) => {
+      const dialog = await openByKey(key);
+      expect(dialog).toHaveTextContent('Pour slab');
+    });
+
+    it('does not load the delete impact before the dialog opens', async () => {
+      await loaded();
+      expect(mockFetchDeleteImpact).not.toHaveBeenCalled();
+    });
+
+    it('Cancel closes the dialog without deleting', async () => {
+      await openByKey('Delete');
+      fireEvent.click(screen.getByTestId('work-item-delete-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(mockDeleteWorkItem).not.toHaveBeenCalled();
+    });
+
+    it('deleting returns to the Tasks list with a replace', async () => {
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-delete-confirm'));
+      });
+      expect(mockDeleteWorkItem).toHaveBeenCalledWith('wi-1');
+      expect(await screen.findByTestId('tasks-list')).toBeInTheDocument();
+      expect(seen.path).toBe('/project/work-items');
+      expect(seen.type).toBe('REPLACE');
+    });
+
+    it('a blocked delete (409) shows the translated reason and no confirm button', async () => {
+      mockDeleteWorkItem.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-delete-confirm'));
+      });
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toBeInTheDocument();
+      expect(screen.queryByTestId('work-item-delete-confirm')).toBeNull();
+    });
+
+    it('another API error keeps the confirm button', async () => {
+      mockDeleteWorkItem.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-delete-confirm'));
+      });
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toBeInTheDocument();
+      expect(screen.getByTestId('work-item-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('a network failure shows the fallback sentence; reopening clears the error', async () => {
+      mockDeleteWorkItem.mockRejectedValueOnce(new Error('down'));
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-delete-confirm'));
+      });
+      expect(await screen.findByText("Couldn't delete the task.")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('work-item-delete-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      fireEvent.keyDown(document.body, { key: 'Delete' });
+      await screen.findByRole('alertdialog');
+      expect(screen.queryByText("Couldn't delete the task.")).toBeNull();
+    });
+  });
+
+  describe('keyboard shortcuts', () => {
+    it('e starts editing the Details card on the Overview tab', async () => {
+      await loaded();
+      fireEvent.keyDown(document.body, { key: 'e' });
+      expect(startEditDetails).toHaveBeenCalledTimes(1);
+    });
+
+    it('e from another tab selects Overview first, then edits the Details card', async () => {
+      await loaded('/project/work-items/wi-1?tab=cost');
+      fireEvent.keyDown(document.body, { key: 'e' });
+      expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+    });
+
+    it('? opens the shortcut help with the page shortcuts, without the Backspace twin', async () => {
+      await loaded();
+      fireEvent.keyDown(document.body, { key: '?' });
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent('Edit the task details');
+      expect(dialog).toHaveTextContent('Delete the task');
+      expect(dialog).toHaveTextContent('Show keyboard shortcuts');
+      expect(within(dialog).queryByText('Backspace')).toBeNull();
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
   });
 });

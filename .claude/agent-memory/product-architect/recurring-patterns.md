@@ -2259,3 +2259,12 @@ Ask for one route test that runs preview → the real write (PATCH) → the read
 the preview's figures equal the stored result. Same review: `?.`/`??` on refs that are always mounted and
 on `findIndex`-guaranteed elements were the leftover unreachable branches. Grep `current?.` in
 mount effects and `?? null` right after a `findIndex` guard.
+
+### Unkeyed detail view + `useXRecord(id)` hook = one stale render (PR #2349, #2248)
+
+A record hook that reloads in `useEffect([id])` still returns the previous record with
+`isLoading: false` on the first render after a route-id change. An unkeyed `<View id={id} />` then
+renders object A under B's URL, and child effects fire with mixed ids (A's area/company, B's documents).
+Look for `useParams` id passed to an unkeyed child on every detail page. Fix: `key={id}`, plus a page
+test that re-renders with a second id. Same review: `?? null` after a same-call FK lookup
+(`vendorRow?.phone`) is an unreachable arm; use `!` (sync).

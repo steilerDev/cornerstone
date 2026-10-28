@@ -29,6 +29,8 @@ import {
 import type { InvoiceStatus, SeedCleanup } from '../../fixtures/costLineSeed.js';
 import { enableDarkTheme, expectLegibleInDark } from '../../fixtures/darkMode.js';
 import { CostLinesPanel } from '../../pages/components/CostLinesPanel.js';
+import { RelatedListControl } from '../../pages/components/RelatedListControl.js';
+import { SummaryStripControl } from '../../pages/components/SummaryStripControl.js';
 
 let cleanup: SeedCleanup;
 
@@ -85,7 +87,7 @@ test.describe('Cost line table - state chip (AC1)', { tag: '@responsive' }, () =
   }) => {
     const { taskId } = await seedAllStates(page, testPrefix);
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await expect(panel.rows()).toHaveCount(5);
@@ -105,7 +107,7 @@ test.describe('Cost line table - state chip (AC1)', { tag: '@responsive' }, () =
   }) => {
     const { taskId } = await seedAllStates(page, testPrefix);
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await expect(panel.groupHeading('Estimates')).toBeVisible();
@@ -168,7 +170,7 @@ test.describe('Cost line table - gross with net in a tooltip (AC3)', { tag: '@re
     });
 
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     const row = panel.row(`${testPrefix} Net line`);
@@ -387,92 +389,97 @@ test.describe('Cost line table - offer and invoice page (AC4)', { tag: '@respons
   });
 });
 
-test.describe('Cost overview - face value and After grants (A5)', { tag: '@responsive' }, () => {
-  test('without grants the first row reads Expected cost; a linked offer shows its amount with no range', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourceId = await createFundingSource(page, cleanup, `${testPrefix} Savings`);
-    const taskId = await createTask(page, cleanup, `${testPrefix} Overview task`);
-    const vendorId = await createVendor(page, cleanup, `${testPrefix} Example Joinery Ltd`);
-    const offer = await createInvoice(page, cleanup, vendorId, {
-      amount: 1000,
-      status: 'quotation',
-    });
-    await createLinkedCostLine(page, offer.id, {
-      kind: 'work_item',
-      hostId: taskId,
-      budgetSourceId: sourceId,
-      description: `${testPrefix} Offered line`,
-      plannedAmount: 600,
-      includesVat: true,
-      itemizedAmount: 500,
+test.describe(
+  'Expected cost - face value and the linked grant (A5)',
+  { tag: '@responsive' },
+  () => {
+    test('a linked offer shows its amount at face value in the Expected cost fact, with no range', async ({
+      page,
+      testPrefix,
+    }) => {
+      const sourceId = await createFundingSource(page, cleanup, `${testPrefix} Savings`);
+      const taskId = await createTask(page, cleanup, `${testPrefix} Overview task`);
+      const vendorId = await createVendor(page, cleanup, `${testPrefix} Example Joinery Ltd`);
+      const offer = await createInvoice(page, cleanup, vendorId, {
+        amount: 1000,
+        status: 'quotation',
+      });
+      await createLinkedCostLine(page, offer.id, {
+        kind: 'work_item',
+        hostId: taskId,
+        budgetSourceId: sourceId,
+        description: `${testPrefix} Offered line`,
+        plannedAmount: 600,
+        includesVat: true,
+        itemizedAmount: 500,
+      });
+
+      const panel = new CostLinesPanel(page);
+      await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
+      await panel.waitForLoaded();
+
+      // The cost overview left the task page (#2248): the strip's Expected cost fact carries the figure.
+      // The offered amount counts at face value: €500.00 once, never a ±5% range such as
+      // €475.00 – €525.00
+      const costFact = new SummaryStripControl(page, 'task-summary');
+      await expect(costFact.label('cost')).toHaveText('Expected cost');
+      await expect(costFact.fact('cost')).toContainText('€500.00');
+      await expect(costFact.fact('cost')).not.toContainText(/€475\.00|€525\.00/);
+      await expect(costFact.fact('cost')).not.toContainText('After grants');
     });
 
-    const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
-    await panel.waitForLoaded();
+    test('with a grant linked the strip names the grant and the Grants list shows it', async ({
+      page,
+      testPrefix,
+    }) => {
+      const sourceId = await createFundingSource(page, cleanup, `${testPrefix} Savings`);
+      const taskId = await createTask(page, cleanup, `${testPrefix} Grant task`);
+      await createCostLine(page, {
+        kind: 'work_item',
+        hostId: taskId,
+        budgetSourceId: sourceId,
+        description: `${testPrefix} Grant line`,
+        plannedAmount: 1000,
+        includesVat: true,
+      });
+      const program = await page.request.post('/api/subsidy-programs', {
+        data: {
+          name: `${testPrefix} Example grant`,
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'approved',
+          applicationDeadline: null,
+          description: null,
+          eligibility: null,
+          notes: null,
+          categoryIds: [],
+          maximumAmount: null,
+        },
+      });
+      expect(program.ok(), `POST subsidy program failed: ${program.status()}`).toBeTruthy();
+      const programId = ((await program.json()) as { subsidyProgram: { id: string } })
+        .subsidyProgram.id;
+      cleanup.fns.push(async () => {
+        await page.request.delete(`/api/subsidy-programs/${programId}`);
+      });
+      const link = await page.request.post(`/api/work-items/${taskId}/subsidies`, {
+        data: { subsidyProgramId: programId },
+      });
+      expect(link.ok(), `POST subsidy link failed: ${link.status()}`).toBeTruthy();
 
-    const costSection = page.locator('section').filter({
-      has: page.getByRole('heading', { level: 2, name: 'Cost', exact: true }),
-    });
-    await expect(costSection).toContainText('Expected cost');
-    await expect(costSection).toContainText('Planned cost');
-    await expect(costSection).not.toContainText('After grants');
-    // The offered amount counts at face value: €500.00 once, never a ±5% range such as
-    // €475.00 – €525.00
-    await expect(costSection).toContainText('€500.00');
-    await expect(costSection).not.toContainText(/€475\.00|€525\.00/);
-  });
+      const panel = new CostLinesPanel(page);
+      await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
+      await panel.waitForLoaded();
 
-  test('with a grant linked the first row reads After grants', async ({ page, testPrefix }) => {
-    const sourceId = await createFundingSource(page, cleanup, `${testPrefix} Savings`);
-    const taskId = await createTask(page, cleanup, `${testPrefix} Grant task`);
-    await createCostLine(page, {
-      kind: 'work_item',
-      hostId: taskId,
-      budgetSourceId: sourceId,
-      description: `${testPrefix} Grant line`,
-      plannedAmount: 1000,
-      includesVat: true,
+      // The grant is a remark of the strip's Expected cost fact and a row of the Grants list
+      const strip = new SummaryStripControl(page, 'task-summary');
+      await expect(strip.fact('cost')).toContainText(`${testPrefix} Example grant`);
+      await expect(new RelatedListControl(page, 'task-grants').root).toContainText(
+        `${testPrefix} Example grant`,
+      );
     });
-    const program = await page.request.post('/api/subsidy-programs', {
-      data: {
-        name: `${testPrefix} Example grant`,
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'approved',
-        applicationDeadline: null,
-        description: null,
-        eligibility: null,
-        notes: null,
-        categoryIds: [],
-        maximumAmount: null,
-      },
-    });
-    expect(program.ok(), `POST subsidy program failed: ${program.status()}`).toBeTruthy();
-    const programId = ((await program.json()) as { subsidyProgram: { id: string } }).subsidyProgram
-      .id;
-    cleanup.fns.push(async () => {
-      await page.request.delete(`/api/subsidy-programs/${programId}`);
-    });
-    const link = await page.request.post(`/api/work-items/${taskId}/subsidies`, {
-      data: { subsidyProgramId: programId },
-    });
-    expect(link.ok(), `POST subsidy link failed: ${link.status()}`).toBeTruthy();
-
-    const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
-    await panel.waitForLoaded();
-
-    const costSection = page.locator('section').filter({
-      has: page.getByRole('heading', { level: 2, name: 'Cost', exact: true }),
-    });
-    await expect(costSection).toContainText('After grants');
-    await expect(costSection).not.toContainText('Expected cost');
-    await expect(costSection).toContainText('Planned cost');
-  });
-});
+  },
+);
 
 test.describe('Cost line table - surfaces and dark mode', { tag: '@responsive' }, () => {
   test('phones show two-line cards, wider screens the table, never both', async ({
@@ -481,7 +488,7 @@ test.describe('Cost line table - surfaces and dark mode', { tag: '@responsive' }
   }) => {
     const { taskId } = await seedAllStates(page, testPrefix);
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     // The list switches by its OWN width (768px), not the viewport's: a task page keeps the list
@@ -508,7 +515,7 @@ test.describe('Cost line table - surfaces and dark mode', { tag: '@responsive' }
   }) => {
     const { taskId } = await seedAllStates(page, testPrefix);
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await enableDarkTheme(page);
 

@@ -34,6 +34,10 @@ Choose the type that best fits what you are recording:
 5. Optionally attach photos (see below)
 6. Select **Save entry** to make it a saved entry. The button is disabled until the entry has a photo, a title, or some text
 
+## Logging for a Task
+
+To record what happened on a task, open the task and use **Log for this task** in its **Site diary** tab. The capture screen opens with the task's **area** and **company** already filled in, so you only add what happened. Once the task is done, the task page header offers **Log** for the same purpose. See [Task Page](/guides/work-items#task-page).
+
 ## Daily Log: company and work hours
 
 Daily Log entries carry a few extra optional fields for recording who was on site and how long they worked. All of them are optional -- fill in as many or as few as you like.

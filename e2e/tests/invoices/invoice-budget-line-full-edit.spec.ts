@@ -171,7 +171,7 @@ test.describe('Move from a task to a purchase (Scenario 3)', { tag: '@responsive
     await expect(panel.row(`${testPrefix} Cross Line`)).toBeVisible();
     await expect(panel.stateChip(panel.row(`${testPrefix} Cross Line`))).toHaveText('Invoiced');
 
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await expect(panel.row(`${testPrefix} Cross Line`)).toHaveCount(0);
   });
@@ -222,7 +222,7 @@ test.describe(
       await expect(panel.row(`${testPrefix} Line A`)).toBeVisible();
       await expect(panel.row(`${testPrefix} Line B`)).toBeVisible();
 
-      await page.goto(routeUrl('workItem', { id: taskB }));
+      await page.goto(routeUrl('workItem', { id: taskB }, { tab: 'cost' }));
       await panel.waitForLoaded();
       await expect(panel.rows()).toHaveCount(2);
     });
@@ -246,7 +246,7 @@ test.describe('Edit on the task page (Scenario 5)', { tag: '@responsive' }, () =
     });
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'Edit cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} Inline Desc`), 'Edit');

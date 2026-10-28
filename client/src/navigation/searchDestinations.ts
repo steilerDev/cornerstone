@@ -74,6 +74,8 @@ export const TERMS_WITHOUT_DESTINATION: ReadonlyMap<string, string> = new Map(
     Who: NO_PAGE,
     'AI certainty': NO_PAGE,
     'Estimate level': 'a setting of the Money breakdown, no page of its own',
+    'Not before': 'a task date field, no page of its own',
+    'Start by': 'a task date field, no page of its own',
     Basis: 'a cost-line field, no page of its own',
     'Professional estimate': 'a Basis value of a cost line, no page of its own',
     'Progress payment': 'shown on the invoice page, no list of its own',

@@ -6,7 +6,7 @@
  *
  * S1  Beyond the first 100: a company that sorts after 100 others is found by typing in the cost
  *     line form (`#vendorId`, under More details) and is saved on the line
- * S2  Task detail assignment (`#work-item-assignment`): pick a company, reload, clear, pick a person
+ * S2  Task page Who and where card: pick a company, save, reload, clear, pick a person
  * S3  New task dialog (`#assignment`): pick a company; the "New company" row opens the child step
  * S4  Purchase edit page (`#vendorId`): the saved company shows, change by search, create row
  * S5  Cost line edit form (`#vendorId`, #2235): the create row opens the company form as a child
@@ -119,7 +119,7 @@ test.describe('Company chooser - beyond the first 100 (S1)', { tag: '@responsive
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Beyond 100 Task` });
       const detail = new WorkItemDetailPage(page);
       const form = new CostLineFormDialog(page, 'New cost line');
-      await detail.goto(workItemId);
+      await detail.goto(workItemId, { tab: 'cost' });
       await detail.costLines.waitForLoaded();
       await detail.addBudgetLineButton.click();
       await form.waitForOpen();
@@ -156,7 +156,7 @@ test.describe('Company chooser - task assignment (S2)', { tag: '@responsive' }, 
     const workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Assign Task` });
     try {
       const detail = new WorkItemDetailPage(page);
-      const picker = detail.assignmentPicker;
+      const picker = detail.whoPicker;
       await detail.goto(workItemId);
 
       // Every PATCH of the task, in order, with its status
@@ -170,31 +170,38 @@ test.describe('Company chooser - task assignment (S2)', { tag: '@responsive' }, 
         }
       });
 
-      // Pick a company: the PATCH is sent and the chip shows the name
+      // Pick a company in the Who and where card: Save sends the PATCH and the card shows the name
+      await detail.whoWhereCard.startEdit();
       await picker.pick(company);
+      await expect(detail.selectedWho).toContainText(company);
+      await detail.whoWhereCard.save();
       await expect.poll(() => patches).toEqual([200]);
-      await expect(picker.selectedDisplay()).toContainText(company);
+      await expect(detail.whoText).toContainText(company);
 
       // Reload (a fresh page): the name persists
       const fresh = await page.context().newPage();
       try {
         const freshDetail = new WorkItemDetailPage(fresh);
         await freshDetail.goto(workItemId);
-        await expect(freshDetail.assignmentPicker.selectedDisplay()).toContainText(company);
+        await expect(freshDetail.whoText).toContainText(company);
       } finally {
         await fresh.close();
       }
 
       // Clear selection: the task is unassigned
-      await picker.clearButton.click();
-      await expect.poll(() => patches).toEqual([200, 200]);
+      await detail.whoWhereCard.startEdit();
+      await detail.clearWho.click();
       await expect(picker.input).toBeVisible();
+      await detail.whoWhereCard.save();
+      await expect.poll(() => patches).toEqual([200, 200]);
       expect((await getWorkItem(page, workItemId)).assignedVendor).toBeNull();
 
       // A person is picked by name from the same list
+      await detail.whoWhereCard.startEdit();
       await picker.pick(TEST_ADMIN.displayName);
+      await detail.whoWhereCard.save();
       await expect.poll(() => patches).toEqual([200, 200, 200]);
-      await expect(picker.selectedDisplay()).toContainText(TEST_ADMIN.displayName);
+      await expect(detail.whoText).toContainText(TEST_ADMIN.displayName);
       const saved = await getWorkItem(page, workItemId);
       expect(saved.assignedUser?.displayName).toBe(TEST_ADMIN.displayName);
       expect(saved.assignedVendor).toBeNull();
@@ -368,7 +375,7 @@ test.describe('Company chooser - cost line edit modal (S5)', { tag: '@responsive
       // While the child step is open the same dialog is titled by the company form (the host's
       // test id still names its Save / Back controls)
       const child = new ObjectFormDialog(page, 'New company', 'cost-line-form');
-      await detail.goto(workItemId);
+      await detail.goto(workItemId, { tab: 'cost' });
       await detail.costLines.waitForLoaded();
       await detail.costLines.chooseAction(detail.costLines.row(description), 'Edit');
       await form.waitForOpen();
@@ -530,8 +537,11 @@ test.describe('Company chooser - focus after a saved pick (S8)', { tag: '@respon
     try {
       const detail = new WorkItemDetailPage(page);
       await detail.goto(workItemId);
-      await detail.assignmentPicker.pick(company);
-      await expect(detail.assignmentPicker.selectedDisplay()).toContainText(company);
+      await detail.whoWhereCard.startEdit();
+      await detail.whoPicker.pick(company);
+      await expect(detail.selectedWho).toContainText(company);
+      await detail.whoWhereCard.save();
+      await expect(detail.whoText).toContainText(company);
       await expect.poll(() => focusIsOnBody(page)).toBe(false);
     } finally {
       await deleteWorkItemViaApi(page, workItemId);

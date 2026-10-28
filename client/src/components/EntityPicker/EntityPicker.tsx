@@ -16,7 +16,10 @@ import {
   decodeWho,
   encodeWho,
   filterNamedEntries,
+  filterOptionsByLabel,
+  loadGrantOptions,
   loadCategoryEntries,
+  loadMilestoneOptions,
   loadTradeEntries,
   notExcluded,
   pathText,
@@ -83,6 +86,7 @@ export function EntityPicker(props: EntityPickerProps) {
   // The options seen so far, so a picked value resolves back to its option.
   const seenRef = useRef(new Map<string, EntityOption>());
   const entriesRef = useRef<Promise<NamedEntry[]> | null>(null);
+  const optionsRef = useRef<Promise<EntityOption[]> | null>(null);
   const linkedRef = useRef<Promise<ReadonlySet<number>> | null>(null);
   const { formatDate } = useFormatters();
 
@@ -134,13 +138,26 @@ export function EntityPicker(props: EntityPickerProps) {
     return entriesRef.current;
   };
 
+  // Milestones and grants: small lists, fetched once per mount and filtered on the client.
+  const loadOptions = (): Promise<EntityOption[]> => {
+    if (optionsRef.current === null) {
+      const pending =
+        kind === 'milestone' ? loadMilestoneOptions((iso) => formatDate(iso)) : loadGrantOptions();
+      optionsRef.current = pending;
+      pending.catch(() => {
+        optionsRef.current = null;
+      });
+    }
+    return optionsRef.current;
+  };
+
   // Linked document ids load once per mount; a failure shows no filter and is retried next time.
   const loadLinkedIds = (): Promise<ReadonlySet<number>> => {
     if (linkedRef.current === null) {
       const pending = listAllLinkedDocumentIds().then(
         (ids) => new Set(ids),
         () => {
-          if (linkedRef.current === pending) linkedRef.current = null;
+          linkedRef.current = null;
           return new Set<number>();
         },
       );
@@ -171,6 +188,9 @@ export function EntityPicker(props: EntityPickerProps) {
         });
       case 'document':
         return searchDocumentOptions(query, await loadLinkedIds(), (iso) => formatDate(iso));
+      case 'milestone':
+      case 'grant':
+        return filterOptionsByLabel(await loadOptions(), query);
     }
   };
 
@@ -256,6 +276,8 @@ export function EntityPicker(props: EntityPickerProps) {
     task: t('entityPicker.task.placeholder'),
     taskOrPurchase: t('entityPicker.placeholder.taskOrPurchase'),
     document: t('entityPicker.placeholder.document'),
+    milestone: t('entityPicker.placeholder.milestone'),
+    grant: t('entityPicker.placeholder.grant'),
   } satisfies Record<typeof kind, string>;
 
   let initialTitle: string | undefined;
@@ -294,7 +316,7 @@ export function EntityPicker(props: EntityPickerProps) {
   };
 
   const taskMessages: {
-    emptyHint: string;
+    emptyHint?: string;
     noResultsMessage: string;
     loadErrorMessage?: string;
     searchErrorMessage?: string;
@@ -318,7 +340,11 @@ export function EntityPicker(props: EntityPickerProps) {
               loadErrorMessage: t('entityPicker.document.loadError'),
               searchErrorMessage: t('entityPicker.document.loadError'),
             }
-          : null;
+          : kind === 'milestone'
+            ? { noResultsMessage: t('entityPicker.milestone.noResults') }
+            : kind === 'grant'
+              ? { noResultsMessage: t('entityPicker.grant.noResults') }
+              : null;
 
   return (
     <SearchPicker<EntityOption>

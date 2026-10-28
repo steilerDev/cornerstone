@@ -64,6 +64,7 @@ import {
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { HomePage } from '../../pages/HomePage.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
+import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { ToastRegion } from '../../pages/components/ToastRegion.js';
 
 const HELP_URL = 'https://cornerstone.steiler.dev/guides/home/what-moved-where';
@@ -405,10 +406,10 @@ test.describe('Needs attention (H2 - H5)', { tag: '@responsive' }, () => {
     await expect(home.catchUpDialog).toHaveAccessibleName('Late tasks (3)');
     expect(state.calls.undoNotNowPaths).toEqual([encodeURIComponent(n1b.key)]);
 
-    // Reschedule is a link to the task's Constraints
+    // Reschedule is a link to the task's Timing tab, Reschedule section (#2248)
     await expect(home.rowReschedule(n1a.key, 'catch-up')).toHaveAttribute(
       'href',
-      `${routeUrl('workItem', { id: 'cu-1' })}#constraints`,
+      `${routeUrl('workItem', { id: 'cu-1' }, { tab: 'timing' })}#reschedule`,
     );
 
     // Close returns to "Review all"
@@ -483,8 +484,13 @@ test.describe('Needs attention (H2 - H5)', { tag: '@responsive' }, () => {
     const home = await openHome(page, newHomeMockState({ attention: attentionResponse({ rows }) }));
     await home.reviewAllButton.click();
     await home.rowReschedule(rows[0]!.key, 'catch-up').click();
+    // The task does not exist in this mock, so the page never consumes the intent: the link's own
+    // URL stays (Timing tab, #reschedule)
     await expect(page).toHaveURL(
-      (url) => url.pathname === routeUrl('workItem', { id: 'rs-1' }) && url.hash === '#constraints',
+      (url) =>
+        url.pathname === routeUrl('workItem', { id: 'rs-1' }) &&
+        url.searchParams.get('tab') === 'timing' &&
+        url.hash === '#reschedule',
     );
   });
 });
@@ -1069,12 +1075,17 @@ test.describe('Moved notice (H14)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Reschedule and legacy URLs (H15, H16)', { tag: '@responsive' }, () => {
-  test('H15: Reschedule opens the task at its Constraints section', async ({
+  test('H15: Reschedule opens the task on its Timing tab with the Reschedule section open', async ({
     page,
     testPrefix,
   }) => {
     const title = `${testPrefix} Home Reschedule`;
-    const id = await createWorkItemViaApi(page, { title, status: 'in_progress' });
+    const id = await createWorkItemViaApi(page, {
+      title,
+      status: 'in_progress',
+      startDate: dayOffset(-10),
+      endDate: dayOffset(5),
+    });
     try {
       const row = lateTaskRow({ id, title });
       const home = await openHome(
@@ -1082,14 +1093,43 @@ test.describe('Reschedule and legacy URLs (H15, H16)', { tag: '@responsive' }, (
         newHomeMockState({ attention: attentionResponse({ rows: [row] }) }),
       );
       const link = home.rowReschedule(row.key);
-      await expect(link).toHaveAttribute('href', `${routeUrl('workItem', { id })}#constraints`);
-      await link.click();
-      await expect(page).toHaveURL(
-        (url) => url.pathname === routeUrl('workItem', { id }) && url.hash === '#constraints',
+      await expect(link).toHaveAttribute(
+        'href',
+        `${routeUrl('workItem', { id }, { tab: 'timing' })}#reschedule`,
       );
-      const heading = page.locator('#constraints-heading');
-      await expect(heading).toHaveText('Constraints');
-      await expect(heading).toBeFocused();
+      await link.click();
+      const task = new WorkItemDetailPage(page);
+      await expect(task.rescheduleSection).toBeVisible();
+      await expect(task.tabs.tab('timing')).toHaveAttribute('aria-selected', 'true');
+      // The intent was consumed by one replace: no hash, no stale query
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === routeUrl('workItem', { id }) &&
+          url.searchParams.get('tab') === 'timing' &&
+          url.hash === '',
+      );
+    } finally {
+      await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test('H15: a done task cannot be rescheduled, so the link opens its Constraints card', async ({
+    page,
+    testPrefix,
+  }) => {
+    const title = `${testPrefix} Home Reschedule Done`;
+    // (an undated task still has forecast dates, so only a done task cannot be rescheduled)
+    const id = await createWorkItemViaApi(page, { title, status: 'completed' });
+    try {
+      const row = lateTaskRow({ id, title });
+      const home = await openHome(
+        page,
+        newHomeMockState({ attention: attentionResponse({ rows: [row] }) }),
+      );
+      await home.rowReschedule(row.key).click();
+      const task = new WorkItemDetailPage(page);
+      await expect(task.constraintsCard.form).toBeVisible();
+      await expect(task.rescheduleSection).toHaveCount(0);
     } finally {
       await deleteWorkItemViaApi(page, id);
     }

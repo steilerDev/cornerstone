@@ -22,6 +22,7 @@ import type { FilterChipOption } from '../../FilterChipGroup/FilterChipGroup.js'
 import { FormError } from '../../FormError/FormError.js';
 import { TimeChips } from '../../TimeChips/TimeChips.js';
 import { SignatureSection } from '../SignatureSection/index.js';
+import { useCompanyName } from '../../../hooks/useCompanyName.js';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
 import { EntityPickerDialog } from '../../EntityPicker/EntityPickerDialog.js';
@@ -90,6 +91,12 @@ export function SiteDetailsFields({
   // The number input behind "4+" stays while it has focus, whatever the value typed so far.
   const [exactEditing, setExactEditing] = useState(false);
 
+  // A company seeded from the page that opened the screen carries no name: look it up for the chip.
+  const seededCompany = useCompanyName(
+    entryType === 'daily_log' && fields.vendorId && !fields.vendorName ? fields.vendorId : '',
+    { onUnknown: () => onFields({ vendorId: null, vendorName: null }) },
+  );
+
   if (entryType === 'general_note') return null;
 
   const isDailyLog = entryType === 'daily_log';
@@ -110,8 +117,9 @@ export function SiteDetailsFields({
     }
     if (isDailyLog && fields.vendorId) {
       companyValue = fields.vendorId;
-      if (!suggestions.some((c) => c.id === fields.vendorId) && fields.vendorName) {
-        companyOptions.push({ value: fields.vendorId, label: fields.vendorName });
+      const unlistedName = fields.vendorName ?? seededCompany.name;
+      if (!suggestions.some((c) => c.id === fields.vendorId) && unlistedName) {
+        companyOptions.push({ value: fields.vendorId, label: unlistedName });
       }
     } else if (isDelivery && fields.vendor) {
       const match = suggestions.find(

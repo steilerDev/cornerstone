@@ -1,0 +1,7 @@
+.panel {
+  composes: panel from './WorkItemDetailPage.module.css';
+}
+
+.costCard {
+  composes: card from '../../styles/shared.module.css';
+}

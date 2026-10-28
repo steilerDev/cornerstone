@@ -350,7 +350,9 @@
       "who": "Firmen oder Haushaltsmitglieder suchen",
       "category": "Kategorie auswählen",
       "taskOrPurchase": "Aufgaben oder Anschaffungen suchen",
-      "document": "Deine Dokumente suchen"
+      "document": "Deine Dokumente suchen",
+      "milestone": "Meilensteine suchen",
+      "grant": "Zum Finden eines Förderprogramms tippen"
     },
     "typeMore": "Gib mindestens 2 Buchstaben ein.",
     "task": {
@@ -374,6 +376,12 @@
       "noResults": "Keine Dokumente gefunden.",
       "loadError": "Dokumente konnten nicht geladen werden.",
       "linkedHidden": "Bereits verknüpfte Dokumente werden nicht angezeigt."
+    },
+    "milestone": {
+      "noResults": "Kein passender Meilenstein gefunden"
+    },
+    "grant": {
+      "noResults": "Kein passendes Förderprogramm gefunden"
     }
   },
   "relatedList": {

@@ -42,11 +42,20 @@ function setup(
   loaded: DiaryEntryDetail | null = null,
   prefillDate: string | null = null,
   prefillType: 'daily_log' | 'general_note' | 'delivery' | null = null,
+  prefillCompanyId: string | null = null,
 ) {
   const onDraftCreated = jest.fn();
   const announce = jest.fn();
   const view = renderHook(() =>
-    useCaptureDraft({ mode, entry: loaded, prefillDate, prefillType, onDraftCreated, announce }),
+    useCaptureDraft({
+      mode,
+      entry: loaded,
+      prefillDate,
+      prefillType,
+      prefillCompanyId,
+      onDraftCreated,
+      announce,
+    }),
   );
   return { ...view, onDraftCreated, announce };
 }
@@ -1029,5 +1038,44 @@ describe('useCaptureDraft: prefillType (#2222 Log now)', () => {
     expect(result.current.form.entryType).toBe('daily_log');
     const saved = setup('saved', entry({ entryType: 'issue', status: 'saved' }), null, 'delivery');
     expect(saved.result.current.form.entryType).toBe('issue');
+  });
+});
+
+describe('useCaptureDraft: prefillCompanyId (#2248 Log for this task)', () => {
+  it('seeds the company id of a new daily log, clean, and writes nothing', async () => {
+    const { result } = setup('new', null, null, null, 'c-1');
+    await advance(5000);
+
+    expect(result.current.form.entryType).toBe('daily_log');
+    expect(result.current.form.fields.vendorId).toBe('c-1');
+    expect(result.current.form.fields.vendorName).toBeNull();
+    expect(result.current.dirty).toBe(false);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('seeds it when the start type is a daily log too', () => {
+    const { result } = setup('new', null, null, 'daily_log', 'c-1');
+    expect(result.current.form.fields.vendorId).toBe('c-1');
+  });
+
+  it.each(['general_note', 'delivery'] as const)('does not seed a %s', (type) => {
+    const { result } = setup('new', null, null, type, 'c-1');
+    expect(result.current.form.fields.vendorId).toBeNull();
+  });
+
+  it('seeds nothing without a company', () => {
+    expect(setup('new').result.current.form.fields.vendorId).toBeNull();
+  });
+
+  it('shows an empty title for a loaded entry that has none', () => {
+    const { result } = setup('draft', entry({ title: null as never }));
+    expect(result.current.form.title).toBe('');
+  });
+
+  it('ignores the company when an entry is loaded', () => {
+    const draft = setup('draft', entry(), null, null, 'c-1');
+    expect(draft.result.current.form.fields.vendorId).not.toBe('c-1');
+    const saved = setup('saved', entry({ status: 'saved' }), null, null, 'c-1');
+    expect(saved.result.current.form.fields.vendorId).not.toBe('c-1');
   });
 });

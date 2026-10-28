@@ -103,6 +103,16 @@ test.describe(
 
         // Breadcrumb nav must NOT be present in the detail header (removed in fix/1278)
         await expect(detailPage.areaBreadcrumbNav).not.toBeVisible();
+
+        // The Where fact of the strip names the area on one compact line (no nav); the full path
+        // sits in the Who and where card
+        await expect(detailPage.summary.fact('where')).toContainText(childName);
+        await expect(
+          detailPage.summary.root.getByRole('navigation', { name: /area path/i }),
+        ).toHaveCount(0);
+        await expect(
+          detailPage.areaText.getByRole('navigation', { name: /area path/i }),
+        ).toBeVisible();
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (childAreaId) await deleteAreaViaApi(page, childAreaId);

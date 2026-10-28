@@ -19,6 +19,12 @@ interface FactBase {
   readonly testId?: string;
   /** Spans two grid columns where the strip has room (a value with a trailing remark). */
   readonly wide?: boolean;
+  /**
+   * A sibling control shown after the target in the same cell (the Call button). It sits beside
+   * the target, never inside it: a fact target is already an anchor or button, and nested
+   * interactive content is invalid.
+   */
+  readonly trailing?: ReactNode;
 }
 
 export type SummaryFact =
@@ -156,7 +162,10 @@ function Fact({
       <dt id={labelId} className={styles.label}>
         {fact.label}
       </dt>
-      <dd className={styles.value}>{target}</dd>
+      <dd className={styles.value}>
+        {target}
+        {fact.trailing ? <span className={styles.trailing}>{fact.trailing}</span> : null}
+      </dd>
     </div>
   );
 }

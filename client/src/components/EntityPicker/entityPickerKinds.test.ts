@@ -18,6 +18,8 @@ import type * as TradesApiTypes from '../../lib/tradesApi.js';
 import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as SubsidyApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as Kinds from './entityPickerKinds.js';
 import type { EntityOption } from './types.js';
 
@@ -28,6 +30,8 @@ const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyApiTypes.fetchSubsidyPrograms>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
@@ -47,6 +51,12 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
 }));
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   listPaperlessDocuments: mockListPaperlessDocuments,
+}));
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+}));
+jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
 }));
 
 const signal = new AbortController().signal;
@@ -738,8 +748,69 @@ describe('entityPickerKinds', () => {
     });
   });
 
+  describe('milestone and grant options (#2248)', () => {
+    it('maps every milestone to an option with its formatted target date as the second line', async () => {
+      mockListMilestones.mockResolvedValue([
+        { id: 4, title: 'Roof closed', targetDate: '2026-05-01' },
+        { id: 9, title: 'Shell finished', targetDate: '2026-07-15' },
+      ] as never);
+      const formatDate = jest.fn((iso: string) => `D:${iso}`);
+
+      const options = await K.loadMilestoneOptions(formatDate);
+
+      expect(options).toEqual([
+        { id: '4', label: 'Roof closed', secondary: 'D:2026-05-01' },
+        { id: '9', label: 'Shell finished', secondary: 'D:2026-07-15' },
+      ]);
+    });
+
+    it('maps every grant (subsidy program) to an option named by the grant', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [
+          { id: 'sp-1', name: 'Energy grant' },
+          { id: 'sp-2', name: 'Heat pump grant' },
+        ],
+      } as never);
+
+      expect(await K.loadGrantOptions()).toEqual([
+        { id: 'sp-1', label: 'Energy grant' },
+        { id: 'sp-2', label: 'Heat pump grant' },
+      ]);
+    });
+
+    it('lets a failed load reject, so the caller can retry', async () => {
+      mockFetchSubsidyPrograms.mockRejectedValue(new Error('down'));
+      await expect(K.loadGrantOptions()).rejects.toThrow('down');
+      mockListMilestones.mockRejectedValue(new Error('down'));
+      await expect(K.loadMilestoneOptions((iso) => iso)).rejects.toThrow('down');
+    });
+
+    describe('filterOptionsByLabel', () => {
+      const options: EntityOption[] = [
+        { id: '1', label: 'Förderung Dach' },
+        { id: '2', label: 'Heat pump grant' },
+        { id: '3', label: 'Energy grant' },
+      ];
+
+      it('keeps the options whose label contains the query, in order', () => {
+        expect(K.filterOptionsByLabel(options, 'grant').map((o) => o.id)).toEqual(['2', '3']);
+      });
+
+      it('folds case and diacritics on both sides', () => {
+        expect(K.filterOptionsByLabel(options, 'FORDERUNG').map((o) => o.id)).toEqual(['1']);
+        expect(K.filterOptionsByLabel(options, 'förderung dach').map((o) => o.id)).toEqual(['1']);
+        expect(K.filterOptionsByLabel(options, 'HEAT').map((o) => o.id)).toEqual(['2']);
+      });
+
+      it('returns every option for an empty query and none when nothing matches', () => {
+        expect(K.filterOptionsByLabel(options, '')).toHaveLength(3);
+        expect(K.filterOptionsByLabel(options, 'zzz')).toEqual([]);
+      });
+    });
+  });
+
   describe('kinds', () => {
-    it('lists the nine kinds', () => {
+    it('lists the eleven kinds', () => {
       expect([...K.ENTITY_PICKER_KINDS]).toEqual([
         'company',
         'who',
@@ -750,6 +821,8 @@ describe('entityPickerKinds', () => {
         'task',
         'taskOrPurchase',
         'document',
+        'milestone',
+        'grant',
       ]);
     });
 
