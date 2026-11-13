@@ -7,6 +7,10 @@
     "emptyTitle": "Noch keine Tagebuchfotos",
     "emptyDescription": "Fotos, die du zu Tagebucheinträgen hinzufügst, erscheinen hier, sortiert nach Bereich und Ausrichtung."
   },
+  "filter": {
+    "label": "Fotos filtern",
+    "removeArea": "{{area}}, Filter entfernen"
+  },
   "spots": {
     "tableCaption": "Fotos nach Bereich und Ausrichtung",
     "areaColumn": "Bereich",
@@ -22,7 +26,7 @@
     "groupAnnouncement_other": "Zeige {{group}}: {{count}} Blickpunkte",
     "noAreaCount_one": "{{count}} Foto",
     "noAreaCount_other": "{{count}} Fotos",
-    "areaLinkSuffix": ", in Bereiche öffnen",
+    "areaLinkSuffix": ", Bereich öffnen",
     "noAreaGroupLabel": "Fotos ohne Bereich"
   },
   "viewer": {

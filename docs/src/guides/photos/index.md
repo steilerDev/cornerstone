@@ -15,6 +15,7 @@ The Photos page provides:
 - **No area group** -- Photos you added without an area, collected in one place so you can tag them in bulk
 - **Select photos** -- Choose several photos in the No area group and set their area and orientation together, with Undo
 - **Spot viewer** -- Open any spot to step through its photos, with the photo's details and an Edit tags editor
+- **Area filter** -- Open the Photos page from an area to see only that area and its sub-areas
 
 ## Spots by Area and Orientation
 
@@ -29,6 +30,14 @@ A cell with no photos shows **No photos**. Click a cell with photos to open the 
 On a phone the same spots appear as cards with their area and orientation names. Use the **area chips** at the top to show one area, or **All** to see every spot.
 
 Photos from diary entries that have no orientation appear in the **No orientation** column.
+
+Select an area's name in the table, or on a card, to open that area's [Area page](/guides/work-items/areas-and-trades#area-page).
+
+## Photos of an Area
+
+On an area's page, **Photos of ‹area› →** opens this page already filtered to that area. A removable area chip above the spots shows the area's name, and the page shows only that area and its sub-areas. The No area group is hidden while the filter is on.
+
+To see every spot again, remove the chip. Its button is labelled *‹area›, remove filter*.
 
 ## No Area Group
 
@@ -69,7 +78,7 @@ When you open a spot, the viewer shows:
 - **Details** -- The photo's diary date, its area, orientation and caption, with **Edit tags** (see below)
 - **Same spot over time** -- A list of the diary entries with photos at this spot, newest first. Select an entry to jump to that photo. In the No area group this list is called **Photos with no area**
 
-Area names link to the Areas page.
+Select an area name to open that area's [Area page](/guides/work-items/areas-and-trades#area-page).
 
 ### Editing Tags for One Photo
 

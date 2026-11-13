@@ -16,14 +16,17 @@
  * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
  * FC6 (desktop, #2239)     an invoice page's Paid and Still to pay equal the record's API figures
  * FC7 (desktop, #2242)     a loan's Paid (card and source page) and Ready to submit (card) equal the money service
+ * FC9 (desktop, #2251)     an area page's Paid marker (room and its floor) equals the breakdown byArea Paid and the area summary's money.paid
  */
 
 import fs from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import {
+  createAreaViaApi,
   createMilestoneViaApi,
   createVendorViaApi,
+  deleteAreaViaApi,
   createWorkItemViaApi,
   deleteMilestoneViaApi,
   deleteVendorViaApi,
@@ -32,6 +35,7 @@ import {
 import { API } from '../../fixtures/testData.js';
 import { dayOffset } from '../../fixtures/homeMocks.js';
 import {
+  AREA_PAID_SURFACE,
   COMPANIES_LIST_SURFACE,
   COMPANY_PAID_SURFACE,
   COMPANY_SURFACE,
@@ -55,6 +59,7 @@ import type { ProjectFigure } from '../../fixtures/figureSurfaces.js';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import {
+  createFundingSource,
   createInvoice,
   createLinkedCostLine,
   createTask,
@@ -385,6 +390,83 @@ test.describe('Figure consistency', () => {
     }
   });
 
+  test("FC9: an area page's Paid is the money service's byArea Paid for the room and its floor (#2251)", async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1024,
+      'desktop only (the figures are viewport-independent)',
+    );
+    const cleanup = newCleanup();
+    try {
+      // Areas first, so the reverse-order cleanup deletes them last
+      const floorId = await createAreaViaApi(page, { name: `${testPrefix} FC9 Floor` });
+      cleanup.fns.push(async () => {
+        await deleteAreaViaApi(page, floorId);
+      });
+      const roomId = await createAreaViaApi(page, {
+        name: `${testPrefix} FC9 Room`,
+        parentId: floorId,
+      });
+      cleanup.fns.push(async () => {
+        await deleteAreaViaApi(page, roomId);
+      });
+      const sourceId = await createFundingSource(page, cleanup, `${testPrefix} FC9 Source`);
+      const vendorId = await createVendor(page, cleanup, `${testPrefix} FC9 Company`);
+      // A task in the room with a PAID invoice line
+      const response = await page.request.post(API.workItems, {
+        data: { title: `${testPrefix} FC9 Task`, areaId: roomId },
+      });
+      expect(response.ok(), `POST work item: ${response.status()}`).toBeTruthy();
+      const taskId = ((await response.json()) as { id: string }).id;
+      cleanup.fns.push(async () => {
+        await page.request.delete(`${API.workItems}/${taskId}`);
+      });
+      const invoice = await createInvoice(page, cleanup, vendorId, {
+        amount: 500,
+        status: 'paid',
+        invoiceNumber: `${testPrefix}-FC9-PAID`,
+      });
+      await createLinkedCostLine(page, invoice.id, {
+        kind: 'work_item',
+        hostId: taskId,
+        budgetSourceId: sourceId,
+        description: 'FC9 paid line',
+        plannedAmount: 500,
+        itemizedAmount: 500,
+      });
+
+      // The money service's answer: the breakdown's byArea rows (a floor rolls its rooms up)
+      const breakdownResponse = await page.request.get(API.budgetBreakdown);
+      expect(breakdownResponse.ok(), `GET breakdown: ${breakdownResponse.status()}`).toBeTruthy();
+      const byArea = (
+        (await breakdownResponse.json()) as {
+          breakdown: { byArea: Array<{ areaId: string; figures: { paid: number } }> };
+        }
+      ).breakdown.byArea;
+
+      for (const areaId of [roomId, floorId]) {
+        const row = byArea.find((entry) => entry.areaId === areaId);
+        expect(row, `the breakdown has a byArea row for ${areaId}`).toBeTruthy();
+        expect(cents(row!.figures.paid)).toBeGreaterThan(0);
+
+        // The area summary endpoint agrees with the breakdown
+        const summary = await page.request.get(`${API.areas}/${areaId}/summary`);
+        expect(summary.ok(), `GET area summary: ${summary.status()}`).toBeTruthy();
+        const money = ((await summary.json()) as { money: { paid: number } }).money;
+        expect(cents(money.paid)).toBe(cents(row!.figures.paid));
+
+        // The page's Paid marker is the same number
+        expect(await AREA_PAID_SURFACE.readAll(page, { areaId })).toEqual([
+          cents(row!.figures.paid),
+        ]);
+      }
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+
   test('FC3: "Holds up n tasks" is one number on the API, Home and the Schedule (AC1)', async ({
     page,
     testPrefix,
@@ -615,6 +697,7 @@ test.describe('Figure surface registry', () => {
     expect(PENDING_SURFACES).toEqual([]);
     expect(FINANCING_SOURCE_PAID_SURFACE.story).toBe('4.10');
     expect(FINANCING_READY_SURFACE.story).toBe('4.10');
+    expect(AREA_PAID_SURFACE.story).toBe('5.7');
     for (const pending of gated) {
       const entry = entries.find((candidate) => candidate.id === pending.screen);
       expect(

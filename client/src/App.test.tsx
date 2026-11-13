@@ -24,6 +24,7 @@ import type * as DiaryApiTypes from './lib/diaryApi.js';
 import type * as BackupsApiTypes from './lib/backupsApi.js';
 import type * as SettingsApiTypes from './lib/settingsApi.js';
 import type * as AppTypes from './App.js';
+import { makeAreaSummary } from './test/areaPageFixtures.js';
 
 const EMPTY_CHIP_COUNTS = {
   matching: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
@@ -126,7 +127,12 @@ jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
 
 // AreasPage (#2218) loads the tree with counts on mount; the other area helpers stay inert.
 const mockFetchAreasWithCounts = jest.fn<() => Promise<unknown[]>>();
+// The Area page (#2251) loads its summary and cost lines on mount.
+const mockFetchAreaSummary = jest.fn<(id: string) => Promise<unknown>>();
+const mockFetchAreaCostLines = jest.fn<(id: string) => Promise<unknown[]>>();
 jest.unstable_mockModule('./lib/areasApi.js', () => ({
+  fetchAreaSummary: mockFetchAreaSummary,
+  fetchAreaCostLines: mockFetchAreaCostLines,
   fetchAreas: jest.fn(async () => ({ areas: [] })),
   fetchArea: jest.fn(),
   createArea: jest.fn(),
@@ -353,6 +359,9 @@ describe('App', () => {
     mockListUsers.mockReset();
     mockFetchAreasWithCounts.mockReset();
     mockFetchAreasWithCounts.mockResolvedValue([]);
+    mockFetchAreaSummary.mockReset();
+    mockFetchAreaCostLines.mockReset();
+    mockFetchAreaCostLines.mockResolvedValue([]);
     mockListBackups.mockReset();
     mockGetSchedulerStatus.mockReset();
     mockGetIntegrationsStatus.mockReset();
@@ -784,6 +793,23 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /^areas$/i, level: 1 })).toBeInTheDocument();
     await waitFor(() => expect(mockFetchAreasWithCounts).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(document.title).toContain('Areas'));
+  }, 15000);
+
+  it('renders the Area page at /areas/:id and loads that area (Story #2251)', async () => {
+    mockFetchAreaSummary.mockResolvedValue(makeAreaSummary());
+    mockListDiaryEntries.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 3, totalItems: 0, totalPages: 0 },
+    } as never);
+    window.history.pushState({}, 'Area', '/areas/floor');
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Ground floor', level: 1 }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(mockFetchAreaSummary).toHaveBeenCalledWith('floor');
+    expect(screen.queryByTestId('areas-page')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.title).toContain('Ground floor'));
   }, 15000);
 
   it('lands the retired /tags path on the Areas page (Story #2218)', async () => {

@@ -14,7 +14,8 @@
       "name": "Area",
       "tasks": "Tasks",
       "purchases": "Purchases",
-      "photos": "Photos"
+      "photos": "Photos",
+      "expectedCost": "Expected cost"
     },
     "count": {
       "openOfTotal": "{{open}} of {{total}} open",
@@ -87,5 +88,59 @@
     "empty": "No areas yet. Add your building first, then its floors and rooms.",
     "reorderFailed": "Couldn't save the new order. Try again.",
     "position": "{{name}}, position {{position}} of {{total}} in {{parent}}."
+  },
+  "detail": {
+    "typeLabel": "Area",
+    "loading": "Loading area",
+    "notFound": "Area not found",
+    "logHere": "Log here",
+    "subAreasOf": "Sub-areas of {{area}}",
+    "strip": {
+      "tasks": "Tasks",
+      "cost": "Expected cost",
+      "photos": "Photos",
+      "companies": "Companies",
+      "open": "{{count}} open",
+      "late": "{{count}} late",
+      "paid": "Paid",
+      "latest": "latest {{date}}",
+      "noneYet": "None yet",
+      "noTasks": "No tasks"
+    },
+    "sections": {
+      "now": "Now & next here",
+      "site": "Latest from the site",
+      "companies": "Companies here",
+      "rooms": "Rooms",
+      "subAreas": "Sub-areas",
+      "cost": "Cost"
+    },
+    "now": {
+      "allTasks": "All tasks here ({{count}})",
+      "allPurchases": "All purchases here ({{count}})",
+      "empty": "Nothing planned in {{area}} yet.",
+      "contextLabel": "Booked on a larger area, not counted above"
+    },
+    "site": {
+      "allEntries": "All diary entries here",
+      "photosOf": "Photos of {{area}}",
+      "photoSummary_one": "{{count}} photo · latest {{date}}",
+      "photoSummary_other": "{{count}} photos · latest {{date}}",
+      "empty": "No diary entries or photos for {{area}} yet.",
+      "loadError": "Couldn't load the diary entries."
+    },
+    "companies": {
+      "here": "{{counts}} here",
+      "empty": "No company is booked in {{area}} yet."
+    },
+    "rooms": {
+      "noPhotos": "No photos",
+      "open": "{{count}} open"
+    },
+    "cost": {
+      "overview": "Open Money",
+      "empty": "No cost lines in {{area}} yet.",
+      "loadError": "Couldn't load the cost lines."
+    }
   }
 }

@@ -29,8 +29,7 @@ export function searchResultTarget(
     case 'diary_entry':
       return app(routeUrl('diaryEntry', { id }));
     case 'area':
-      // Interim until route `area` (P5.7) → routeUrl('area', { id })
-      return app(routeUrl('areas'));
+      return app(routeUrl('area', { id }));
     case 'budget_line': {
       const parent = item.parent;
       if (!parent) return app(routeUrl('budgetOverview'));

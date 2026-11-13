@@ -50,6 +50,12 @@
 }
 
 /* variant="navigate": a link chip, no pressed state. */
+.chipLeading {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: var(--spacing-2);
+}
+
 .chipNavigate {
   display: inline-block;
   min-height: var(--touch-target-min);

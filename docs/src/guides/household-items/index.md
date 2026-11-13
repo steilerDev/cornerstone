@@ -94,7 +94,7 @@ The strip shows the facts that matter most at a glance. Select a fact to open th
 | Fact | What it shows |
 |------|---------------|
 | **Delivery** | The delivery date once the purchase has arrived, otherwise the **Target** date, otherwise the delivery window as **Window**. A **Late · n d** badge appears when the purchase is late |
-| **Where** | The area as a breadcrumb. When no area is set, the fact is empty and opens **Overview** |
+| **Where** | The area as a breadcrumb. Select it to open the area's [Area page](/guides/work-items/areas-and-trades#area-page). When no area is set, the fact is empty and opens **Overview** |
 | **Company** | The company the purchase is bought from. A company with a phone number also gets a **Call** button. When no company is set, the fact opens **Overview** |
 | **Expected cost** | The expected cost, with the name of the grant that covers it. If several grants apply, the strip names the first and says how many more |
 | **Invoiced** | The invoiced amount, or **None yet** when nothing has been invoiced |

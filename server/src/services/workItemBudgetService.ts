@@ -102,6 +102,13 @@ export function listWorkItemBudgets(db: DbType, workItemId: string): WorkItemBud
   return service.list(db, workItemId);
 }
 
+export function listWorkItemBudgetsForItems(
+  db: DbType,
+  workItemIds: readonly string[],
+): WorkItemBudgetLine[] {
+  return service.listForEntities(db, workItemIds);
+}
+
 export function createWorkItemBudget(
   db: DbType,
   workItemId: string,

@@ -743,3 +743,160 @@ describe('PhotosPage bulk Set tags (#2226)', () => {
     expect(lastToast().focusFallback()).toBe(screen.getByRole('heading', { level: 1 }));
   });
 });
+
+// ─── #2251: the areaId filter chip (the Area page links here) ────────────────────────────────
+
+const FILTER_DATA: PhotoSpotsResponse = {
+  areas: [
+    makeArea('house', 'House'),
+    makeArea('kitchen', 'Kitchen', { parentId: 'house' }),
+    makeArea('pantry', 'Pantry', { parentId: 'house' }),
+    makeArea('garage', 'Garage'),
+  ],
+  orientations: [makeOrientation('o1', 'Ceiling', 1), makeOrientation('o2', 'Floor', 2)],
+  spots: [
+    makeSpot('house', 'o1', { photoCount: 1, latestPhotoId: 'pH' }),
+    makeSpot('kitchen', 'o2', { photoCount: 2, latestPhotoId: 'pK' }),
+    makeSpot('garage', 'o1', { photoCount: 3, latestPhotoId: 'pG' }),
+    makeSpot(null, 'o1', { photoCount: 4, latestPhotoId: 'pN' }),
+  ],
+};
+
+describe('PhotosPage area filter (#2251)', () => {
+  beforeEach(() => {
+    mockGetPhotoSpots.mockReset();
+    mockGetPhotoSpotPhotos.mockReset();
+    mockShowUndoToast.mockReset();
+    mockViewport(false);
+    mockGetPhotoSpots.mockResolvedValue(FILTER_DATA);
+    currentLocation = null;
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('shows every spot and no chip without the param', async () => {
+    renderPage('/photos');
+
+    await screen.findByRole('table');
+    for (const key of ['house:o1', 'kitchen:o2', 'garage:o1']) {
+      expect(screen.getByTestId(`spot-cell-${key}`)).toBeInTheDocument();
+    }
+    expect(screen.queryByTestId('photos-filter-house')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Filter photos' })).not.toBeInTheDocument();
+  });
+
+  it('narrows to the area and everything below it and shows the pressed chip with the path', async () => {
+    renderPage('/photos?areaId=house');
+
+    await screen.findByRole('table');
+    expect(screen.getByTestId('spot-cell-house:o1')).toBeInTheDocument();
+    expect(screen.getByTestId('spot-cell-kitchen:o2')).toBeInTheDocument();
+    // A zero-photo sub-area stays, with its "No photos" cells
+    expect(screen.getByTestId('area-link-pantry')).toBeInTheDocument();
+    expect(screen.getByTestId('spot-cell-pantry:o1')).toHaveTextContent('No photos');
+    expect(screen.getByTestId('spot-cell-pantry:o1')).not.toHaveAttribute('href');
+    // Garage is outside the subtree: no row, no header link, no cells
+    expect(screen.queryByTestId('area-link-garage')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('spot-cell-garage:o1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Garage')).not.toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'Filter photos' });
+    const chip = within(group).getByTestId('photos-filter-house');
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(chip).toHaveAccessibleName('House, remove filter');
+    expect(chip).toHaveTextContent('House ×');
+  });
+
+  it('labels the chip with the full path of a nested area and keeps only its own spots', async () => {
+    renderPage('/photos?areaId=kitchen');
+
+    await screen.findByRole('table');
+    expect(screen.getByTestId('photos-filter-kitchen')).toHaveAccessibleName(
+      /^House .*Kitchen, remove filter$/,
+    );
+    expect(screen.getByTestId('spot-cell-kitchen:o2')).toBeInTheDocument();
+    expect(screen.queryByTestId('spot-cell-house:o1')).not.toBeInTheDocument();
+  });
+
+  it('filtering on a sub-area makes it the top group and leaves its parent and siblings out', async () => {
+    renderPage('/photos?areaId=kitchen');
+
+    await screen.findByRole('table');
+    expect(screen.getByTestId('area-link-kitchen')).toBeInTheDocument();
+    expect(screen.queryByTestId('area-link-house')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('area-link-pantry')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('area-link-garage')).not.toBeInTheDocument();
+    const links = screen.getAllByTestId(/^area-link-/);
+    expect(links.map((el) => el.getAttribute('data-testid'))).toEqual(['area-link-kitchen']);
+  });
+
+  it('excludes the photos without an area from a filtered page', async () => {
+    renderPage('/photos?areaId=garage');
+
+    await screen.findByRole('table');
+    expect(screen.getByTestId('spot-cell-garage:o1')).toBeInTheDocument();
+    expect(screen.queryByText('No area')).not.toBeInTheDocument();
+  });
+
+  it('hides the No area select controls while filtered and brings them back after', async () => {
+    renderPage('/photos?areaId=house');
+
+    await screen.findByRole('table');
+    expect(screen.queryByTestId('no-area-select-toggle')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('photos-filter-house'));
+
+    expect(await screen.findByTestId('no-area-select-toggle')).toBeInTheDocument();
+  });
+
+  it('removes the param with a replace and moves focus to the h1 when the chip is pressed', async () => {
+    renderPage('/photos?areaId=house&other=1');
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByTestId('photos-filter-house'));
+
+    await waitFor(() => expect(currentLocation!.search).toBe(''));
+    expect(currentLocation!.pathname).toBe('/photos');
+    expect(screen.queryByTestId('photos-filter-house')).not.toBeInTheDocument();
+    expect(screen.getByTestId('spot-cell-garage:o1')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Photos' })).toHaveFocus(),
+    );
+  });
+
+  it('ignores an unknown area id: no chip and no filter', async () => {
+    renderPage('/photos?areaId=nope');
+
+    await screen.findByRole('table');
+    expect(screen.queryByRole('group', { name: 'Filter photos' })).not.toBeInTheDocument();
+    for (const key of ['house:o1', 'kitchen:o2', 'garage:o1']) {
+      expect(screen.getByTestId(`spot-cell-${key}`)).toBeInTheDocument();
+    }
+  });
+
+  it('shows the empty state when the filtered area has no photos, keeping the chip to clear it', async () => {
+    mockGetPhotoSpots.mockResolvedValue({
+      ...FILTER_DATA,
+      areas: [...FILTER_DATA.areas, makeArea('attic', 'Attic')],
+    });
+    renderPage('/photos?areaId=attic');
+
+    expect(await screen.findByText('No diary photos yet')).toBeInTheDocument();
+    expect(screen.getByTestId('photos-filter-attic')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('filters the mobile card grid the same way and shows the chip', async () => {
+    mockViewport(true);
+    renderPage('/photos?areaId=house');
+
+    expect(await screen.findByTestId('spot-card-kitchen:o2')).toBeInTheDocument();
+    expect(screen.getByTestId('spot-card-house:o1')).toBeInTheDocument();
+    expect(screen.queryByTestId('spot-card-garage:o1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('area-link-garage')).not.toBeInTheDocument();
+    expect(screen.getByTestId('spot-card-pantry:o1')).toHaveTextContent('No photos');
+    expect(screen.getByTestId('photos-filter-house')).toBeInTheDocument();
+    expect(screen.queryByTestId('no-area-select-toggle')).not.toBeInTheDocument();
+  });
+});

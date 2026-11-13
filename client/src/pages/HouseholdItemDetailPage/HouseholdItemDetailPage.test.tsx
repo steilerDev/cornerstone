@@ -375,7 +375,7 @@ describe('HouseholdItemDetailPage', () => {
       );
       await loaded('/project/household-items/hi-1?tab=timing');
       fireEvent.click(screen.getByTestId('summary-fact-where'));
-      await waitFor(() => expect(seen.path).toBe('/areas'));
+      await waitFor(() => expect(seen.path).toBe('/areas/a-1'));
       expect(seen.state).toEqual({
         origin: { to: '/project/household-items/hi-1?tab=timing', name: 'Sample sofa' },
       });

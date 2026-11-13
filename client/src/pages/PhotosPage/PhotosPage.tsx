@@ -7,6 +7,7 @@ import type { PhotoSpotPhoto, PhotoSpotsResponse } from '@cornerstone/shared';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { FilterChipGroup } from '../../components/FilterChipGroup/FilterChipGroup.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SpotsTable } from '../../components/photos/SpotsTable.js';
 import { SpotsGrid } from '../../components/photos/SpotsGrid.js';
@@ -17,6 +18,7 @@ import { getPhotoSpotPhotos, getPhotoSpots } from '../../lib/photoApi.js';
 import { areaPathFromList, buildSpotGroups } from '../../lib/photoSpots.js';
 import { undoChange } from '../../lib/undoApi.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { subtreeIds } from '../AreasPage/areaTree.js';
 import { usePhotoDialogs } from '../../photos/usePhotoDialogs.js';
 import type { BulkTagResult } from '../../photos/photoDialogsContext.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
@@ -97,10 +99,30 @@ export default function PhotosPage() {
     void navigate(location.pathname + location.search, { replace: true, state: null });
   }, [status, location.state, location.pathname, location.search, navigate]);
 
+  // `?areaId=` narrows the page to that area and everything below it (the Area page links here).
+  const areaIdParam = new URLSearchParams(location.search).get('areaId');
+  const filterAreaId =
+    data && areaIdParam && data.areas.some((area) => area.id === areaIdParam) ? areaIdParam : null;
+  const filterLabel =
+    data && filterAreaId ? (areaPathFromList(data.areas, filterAreaId) ?? '') : '';
+  // The filtered area's subtree: its spots and its areas (so no empty rows for the rest).
+  const { visibleAreas, visibleSpots } = useMemo(() => {
+    if (!data) return { visibleAreas: [], visibleSpots: [] };
+    if (!filterAreaId) return { visibleAreas: data.areas, visibleSpots: data.spots };
+    const scope = subtreeIds(data.areas, filterAreaId);
+    return {
+      visibleAreas: data.areas.filter((area) => scope.has(area.id)),
+      visibleSpots: data.spots.filter((spot) => spot.areaId !== null && scope.has(spot.areaId)),
+    };
+  }, [data, filterAreaId]);
   const groups = useMemo(
-    () => (data ? buildSpotGroups(data.areas, data.orientations, data.spots) : []),
-    [data],
+    () => (data ? buildSpotGroups(visibleAreas, data.orientations, visibleSpots) : []),
+    [data, visibleAreas, visibleSpots],
   );
+  const removeAreaFilter = () => {
+    void navigate({ pathname: location.pathname, search: '' }, { replace: true });
+    window.requestAnimationFrame(() => headingRef.current?.focus());
+  };
   // Origin = this page with its filters, so the viewer's back link returns to them
   const linkState = useOriginState();
   const retry = useCallback(() => setReloadToken((n) => n + 1), []);
@@ -246,7 +268,7 @@ export default function PhotosPage() {
         </button>
       </div>
     );
-  } else if (data.spots.length === 0) {
+  } else if (visibleSpots.length === 0) {
     content = (
       <EmptyState
         icon="📷"
@@ -255,14 +277,16 @@ export default function PhotosPage() {
       />
     );
   } else if (isMobile) {
-    content = <SpotsGrid groups={groups} linkState={linkState} noArea={noArea} />;
+    content = (
+      <SpotsGrid groups={groups} linkState={linkState} {...(filterAreaId ? {} : { noArea })} />
+    );
   } else {
     content = (
       <SpotsTable
         groups={groups}
         orientations={data.orientations}
         linkState={linkState}
-        noArea={noArea}
+        {...(filterAreaId ? {} : { noArea })}
       />
     );
   }
@@ -270,8 +294,27 @@ export default function PhotosPage() {
   return (
     <PageLayout title={pageTitle} testId="photos-page" headingRef={headingRef}>
       <p className={styles.subtitle}>{t('page.subtitle')}</p>
+      {filterAreaId ? (
+        <div className={styles.filterRow}>
+          <FilterChipGroup
+            ariaLabel={t('filter.label')}
+            testIdPrefix="photos-filter"
+            value={filterAreaId}
+            deselectable
+            onChange={removeAreaFilter}
+            options={[
+              {
+                value: filterAreaId,
+                label: filterLabel,
+                ariaLabel: t('filter.removeArea', { area: filterLabel }),
+                trailing: ' ×',
+              },
+            ]}
+          />
+        </div>
+      ) : null}
       {content}
-      {selecting && selectedIds.size > 0 ? (
+      {selecting && !filterAreaId && selectedIds.size > 0 ? (
         <StickyActionBar
           status={selectedText}
           announcement={selectedText}

@@ -338,7 +338,7 @@ test.describe('Summary strip (T2, AC2)', { tag: '@responsive' }, () => {
     await expect(task.summary.fact('when')).toContainText(' – ');
     // Where: the area as a link
     await expect(task.summary.fact('where')).toContainText(areaName);
-    await expect(task.summary.fact('where')).toHaveAttribute('href', /^\/areas/);
+    await expect(task.summary.fact('where')).toHaveAttribute('href', `/areas/${areaId}`);
     // Who: the company, with Call beside it
     await expect(task.summary.fact('who')).toContainText(companyName);
     await expect(task.callButton).toBeVisible();

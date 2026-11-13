@@ -49,6 +49,24 @@ describe('FilterChipGroup variant="navigate"', () => {
     expect(screen.getByTestId('where-other')).not.toHaveAttribute('title');
   });
 
+  it('renders `leading` aria-hidden before the label, only on the option that sets it (#2251)', () => {
+    setup({
+      options: [
+        { value: 'a', label: 'Kitchen', to: '/areas/a', leading: <i data-testid="dot-a" /> },
+        { value: 'b', label: 'Bath', to: '/areas/b' },
+      ],
+    });
+    const dot = screen.getByTestId('dot-a');
+    const wrapper = dot.parentElement!;
+    expect(wrapper).toHaveAttribute('aria-hidden', 'true');
+    expect(wrapper).toHaveClass('chipLeading');
+    expect(wrapper.parentElement).toBe(screen.getByTestId('where-a'));
+    expect(wrapper.nextSibling?.textContent).toBe('Kitchen');
+    expect(screen.getByTestId('where-a')).toHaveAccessibleName('Kitchen');
+    expect(screen.getByTestId('where-b').querySelector('.chipLeading')).toBeNull();
+    expect(screen.getByTestId('where-b').childNodes).toHaveLength(1);
+  });
+
   it('navigates with the option state on a plain click', () => {
     const log = setup();
     fireEvent.click(screen.getByTestId('where-other'));

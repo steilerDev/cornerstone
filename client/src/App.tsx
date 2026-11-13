@@ -99,6 +99,7 @@ const DiaryEntryDetailPage = lazy(
 const DiaryCapturePage = lazy(() => import('./pages/DiaryCapturePage/DiaryCapturePage'));
 const PhotosPage = lazy(() => import('./pages/PhotosPage/PhotosPage'));
 const AreasPage = lazy(() => import('./pages/AreasPage/AreasPage'));
+const AreaDetailPage = lazy(() => import('./pages/AreaDetailPage/AreaDetailPage'));
 const PhotoSpotViewerPage = lazy(() => import('./pages/PhotoSpotViewerPage/PhotoSpotViewerPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 const NoAccessPage = lazy(() => import('./pages/NoAccessPage/NoAccessPage'));
@@ -264,6 +265,14 @@ function RoutedApp() {
                             element={
                               <Suspense fallback={<div>Loading...</div>}>
                                 <AreasPage />
+                              </Suspense>
+                            }
+                          />
+                          <Route
+                            path={routePattern('area')}
+                            element={
+                              <Suspense fallback={<div>Loading...</div>}>
+                                <AreaDetailPage />
                               </Suspense>
                             }
                           />

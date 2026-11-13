@@ -9,6 +9,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   isPurchaseLate,
+  purchaseLateDays,
   purchaseDeliveryDate,
   purchasePlannedDate,
   type PurchaseLateFields,
@@ -118,5 +119,39 @@ describe('purchaseDeliveryDate (the date shown on the attention row and the Home
   it('agrees with purchasePlannedDate whenever the window is set', () => {
     const d = dates('2026-03-01', '2026-03-02', null);
     expect(purchaseDeliveryDate(d)).toBe(purchasePlannedDate(d));
+  });
+});
+
+describe('purchaseLateDays (#2251)', () => {
+  it.each([
+    ['yesterday is 1 day', '2026-03-09', 1],
+    ['a week ago is 7 days', '2026-03-03', 7],
+    ['across a month end is exact (Feb 28 to Mar 10 = 10)', '2026-02-28', 10],
+  ])('%s', (_label, date, days) => {
+    expect(purchaseLateDays(p({ latestDeliveryDate: date }), TODAY)).toBe(days);
+  });
+
+  it('is 0 when the purchase is not late (today, future, no date, arrived, delivered)', () => {
+    expect(purchaseLateDays(p({ latestDeliveryDate: '2026-03-10' }), TODAY)).toBe(0);
+    expect(purchaseLateDays(p({ latestDeliveryDate: '2026-03-20' }), TODAY)).toBe(0);
+    expect(purchaseLateDays(p(), TODAY)).toBe(0);
+    expect(
+      purchaseLateDays(p({ status: 'arrived', latestDeliveryDate: '2026-01-01' }), TODAY),
+    ).toBe(0);
+    expect(
+      purchaseLateDays(
+        p({ actualDeliveryDate: '2026-03-01', latestDeliveryDate: '2026-01-01' }),
+        TODAY,
+      ),
+    ).toBe(0);
+  });
+
+  it('measures from the planned date: the latest wins over the earliest', () => {
+    expect(
+      purchaseLateDays(
+        p({ earliestDeliveryDate: '2026-03-01', latestDeliveryDate: '2026-03-08' }),
+        TODAY,
+      ),
+    ).toBe(2);
   });
 });

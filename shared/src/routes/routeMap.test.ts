@@ -227,9 +227,13 @@ describe('Areas index rollout (#2218)', () => {
     expect(rule?.to).not.toContain('documentId');
   });
 
-  it('serves the Areas index and keeps the area detail planned', () => {
+  it('serves the Areas index and the area page (#2251)', () => {
     expect(entry('areas')?.stage).toBe('done');
-    expect(entry('area')?.stage).toBe('planned');
+    expect(entry('area')?.stage).toBe('done');
+  });
+
+  it('the Photos route carries areaId (the Area page filter chip, #2251), not area', () => {
+    expect(entry('photos')?.carries).toEqual(['areaId']);
   });
 
   it('redirects /tags straight to the index with no interim form left', () => {

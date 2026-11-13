@@ -608,6 +608,39 @@ export function getBudgetBreakdown(
   });
 }
 
+/**
+ * Area money (#2251): subtree Expected cost and Paid from the Money › Overview by-area breakdown;
+ * own = subtree − Σ direct children's subtree, in cents. Areas without lines are absent (= zeros).
+ * Never computed elsewhere (ADR-039).
+ */
+export interface AreaMoneyFigures {
+  ownExpectedCost: number;
+  expectedCost: number;
+  paid: number;
+}
+
+export function getAreaMoneyFigures(db: DbType, vatRate: number): Map<string, AreaMoneyFigures> {
+  const { byArea } = getBudgetBreakdown(db, vatRate);
+  const childCents = new Map<string, number>();
+  for (const row of byArea) {
+    if (row.parentId === null) continue;
+    childCents.set(
+      row.parentId,
+      (childCents.get(row.parentId) ?? 0) + toCents(row.figures.expectedCost.expected),
+    );
+  }
+  const result = new Map<string, AreaMoneyFigures>();
+  for (const row of byArea) {
+    const subtree = row.figures.expectedCost.expected;
+    result.set(row.areaId, {
+      ownExpectedCost: toMajor(toCents(subtree) - (childCents.get(row.areaId) ?? 0)),
+      expectedCost: subtree,
+      paid: row.figures.paid,
+    });
+  }
+  return result;
+}
+
 // ─── Per item ────────────────────────────────────────────────────────────────
 
 export interface ItemGrantPayback {

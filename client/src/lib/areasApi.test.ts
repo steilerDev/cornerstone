@@ -7,8 +7,12 @@ import {
   deleteArea,
   fetchAreasWithCounts,
   reorderAreas,
+  fetchAreaSummary,
+  fetchAreaCostLines,
 } from './areasApi.js';
 import type {
+  AreaPageSummary,
+  AreaCostLine,
   AreaListResponse,
   AreaListWithCountsResponse,
   AreaSingleResponse,
@@ -353,6 +357,7 @@ describe('areasApi', () => {
     it('requests /api/areas?include=counts and unwraps the areas', async () => {
       const area: AreaWithCounts = {
         ...makeArea(),
+        expectedCost: { own: 0, subtree: 0 },
         counts: {
           workItems: { total: 3, open: 1 },
           householdItems: { total: 0, open: 0 },
@@ -428,6 +433,61 @@ describe('areasApi', () => {
         statusCode: 409,
         error: { code: 'REORDER_SET_MISMATCH' },
       });
+    });
+  });
+
+  describe('fetchAreaSummary (#2251)', () => {
+    it('requests /api/areas/:id/summary with the id encoded and returns the body as is', async () => {
+      const body = { area: { id: 'a/b' } } as unknown as AreaPageSummary;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      const result = await fetchAreaSummary('a/b');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/areas/a%2Fb/summary', expect.any(Object));
+      expect(result).toEqual(body);
+    });
+
+    it('rejects with the ApiClientError of an unknown area (404)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Area not found' } }),
+      } as Response);
+
+      await expect(fetchAreaSummary('nope')).rejects.toMatchObject({
+        statusCode: 404,
+        error: { code: 'NOT_FOUND' },
+      });
+    });
+  });
+
+  describe('fetchAreaCostLines (#2251)', () => {
+    it('requests /api/areas/:id/cost-lines and unwraps the lines', async () => {
+      const lines = [{ id: 'l1' }] as unknown as AreaCostLine[];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ lines }),
+      } as Response);
+
+      const result = await fetchAreaCostLines('area 1');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/areas/area%201/cost-lines', expect.any(Object));
+      expect(result).toEqual(lines);
+    });
+
+    it('rejects when the request fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'boom' } }),
+      } as Response);
+
+      await expect(fetchAreaCostLines('a')).rejects.toMatchObject({ statusCode: 500 });
     });
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { routeUrl } from '@cornerstone/shared';
 import type { AreaWithCounts } from '@cornerstone/shared';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FormError } from '../../components/FormError/FormError.js';
@@ -22,7 +23,9 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import { formatDayMonth } from '../../lib/formatters.js';
+import { formatDayMonth, useFormatters } from '../../lib/formatters.js';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { undoChange } from '../../lib/undoApi.js';
 import { areaFormPrefill, useAreaFormSchema } from '../../objectForms/areaForm.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -79,6 +82,8 @@ export function AreasPage() {
 
   const { areas, status, retry, refetch, reorder, remove } = useAreasIndex();
   const { showUndoToast } = useToast();
+  const { formatCurrency } = useFormatters();
+  const originState = useOriginState();
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   const [query, setQuery] = useState('');
@@ -372,11 +377,20 @@ export function AreasPage() {
     };
   };
 
+  // Quiet rows show the items booked on the area itself; every other row its whole subtree.
+  const expectedCostCell = (row: AreaTreeRow): TreeTableCell => {
+    const cost = row.area.expectedCost;
+    const value = row.quiet ? cost.own : cost.subtree;
+    if (value === 0) return { content: t('index.count.none'), muted: true };
+    return { content: formatCurrency(value) };
+  };
+
   const toTreeRow = (row: AreaTreeRow): TreeTableRow => {
     const cells = [
       openCell(row.rollup.tasks),
       openCell(row.rollup.purchases),
       photosCell(row.rollup),
+      expectedCostCell(row),
     ];
     if (row.quiet) {
       let label: string;
@@ -389,7 +403,16 @@ export function AreasPage() {
       id: row.id,
       parentId: row.parentId,
       label: row.area.name,
-      ...(filter ? { name: <HighlightedText text={row.area.name} query={query.trim()} /> } : {}),
+      name: (
+        <NavAnchor
+          to={routeUrl('area', { id: row.area.id })}
+          state={originState}
+          className={styles.nameLink}
+          data-testid={`area-name-link-${row.area.id}`}
+        >
+          {filter ? <HighlightedText text={row.area.name} query={query.trim()} /> : row.area.name}
+        </NavAnchor>
+      ),
       color: row.area.color,
       cells,
       muted: row.muted,
@@ -418,6 +441,7 @@ export function AreasPage() {
     { id: 'tasks', label: t('index.columns.tasks') },
     { id: 'purchases', label: t('index.columns.purchases') },
     { id: 'photos', label: t('index.columns.photos') },
+    { id: 'expectedCost', label: t('index.columns.expectedCost') },
   ];
 
   const renderActions = (row: TreeTableRow) => {

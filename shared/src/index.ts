@@ -37,11 +37,25 @@ export type {
   UpdateAreaRequest,
   AreaListQuery,
   AreaCounts,
+  AreaExpectedCost,
   AreaWithCounts,
   AreaListWithCountsResponse,
+  AreaPageArea,
+  AreaPageChild,
+  AreaPageCounts,
+  AreaNowWorkItem,
+  AreaNowHouseholdItem,
+  AreaNowItem,
+  AreaAncestorContext,
+  AreaPageCompany,
+  AreaPageMoney,
+  AreaPageSummary,
+  AreaCostLine,
+  AreaCostLinesResponse,
   ReorderAreasRequest,
   DeleteAreaResponse,
 } from './types/area.js';
+export { AREA_NOW_AND_NEXT_LIMIT } from './types/area.js';
 
 // Trades
 export type {

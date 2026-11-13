@@ -75,8 +75,13 @@ describe('matchLocation', () => {
     expect(resolveLocation('/tags', MEMBER)).toMatchObject({ kind: 'redirect', to: '/areas' });
   });
 
+  it('serves the area page now that it is done (#2251)', () => {
+    expect(matchLocation('/areas/some-id')?.entry.id).toBe('area');
+    expect(matchLocation('/areas/some-id')?.params).toEqual({ id: 'some-id' });
+  });
+
   it('does not match planned, conditional or catch-all entries', () => {
-    expect(matchLocation('/areas/some-id')).toBeNull();
+    expect(matchLocation('/documents')).toBeNull();
     expect(matchLocation('/anything-else')).toBeNull();
   });
 

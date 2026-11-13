@@ -13,6 +13,8 @@ import { FeedRow } from './FeedRow.js';
 export interface DiaryEntryFeedRowProps {
   entry: DiaryEntrySummary;
   as?: 'li' | 'div';
+  /** Suppress the area chips (a page about one area: every row is here). */
+  hideAreas?: boolean;
 }
 
 /** First non-empty line of the entry text, trimmed. */
@@ -26,7 +28,7 @@ function firstLine(body: string | null | undefined): string | undefined {
 }
 
 /** A manual diary entry (or a draft) as a photo-first FeedRow. */
-export function DiaryEntryFeedRow({ entry, as }: DiaryEntryFeedRowProps) {
+export function DiaryEntryFeedRow({ entry, as, hideAreas = false }: DiaryEntryFeedRowProps) {
   const { t } = useTranslation('diary');
   const { formatDate, formatDayMonth } = useFormatters();
   const originState = useOriginState();
@@ -76,7 +78,7 @@ export function DiaryEntryFeedRow({ entry, as }: DiaryEntryFeedRowProps) {
       sentence={firstLine(entry.body)}
       facts={facts}
       signedLabel={entry.isSigned ? t('row.signed') : undefined}
-      areas={(entry.photoAreas ?? []).map((area) => ({
+      areas={(hideAreas ? [] : (entry.photoAreas ?? [])).map((area) => ({
         id: area.id,
         content: (
           <AreaBreadcrumb
