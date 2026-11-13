@@ -109,11 +109,7 @@ test.describe('Cost section visible (Scenario 4 — Story 4.6)', { tag: '@respon
       // #2249: cost lines live on the Cost tab (panels mount lazily)
       await detailPage.goto(createdId, { tab: 'cost' });
 
-      const budgetHeading = page.getByRole('heading', {
-        name: 'Cost lines',
-        exact: true,
-        level: 2,
-      });
+      const budgetHeading = page.getByRole('heading', { name: /^Cost lines\b/, level: 2 });
       await expect(budgetHeading).toBeVisible();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);

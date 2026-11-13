@@ -57,6 +57,7 @@ import { createGrant } from '../../fixtures/financingSeed.js';
 import { mockPaperlessConfigured } from '../../fixtures/paperlessMocks.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
+import { pickByKeyboard } from '../../pages/components/SearchPickerControl.js';
 
 let cleanup: SeedCleanup;
 
@@ -713,7 +714,9 @@ test.describe('Details card (P6, AC3)', { tag: '@responsive' }, () => {
     await purchase.urlInput.fill('https://shop.example.com/oak-table');
     await purchase.companyPicker.pick(companyName);
     await expect(purchase.selectedCompany).toContainText(companyName);
-    await purchase.areaPicker.pick(areaName);
+    // The area picker always lists its "No area" row (app-wide area-picker convention)
+    await purchase.areaPicker.type(areaName);
+    await pickByKeyboard(page, purchase.areaPicker.input, areaName, /^No area/);
     await purchase.detailsCard.save();
 
     await expect(purchase.heading).toHaveText(`${name} renamed`);
