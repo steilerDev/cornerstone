@@ -82,7 +82,7 @@
       "name": {
         "label": "Name",
         "placeholder": "Artikelnamen eingeben",
-        "error": "Name ist erforderlich"
+        "error": "Gib einen Namen ein."
       },
       "description": {
         "label": "Beschreibung",
@@ -90,33 +90,29 @@
       },
       "category": {
         "label": "Kategorie",
-        "placeholder": "— Kategorie wählen —",
-        "error": "Kategorie ist erforderlich"
+        "placeholder": "Kategorie wählen",
+        "error": "Wähle eine Kategorie."
       },
       "status": {
-        "label": "Kaufstatus"
+        "label": "Status"
       },
       "quantity": {
         "label": "Menge",
-        "error": "Menge muss mindestens 1 sein"
+        "error": "Gib eine ganze Zahl ab 1 ein."
       },
       "vendor": {
-        "label": "Auftragnehmer",
-        "placeholder": "Kein Auftragnehmer"
+        "label": "Firma",
+        "placeholder": "Keine Firma"
       },
       "area": {
         "label": "Bereich"
       },
       "url": {
-        "label": "URL",
+        "label": "Produktlink",
         "placeholder": "https://example.com"
       },
-      "room": {
-        "label": "Raum",
-        "placeholder": "z. B. Küche, Schlafzimmer"
-      },
       "orderDate": {
-        "label": "Bestelldatum"
+        "label": "Bestellt am"
       },
       "earliestDelivery": {
         "label": "Früheste Lieferung"
@@ -125,154 +121,89 @@
         "label": "Späteste Lieferung"
       },
       "actualDelivery": {
-        "label": "Tatsächliche Lieferung"
+        "label": "Geliefert am"
       },
       "deliveryWindow": {
-        "error": "Das früheste Lieferdatum muss vor oder gleich dem spätesten Lieferdatum liegen"
+        "error": "Die späteste Lieferung kann nicht vor der frühesten liegen."
       },
       "deliveryDates": {
-        "error": "Das tatsächliche Lieferdatum muss nach oder gleich dem Bestelldatum liegen"
-      },
-      "tags": {
-        "label": "Tags"
+        "error": "Das Lieferdatum kann nicht vor dem Bestelldatum liegen."
       }
     }
   },
-  "edit": {
-    "errors": {
-      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuche es erneut."
-    },
-    "loading": "Wird geladen...",
-    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuche es erneut.",
-    "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht.",
-    "form": {
-      "name": {
-        "label": "Name",
-        "required": "*",
-        "placeholder": "Artikelnamen eingeben",
-        "error": "Name ist erforderlich"
-      },
-      "description": {
-        "label": "Beschreibung",
-        "placeholder": "Artikel beschreiben"
-      },
-      "category": {
-        "label": "Kategorie",
-        "required": "*",
-        "placeholder": "— Kategorie wählen —",
-        "error": "Kategorie ist erforderlich"
-      },
-      "quantity": {
-        "label": "Menge",
-        "error": "Menge muss mindestens 1 sein"
-      },
-      "vendor": {
-        "label": "Auftragnehmer",
-        "placeholder": "Kein Auftragnehmer"
-      },
-      "area": {
-        "label": "Bereich"
-      },
-      "url": {
-        "label": "URL",
-        "placeholder": "https://example.com"
-      },
-      "room": {
-        "label": "Raum",
-        "placeholder": "z. B. Küche, Schlafzimmer"
-      },
-      "tags": {
-        "label": "Tags"
-      }
-    },
-    "cancel": "Abbrechen",
-    "submit": "Änderungen speichern",
-    "submitting": "Wird gespeichert...",
-    "success": "Haushaltsartikel erfolgreich aktualisiert"
-  },
-  "detail": {
-    "loading": "Haushaltsartikel wird geladen...",
-    "error": "Fehler",
-    "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht oder wurde entfernt.",
+  "purchasePage": {
+    "typeLabel": "Anschaffung",
+    "loading": "Anschaffung wird geladen…",
     "retry": "Erneut versuchen",
-    "edit": "Bearbeiten",
-    "details": {
-      "title": "Details",
-      "description": "Beschreibung",
-      "vendor": "Auftragnehmer",
-      "productUrl": "Produkt-URL",
-      "room": "Raum",
-      "quantity": "Menge",
-      "tags": "Tags",
-      "noTags": "Keine Tags"
+    "deleted": "Anschaffung gelöscht.",
+    "deleteError": "Die Anschaffung konnte nicht gelöscht werden.",
+    "strip": {
+      "delivery": "Lieferung",
+      "where": "Wo",
+      "company": "Firma",
+      "cost": "Erwartete Kosten",
+      "invoiced": "Berechnet",
+      "waitsFor": "Wartet auf",
+      "delivered": "Geliefert {{date}}",
+      "target": "Ziel {{date}}",
+      "window": "Zeitfenster {{start}} – {{end}}",
+      "noneYet": "Noch keine",
+      "nothing": "Nichts",
+      "more": "+{{count}}",
+      "grantsMore_one": "{{name}} und {{count}} weiteres",
+      "grantsMore_other": "{{name}} und {{count}} weitere"
     },
-    "area": {
-      "title": "Bereich",
-      "label": "Bereich",
-      "updated": "Bereich erfolgreich aktualisiert",
-      "updateFailed": "Bereich konnte nicht aktualisiert werden. Bitte versuche es erneut."
+    "overview": {
+      "details": "Details",
+      "nothingYet": "Noch nichts hinzugefügt",
+      "opensInNewTab": "(öffnet in einem neuen Tab)",
+      "saveError": "Die Anschaffung konnte nicht gespeichert werden."
     },
-    "datesDelivery": {
-      "title": "Daten & Lieferung",
-      "actualDate": "Tatsächliches Datum",
-      "targetDate": "Zieldatum",
-      "orderDate": "Bestelldatum",
-      "actualDelivery": "Tatsächliche Lieferung",
-      "earliestDelivery": "Früheste Lieferung",
-      "latestDelivery": "Späteste Lieferung",
-      "actualDeliveryAria": "Tatsächliche Lieferung: {{actual}}, Ziel war {{target}}",
-      "targetNotSet": "nicht festgelegt",
-      "clearOrderDate": "Bestelldatum löschen",
-      "clearActualDelivery": "Tatsächliches Lieferdatum löschen",
-      "clearEarliestDelivery": "Frühestes Lieferdatum löschen",
-      "clearLatestDelivery": "Spätestes Lieferdatum löschen",
-      "failedUpdateOrderDate": "Fehler beim Aktualisieren des Bestelldatums",
-      "failedUpdateActualDelivery": "Fehler beim Aktualisieren des tatsächlichen Lieferdatums",
-      "failedUpdateEarliestDelivery": "Fehler beim Aktualisieren des frühesten Lieferdatums",
-      "failedUpdateLatestDelivery": "Fehler beim Aktualisieren des spätesten Lieferdatums"
+    "timing": {
+      "delivery": "Lieferung",
+      "targetDelivery": "Ziellieferdatum",
+      "saveError": "Die Termine konnten nicht gespeichert werden.",
+      "lateLatest": "Die späteste Lieferung ({{date}}) ist vorbei, und es ist noch nichts angekommen.",
+      "lateTarget": "Das Ziellieferdatum ({{date}}) ist vorbei, und es ist noch nichts angekommen.",
+      "lateGeneric": "Verspätet: Die Lieferung wird jetzt nach dem geplanten Zeitfenster erwartet.",
+      "waitsFor": "Wartet auf",
+      "waitsForEmpty": "Diese Anschaffung wartet auf keine Aufgabe und keinen Meilenstein.",
+      "add": "Hinzufügen",
+      "addError": "Hinzufügen nicht möglich. Versuche es erneut.",
+      "kindTask": "Aufgabe",
+      "kindMilestone": "Meilenstein",
+      "rowFacts": "{{kind}} · {{date}}"
     },
-    "dependencies": {
-      "title": "Abhängigkeiten",
-      "noDependencies": "Noch keine Abhängigkeiten. Füge eine Abhängigkeit hinzu, um diesen Artikel zu planen.",
-      "workItem": "Arbeitspaket",
-      "milestone": "Meilenstein",
-      "removeDependency": "Abhängigkeit entfernen von",
-      "removeTitle": "Abhängigkeit entfernen?",
-      "confirm": "Entfernen",
-      "removing": "Wird entfernt…",
-      "search": "Arbeitspakete oder Meilensteine zum Hinzufügen durchsuchen...",
-      "noMatches": "Keine Artikel entsprechen deiner Suche",
-      "failedAdd": "Fehler beim Hinzufügen der Abhängigkeit",
-      "failedRemove": "Fehler beim Entfernen der Abhängigkeit",
-      "addedSuccess": "Abhängigkeit erfolgreich hinzugefügt",
-      "removedSuccess": "Abhängigkeit entfernt"
+    "cost": {
+      "grants": "Förderprogramme",
+      "grantsEmpty": "Kein Förderprogramm deckt diese Anschaffung ab.",
+      "add": "Hinzufügen",
+      "loadError": "Die Liste konnte nicht geladen werden.",
+      "linkError": "Hinzufügen nicht möglich. Versuche es erneut."
     },
-    "metadata": {
-      "createdBy": "Erstellt von",
-      "createdAt": "Erstellt am",
-      "updatedAt": "Aktualisiert am"
+    "diary": {
+      "title": "Bautagebuch",
+      "log": "Für diese Anschaffung erfassen",
+      "forCompany": "Einträge für {{company}}",
+      "forPurchase": "Einträge für diese Anschaffung",
+      "otherEntries": "Andere Einträge",
+      "fromPhotoTags": "aus Foto-Tags und Daten",
+      "empty": "Für diese Anschaffung gibt es noch keine Einträge.",
+      "loadError": "Die Einträge konnten nicht geladen werden.",
+      "showAll": "Alle im Bautagebuch anzeigen",
+      "srCount_one": "{{count}} Eintrag",
+      "srCount_other": "{{count}} Einträge"
     },
-    "delete": {
-      "delete": "Artikel löschen",
-      "deleted": "Haushaltsartikel erfolgreich gelöscht"
+    "history": {
+      "title": "Verlauf",
+      "created": "Erstellt von {{name}} am {{date}}",
+      "createdUnknown": "Erstellt am {{date}}",
+      "updated": "Zuletzt aktualisiert {{date}}"
     },
-    "status": {
-      "late": "Verspätet"
-    },
-    "budget": {
-      "confidenceLabel": "Konfidenz:",
-      "plannedAmountLabel": "Geplanter Betrag",
-      "actualCostLabel": "Tatsächliche Kosten",
-      "paybackLabel": "Rückzahlung"
-    },
-    "errors": {
-      "itemNotFound": "Artikel nicht gefunden",
-      "loadFailed": "Haushaltsartikel konnte nicht geladen werden. Bitte versuche es erneut.",
-      "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuche es erneut.",
-      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits mit diesem Element verknüpft.",
-      "linkSubsidy": "Das Förderprogramm konnte nicht mit diesem Element verknüpft werden.",
-      "unlinkSubsidy": "Die Verknüpfung des Förderprogramms mit diesem Element konnte nicht gelöst werden."
-    },
-    "closeErrorMessage": "Fehlermeldung schließen"
+    "shortcuts": {
+      "edit": "Details der Anschaffung bearbeiten",
+      "delete": "Anschaffung löschen",
+      "help": "Tastenkürzel anzeigen"
+    }
   }
 }

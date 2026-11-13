@@ -92,6 +92,7 @@ export function taskTransitions(
 export interface PurchaseTransitionSource {
   readonly status: HouseholdItemStatus;
   readonly targetDeliveryDate: string | null;
+  readonly orderDate?: string | null;
 }
 
 export function purchaseTransitions(
@@ -102,13 +103,20 @@ export function purchaseTransitions(
     map: PURCHASE_TRANSITIONS,
     actionKeys: I18N_UNION_KEYS.statusActionPurchase,
     backLabel: (to) => I18N_UNION_KEYS.statusVocabularyPurchase.key(to),
-    dateFor: (action) =>
-      action === 'markDelivered'
+    dateFor: (action) => {
+      if (action === 'markOrdered') {
+        return {
+          question: t('statusMenu.whenOrdered', { ns: 'common' }),
+          plannedDate: item.orderDate ?? null,
+        };
+      }
+      return action === 'markDelivered'
         ? {
             question: t('statusMenu.whenArrived', { ns: 'common' }),
             plannedDate: item.targetDeliveryDate,
           }
-        : undefined,
+        : undefined;
+    },
   });
 }
 

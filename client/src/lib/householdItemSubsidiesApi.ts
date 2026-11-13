@@ -1,6 +1,6 @@
 import { get, post, del } from './apiClient.js';
 import type { UndoableDeleteResponse } from '@cornerstone/shared';
-import type { SubsidyProgram, HouseholdItemSubsidyPaybackResponse } from '@cornerstone/shared';
+import type { SubsidyProgram } from '@cornerstone/shared';
 
 /**
  * Fetches all subsidies linked to a household item.
@@ -32,16 +32,5 @@ export function unlinkHouseholdItemSubsidy(
 ): Promise<UndoableDeleteResponse> {
   return del<UndoableDeleteResponse>(
     `/household-items/${householdItemId}/subsidies/${subsidyProgramId}`,
-  );
-}
-
-/**
- * Fetches subsidy payback information for a household item.
- */
-export function fetchHouseholdItemSubsidyPayback(
-  householdItemId: string,
-): Promise<HouseholdItemSubsidyPaybackResponse> {
-  return get<HouseholdItemSubsidyPaybackResponse>(
-    `/household-items/${householdItemId}/subsidy-payback`,
   );
 }

@@ -97,8 +97,7 @@
         "columns": "Columns",
         "sources": "Funding sources"
       }
-    },
-    "expectedPayback": "Expected Payback"
+    }
   },
   "sources": {
     "lines": {
@@ -186,9 +185,6 @@
     "messages": {
       "updateError": "Failed to update vendor. Please try again."
     }
-  },
-  "budgetSection": {
-    "subsidies": "Grants"
   },
   "invoices": {
     "error": "Error",
@@ -316,9 +312,6 @@
     },
     "messages": {
       "deleteError": "Failed to delete invoice. Please try again."
-    },
-    "budgetLines": {
-      "dismissErrorAriaLabel": "Dismiss error"
     },
     "deposits": {
       "paymentGone": "That progress payment no longer exists.",
@@ -460,14 +453,7 @@
     }
   },
   "subsidies": {
-    "oversubscribed": "Oversubscribed",
     "linkSection": {
-      "emptyState": "No grants are linked to this item.",
-      "selectAriaLabel": "Select a grant to link to this item",
-      "selectPlaceholder": "Select a grant to link...",
-      "addButton": "Add grant to this item",
-      "linking": "Linking...",
-      "unlinkAriaLabel": "Unlink the grant {{name}} from this item",
       "reductionPercentage": "{{value}}% reduction",
       "reductionFixed": "{{amount}} reduction"
     }

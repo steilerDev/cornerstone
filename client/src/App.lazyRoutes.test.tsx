@@ -40,7 +40,6 @@ const PAGES = [
   ['fundingSource', './pages/BudgetSourcesPage/FundingSourcePage.js'],
   ['grant', './pages/SubsidyProgramsPage/GrantPage.js'],
   ['householdItem', './pages/HouseholdItemDetailPage/HouseholdItemDetailPage.js'],
-  ['householdItemEdit', './pages/HouseholdItemEditPage/HouseholdItemEditPage.js'],
   ['milestone', './pages/MilestoneDetailPage/MilestoneDetailPage.js'],
   ['settingsProfile', './pages/ProfilePage/ProfilePage.js'],
   ['invoice', './pages/InvoiceDetailPage/InvoiceDetailPage.js'],

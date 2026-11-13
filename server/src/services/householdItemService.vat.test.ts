@@ -113,10 +113,10 @@ describe('householdItemService — configured VAT rate', () => {
       expect(items[0]!.budgetSummary.netCost).toBeCloseTo(gross * 0.9, 5);
     });
 
-    it('getHouseholdItemById detail carries the same VAT-effective planned total', () => {
+    it('getHouseholdItemPageDetail detail carries the same VAT-effective planned total', () => {
       const id = createItem('Net sofa', false);
 
-      const detail = householdItemService.getHouseholdItemById(db, id, vatRate);
+      const detail = householdItemService.getHouseholdItemPageDetail(db, id, { vatRate: vatRate });
 
       expect(detail.totalPlannedAmount).toBeCloseTo(gross, 5);
     });
@@ -236,7 +236,7 @@ describe('householdItemService — configured VAT rate', () => {
       const id = createItem('Gross table', true);
       linkPercentageSubsidy(id, 10, { cap: 50 });
 
-      const detail = householdItemService.getHouseholdItemById(db, id, 0.19);
+      const detail = householdItemService.getHouseholdItemPageDetail(db, id, { vatRate: 0.19 });
 
       // 10% of min(100, 50) = 5, not 10
       expect(detail.budgetSummary.subsidyReduction).toBe(5);
@@ -251,7 +251,8 @@ describe('householdItemService — configured VAT rate', () => {
           .budgetSummary.subsidyReduction,
       ).toBe(0);
       expect(
-        householdItemService.getHouseholdItemById(db, id, 0.19).budgetSummary.subsidyReduction,
+        householdItemService.getHouseholdItemPageDetail(db, id, { vatRate: 0.19 }).budgetSummary
+          .subsidyReduction,
       ).toBe(0);
     });
   });

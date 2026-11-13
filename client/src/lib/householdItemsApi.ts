@@ -3,6 +3,7 @@ import type { RequestOptions } from './apiClient.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemListQuery,
+  HouseholdItemPageDetail,
   HouseholdItemListResponse,
   HouseholdItemListRowsResponse,
   HouseholdItemResponse,
@@ -81,8 +82,10 @@ export function listHouseholdItemRows(
 /**
  * Fetches a single household item by ID with full details.
  */
-export function getHouseholdItem(id: string): Promise<HouseholdItemDetail> {
-  return get<HouseholdItemResponse>(`/household-items/${id}`).then((r) => r.householdItem);
+export function getHouseholdItem(id: string): Promise<HouseholdItemPageDetail> {
+  return get<{ householdItem: HouseholdItemPageDetail }>(`/household-items/${id}`).then(
+    (r) => r.householdItem,
+  );
 }
 
 /**

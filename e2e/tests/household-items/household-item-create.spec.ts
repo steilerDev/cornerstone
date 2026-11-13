@@ -23,6 +23,7 @@ import {
   HouseholdItemCreatePage,
   HOUSEHOLD_ITEM_CREATE_ROUTE,
 } from '../../pages/HouseholdItemCreatePage.js';
+import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
 
 const LIST_PATH = routeUrl('householdItems');
@@ -102,6 +103,15 @@ test.describe('Form fields visible (Scenario 3)', { tag: '@responsive' }, () => 
     await expect(createPage.urlInput).toBeVisible();
     await expect(createPage.orderDateInput).toBeVisible();
     await expect(createPage.actualDeliveryDateInput).toBeVisible();
+
+    // #2249: the labels are shared with the purchase page ("Company", not "Vendor"; sentence case)
+    const labelFor = (id: string) => createPage.dialog.locator(`label[for="${id}"]`);
+    await expect(labelFor('vendorId')).toHaveText('Company');
+    await expect(labelFor('url')).toHaveText('Product link');
+    await expect(labelFor('orderDate')).toHaveText('Ordered on');
+    await expect(labelFor('earliestDeliveryDate')).toHaveText('Earliest delivery');
+    await expect(labelFor('latestDeliveryDate')).toHaveText('Latest delivery');
+    await expect(labelFor('actualDeliveryDate')).toHaveText('Delivered on');
   });
 });
 
@@ -168,9 +178,17 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
 
       createdId = await createPage.submitAndWaitForDetail();
 
-      // Should be on the detail page
+      // Should be on the purchase page, showing what was entered
       expect(new URL(page.url()).pathname).toBe(routeUrl('householdItem', { id: createdId }));
       expect(createdId).toBeTruthy();
+      const detailPage = new HouseholdItemDetailPage(page);
+      await expect(detailPage.heading).toHaveText(name);
+      await expect(detailPage.detail('quantity')).toHaveText('2');
+      await expect(detailPage.detail('link')).toContainText('example.com');
+      await detailPage.openTab('timing');
+      await expect(detailPage.delivery('ordered')).not.toBeEmpty();
+      await expect(detailPage.delivery('earliest')).not.toBeEmpty();
+      await expect(detailPage.delivery('latest')).not.toBeEmpty();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }

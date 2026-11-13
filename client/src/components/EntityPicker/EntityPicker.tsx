@@ -28,6 +28,7 @@ import {
   searchDocumentOptions,
   searchOrientationOptions,
   searchTaskOptions,
+  searchTaskOrMilestoneOptions,
   searchTaskOrPurchaseOptions,
   searchWhoOptions,
   whoKindOf,
@@ -142,7 +143,14 @@ export function EntityPicker(props: EntityPickerProps) {
   const loadOptions = (): Promise<EntityOption[]> => {
     if (optionsRef.current === null) {
       const pending =
-        kind === 'milestone' ? loadMilestoneOptions((iso) => formatDate(iso)) : loadGrantOptions();
+        kind === 'milestone'
+          ? loadMilestoneOptions((iso) => formatDate(iso))
+          : kind === 'taskOrMilestone'
+            ? loadMilestoneOptions(
+                (iso) => formatDate(iso),
+                t('entityPicker.taskOrMilestone.kindMilestone'),
+              )
+            : loadGrantOptions();
       optionsRef.current = pending;
       pending.catch(() => {
         optionsRef.current = null;
@@ -185,6 +193,10 @@ export function EntityPicker(props: EntityPickerProps) {
         return searchTaskOrPurchaseOptions(query, signal, {
           task: t('entityPicker.taskOrPurchase.kindTask'),
           purchase: t('entityPicker.taskOrPurchase.kindPurchase'),
+        });
+      case 'taskOrMilestone':
+        return searchTaskOrMilestoneOptions(query, loadOptions(), {
+          task: t('entityPicker.taskOrMilestone.kindTask'),
         });
       case 'document':
         return searchDocumentOptions(query, await loadLinkedIds(), (iso) => formatDate(iso));
@@ -275,6 +287,7 @@ export function EntityPicker(props: EntityPickerProps) {
     category: t('entityPicker.placeholder.category'),
     task: t('entityPicker.task.placeholder'),
     taskOrPurchase: t('entityPicker.placeholder.taskOrPurchase'),
+    taskOrMilestone: t('entityPicker.placeholder.taskOrMilestone'),
     document: t('entityPicker.placeholder.document'),
     milestone: t('entityPicker.placeholder.milestone'),
     grant: t('entityPicker.placeholder.grant'),
@@ -300,13 +313,15 @@ export function EntityPicker(props: EntityPickerProps) {
     const pathNode =
       path && path.length > 0 ? <AreaBreadcrumb variant="path" segments={path} /> : null;
     if (option.kindWord) {
+      // A task shows its area path, a milestone its target date (as the plain milestone kind does).
+      const detail = pathNode ?? option.secondary ?? null;
       return (
         <>
           {option.kindWord}
-          {pathNode && (
+          {detail && (
             <>
               {' · '}
-              {pathNode}
+              {detail}
             </>
           )}
         </>
@@ -333,18 +348,20 @@ export function EntityPicker(props: EntityPickerProps) {
             emptyHint: t('entityPicker.typeMore'),
             noResultsMessage: t('entityPicker.taskOrPurchase.noResults'),
           }
-        : kind === 'document'
-          ? {
-              emptyHint: t('entityPicker.document.linkedHidden'),
-              noResultsMessage: t('entityPicker.document.noResults'),
-              loadErrorMessage: t('entityPicker.document.loadError'),
-              searchErrorMessage: t('entityPicker.document.loadError'),
-            }
-          : kind === 'milestone'
-            ? { noResultsMessage: t('entityPicker.milestone.noResults') }
-            : kind === 'grant'
-              ? { noResultsMessage: t('entityPicker.grant.noResults') }
-              : null;
+        : kind === 'taskOrMilestone'
+          ? { noResultsMessage: t('entityPicker.taskOrMilestone.noResults') }
+          : kind === 'document'
+            ? {
+                emptyHint: t('entityPicker.document.linkedHidden'),
+                noResultsMessage: t('entityPicker.document.noResults'),
+                loadErrorMessage: t('entityPicker.document.loadError'),
+                searchErrorMessage: t('entityPicker.document.loadError'),
+              }
+            : kind === 'milestone'
+              ? { noResultsMessage: t('entityPicker.milestone.noResults') }
+              : kind === 'grant'
+                ? { noResultsMessage: t('entityPicker.grant.noResults') }
+                : null;
 
   return (
     <SearchPicker<EntityOption>

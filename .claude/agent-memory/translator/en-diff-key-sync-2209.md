@@ -17,3 +17,5 @@ Mirror large `en` changes into `de` with a scripted, order-preserving merge, not
 - **Budget line canon:** en "budget line" is glossary **Cost line** (`Kostenposition`), not the formerly-listed `Budgetposition`. Use `Kostenposition` for `budgetLine.item` and modal copy that says "cost line" or "budget line" in the new #2209 strings.
 
 **How to apply:** for any future en-to-de mirror, script it as above, then check parity, the audit script and the git diff size before reporting.
+
+**Whole-object deletions with de-only children (#2249).** When the spec deletes a whole en object, delete the whole de object even if it holds de-only empty containers (`invoiceDetail.budgetLines.form: {}`). The spec, not the leaf diff, decides. Parity check after a mirror: flatten en and de, diff both ways, and compare `{{placeholder}}` sets. Pre-existing mismatch: `budget.json` `financing.form.titleNewSource/titleNewGrant` (en `{{object}}`, de literal), not from any story diff.

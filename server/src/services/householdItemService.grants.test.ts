@@ -18,7 +18,7 @@ import * as schema from '../db/schema.js';
 import { ValidationError } from '../errors/AppError.js';
 import {
   createHouseholdItem,
-  getHouseholdItemById,
+  getHouseholdItemPageDetail,
   listHouseholdItemRows,
   updateHouseholdItem,
 } from './householdItemService.js';
@@ -148,7 +148,7 @@ describe('householdItemService: grant chips and remaining branches (#2242)', () 
         cleared.latestDeliveryDate,
         cleared.actualDeliveryDate,
       ]).toEqual([null, null, null, null]);
-      expect(getHouseholdItemById(db, 'hi-1', VAT).description).toBeNull();
+      expect(getHouseholdItemPageDetail(db, 'hi-1', { vatRate: VAT }).description).toBeNull();
     });
 
     it('create accepts an actual delivery date and a known area', () => {

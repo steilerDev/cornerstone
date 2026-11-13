@@ -4,7 +4,7 @@
  *
  * The Documents panel ("Documents (n)" trigger + side sheet / full-screen sheet) is hosted by:
  *   - Task detail page (/project/work-items/:id)             trigger summary-fact-documents (#2248)
- *   - Purchase detail page (/project/household-items/:id)    trigger documents-panel-button
+ *   - Purchase detail page (/project/household-items/:id)    trigger summary-fact-documents (#2249)
  *   - Invoice detail page (/budget/invoices/:id)             trigger summary-fact-documents (strip fact, value = count)
  *   - Funding source card (/budget/financing)                trigger financing-source-docs-<id>
  *   - Grant card (/budget/financing)                         trigger financing-grant-docs-<id>
@@ -149,9 +149,9 @@ const HOSTS: readonly Host[] = [
   {
     label: 'Purchase',
     entityType: 'household_item',
-    triggerTestId: () => 'documents-panel-button',
-    triggerPattern: /^documents-panel-button$/,
-    triggerText: (count) => `Documents (${count})`,
+    triggerTestId: () => 'summary-fact-documents',
+    triggerPattern: /^summary-fact-documents$/,
+    triggerText: (count) => `${count}`,
     create: async (page, prefix) => {
       const id = await createHouseholdItemViaApi(page, { name: `${prefix} Docs Host Purchase` });
       return { id, cleanup: () => deleteHouseholdItemViaApi(page, id) };

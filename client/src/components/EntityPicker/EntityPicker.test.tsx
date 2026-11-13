@@ -1944,4 +1944,140 @@ describe('EntityPicker', () => {
       expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('taskOrMilestone (#2249)', () => {
+    const tasks = () =>
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-1',
+            title: 'Roof tiles',
+            area: { id: 'a2', name: 'Kitchen', ancestors: [{ id: 'a1', name: 'House' }] },
+          },
+        ],
+      } as never);
+
+    it('opens only on user intent, with its own placeholder', async () => {
+      const user = userEvent.setup();
+      tasks();
+      render(<Harness kind="taskOrMilestone" />);
+
+      expect(screen.queryByRole('listbox')).toBeNull();
+      await user.click(input());
+
+      expect(input()).toHaveAttribute('placeholder', 'Search tasks and milestones');
+      expect(await screen.findByRole('option', { name: /Roof tiles/ })).toBeInTheDocument();
+    });
+
+    it('lists tasks and milestones, each with its kind word, the task with its area path', async () => {
+      const user = userEvent.setup();
+      tasks();
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.click(input());
+
+      const task = await screen.findByRole('option', { name: /Roof tiles/ });
+      expect(task).toHaveTextContent('Task');
+      expect(task).toHaveTextContent('House › Kitchen');
+      const milestone = screen.getByRole('option', { name: /Shell finished/ });
+      expect(milestone).toHaveTextContent(/Milestone · .*2026/);
+    });
+
+    it('shows a task without an area as its kind word alone, with no separator', async () => {
+      const user = userEvent.setup();
+      mockListWorkItems.mockResolvedValue({
+        items: [{ id: 'wi-3', title: 'Lay cables', area: null }],
+      } as never);
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.click(input());
+
+      const task = await screen.findByRole('option', { name: /Lay cables/ });
+      expect(task).toHaveTextContent('Task');
+      expect(task).not.toHaveTextContent('·');
+    });
+
+    it('finds a milestone although the typed text has spaces around it', async () => {
+      const user = userEvent.setup();
+      tasks();
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.type(input(), ' shell ');
+
+      expect(await screen.findByRole('option', { name: /Shell finished/ })).toBeInTheDocument();
+    });
+
+    it('reports a predecessor value for a task and for a milestone', async () => {
+      const user = userEvent.setup();
+      tasks();
+      const { unmount } = render(<Harness kind="taskOrMilestone" />);
+      await user.click(input());
+      await user.click(await screen.findByRole('option', { name: /Roof tiles/ }));
+      expect(onChange).toHaveBeenLastCalledWith(
+        'work_item:wi-1',
+        expect.objectContaining({ id: 'work_item:wi-1', entityId: 'wi-1', kindWord: 'Task' }),
+      );
+      unmount();
+
+      render(<Harness kind="taskOrMilestone" />);
+      await user.click(input());
+      await user.click(await screen.findByRole('option', { name: /Shell finished/ }));
+      expect(onChange).toHaveBeenLastCalledWith(
+        'milestone:9',
+        expect.objectContaining({ id: 'milestone:9', entityId: '9', kindWord: 'Milestone' }),
+      );
+    });
+
+    it('leaves out excluded predecessor values', async () => {
+      const user = userEvent.setup();
+      tasks();
+      render(<Harness kind="taskOrMilestone" excludeIds={['work_item:wi-1', 'milestone:4']} />);
+
+      await user.click(input());
+
+      expect(await optionNames()).toEqual([expect.stringContaining('Shell finished')]);
+    });
+
+    it('fetches the milestones once across several searches, and searches tasks on the server', async () => {
+      const user = userEvent.setup();
+      tasks();
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.type(input(), 'ro');
+      await screen.findByRole('option', { name: /Roof closed/ });
+      await user.type(input(), 'of');
+      await screen.findByRole('option', { name: /Roof closed/ });
+
+      expect(mockListMilestones).toHaveBeenCalledTimes(1);
+      await waitFor(() =>
+        expect(mockListWorkItems).toHaveBeenLastCalledWith({ q: 'roof', pageSize: 15 }),
+      );
+    });
+
+    it('says when nothing matches', async () => {
+      const user = userEvent.setup();
+      mockListWorkItems.mockResolvedValue({ items: [] } as never);
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.type(input(), 'zzz');
+
+      expect(
+        await screen.findByText('No task or milestone matches this search'),
+      ).toBeInTheDocument();
+    });
+
+    it('clears the milestone cache on a failed load, so the next search retries', async () => {
+      const user = userEvent.setup();
+      tasks();
+      mockListMilestones.mockRejectedValueOnce(new Error('down'));
+      render(<Harness kind="taskOrMilestone" />);
+
+      await user.type(input(), 'r');
+      await waitFor(() => expect(mockListMilestones).toHaveBeenCalledTimes(1));
+      await user.type(input(), 'o');
+
+      expect(await screen.findByRole('option', { name: /Roof closed/ })).toBeInTheDocument();
+      expect(mockListMilestones).toHaveBeenCalledTimes(2);
+    });
+  });
 });

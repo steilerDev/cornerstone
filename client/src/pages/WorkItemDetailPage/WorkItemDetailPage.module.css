@@ -1,49 +1,25 @@
 .panel {
-  /* The one panel spacing (16px, 24px from 768px): every task tab panel composes this class. */
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
 .errorCard {
-  composes: card from '../../styles/shared.module.css';
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
+  composes: errorCard from '../../styles/objectPage.module.css';
 }
 
 .errorActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
+  composes: errorActions from '../../styles/objectPage.module.css';
 }
 
-/* A compact secondary button with a touch-size target below 1024px. */
 .compactButton {
-  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  composes: compactButton from '../../styles/objectPage.module.css';
 }
-
-@media (max-width: 1023px) {
-  .compactButton {
-    min-height: var(--touch-target-min);
-  }
-}
-
-/* ---- Summary strip remark ---- */
 
 .remark {
-  display: inline-block;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  composes: remark from '../../styles/objectPage.module.css';
 }
 
-/* ---- Details cards ---- */
-
 .details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-  margin: 0;
+  composes: details from '../../styles/objectPage.module.css';
 }
 
 .preLine {
@@ -52,7 +28,7 @@
 }
 
 .muted {
-  color: var(--color-text-muted);
+  composes: muted from '../../styles/objectPage.module.css';
 }
 
 .whoValue {
@@ -63,9 +39,7 @@
 }
 
 .fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-3);
+  composes: fields from '../../styles/objectPage.module.css';
 }
 
 /* ---- Checklist and notes ---- */
@@ -153,11 +127,7 @@
 }
 
 .noteBody {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  white-space: pre-line;
-  overflow-wrap: anywhere;
+  composes: userTextBlock from '../../styles/objectPage.module.css';
 }
 
 .cardActions {
@@ -179,17 +149,5 @@
 /* ---- History ---- */
 
 .historyLine {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-@media (min-width: 768px) {
-  .panel {
-    gap: var(--spacing-6);
-  }
-
-  .fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  composes: historyLine from '../../styles/objectPage.module.css';
 }

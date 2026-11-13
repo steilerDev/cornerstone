@@ -7,7 +7,6 @@
     "invoiceTitle": "Invoice"
   },
   "section": {
-    "costHeading": "Cost",
     "title": "Cost lines",
     "add": "Add {{object}}",
     "addGrid": "Add lines (grid)",
@@ -23,15 +22,6 @@
     "savedCount_one": "{{count}} line saved.",
     "savedCount_other": "{{count}} lines saved.",
     "newInvoice": "New invoice"
-  },
-  "overview": {
-    "expectedCost": "Expected cost",
-    "afterGrants": "After grants",
-    "plannedCost": "Planned cost",
-    "payback": "Expected payback: {{amount}}",
-    "paybackRange": "The expected payback is between {{min}} and {{max}}",
-    "oversubscribed_one": "{{names}} is oversubscribed",
-    "oversubscribed_other": "{{names}} are oversubscribed"
   },
   "table": {
     "caption": "Cost lines",

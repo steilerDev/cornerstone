@@ -212,10 +212,11 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         title: () => `${NAMES.purchase} · Purchases · ${HOUSE}`,
       },
       {
-        name: 'Edit purchase',
+        // #2249: the edit URL is a one-hop redirect to the purchase page (Details in edit mode)
+        name: 'Edit purchase URL (redirects to the purchase page)',
         path: () => routeUrl('householdItemEdit', { id: seed.householdItemId }),
-        h1: 'Edit purchase',
-        title: `Edit purchase · Purchases · ${HOUSE}`,
+        h1: () => NAMES.purchase,
+        title: () => `${NAMES.purchase} · Purchases · ${HOUSE}`,
       },
       {
         name: 'Milestones list',
@@ -380,16 +381,19 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('milestones'));
     });
 
-    test('E3: the edit-purchase trail ends in the purchase name', async ({ page }) => {
+    test('E3: the edit-purchase URL lands on the purchase page: trail "Purchases", no edit param', async ({
+      page,
+    }) => {
       const bc = new BreadcrumbsBar(page);
       await page.goto(routeUrl('householdItemEdit', { id: seed.householdItemId }));
 
-      await bc.expectTrail(['Purchases', NAMES.purchase]);
-
-      await bc.trailLink(NAMES.purchase).click();
       await expect(page).toHaveURL(
-        (url) => url.pathname === routeUrl('householdItem', { id: seed.householdItemId }),
+        (url) =>
+          url.pathname === routeUrl('householdItem', { id: seed.householdItemId }) &&
+          !url.searchParams.has('edit'),
       );
+      await bc.expectTrail(['Purchases']);
+      await expect(bc.nav).not.toContainText(NAMES.purchase);
     });
 
     test('E3: a create URL shows its list (a view: no trail) with the dialog open', async ({

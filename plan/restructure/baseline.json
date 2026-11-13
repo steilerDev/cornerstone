@@ -12,8 +12,7 @@
       "DiaryPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "HistoryPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 1 },
       "HomePage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
-      "HouseholdItemDetailPage": { "destinations": 2, "primaryButtons": 6, "searchFields": 1 },
-      "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
+      "HouseholdItemDetailPage": { "destinations": 0, "primaryButtons": 5, "searchFields": 1 },
       "HouseholdItemsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "IntegrationsPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
       "InvoiceDetailPage": { "destinations": 0, "primaryButtons": 7, "searchFields": 1 },
@@ -40,7 +39,7 @@
       "WorkItemsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 102,
+      "count": 100,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -113,8 +112,6 @@
         "UserMenu/UserMenu",
         "WizardStepper/WizardStepper",
         "autoItemize/AutoItemizePdfPreview",
-        "budget/BudgetCostOverview",
-        "budget/SubsidyLinkSection",
         "calendar/CalendarHouseholdItem",
         "calendar/CalendarItem",
         "calendar/CalendarMilestone",
@@ -147,10 +144,9 @@
       ]
     },
     "moneyLabels": {
-      "count": 73,
+      "count": 68,
       "values": [
         "(refund)",
-        "actual cost",
         "add refund",
         "after grants",
         "allocated",
@@ -174,7 +170,6 @@
         "expand budget lines for",
         "expected cost",
         "expected grants",
-        "expected payback",
         "file, in total",
         "files, in total",
         "final amount",
@@ -202,9 +197,6 @@
         "paid",
         "paid date",
         "paid date is required.",
-        "payback",
-        "planned amount",
-        "planned cost",
         "pro estimate",
         "professional estimate",
         "project budget overview",

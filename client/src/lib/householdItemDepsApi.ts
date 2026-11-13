@@ -1,19 +1,6 @@
-import { get, post, del } from './apiClient.js';
+import { post, del } from './apiClient.js';
 import type { UndoableDeleteResponse } from '@cornerstone/shared';
-import type {
-  HouseholdItemDepDetail,
-  HouseholdItemDepsResponse,
-  CreateHouseholdItemDepRequest,
-} from '@cornerstone/shared';
-
-/**
- * Fetches all dependencies for a household item.
- */
-export function fetchHouseholdItemDeps(householdItemId: string): Promise<HouseholdItemDepDetail[]> {
-  return get<HouseholdItemDepsResponse>(`/household-items/${householdItemId}/dependencies`).then(
-    (r) => r.dependencies,
-  );
-}
+import type { HouseholdItemDepDetail, CreateHouseholdItemDepRequest } from '@cornerstone/shared';
 
 /**
  * Creates a new dependency for a household item.

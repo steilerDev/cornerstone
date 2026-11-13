@@ -4,6 +4,7 @@ import {
   daysBetweenKeys,
   plannedRangeText,
   purchaseLateDays,
+  purchaseDeliveryOf,
   scheduleSignalOf,
   showsPlannedRow,
 } from './scheduleDates.js';
@@ -183,5 +184,67 @@ describe('purchaseLateDays', () => {
       purchaseLateDays(makePurchase('p', { isLate: true, latestDeliveryDate: TODAY }), TODAY),
     ).toBe(1);
     expect(purchaseLateDays(makePurchase('p', { isLate: true }), TODAY)).toBe(1);
+  });
+});
+
+describe('purchaseLateDays on a purchase page record', () => {
+  it('needs only the late flag and the two delivery bounds', () => {
+    expect(
+      purchaseLateDays(
+        { isLate: true, latestDeliveryDate: '2026-03-20', earliestDeliveryDate: null },
+        '2026-03-23',
+      ),
+    ).toBe(3);
+    expect(
+      purchaseLateDays(
+        { isLate: false, latestDeliveryDate: '2026-03-20', earliestDeliveryDate: null },
+        '2026-03-23',
+      ),
+    ).toBe(0);
+  });
+});
+
+describe('purchaseDeliveryOf', () => {
+  it('is the actual delivery date once the purchase arrived', () => {
+    expect(
+      purchaseDeliveryOf({
+        status: 'arrived',
+        actualDeliveryDate: '2026-03-05',
+        targetDeliveryDate: '2026-03-01',
+      }),
+    ).toEqual({ date: '2026-03-05', delivered: true });
+  });
+
+  it('falls back to the target date for an arrived purchase without an actual date', () => {
+    expect(
+      purchaseDeliveryOf({
+        status: 'arrived',
+        actualDeliveryDate: null,
+        targetDeliveryDate: '2026-03-01',
+      }),
+    ).toEqual({ date: '2026-03-01', delivered: false });
+  });
+
+  it('is the target date while the purchase has not arrived, even with an actual date', () => {
+    expect(
+      purchaseDeliveryOf({
+        status: 'purchased',
+        actualDeliveryDate: '2026-03-05',
+        targetDeliveryDate: '2026-03-10',
+      }),
+    ).toEqual({ date: '2026-03-10', delivered: false });
+  });
+
+  it('is null without a usable date', () => {
+    expect(
+      purchaseDeliveryOf({ status: 'planned', actualDeliveryDate: null, targetDeliveryDate: null }),
+    ).toBeNull();
+    expect(
+      purchaseDeliveryOf({
+        status: 'arrived',
+        actualDeliveryDate: null,
+        targetDeliveryDate: null,
+      }),
+    ).toBeNull();
   });
 });

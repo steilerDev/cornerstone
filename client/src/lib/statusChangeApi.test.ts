@@ -51,9 +51,17 @@ describe('request body builders', () => {
       });
     });
 
+    it('sends the order date when purchased with a date', () => {
+      expect(householdItemStatusBody('purchased', '2026-08-07')).toEqual({
+        status: 'purchased',
+        orderDate: '2026-08-07',
+      });
+    });
+
     it('sends only the status otherwise', () => {
       expect(householdItemStatusBody('arrived', null)).toEqual({ status: 'arrived' });
-      expect(householdItemStatusBody('purchased', '2026-08-07')).toEqual({ status: 'purchased' });
+      expect(householdItemStatusBody('purchased', null)).toEqual({ status: 'purchased' });
+      expect(householdItemStatusBody('scheduled', '2026-08-07')).toEqual({ status: 'scheduled' });
     });
   });
 

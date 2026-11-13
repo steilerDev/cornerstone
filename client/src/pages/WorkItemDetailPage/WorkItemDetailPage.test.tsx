@@ -43,6 +43,7 @@ const startEditDetails = jest.fn<() => void>();
 const startEditWhoWhere = jest.fn<() => void>();
 let documentsFact: SummaryFact | null = null;
 let diaryCount: number | null = 3;
+const diaryInputs: unknown[] = [];
 
 const realWorkItemsApi = await import('../../lib/workItemsApi.js');
 const realStatusApi = await import('../../lib/statusChangeApi.js');
@@ -88,14 +89,17 @@ jest.unstable_mockModule('../../components/FeedRow/ObjectHistorySection.js', () 
     />
   ),
 }));
-jest.unstable_mockModule('./useTaskDiary.js', () => ({
-  useTaskDiary: () => ({
-    primary: { items: [], totalItems: diaryCount, scope: 'company' },
-    other: null,
-    failure: null,
-    reload: () => undefined,
-    count: diaryCount,
-  }),
+jest.unstable_mockModule('../../hooks/useObjectDiary.js', () => ({
+  useObjectDiary: (input: unknown) => {
+    diaryInputs.push(input);
+    return {
+      primary: { items: [], totalItems: diaryCount, scope: 'company' },
+      other: null,
+      failure: null,
+      reload: () => undefined,
+      count: diaryCount,
+    };
+  },
 }));
 jest.unstable_mockModule('./TaskOverviewPanel.js', () => ({
   TaskOverviewPanel: (props: {
@@ -129,9 +133,25 @@ jest.unstable_mockModule('./TaskTimingPanel.js', () => ({
 jest.unstable_mockModule('./TaskCostPanel.js', () => ({
   TaskCostPanel: () => <div data-testid="stub-cost" />,
 }));
-jest.unstable_mockModule('./TaskDiaryPanel.js', () => ({
-  TaskDiaryPanel: () => <div data-testid="stub-diary" />,
+jest.unstable_mockModule('../../components/FeedRow/ObjectDiaryPanel.js', () => ({
+  ObjectDiaryPanel: (props: {
+    companyId: string | null;
+    areaId: string | null;
+    dates: unknown;
+    testIdPrefix: string;
+    labels: { srCount: (n: number) => string } & Record<string, unknown>;
+  }) => (
+    <div
+      data-testid="stub-diary"
+      data-prefix={props.testIdPrefix}
+      data-company={props.companyId ?? ''}
+      data-area={props.areaId ?? ''}
+      data-dates={JSON.stringify(props.dates)}
+      data-labels={JSON.stringify({ ...props.labels, srCount: props.labels.srCount(2) })}
+    />
+  ),
 }));
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({ user: { id: 'u-me', role: 'admin' } }),
@@ -234,6 +254,7 @@ describe('WorkItemDetailPage', () => {
     mockDeleteWorkItem.mockResolvedValue(undefined);
     documentsFact = null;
     diaryCount = 3;
+    diaryInputs.length = 0;
     seen.keys = [];
     document.title = 'initial';
     if (!Page) {
@@ -476,6 +497,62 @@ describe('WorkItemDetailPage', () => {
       expect(await screen.findByTestId('stub-cost')).toBeInTheDocument();
       await user.click(screen.getByRole('tab', { name: /diary/i }));
       expect(await screen.findByTestId('stub-diary')).toBeInTheDocument();
+    });
+
+    it('the Site diary panel gets the shown dates, company, area and the task labels', async () => {
+      mockGetWorkItem.mockResolvedValue(
+        makeTaskPage({
+          title: 'Pour slab',
+          projectedStartDate: '2026-03-02',
+          projectedEndDate: '2026-03-06',
+          actualStartDate: '2026-03-03',
+          assignedVendor: { id: 'v-1', name: 'Acme', trade: null, phone: null },
+          area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
+        } as Partial<WorkItemPageDetail>),
+      );
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      const diary = await screen.findByTestId('stub-diary');
+      expect(diary).toHaveAttribute('data-prefix', 'task-diary');
+      expect(diary).toHaveAttribute('data-company', 'v-1');
+      expect(diary).toHaveAttribute('data-area', 'a-1');
+      expect(JSON.parse(diary.dataset.dates!)).toEqual({
+        dateFrom: '2026-03-03',
+        dateTo: '2026-03-06',
+      });
+      expect(JSON.parse(diary.dataset.labels!)).toMatchObject({
+        forCompany: expect.stringContaining('Acme'),
+        srCount: '2 entries',
+      });
+      expect(diaryInputs.at(-1)).toMatchObject({
+        subjectKey: 'wi-1',
+        vendorId: 'v-1',
+        areaId: 'a-1',
+        dates: { dateFrom: '2026-03-03', dateTo: '2026-03-06' },
+      });
+    });
+
+    it('the Site diary panel has no window or company for an undated, unassigned task', async () => {
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      const diary = await screen.findByTestId('stub-diary');
+      expect(diary).toHaveAttribute('data-company', '');
+      expect(diary).toHaveAttribute('data-area', '');
+      expect(diary.dataset.dates).toBe('null');
+      expect(diaryInputs.at(-1)).toMatchObject({ vendorId: null, areaId: null, dates: null });
+    });
+
+    it('the Site diary window needs both dates', async () => {
+      mockGetWorkItem.mockResolvedValue(
+        makeTaskPage({ title: 'Pour slab', projectedStartDate: '2026-03-02' }),
+      );
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      expect((await screen.findByTestId('stub-diary')).dataset.dates).toBe('null');
+      expect(diaryInputs.at(-1)).toMatchObject({ dates: null });
     });
 
     it('History shows who created the task and when it was last updated, then the history list', async () => {

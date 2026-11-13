@@ -87,7 +87,7 @@ async function seedLine(
 function hostUrl(kind: CostLineHostKind, id: string): string {
   return kind === 'work_item'
     ? routeUrl('workItem', { id }, { tab: 'cost' })
-    : routeUrl('householdItem', { id });
+    : routeUrl('householdItem', { id }, { tab: 'cost' });
 }
 
 async function expectPrefilled(form: CostLineFormDialog, description: string): Promise<void> {

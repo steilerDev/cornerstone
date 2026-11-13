@@ -119,7 +119,7 @@ test.describe('HI unit pricing create (Scenario 3)', () => {
 
     try {
       hiId = await createHouseholdItemViaApi(page, { name: `${testPrefix} HI Unit Pricing Test` });
-      await detailPage.goto(hiId);
+      await detailPage.goto(hiId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();

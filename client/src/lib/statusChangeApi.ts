@@ -42,6 +42,7 @@ export function householdItemStatusBody(
   to: HouseholdItemStatus,
   date: string | null,
 ): UpdateHouseholdItemRequest {
+  if (to === 'purchased' && date) return { status: to, orderDate: date };
   if (to === 'arrived' && date) return { status: to, actualDeliveryDate: date };
   return { status: to };
 }

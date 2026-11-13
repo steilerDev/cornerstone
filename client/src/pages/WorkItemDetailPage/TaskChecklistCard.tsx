@@ -15,7 +15,7 @@ import {
   updateSubtask,
 } from '../../lib/subtasksApi.js';
 import { useChecklistItemFormSchema } from '../../objectForms/checklistItemForm.js';
-import { taskActionError } from './taskActionError.js';
+import { actionError } from '../../lib/actionError.js';
 import { useRowTriggerRefs } from './useRowTriggerRefs.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemDetailPage.module.css';
@@ -68,7 +68,7 @@ export function TaskChecklistCard({
     try {
       await action();
     } catch (err) {
-      setError(taskActionError(err, tErrors, fallback));
+      setError(actionError(err, tErrors, fallback));
       return false;
     }
     await onChanged();
@@ -115,7 +115,7 @@ export function TaskChecklistCard({
     try {
       await deleteSubtask(workItemId, target.id);
     } catch (err) {
-      setDeleteError(taskActionError(err, tErrors, t('taskPage.checklist.deleteError')));
+      setDeleteError(actionError(err, tErrors, t('taskPage.checklist.deleteError')));
       setBusy(false);
       return;
     }

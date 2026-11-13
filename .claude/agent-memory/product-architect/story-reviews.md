@@ -1065,3 +1065,5 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
   `requireRole`) was documented only in the Style Guide. I wrote the Architecture › Frontend auth section myself
   (wiki `52475afe`) and asked for a gitlink bump. Lesson: when a PR adds a client route or auth convention, check
   Architecture as well as the Style Guide. Writing the wiki fix myself makes the PR fix one mechanical bump.
+
+- PR #2356 (#2249 purchase page): extracted `useCardDraft` left a byte-identical private copy in `CompanyDetailCards.tsx` (recurrence of "single helper vs older copies": grep the hook name repo-wide after any extraction); wiki block table named a hook input field wrong (`window` vs `dates`).

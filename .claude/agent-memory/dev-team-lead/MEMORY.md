@@ -16,7 +16,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 
 ## Index
 
-- [Sandbox & worktree environment quirks](sandbox-environment.md) — borrowed node_modules → stale @cornerstone/*, node_modules fixes, /tmp npm-ci workaround on mounted FS, no pre-commit hook, actionlint via docker, wiki submodule quirks
+- [Sandbox & worktree environment quirks](sandbox-environment.md) — borrowed node_modules → stale @cornerstone/*, node_modules fixes, /tmp npm-ci workaround (+server Jest: rebuild sqlite, heap flag), no pre-commit hook, actionlint via docker, wiki submodule quirks
 - [Testing patterns (Jest/TS/React)](testing-patterns.md) — ThemeProvider over mocking ThemeContext, JSX.Element typing workaround, dynamic-import timing, matcher misuse, overly-broad absence regexes, locale-matrix literal expectations, pdfmake post-render geometry
 - [Code patterns confirmed during review](code-patterns.md) — drizzle `sql.join`, CSS cross-imports, silent drops: strict LLM json_schema keys, Modal initial focus, hyphenated aria props, portaled listbox off Tab order, stacked JSDoc on tuple conversions
 - [Meta-skill reconciliation (issue #1819)](meta-skill-reconciliation.md) — gh project item-add pattern, CLAUDE.md drifts fast, orchestrator has no trailer, worktree cleanup sequence, count-every-occurrence self-check gap
@@ -83,4 +83,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [ObjectList P5.2 specs](object-list-p52-specs.md) — async chip options vs normalise, chip param as filter def, stranded DataTable features, engine Expected cost, milestone holds-up
 - [Schedule page specs](schedule-page-specs.md) — SidePanel as Modal/ helper over Sheet, no breakpoint tokens, holds-up vs move count, "Gantt" banned label, useCreateContext order, status-only undo
 - [Task page specs](task-page-specs.md) — StatusMenu owns date chips+Undo, strip can't nest Call, 7-fact cap, direct vs transitive Holds up, hash lost on tab select, prefill keys
+- [Purchase page specs](purchase-page-specs.md) — AC kinds vs schema enum, no history object type, undo tracked cols, required primary, Link=destination, URL schemes, docs claims vs model
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

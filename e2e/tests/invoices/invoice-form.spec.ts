@@ -279,7 +279,7 @@ test.describe('New invoice dialog - For task / purchase (I3)', { tag: '@responsi
     expect(await itemizedAmounts(page, id)).toEqual([75.25]);
 
     const purchase = new HouseholdItemDetailPage(page);
-    await purchase.goto(purchaseId);
+    await purchase.goto(purchaseId, { tab: 'cost' });
     await purchase.costLines.waitForLoaded();
     await expect(purchase.costLines.rows()).toHaveCount(1);
   });
@@ -365,7 +365,7 @@ test.describe('New invoice dialog - entry points (I4, I5, I5b)', { tag: '@respon
     await expect(task.costLines.newInvoiceButton).toBeFocused();
 
     const purchase = new HouseholdItemDetailPage(page);
-    await purchase.goto(purchaseId);
+    await purchase.goto(purchaseId, { tab: 'cost' });
     await purchase.costLines.waitForLoaded();
     await purchase.costLines.newInvoiceButton.click();
     await dialog.waitForOpen();

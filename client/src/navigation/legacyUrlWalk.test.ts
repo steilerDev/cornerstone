@@ -95,13 +95,15 @@ const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
   '/budget/vendors/:id': '/companies/:id',
   '/household-items': '/project/household-items',
   '/household-items/:id': '/project/household-items/:id',
-  '/household-items/:id/edit': '/project/household-items/:id/edit',
+  // The edit pages are retired: both URLs open the purchase page with its Details card in edit mode (#2249).
+  '/household-items/:id/edit': '/project/household-items/:id',
   '/household-items/new': '/project/household-items/new',
   '/invoices': '/budget/invoices',
   '/invoices/:id': '/budget/invoices/:id',
   '/manage': '/settings/manage',
   '/profile': '/settings/profile',
   '/project': '/',
+  '/project/household-items/:id/edit': '/project/household-items/:id',
   '/project/overview': '/',
   '/schedule': '/schedule/gantt',
   '/settings': '/settings/manage',
@@ -255,6 +257,27 @@ describe('legacy URL walk (AC5/AC6)', () => {
 
     it('shows the not-found page for an unknown URL (the * route)', () => {
       expect(resolveLocation('/does/not/exist?q=walk', ADMIN).kind).toBe('notFound');
+    });
+  });
+
+  describe('the retired purchase edit pages (#2249) open the purchase page in edit mode in one hop', () => {
+    it.each(['/household-items/:id/edit', '/project/household-items/:id/edit'])(
+      '%s ends at /project/household-items/:id?edit=overview',
+      (legacy) => {
+        const { landing, hops } = walk(concrete(legacy));
+        expect(hops).toBe(1);
+        expect(landing).toBe('/project/household-items/walk-1?edit=overview');
+      },
+    );
+
+    it('keeps the other query pairs and the fragment', () => {
+      const { landing } = walk('/household-items/walk-1/edit?q=walk#walk');
+      const final = split(landing);
+      expect(final.pathname).toBe('/project/household-items/walk-1');
+      const params = new URLSearchParams(final.search);
+      expect(params.get('edit')).toBe('overview');
+      expect(params.get('q')).toBe('walk');
+      expect(final.hash).toBe('#walk');
     });
   });
 

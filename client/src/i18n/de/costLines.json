@@ -7,7 +7,6 @@
     "invoiceTitle": "Rechnung"
   },
   "section": {
-    "costHeading": "Kosten",
     "title": "Kostenpositionen",
     "add": "{{object}} hinzufügen",
     "addGrid": "Kostenpositionen hinzufügen (Tabelle)",
@@ -23,15 +22,6 @@
       "offer": "Teile dieses Angebot in Kostenpositionen für Aufgaben und Anschaffungen auf.",
       "invoice": "Teile diese Rechnung in Kostenpositionen für Aufgaben und Anschaffungen auf."
     }
-  },
-  "overview": {
-    "expectedCost": "Erwartete Kosten",
-    "afterGrants": "Nach Förderung",
-    "plannedCost": "Geplante Kosten",
-    "payback": "Erwartete Rückzahlung: {{amount}}",
-    "paybackRange": "Die erwartete Rückzahlung liegt zwischen {{min}} und {{max}}",
-    "oversubscribed_one": "{{names}} ist überzeichnet",
-    "oversubscribed_other": "{{names}} sind überzeichnet"
   },
   "table": {
     "caption": "Kostenpositionen",

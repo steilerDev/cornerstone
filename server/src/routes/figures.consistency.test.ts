@@ -32,6 +32,7 @@ import type {
   WorkItemListRowsResponse,
   WorkItemPageDetail,
   HouseholdItemListRowsResponse,
+  HouseholdItemPageDetail,
   MilestoneListRowsResponse,
   BudgetBreakdownResponse,
 } from '@cornerstone/shared';
@@ -420,6 +421,46 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
       expect(list.totals.paid).toBe(100);
       expect(list.totals.paid).toBe(purchaseRows.reduce((sum, i) => sum + i.figures.paid, 0));
       for (const row of list.items) expect(row.paid).toBe(paidByRow.get(row.id) ?? 0);
+    });
+
+    it('the page detail expectedCost, grants and invoiced equal the list row, for every purchase (#2249)', async () => {
+      app.db
+        .insert(schema.subsidyPrograms)
+        .values({
+          id: 'sp-hi',
+          name: 'Grant Purchase',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'approved',
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.householdItemSubsidies)
+        .values({ householdItemId: 'hi-1', subsidyProgramId: 'sp-hi' })
+        .run();
+      const list = await listRows();
+      for (const row of list.items) {
+        const { householdItem } = await getJson<{ householdItem: HouseholdItemPageDetail }>(
+          `/api/household-items/${row.id}`,
+        );
+        expect({ id: row.id, expectedCost: householdItem.expectedCost }).toEqual({
+          id: row.id,
+          expectedCost: row.expectedCost,
+        });
+        expect({ id: row.id, grants: householdItem.grants }).toEqual({
+          id: row.id,
+          grants: row.grants,
+        });
+        expect({ id: row.id, invoiced: householdItem.budgetSummary.totalActual }).toEqual({
+          id: row.id,
+          invoiced: row.budgetSummary.totalActual,
+        });
+      }
+      expect(list.items.find((r) => r.id === 'hi-1')!.grants.map((g) => g.name)).toEqual([
+        'Grant Purchase',
+      ]);
+      expect(list.items.find((r) => r.id === 'hi-3')!.expectedCost).toBeNull();
     });
 
     it('each footer value is the sum of the rows, also when filtered', async () => {

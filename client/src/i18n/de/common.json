@@ -41,7 +41,6 @@
     "newTask": "Neue Aufgabe",
     "newPurchase": "Neue Anschaffung",
     "newMilestone": "Neuer Meilenstein",
-    "editPurchase": "Anschaffung bearbeiten",
     "taskNotFound": "Aufgabe nicht gefunden",
     "purchaseNotFound": "Anschaffung nicht gefunden",
     "invoice": "Rechnung",
@@ -350,6 +349,7 @@
       "who": "Firmen oder Haushaltsmitglieder suchen",
       "category": "Kategorie auswählen",
       "taskOrPurchase": "Aufgaben oder Anschaffungen suchen",
+      "taskOrMilestone": "Aufgaben oder Meilensteine suchen",
       "document": "Deine Dokumente suchen",
       "milestone": "Meilensteine suchen",
       "grant": "Zum Finden eines Förderprogramms tippen"
@@ -366,6 +366,11 @@
       "noResults": "Keine Aufgaben oder Anschaffungen gefunden.",
       "kindTask": "Aufgabe",
       "kindPurchase": "Anschaffung"
+    },
+    "taskOrMilestone": {
+      "noResults": "Keine Aufgaben oder Meilensteine gefunden.",
+      "kindTask": "Aufgabe",
+      "kindMilestone": "Meilenstein"
     },
     "forms": {
       "tradeTitle": "Neues Gewerk",
@@ -612,6 +617,7 @@
     "whenStarted": "Wann hat es begonnen?",
     "whenFinished": "Wann wurde es abgeschlossen?",
     "whenArrived": "Wann ist es angekommen?",
+    "whenOrdered": "Wann wurde es bestellt?",
     "whenReached": "Wann wurde es erreicht?",
     "whenPaid": "Wann wurde diese Zahlung geleistet?",
     "whenSubmitted": "Wann wurde es eingereicht?",

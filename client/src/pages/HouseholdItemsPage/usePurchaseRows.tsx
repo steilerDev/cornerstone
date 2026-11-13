@@ -16,6 +16,7 @@ import { useUserText } from '../../hooks/useUserText.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { areaPathLabel } from '../../lib/home/recentAreas.js';
+import { purchaseDeliveryOf } from '../../lib/scheduleDates.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import shared from '../../styles/shared.module.css';
@@ -37,14 +38,6 @@ function NotSet() {
       <span className={shared.srOnly}>{t('list.row.notSet')}</span>
     </>
   );
-}
-
-/** The date a purchase arrived, else its target delivery date; null when it has neither. */
-function deliveryOf(item: HouseholdItemListRow): { date: string; delivered: boolean } | null {
-  if (item.status === 'arrived' && item.actualDeliveryDate) {
-    return { date: item.actualDeliveryDate, delivered: true };
-  }
-  return item.targetDeliveryDate ? { date: item.targetDeliveryDate, delivered: false } : null;
 }
 
 export interface UsePurchaseRowsOptions {
@@ -124,7 +117,7 @@ export function usePurchaseRows({ categories, requestDelete }: UsePurchaseRowsOp
         label: t('list.columns.delivery'),
         sortValue: 'delivery',
         render: (item) => {
-          const delivery = deliveryOf(item);
+          const delivery = purchaseDeliveryOf(item);
           if (delivery === null) return <NotSet />;
           return (
             <>
@@ -240,7 +233,7 @@ export function usePurchaseRows({ categories, requestDelete }: UsePurchaseRowsOp
       },
     ],
     facts: (item) => {
-      const delivery = deliveryOf(item);
+      const delivery = purchaseDeliveryOf(item);
       return [
         {
           key: 'area',

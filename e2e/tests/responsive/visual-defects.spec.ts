@@ -295,7 +295,7 @@ test.describe('Visual defects — purchase delete dialog (AC1)', { tag: '@respon
     await detail.goto(itemId);
 
     // Open, and prove the confirm button is what a user would actually hit
-    await detail.deleteButton.click();
+    await detail.header.chooseMenuItem('object-header-delete');
     await expect(detail.deleteModal).toBeVisible();
     await expect(detail.deleteConfirmButton).toBeVisible();
     await expect.poll(() => isTopmostAtCentre(detail.deleteConfirmButton)).toBe(true);
@@ -306,14 +306,14 @@ test.describe('Visual defects — purchase delete dialog (AC1)', { tag: '@respon
     await detail.deleteCancelButton.click();
     await expect(detail.deleteModal).toBeHidden();
 
-    // Reopen: Escape closes it
-    await detail.deleteButton.click();
+    // Reopen (from the header's ⋯ menu): Escape closes it
+    await detail.header.chooseMenuItem('object-header-delete');
     await expect(detail.deleteModal).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(detail.deleteModal).toBeHidden();
 
     // Reopen: confirming deletes and returns to the purchases list
-    await detail.deleteButton.click();
+    await detail.header.chooseMenuItem('object-header-delete');
     await expect(detail.deleteModal).toBeVisible();
     const deleteResponse = page.waitForResponse(
       (resp) =>
@@ -418,7 +418,8 @@ test.describe(
       const detail = new HouseholdItemDetailPage(page);
       await detail.goto(itemId);
 
-      const chip = page.locator('[class*="categoryBadge"]').first();
+      // #2249: the category is a read row of the Details card (no chip any more)
+      const chip = detail.detail('category');
       await expect(chip).toBeVisible();
       await expect(chip).toHaveText(/\S/);
       await expect(chip).not.toHaveText(/^hic-/);

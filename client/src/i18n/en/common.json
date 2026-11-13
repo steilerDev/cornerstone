@@ -41,7 +41,6 @@
     "newTask": "New task",
     "newPurchase": "New purchase",
     "newMilestone": "New milestone",
-    "editPurchase": "Edit purchase",
     "taskNotFound": "Task not found",
     "purchaseNotFound": "Purchase not found",
     "invoice": "Invoice",
@@ -350,6 +349,7 @@
       "who": "Search companies or household members",
       "category": "Select a category",
       "taskOrPurchase": "Search tasks or purchases",
+      "taskOrMilestone": "Search tasks and milestones",
       "document": "Search your documents",
       "milestone": "Search milestones",
       "grant": "Type to find a grant"
@@ -366,6 +366,11 @@
       "noResults": "No tasks or purchases match.",
       "kindTask": "Task",
       "kindPurchase": "Purchase"
+    },
+    "taskOrMilestone": {
+      "noResults": "No task or milestone matches this search",
+      "kindTask": "Task",
+      "kindMilestone": "Milestone"
     },
     "forms": {
       "tradeTitle": "New trade",
@@ -612,6 +617,7 @@
     "whenStarted": "When did it start?",
     "whenFinished": "When was it finished?",
     "whenArrived": "When did it arrive?",
+    "whenOrdered": "When was it ordered?",
     "whenReached": "When was it reached?",
     "whenPaid": "When was this payment made?",
     "whenSubmitted": "When was it submitted?",
