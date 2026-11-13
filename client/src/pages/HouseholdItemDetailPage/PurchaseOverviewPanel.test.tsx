@@ -331,7 +331,7 @@ describe('PurchaseOverviewPanel', () => {
       await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('hi-1', { vendorId: 'v-7' }));
     });
 
-    it('clears the company with "No company" and sends null', async () => {
+    it('clears the company with Clear selection and sends null', async () => {
       renderPanel(makePurchasePage({ vendor: VENDOR }));
       const user = await edit();
       // The category chip clears first, the company chip second.

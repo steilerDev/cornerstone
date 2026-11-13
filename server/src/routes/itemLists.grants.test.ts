@@ -1,9 +1,9 @@
 /**
  * GET /api/work-items and GET /api/household-items (#2242, AC6): list rows always carry
- * `grants`; single-item reads (detail) do not.
+ * `grants`; the task and purchase single-item reads (#2248, #2249) carry them too.
  *
- * Mutations these tests catch: `grants` missing on a list row, rejected grant listed, `grants`
- * leaking onto the detail response.
+ * Mutations these tests catch: `grants` missing on a list row, rejected grant listed, a rejected
+ * grant leaking onto a detail.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -75,7 +75,7 @@ describe('list rows carry grant chips', () => {
     ]);
   });
 
-  it('the task detail carries grants (the task page strip, #2248); the purchase detail does not', async () => {
+  it('the task and purchase details carry grants (#2248, #2249), rejected excluded', async () => {
     const work = (await get('/api/work-items/wi-1')).json<{
       title: string;
       grants: Array<{ id: string }>;
@@ -83,7 +83,9 @@ describe('list rows carry grant chips', () => {
     expect(work.title).toBe('Roof');
     // rejected grants stay out, like on the list rows
     expect(work.grants.map((g) => g.id)).toEqual(['sp-a']);
-    const hi = (await get('/api/household-items/hi-1')).json<Record<string, unknown>>();
-    expect(JSON.stringify(hi)).not.toContain('"grants"');
+    const { householdItem } = (await get('/api/household-items/hi-1')).json<{
+      householdItem: { grants: Array<{ id: string }> };
+    }>();
+    expect(householdItem.grants.map((g) => g.id)).toEqual(['sp-a']);
   });
 });

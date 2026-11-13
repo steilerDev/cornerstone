@@ -221,7 +221,7 @@ function DetailsCard({ purchase, originState, onSaved, controllerRef }: DetailsC
                   id={`${baseId}-company`}
                   value={card.draft.vendorId}
                   knownCompany={purchase.vendor}
-                  noneLabel={t('create.form.vendor.placeholder')}
+                  placeholder={t('create.form.vendor.placeholder')}
                   onChange={(next) => card.set('vendorId', next)}
                 />
               )}

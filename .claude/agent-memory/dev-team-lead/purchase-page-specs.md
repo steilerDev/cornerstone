@@ -26,4 +26,12 @@ Review round 2 (same story, resumed session):
 
 12. **Docs rewrites keep pre-existing claims the data model forbids** ("a task waits for the purchase" while purchases are terminal dependency nodes; "Edit changes the first four" rows when the read-only row is fourth). When a guide is reworded, re-check each relation/row claim against the service invariant and the rendered order, not only the new wording.
 
+CI round (same story):
+
+13. **Rewording a shared i18n key changes every consumer, not just the new page.** The removed-key sweep missed that `create.form.*` values also feed the quick-create `purchaseForm` (17 unit failures pinning old copy). For every key whose *value* changes, grep consumers (`grep -rl "<key>" client/src`) and run their suites; likewise grep tests that assert an endpoint's *absence* of a field you add (`itemLists.grants.test` asserted "purchase detail has no grants").
+14. **StatusMenu "As planned" shows only when the planned date is before today, and the engine floors an undelivered purchase's target to today**, so Mark delivered's As planned is effectively unreachable. Check the engine's floor rules before promising (or testing, or documenting) a "planned" chip.
+15. **`noneLabel` on a company EntityPicker adds a "No company" option row** that no other company picker has; the shared E2E `pickByKeyboard` (only match + create row) then fails. Company pickers clear via the chip's Clear button; use `placeholder`.
+16. **SummaryStrip defaults to 4 columns**; 3 wide facts + 4 plain = 10 units = 3 rows on desktop. Count spans (`factSpans`) against the 2-row AC and pass `columns={5}` when needed.
+17. **A reported edit can be missing from disk** (an agent's write was silently refused by the shell guard; #2249 QA's `data-columns` assertion, and my own python+git compound command). In review, check every file the round claims against `git status`/`git diff --stat` before trusting the report; keep git out of compound commands.
+
 Related: [[task-page-specs]], [[detail-template-specs]], [[first-detail-page-adopter-specs]], [[restructure-baseline-hazards]]

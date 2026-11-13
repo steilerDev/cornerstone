@@ -2318,7 +2318,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > primary 'Mark delivered' with date prompt; Timing section Edit > Delivered on (set or clear).",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Mark delivered asks the date (Today · As planned · Pick); Timing › Delivery card Edit > Delivered on (must not be before Ordered on)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Mark delivered asks the date (Today · Pick); Timing › Delivery card Edit > Delivered on (must not be before Ordered on)."
   },
   "HHI-054": {
     "name": "Edit the earliest delivery date (delivery window start) inline",

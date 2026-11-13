@@ -210,7 +210,7 @@ test.describe('Header primary (P1, AC1)', { tag: '@responsive' }, () => {
     await expect.poll(async () => (await fetchPurchase(page, id)).orderDate).toBe(todayIso(-3));
   });
 
-  test('Mark delivered with "As planned" stores the target date; Undo clears it; then Log appears', async ({
+  test('Mark delivered with Today stores today; Undo clears it; then Log appears', async ({
     page,
     testPrefix,
   }) => {
@@ -221,18 +221,16 @@ test.describe('Header primary (P1, AC1)', { tag: '@responsive' }, () => {
       earliestDeliveryDate: todayIso(4),
       latestDeliveryDate: todayIso(9),
     });
-    // The scheduler computes the target date on a PATCH of the delivery dates
-    await patchPurchase(page, id, { earliestDeliveryDate: todayIso(4) });
-    const target = (await fetchPurchase(page, id)).targetDeliveryDate;
-    expect(target, 'the scheduler computed a target date').not.toBeNull();
     const purchase = new HouseholdItemDetailPage(page);
 
     await purchase.goto(id);
     await expect(purchase.deliveredPrimary.trigger).toContainText('Mark delivered');
 
     await purchase.deliveredPrimary.open();
-    await expect(purchase.deliveredPrimary.datePlanned).toBeVisible();
-    await purchase.deliveredPrimary.datePlanned.click();
+    // The planned date is never before today for an undelivered purchase, so no "As planned" chip
+    await expect(purchase.deliveredPrimary.dateToday).toBeVisible();
+    await expect(purchase.deliveredPrimary.datePlanned).toHaveCount(0);
+    await purchase.deliveredPrimary.dateToday.click();
 
     await expect(purchase.statusMenu.trigger).toHaveText('Delivered');
     await expect(purchase.toasts.undoToastWith(`${name} is now “Delivered”.`)).toBeVisible();
@@ -240,7 +238,9 @@ test.describe('Header primary (P1, AC1)', { tag: '@responsive' }, () => {
     await expect(purchase.logPrimary).toBeVisible();
     await expect(purchase.logPrimary).toContainText('Log');
     await expect(purchase.deliveredPrimary.trigger).toHaveCount(0);
-    await expect.poll(async () => (await fetchPurchase(page, id)).actualDeliveryDate).toBe(target);
+    await expect
+      .poll(async () => (await fetchPurchase(page, id)).actualDeliveryDate)
+      .toBe(todayIso());
 
     await purchase.toasts.undoViaButton();
 
@@ -762,6 +762,8 @@ test.describe('Details card (P6, AC3)', { tag: '@responsive' }, () => {
     expect((await fetchPurchase(page, id)).name).toBe(name);
 
     await purchase.detailsCard.cancel();
+    // Unsaved edits: Cancel asks "Discard changes?"
+    await purchase.detailsCard.discardConfirm.confirm();
     await expect(purchase.detailsCard.form).toBeHidden();
     await expect(purchase.heading).toHaveText(name);
   });

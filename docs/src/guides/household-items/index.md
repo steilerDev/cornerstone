@@ -83,7 +83,7 @@ The purchase page does not have a screenshot yet. One will be added with the nex
 - The breadcrumb starts with **Purchases**, which returns you to the list. If you opened the purchase from another page, such as a company or a task, a back link returns you there as well
 - The purchase name is the page heading. To change it, open **Overview** and select **Edit** in the **Details** card
 - The main button sets the status. A planned purchase shows **Mark ordered**. An ordered or scheduled purchase shows **Mark delivered**. Once the purchase is delivered, the main button becomes **Log**, which opens the capture screen for a diary entry about the purchase
-- **Mark ordered** and **Mark delivered** ask for the date. Choose **Today**, **As planned**, or **Pick a date**. **As planned** appears once the planned date has passed: the target delivery date for **Mark delivered**, or the recorded order date for **Mark ordered**. The date cannot be in the future. A short **Undo** notification follows the change in case it was a mistake, and Undo also restores the previous order date
+- **Mark ordered** and **Mark delivered** ask for the date. **Mark delivered** offers **Today** or **Pick a date**. **Mark ordered** also offers **As planned** once a recorded order date has passed. The date cannot be in the future. A short **Undo** notification follows the change in case it was a mistake, and Undo also restores the previous order date
 - The status menu next to the main button lets you pick any status
 - The **⋯** menu has **Delete**. It asks for confirmation and lists what goes with the purchase
 

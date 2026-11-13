@@ -154,7 +154,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
   it('shows the essentials and keeps the delivery details under More details', async () => {
     renderForm();
     await name();
-    for (const label of [/^name/i, /purchase status/i, /quantity/i, /vendor/i]) {
+    for (const label of [/^name/i, /^status/i, /quantity/i, /company/i]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
     // Category is an EntityPicker custom field: the first category is preselected as a chip.
@@ -166,11 +166,11 @@ describe('purchaseForm (ObjectForm schema)', () => {
     const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
     for (const label of [
       /description/i,
-      /url/i,
-      /order date/i,
+      /product link/i,
+      /ordered on/i,
       /earliest/i,
       /latest/i,
-      /actual/i,
+      /delivered on/i,
     ]) {
       expect(hidden.querySelector(`label`)).not.toBeNull();
       expect(
@@ -182,7 +182,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
   it('status defaults to the first status and lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
     renderForm();
     await name();
-    const select = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
+    const select = screen.getByLabelText(/^status/i) as HTMLSelectElement;
     expect(select.value).toBe('planned');
     expect(Array.from(select.options).map((o) => o.value)).toEqual([...HOUSEHOLD_ITEM_STATUSES]);
     expect(select.options[0]!.textContent).toBe(enCommon.statusVocabulary.purchase.planned);
@@ -223,8 +223,8 @@ describe('purchaseForm (ObjectForm schema)', () => {
     ]);
 
     // The company is a text picker now: no <select>, the list loads from the search.
-    expect((await screen.findByLabelText(/vendor/i)).tagName).toBe('INPUT');
-    await user.click(await screen.findByLabelText(/vendor/i));
+    expect((await screen.findByLabelText(/company/i)).tagName).toBe('INPUT');
+    await user.click(await screen.findByLabelText(/company/i));
     expect(await screen.findByRole('option', { name: 'Acme Supply' })).toBeInTheDocument();
     expect(mockFetchVendors).toHaveBeenCalledWith(
       { pageSize: 50 },
@@ -237,7 +237,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
     renderForm();
     await name();
 
-    await user.type(await screen.findByLabelText(/vendor/i), 'acm');
+    await user.type(await screen.findByLabelText(/company/i), 'acm');
 
     await waitFor(() =>
       expect(mockFetchVendors).toHaveBeenCalledWith(
@@ -359,7 +359,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
   describe('company picker (#2213)', () => {
     async function pickCompany(user: ReturnType<typeof userEvent.setup>, text: string) {
       await name();
-      await user.type(await screen.findByLabelText(/vendor/i), text);
+      await user.type(await screen.findByLabelText(/company/i), text);
     }
 
     it('selects a found company and posts its id', async () => {
@@ -469,7 +469,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       renderForm();
       await name();
       await user.click(save());
-      expect(await screen.findByText('Name is required')).toBeInTheDocument();
+      expect(await screen.findByText('Enter a name.')).toBeInTheDocument();
       expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
     });
 
@@ -481,7 +481,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
       await user.click(screen.getAllByRole('button', { name: 'Clear selection' })[0]!);
       await user.click(save());
-      expect(await screen.findByText('Category is required')).toBeInTheDocument();
+      expect(await screen.findByText('Choose a category.')).toBeInTheDocument();
       expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
     });
 
@@ -492,7 +492,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
       fireEvent.change(screen.getByLabelText(/quantity/i), { target: { value: '0' } });
       await user.click(save());
-      expect(await screen.findByText('Quantity must be at least 1')).toBeInTheDocument();
+      expect(await screen.findByText('Enter a whole number, 1 or more.')).toBeInTheDocument();
       expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
     });
 
@@ -503,7 +503,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
       fireEvent.change(screen.getByLabelText(/quantity/i), { target: { value: '' } });
       await user.click(save());
-      expect(await screen.findByText('Quantity must be at least 1')).toBeInTheDocument();
+      expect(await screen.findByText('Enter a whole number, 1 or more.')).toBeInTheDocument();
     });
 
     it('rejects an actual delivery before the order date (inside More details)', async () => {
@@ -512,15 +512,15 @@ describe('purchaseForm (ObjectForm schema)', () => {
       await name();
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
       await user.click(screen.getByTestId('object-form-more'));
-      fireEvent.change(screen.getByLabelText(/order date/i), { target: { value: '2026-03-10' } });
-      fireEvent.change(screen.getByLabelText(/actual delivery/i), {
+      fireEvent.change(screen.getByLabelText(/ordered on/i), { target: { value: '2026-03-10' } });
+      fireEvent.change(screen.getByLabelText(/delivered on/i), {
         target: { value: '2026-03-01' },
       });
       await user.click(save());
       expect(
-        await screen.findByText('Actual delivery date must be after or equal to order date'),
+        await screen.findByText("The delivery date can't be before the order date."),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText(/actual delivery/i)).toHaveFocus();
+      expect(screen.getByLabelText(/delivered on/i)).toHaveFocus();
     });
 
     it('rejects an earliest delivery after the latest', async () => {
@@ -537,9 +537,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       });
       await user.click(save());
       expect(
-        await screen.findByText(
-          'Earliest delivery date must be before or equal to latest delivery date',
-        ),
+        await screen.findByText("Latest delivery can't be before earliest delivery."),
       ).toBeInTheDocument();
     });
 
@@ -551,7 +549,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       const input = screen.getByLabelText(/^name/i);
       expect(input).toHaveAttribute('aria-invalid', 'true');
       expect(document.getElementById(input.getAttribute('aria-describedby')!)).toHaveTextContent(
-        'Name is required',
+        'Enter a name.',
       );
       await user.type(input, 'S');
       expect(input).not.toHaveAttribute('aria-invalid');
@@ -632,9 +630,9 @@ describe('purchaseForm (ObjectForm schema)', () => {
       const result = await schema();
 
       expect(result.current.validate({})).toEqual({
-        name: 'Name is required',
-        category: 'Category is required',
-        quantity: 'Quantity must be at least 1',
+        name: 'Enter a name.',
+        category: 'Choose a category.',
+        quantity: 'Enter a whole number, 1 or more.',
       });
     });
 

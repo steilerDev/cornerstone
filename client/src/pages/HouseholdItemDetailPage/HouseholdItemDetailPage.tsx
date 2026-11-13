@@ -316,6 +316,7 @@ function PurchaseLoaded({
   return (
     <PageLayout header={header}>
       <SummaryStrip
+        columns={5}
         typeLabel={t('purchasePage.typeLabel')}
         facts={facts}
         testId="purchase-summary"

@@ -476,6 +476,14 @@ describe('HouseholdItemDetailPage', () => {
   });
 
   describe('strip and tabs', () => {
+    it('the summary strip uses five columns (two rows on desktop, AC6)', async () => {
+      await loaded();
+      expect(screen.getByTestId('purchase-summary').querySelector('dl')).toHaveAttribute(
+        'data-columns',
+        '5',
+      );
+    });
+
     it('shows the strip with the seven facts of the purchase when there is a Documents fact', async () => {
       documentsFact = { id: 'documents', kind: 'static', label: 'Documents', value: '2' };
       await loaded();
