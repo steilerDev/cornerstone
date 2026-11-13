@@ -334,7 +334,9 @@ test.describe('Counts toward (M5, AC3/AC6)', { tag: '@responsive' }, () => {
     await milestone.counts.remove(taskId);
 
     await expect(milestone.counts.row(taskId)).toHaveCount(0);
-    await expect(milestone.toasts.undoToastWith(`Removed ${taskTitle}`)).toBeVisible();
+    await expect(
+      milestone.toasts.undoToastWith(`${taskTitle} removed from Counts toward this milestone.`),
+    ).toBeVisible();
     expect((await fetchMilestone(page, id)).workItems).toHaveLength(0);
 
     await milestone.toasts.undoViaButton();
@@ -389,7 +391,9 @@ test.describe('Waiting for (M6, AC3/AC6)', { tag: '@responsive' }, () => {
     await milestone.waiting.remove(purchaseKey);
 
     await expect(milestone.waiting.row(purchaseKey)).toHaveCount(0);
-    await expect(milestone.toasts.undoToastWith(`Removed ${purchaseName}`)).toBeVisible();
+    await expect(
+      milestone.toasts.undoToastWith(`${purchaseName} removed from Waiting for this milestone.`),
+    ).toBeVisible();
     expect((await fetchMilestone(page, id)).dependentHouseholdItems).toHaveLength(0);
 
     await milestone.toasts.undoViaButton();

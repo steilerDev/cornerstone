@@ -16,4 +16,9 @@ Found on #2250 (P5.6). Expect the same on P5.7 (area page).
 7. **A projection test that inserts rows without `autoReschedule` sees stale stored dates**: when planned and forecast runs agree (`moved=false`), `projectedStartDate` falls back to the stored `startDate`. That is a fixture artifact, not an engine bug (production reschedules after every dependency change).
 8. **A rebuild that drops a surface named in a capmap `from`** (WRK-016 "milestone detail linked items" area path) needs a `#story` note on that capability too, not only on the story's own ids. Grep capmap `from` fields for the old page's path.
 
+Review/CI rounds (same story):
+
+9. **An undated task is projected from today** (engine contract 4 point 4), so a milestone whose only contributor is undated reads "Early · n d" with a future target, not Upcoming / On target. E2E and unit fixtures asserting the against-target word must seed dated tasks; check every strip/chip assertion against the projection, not the UX wording.
+10. **Never let a spec or test guess toast or status wording; read the locale.** The E2E waited for "Removed ‹title›" while RelatedList's toast is `common:relatedList.removed` "{{title}} removed from {{list}}." (`list` = the RelatedList `title` prop, without the count). Quote the exact key and value in E2E specs for every toast the story triggers.
+
 Related: [[purchase-page-specs]], [[task-page-specs]], [[detail-template-specs]]
