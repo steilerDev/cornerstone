@@ -141,7 +141,7 @@ test.describe('Cost line table - state chip (AC1)', { tag: '@responsive' }, () =
     });
 
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('householdItem', { id: purchaseId }));
+    await page.goto(routeUrl('householdItem', { id: purchaseId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await expect(panel.rows()).toHaveCount(2);
@@ -209,7 +209,7 @@ test.describe('Cost line table - gross with net in a tooltip (AC3)', { tag: '@re
     });
 
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('householdItem', { id: purchaseId }));
+    await page.goto(routeUrl('householdItem', { id: purchaseId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     const row = panel.row(`${testPrefix} Sofa line`);

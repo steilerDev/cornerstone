@@ -22,6 +22,7 @@ import {
   subsidyPrograms,
   invoices,
   invoiceBudgetLines,
+  milestones,
 } from '../db/schema.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
@@ -35,9 +36,13 @@ import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
 import { loadGrantChips } from './shared/itemGrantChips.js';
+import { purchaseWaitsForOf } from './shared/purchaseWaitsFor.js';
+import { listHouseholdItemBudgets } from './householdItemBudgetService.js';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
+  HouseholdItemPageDetail,
+  HouseholdItemPageVendor,
   HouseholdItemSummary,
   HouseholdItemCategory,
   HouseholdItemStatus,
@@ -313,16 +318,69 @@ export function createHouseholdItem(
 }
 
 /**
- * Get a household item by ID.
- * Throws NotFoundError if not found.
+ * Purchase page detail (GET /api/household-items/:id): the detail plus the page's figures,
+ * computed by the same helper as the Purchases list rows, the company's phone for the Call
+ * button, the category entry, the cost lines and the first unfinished predecessor (#2249).
+ * Throws NotFoundError if the household item does not exist.
  */
-export function getHouseholdItemById(db: DbType, id: string, vatRate: number): HouseholdItemDetail {
-  const item = findHouseholdItemById(db, id);
-  if (!item) {
+export function getHouseholdItemPageDetail(
+  db: DbType,
+  id: string,
+  opts: { vatRate: number },
+): HouseholdItemPageDetail {
+  const row = findHouseholdItemById(db, id);
+  if (!row) {
     throw new NotFoundError('Household item not found');
   }
-  const areaMap = loadAreaMap(db);
-  return toHouseholdItemDetail(db, item, areaMap, vatRate);
+  const detail = toHouseholdItemDetail(db, row, loadAreaMap(db), opts.vatRate);
+  // Both maps are seeded with every purchase / every requested id
+  const { expectedCost } = loadPurchaseMoney(db, opts.vatRate).get(id)!;
+  const grants = loadGrantChips(db, 'household_item', [id]).get(id)!;
+  // categoryId is a NOT NULL foreign key into this table
+  const categoryEntry = db
+    .select({
+      id: householdItemCategories.id,
+      name: householdItemCategories.name,
+      translationKey: householdItemCategories.translationKey,
+    })
+    .from(householdItemCategories)
+    .where(eq(householdItemCategories.id, row.categoryId))
+    .get()!;
+
+  let vendor: HouseholdItemPageVendor | null = null;
+  if (detail.vendor) {
+    const vendorRow = db
+      .select({ phone: vendors.phone })
+      .from(vendors)
+      .where(eq(vendors.id, detail.vendor.id))
+      .get();
+    // vendorId is a foreign key into vendors
+    vendor = { ...detail.vendor, phone: vendorRow!.phone };
+  }
+
+  const milestoneIds = detail.dependencies
+    .filter((dep) => dep.predecessorType === 'milestone')
+    .map((dep) => Number(dep.predecessorId));
+  const completedMilestoneIds = new Set<string>(
+    milestoneIds.length === 0
+      ? []
+      : db
+          .select({ id: milestones.id })
+          .from(milestones)
+          .where(and(inArray(milestones.id, milestoneIds), eq(milestones.isCompleted, true)))
+          .all()
+          .map((m) => String(m.id)),
+  );
+
+  return {
+    ...detail,
+    vendor,
+    categoryEntry,
+    budgets: listHouseholdItemBudgets(db, id),
+    expectedCost,
+    grants,
+    waitsFor: purchaseWaitsForOf(detail.dependencies, completedMilestoneIds),
+  };
 }
 
 /**
@@ -468,6 +526,60 @@ export function deleteHouseholdItem(db: DbType, id: string): void {
   deleteLinksForEntity(db, 'household_item', id);
 
   db.delete(householdItems).where(eq(householdItems.id, id)).run();
+}
+
+/** Money figures of one purchase, as the Purchases list rows and the purchase page show them. */
+interface PurchaseMoney {
+  /** Engine expected cost; null when the purchase has no cost lines. */
+  expectedCost: number | null;
+  grants: number;
+  paid: number;
+  invoiced: number;
+}
+
+/**
+ * Money figures of every purchase from one money-service run: engine expected cost (null without
+ * cost lines), grants, paid and the invoiced amount. Shared by the list rows and the page detail
+ * so both read the same figures (#2249).
+ */
+function loadPurchaseMoney(db: DbType, vatRate: number): Map<string, PurchaseMoney> {
+  const money = getHouseholdItemListMoney(db, vatRate);
+  const invoicedById = new Map(
+    db
+      .select({
+        id: householdItemBudgets.householdItemId,
+        total: sql<number>`SUM(${invoiceBudgetLines.itemizedAmount})`,
+      })
+      .from(invoiceBudgetLines)
+      .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
+      .innerJoin(
+        householdItemBudgets,
+        eq(invoiceBudgetLines.householdItemBudgetId, householdItemBudgets.id),
+      )
+      .groupBy(householdItemBudgets.householdItemId)
+      .all()
+      .map((r) => [r.id, r.total]),
+  );
+  const withCostLines = new Set(
+    db
+      .select({ id: householdItemBudgets.householdItemId })
+      .from(householdItemBudgets)
+      .groupBy(householdItemBudgets.householdItemId)
+      .all()
+      .map((r) => r.id),
+  );
+
+  return new Map(
+    [...money].map(([id, figures]) => [
+      id,
+      {
+        expectedCost: withCostLines.has(id) ? figures.expectedCost : null,
+        grants: figures.grants,
+        paid: figures.paid,
+        invoiced: invoicedById.get(id) ?? 0,
+      },
+    ]),
+  );
 }
 
 /** One purchase while the list is filtered, sorted and grouped in memory. */
@@ -633,44 +745,11 @@ export function listHouseholdItemRows(
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .all();
 
-  // Per-request maps, built once: engine money, invoiced amounts, purchases with cost lines
-  const money = getHouseholdItemListMoney(db, vatRate);
-  const invoicedById = new Map(
-    db
-      .select({
-        id: householdItemBudgets.householdItemId,
-        total: sql<number>`SUM(${invoiceBudgetLines.itemizedAmount})`,
-      })
-      .from(invoiceBudgetLines)
-      .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
-      .innerJoin(
-        householdItemBudgets,
-        eq(invoiceBudgetLines.householdItemBudgetId, householdItemBudgets.id),
-      )
-      .groupBy(householdItemBudgets.householdItemId)
-      .all()
-      .map((r) => [r.id, r.total]),
-  );
-  const withCostLines = new Set(
-    db
-      .select({ id: householdItemBudgets.householdItemId })
-      .from(householdItemBudgets)
-      .groupBy(householdItemBudgets.householdItemId)
-      .all()
-      .map((r) => r.id),
-  );
+  // Per-request map, built once: engine money, invoiced amounts, purchases with cost lines
+  const purchaseMoney = loadPurchaseMoney(db, vatRate);
 
   const entries: ListEntry[] = itemRows
-    .map((row) => {
-      const figures = money.get(row.id)!;
-      return {
-        row,
-        expectedCost: withCostLines.has(row.id) ? figures.expectedCost : null,
-        grants: figures.grants,
-        paid: figures.paid,
-        invoiced: invoicedById.get(row.id) ?? 0,
-      };
-    })
+    .map((row) => ({ row, ...purchaseMoney.get(row.id)! }))
     .filter(
       (entry) =>
         inRange(entry.expectedCost ?? 0, query.expectedCostMin, query.expectedCostMax) &&
@@ -726,7 +805,7 @@ export function listHouseholdItemRows(
   const pageEntries = entries.slice((page - 1) * pageSize, page * pageSize);
 
   const areaMap = loadAreaMap(db);
-  const grantsById = new Map([...money].map(([id, figures]) => [id, figures.grants]));
+  const grantsById = new Map([...purchaseMoney].map(([id, figures]) => [id, figures.grants]));
   const chips = loadGrantChips(
     db,
     'household_item',

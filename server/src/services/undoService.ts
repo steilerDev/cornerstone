@@ -74,7 +74,14 @@ const SUBJECTS: Record<StatusUndoSubjectType, SubjectConfig> = {
   household_item: {
     table: householdItems,
     idColumn: householdItems.id,
-    tracked: ['status', 'actualDeliveryDate', 'targetDeliveryDate', 'isLate', 'updatedAt'],
+    tracked: [
+      'status',
+      'orderDate',
+      'actualDeliveryDate',
+      'targetDeliveryDate',
+      'isLate',
+      'updatedAt',
+    ],
     statusColumns: ['status', 'actualDeliveryDate'],
   },
   milestone: {

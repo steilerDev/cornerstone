@@ -745,6 +745,76 @@ describe('undoService', () => {
         expect(row.actualDeliveryDate).toBeNull();
       });
 
+      it('household_item: Mark ordered with an order date is undone back to no order date', () => {
+        const item = householdItemService.createHouseholdItem(db, userA, { name: 'Sofa' }, 0.19);
+        const { undo } = runUndoable(
+          db,
+          store,
+          { userId: userA, subject: { type: 'household_item', id: item.id }, reschedules: true },
+          () =>
+            householdItemService.updateHouseholdItem(
+              db,
+              item.id,
+              { status: 'purchased', orderDate: '2026-03-02' },
+              0.19,
+            ),
+        );
+        const read = () =>
+          db
+            .select()
+            .from(schema.householdItems)
+            .where(eq(schema.householdItems.id, item.id))
+            .get()!;
+        expect(read()).toMatchObject({ status: 'purchased', orderDate: '2026-03-02' });
+        applyUndo(db, store, undo!.token, userA);
+        expect(read()).toMatchObject({ status: 'planned', orderDate: null });
+      });
+
+      it('household_item: Undo puts back an order date that was set before', () => {
+        const item = householdItemService.createHouseholdItem(
+          db,
+          userA,
+          { name: 'Sofa', orderDate: '2026-02-01' },
+          0.19,
+        );
+        const { undo } = runUndoable(
+          db,
+          store,
+          { userId: userA, subject: { type: 'household_item', id: item.id }, reschedules: true },
+          () =>
+            householdItemService.updateHouseholdItem(
+              db,
+              item.id,
+              { status: 'purchased', orderDate: '2026-03-02' },
+              0.19,
+            ),
+        );
+        applyUndo(db, store, undo!.token, userA);
+        const row = db
+          .select()
+          .from(schema.householdItems)
+          .where(eq(schema.householdItems.id, item.id))
+          .get()!;
+        expect(row).toMatchObject({ status: 'planned', orderDate: '2026-02-01' });
+      });
+
+      it('household_item: changing only the order date issues no token', () => {
+        const item = householdItemService.createHouseholdItem(db, userA, { name: 'Sofa' }, 0.19);
+        const { undo } = runUndoable(
+          db,
+          store,
+          { userId: userA, subject: { type: 'household_item', id: item.id }, reschedules: true },
+          () =>
+            householdItemService.updateHouseholdItem(
+              db,
+              item.id,
+              { orderDate: '2026-03-02' },
+              0.19,
+            ),
+        );
+        expect(undo).toBeNull();
+      });
+
       it('restores an invoice and retracts its status event', () => {
         const vendorId = insertVendor();
         const inv = invoiceService.createInvoice(

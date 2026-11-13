@@ -134,16 +134,36 @@ describe('purchaseTransitions', () => {
     expect(rows.map((r) => r.to)).toEqual(allowedTargets(PURCHASE_TRANSITIONS, status));
   });
 
-  it('only "mark delivered" opens a date step, planned for the target delivery date', () => {
-    const rows = purchaseTransitions(echoT, { status: 'planned', targetDeliveryDate: ISO });
-    const withDate = rows.filter((r) => r.date);
-    expect(withDate).toHaveLength(1);
-    expect(withDate[0]).toMatchObject({
-      to: 'arrived',
-      date: { question: 'statusMenu.whenArrived', plannedDate: ISO },
+  it('"mark ordered" and "mark delivered" open a date step; the others do not', () => {
+    const rows = purchaseTransitions(echoT, {
+      status: 'planned',
+      targetDeliveryDate: ISO,
+      orderDate: '2026-03-01',
     });
-    expect(rows.find((r) => r.to === 'purchased')?.date).toBeUndefined();
+    const withDate = rows.filter((r) => r.date);
+    expect(withDate.map((r) => r.to)).toEqual(['purchased', 'arrived']);
+    expect(rows.find((r) => r.to === 'purchased')?.date).toEqual({
+      question: 'statusMenu.whenOrdered',
+      plannedDate: '2026-03-01',
+    });
+    expect(rows.find((r) => r.to === 'arrived')?.date).toEqual({
+      question: 'statusMenu.whenArrived',
+      plannedDate: ISO,
+    });
     expect(rows.find((r) => r.to === 'scheduled')?.date).toBeUndefined();
+  });
+
+  it('"mark ordered" has no planned date without an order date (absent or null)', () => {
+    for (const source of [
+      { status: 'planned' as const, targetDeliveryDate: null },
+      { status: 'planned' as const, targetDeliveryDate: null, orderDate: null },
+    ]) {
+      const rows = purchaseTransitions(echoT, source);
+      expect(rows.find((r) => r.to === 'purchased')?.date).toEqual({
+        question: 'statusMenu.whenOrdered',
+        plannedDate: null,
+      });
+    }
   });
 
   it('backward rows use the purchase vocabulary labels', () => {

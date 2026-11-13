@@ -2,6 +2,7 @@ import { SEARCH_QUERY_MIN_LENGTH, foldSearchText } from '@cornerstone/shared';
 import type {
   AreaResponse,
   HouseholdItemCategoryEntity,
+  HouseholdItemDepPredecessorType,
   TradeResponse,
   UserResponse,
   VendorListItem,
@@ -30,6 +31,7 @@ export const ENTITY_PICKER_KINDS = [
   'category',
   'task',
   'taskOrPurchase',
+  'taskOrMilestone',
   'document',
   'milestone',
   'grant',
@@ -98,6 +100,27 @@ export function parseItemValue(
   value: string,
 ): { readonly type: 'work_item' | 'household_item'; readonly id: string } | null {
   for (const type of ['work_item', 'household_item'] as const) {
+    const prefix = `${type}:`;
+    if (value.startsWith(prefix) && value.length > prefix.length) {
+      return { type, id: value.slice(prefix.length) };
+    }
+  }
+  return null;
+}
+
+/** taskOrMilestone value: '<work_item|milestone>:<id>'. */
+export function predecessorValue(target: {
+  readonly type: HouseholdItemDepPredecessorType;
+  readonly id: string;
+}): string {
+  return `${target.type}:${target.id}`;
+}
+
+/** Inverse of `predecessorValue`; anything else (including '') is null. */
+export function parsePredecessorValue(
+  value: string,
+): { readonly type: HouseholdItemDepPredecessorType; readonly id: string } | null {
+  for (const type of ['work_item', 'milestone'] as const) {
     const prefix = `${type}:`;
     if (value.startsWith(prefix) && value.length > prefix.length) {
       return { type, id: value.slice(prefix.length) };
@@ -378,16 +401,58 @@ export async function searchDocumentOptions(
 
 // ---- milestone / grant: small lists, loaded once and filtered on the client ----
 
-/** Every milestone as an option (target date as the secondary line); the caller caches it. */
+/**
+ * Every milestone as an option (target date as the secondary line); the caller caches it. With
+ * `kindWord` the ids are `predecessorValue`s and the option carries the word (taskOrMilestone).
+ */
 export async function loadMilestoneOptions(
   formatDate: (iso: string) => string,
+  kindWord?: string,
 ): Promise<EntityOption[]> {
   const milestones = await listMilestones();
-  return milestones.map((milestone) => ({
-    id: String(milestone.id),
-    label: milestone.title,
-    secondary: formatDate(milestone.targetDate),
+  return milestones.map((milestone) =>
+    kindWord === undefined
+      ? {
+          id: String(milestone.id),
+          label: milestone.title,
+          secondary: formatDate(milestone.targetDate),
+        }
+      : {
+          id: predecessorValue({ type: 'milestone', id: String(milestone.id) }),
+          label: milestone.title,
+          secondary: formatDate(milestone.targetDate),
+          entityId: String(milestone.id),
+          kindWord,
+        },
+  );
+}
+
+/**
+ * One list of tasks (searched on the server) and milestones (the cached list, filtered here) a
+ * purchase can wait for. Task options come first; both carry their kind word.
+ */
+export async function searchTaskOrMilestoneOptions(
+  query: string,
+  milestones: Promise<EntityOption[]>,
+  words: { readonly task: string },
+): Promise<EntityOption[]> {
+  const [tasks, allMilestones] = await Promise.all([
+    listWorkItems({ q: query.trim() || undefined, pageSize: TASK_PAGE_SIZE }),
+    milestones,
+  ]);
+  const taskOptions: EntityOption[] = tasks.items.map((item) => ({
+    id: predecessorValue({ type: 'work_item', id: item.id }),
+    label: item.title,
+    entityId: item.id,
+    kindWord: words.task,
+    secondaryPath: item.area
+      ? [
+          ...item.area.ancestors.map((a) => ({ id: a.id, name: a.name })),
+          { id: item.area.id, name: item.area.name },
+        ]
+      : undefined,
   }));
+  return [...taskOptions, ...filterOptionsByLabel(allMilestones, query)];
 }
 
 /** Every grant (subsidy program) as an option; the caller caches it. */
@@ -396,11 +461,11 @@ export async function loadGrantOptions(): Promise<EntityOption[]> {
   return response.subsidyPrograms.map((program) => ({ id: program.id, label: program.name }));
 }
 
-/** Options whose label contains the query, folded. */
+/** Options whose label contains the trimmed query, folded. */
 export function filterOptionsByLabel(
   options: readonly EntityOption[],
   query: string,
 ): EntityOption[] {
-  const wanted = foldSearchText(query);
+  const wanted = foldSearchText(query.trim());
   return options.filter((option) => foldSearchText(option.label).includes(wanted));
 }

@@ -14,9 +14,10 @@ import {
 import { ROUTE_MAP } from './routeMap.js';
 import type { RouteMapEntry } from './types.js';
 
-/** The 30 plain redirects the router serves today, in route-map order (a set; order is incidental). */
+/** The 31 plain redirects the router serves today, in route-map order (a set; order is incidental). */
 const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/project/overview', '/'],
+  ['/project/household-items/:id/edit', '/project/household-items/:id?edit=overview'],
   ['/budget/sources', '/budget/financing#sources'],
   ['/budget/subsidies', '/budget/financing#grants'],
   ['/settings/vendors', '/companies'],
@@ -32,7 +33,7 @@ const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/household-items', '/project/household-items'],
   ['/household-items/new', '/project/household-items/new'],
   ['/household-items/:id', '/project/household-items/:id'],
-  ['/household-items/:id/edit', '/project/household-items/:id/edit'],
+  ['/household-items/:id/edit', '/project/household-items/:id?edit=overview'],
   ['/invoices', '/budget/invoices'],
   ['/invoices/:id', '/budget/invoices/:id'],
   ['/timeline', '/schedule/gantt'],
@@ -65,8 +66,8 @@ function base(over: Partial<RouteMapEntry>): RouteMapEntry {
 }
 
 describe('LIVE_REDIRECT_ROUTES', () => {
-  it('equals the frozen 30-row table of today redirects', () => {
-    expect(FROZEN_LIVE_REDIRECTS).toHaveLength(30);
+  it('equals the frozen 31-row table of today redirects', () => {
+    expect(FROZEN_LIVE_REDIRECTS).toHaveLength(31);
     expect(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
   });
 

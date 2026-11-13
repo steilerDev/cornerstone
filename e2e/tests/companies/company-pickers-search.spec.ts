@@ -8,7 +8,7 @@
  *     line form (`#vendorId`, under More details) and is saved on the line
  * S2  Task page Who and where card: pick a company, save, reload, clear, pick a person
  * S3  New task dialog (`#assignment`): pick a company; the "New company" row opens the child step
- * S4  Purchase edit page (`#vendorId`): the saved company shows, change by search, create row
+ * S4  Purchase page Details card (Company field): the saved company shows, change by search, create row
  * S5  Cost line edit form (`#vendorId`, #2235): the create row opens the company form as a child
  *     step of the form; Back returns to the line form, Save selects the new company
  * S6  Diary signature: vendor signer picks a company by search, or "Other..." with free text
@@ -34,7 +34,6 @@ import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
-import { HouseholdItemEditPage } from '../../pages/HouseholdItemEditPage.js';
 import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 
@@ -286,36 +285,36 @@ test.describe('Company chooser - purchase edit page (S4)', { tag: '@responsive' 
       vendorId: currentId,
     });
     try {
-      const edit = new HouseholdItemEditPage(page);
       const detail = new HouseholdItemDetailPage(page);
-      await edit.goto(itemId);
+      await detail.goto(itemId);
+      await detail.detailsCard.startEdit();
 
       // The saved company shows by name
-      await expect(edit.vendorPicker.selectedDisplay()).toContainText(current);
+      await expect(detail.selectedCompany).toContainText(current);
 
       // Change it by search and save: the purchase shows the new company
-      await edit.vendorPicker.clearButton.click();
-      await edit.vendorPicker.pick(replacement);
-      await expect(edit.vendorPicker.selectedDisplay()).toContainText(replacement);
+      await detail.companyPicker.clearButton.click();
+      await detail.companyPicker.pick(replacement);
+      await expect(detail.selectedCompany).toContainText(replacement);
       expect(await focusIsOnBody(page)).toBe(false);
-      await edit.submit(itemId);
-      await expect(detail.heading).toBeVisible();
-      await expect(page.getByText(replacement).first()).toBeVisible();
+      await detail.detailsCard.save();
+      await expect(detail.detail('company')).toContainText(replacement);
 
-      // The create row creates and selects a company (a fresh visit of the edit page)
+      // The create row creates and selects a company (a fresh visit of the page)
       const fresh = await page.context().newPage();
       try {
-        const freshEdit = new HouseholdItemEditPage(fresh);
-        await freshEdit.goto(itemId);
-        await expect(freshEdit.vendorPicker.selectedDisplay()).toContainText(replacement);
-        await freshEdit.vendorPicker.clearButton.click();
-        await freshEdit.vendorPicker.openCreateForm(typed);
-        await freshEdit.vendorPicker.form.save();
-        await freshEdit.vendorPicker.form.waitForClosed();
-        await expect(freshEdit.vendorPicker.selectedDisplay()).toContainText(typed);
-        await expect(freshEdit.vendorPicker.clearButton).toBeFocused();
-        await freshEdit.submit(itemId);
-        await expect(fresh.getByText(typed).first()).toBeVisible();
+        const freshDetail = new HouseholdItemDetailPage(fresh);
+        await freshDetail.goto(itemId);
+        await freshDetail.detailsCard.startEdit();
+        await expect(freshDetail.selectedCompany).toContainText(replacement);
+        await freshDetail.companyPicker.clearButton.click();
+        await freshDetail.companyPicker.openCreateForm(typed);
+        await freshDetail.companyPicker.form.save();
+        await freshDetail.companyPicker.form.waitForClosed();
+        await expect(freshDetail.selectedCompany).toContainText(typed);
+        await expect(freshDetail.companyPicker.clearButton).toBeFocused();
+        await freshDetail.detailsCard.save();
+        await expect(freshDetail.detail('company')).toContainText(typed);
       } finally {
         await fresh.close();
       }
@@ -507,13 +506,14 @@ test.describe('Company chooser - Clear selection focus (S7)', { tag: '@responsiv
       vendorId: companyId,
     });
     try {
-      const edit = new HouseholdItemEditPage(page);
-      await edit.goto(itemId);
-      await expect(edit.vendorPicker.selectedDisplay()).toContainText(company);
+      const detail = new HouseholdItemDetailPage(page);
+      await detail.goto(itemId);
+      await detail.detailsCard.startEdit();
+      await expect(detail.selectedCompany).toContainText(company);
 
-      await edit.vendorPicker.clearButton.click();
-      await expect(edit.vendorPicker.input).toBeVisible();
-      await expect(edit.vendorPicker.input).toBeFocused();
+      await detail.companyPicker.clearButton.click();
+      await expect(detail.companyPicker.input).toBeVisible();
+      await expect(detail.companyPicker.input).toBeFocused();
       expect(await focusIsOnBody(page)).toBe(false);
     } finally {
       await deleteHouseholdItemViaApi(page, itemId);

@@ -10,7 +10,8 @@
  *   1. Task: Start > Today - chip, toast and the actual start (API)
  *   2. Task: Mark done > Pick a past date, then Undo restores status and date (API); focus
  *   3. Ctrl+Z undoes the newest toast; Ctrl+Z inside a text input does not
- *   4. Purchase: Mark delivered > Today stores the actual delivery date
+ *   4. Purchase: Mark delivered > Today stores the actual delivery date; Mark ordered > Today stores
+ *      the order date and Undo restores it (#2249: Mark ordered has a date step)
  *   5. Milestone: Mark reached > Today; Back to "Upcoming"
  *   6. Invoice: Mark paid applies at once, no date step (AC3)
  *   7. Progress payment: Mark submitted > Today (table row or mobile card, per viewport)
@@ -258,6 +259,48 @@ test.describe('StatusMenu — purchase status', { tag: '@responsive' }, () => {
       };
       expect(body.householdItem.status).toBe('arrived');
       expect(body.householdItem.actualDeliveryDate).toBe(localToday());
+    } finally {
+      await deleteHouseholdItemViaApi(page, id);
+    }
+  });
+});
+
+test.describe('StatusMenu — purchase Mark ordered (#2249)', { tag: '@responsive' }, () => {
+  test('Mark ordered > Today stores the order date; Undo restores the status and the order date', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detail = new HouseholdItemDetailPage(page);
+    const name = `${testPrefix} Status Ordered Purchase`;
+    const id = await createHouseholdItemViaApi(page, { name, status: 'planned' });
+    const read = async () => {
+      const resp = await page.request.get(`${API.householdItems}/${id}`);
+      return (
+        (await resp.json()) as {
+          householdItem: { status: string; orderDate: string | null };
+        }
+      ).householdItem;
+    };
+
+    try {
+      await detail.goto(id);
+      await expect(detail.statusMenu.trigger).toHaveText('Planned');
+
+      // The chip's Ordered row asks "When was it ordered?" with Today / Pick a date
+      await detail.statusMenu.pickRow('purchased');
+      await expect(detail.statusMenu.dateToday).toBeVisible();
+      await expect(detail.statusMenu.datePick).toBeVisible();
+      await detail.statusMenu.dateToday.click();
+
+      await expect(detail.statusMenu.trigger).toHaveText('Ordered');
+      await expect(detail.toasts.undoToastWith(`${name} is now “Ordered”.`)).toBeVisible();
+      await expect.poll(async () => (await read()).orderDate).toBe(localToday());
+
+      await detail.toasts.undoViaButton();
+
+      await expect(detail.statusMenu.trigger).toHaveText('Planned');
+      await expect.poll(async () => (await read()).status).toBe('planned');
+      expect((await read()).orderDate).toBeNull();
     } finally {
       await deleteHouseholdItemViaApi(page, id);
     }

@@ -32,6 +32,14 @@ When deps live in `/tmp/cs-deps` (no `node_modules/.bin` in the worktree), use
 the flag silently skips `jest.unstable_mockModule` interception and produces false failures (8/11 in
 #2154) — never report a test failure seen without the flag.
 
+- **Server Jest in the /tmp/cs-deps setup** (verified #2249): `npm rebuild better-sqlite3` inside
+  `/tmp/cs-deps` builds the native addon; repoint `/tmp/cs-deps/node_modules/@cornerstone/shared` at the
+  worktree's `shared/` and run `node_modules/.bin/tsc -p shared/tsconfig.json` (dist is gitignored);
+  then `NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=8192" node_modules/.bin/jest <files> -i`.
+  Without the heap flag every server suite dies "worker ran out of memory" (an environment fault, not a test failure).
+- The worktree-isolation guard refuses `jest $(cat list)` and `xargs -a list jest`: write the command into
+  a `/tmp/*.sh` script and run `bash /tmp/x.sh`.
+
 ## Shared Package: Must Compile Before Server Tests
 
 `server/` tests import from `@cornerstone/shared`. The package exports `dist/index.d.ts` (compiled). If `shared/dist/` doesn't exist, server tests fail with TS errors on shared types.

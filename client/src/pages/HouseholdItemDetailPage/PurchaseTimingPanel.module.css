@@ -1,0 +1,39 @@
+.panel {
+  composes: panel from '../../styles/objectPage.module.css';
+}
+
+/* The last list's picker clears the phone bottom bar: FE-1's one rule, on the last child. */
+.endClearance {
+  composes: pageEndClearance from './HouseholdItemDetailPage.module.css';
+}
+
+.facts {
+  composes: details from '../../styles/objectPage.module.css';
+}
+
+.fields {
+  composes: fields from '../../styles/objectPage.module.css';
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+}
+
+/* The late row is static text: the badge and the sentence, never colour alone. */
+.lateReason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-3);
+  margin: var(--spacing-3) 0 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+  font-size: var(--font-size-sm);
+}
+
+.lateText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,86 @@
+/* Shared by the object pages (task, purchase): panels, error card, details rows, history line. */
+
+.panel {
+  /* The one panel spacing (16px, 24px from 768px): every tab panel composes this class. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.errorCard {
+  composes: card from './shared.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+/* A compact secondary button with a touch-size target below 1024px. */
+.compactButton {
+  composes: btnSecondaryCompact from './shared.module.css';
+}
+
+@media (max-width: 1023px) {
+  .compactButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+/* ---- Summary strip remark ---- */
+
+.remark {
+  display: inline-block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---- Details cards ---- */
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-3);
+}
+
+/* A block of user-written text that keeps its line breaks. */
+.userTextBlock {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* ---- History ---- */
+
+.historyLine {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 768px) {
+  .panel {
+    gap: var(--spacing-6);
+  }
+
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

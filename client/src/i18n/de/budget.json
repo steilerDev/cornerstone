@@ -97,8 +97,7 @@
         "columns": "Spalten",
         "sources": "Finanzierungsquellen"
       }
-    },
-    "expectedPayback": "Erwartete Rückzahlung"
+    }
   },
   "sources": {
     "lines": {
@@ -187,9 +186,6 @@
       "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut."
     }
   },
-  "budgetSection": {
-    "subsidies": "Förderprogramme"
-  },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
     "error": "Fehler",
@@ -203,10 +199,6 @@
     },
     "messages": {
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
-    },
-    "budgetLines": {
-      "form": {},
-      "dismissErrorAriaLabel": "Fehler schließen"
     },
     "deposits": {
       "finalPayment": "Schlusszahlung",
@@ -348,14 +340,7 @@
     }
   },
   "subsidies": {
-    "oversubscribed": "Überzeichnet",
     "linkSection": {
-      "emptyState": "Mit diesem Element sind keine Förderprogramme verknüpft.",
-      "selectAriaLabel": "Förderprogramm zum Verknüpfen mit diesem Element auswählen",
-      "selectPlaceholder": "Förderprogramm zum Verknüpfen auswählen...",
-      "addButton": "Förderprogramm zu diesem Element hinzufügen",
-      "linking": "Wird verknüpft...",
-      "unlinkAriaLabel": "Verknüpfung des Förderprogramms {{name}} mit diesem Element lösen",
       "reductionPercentage": "{{value}}% Reduktion",
       "reductionFixed": "{{amount}} Reduktion"
     }

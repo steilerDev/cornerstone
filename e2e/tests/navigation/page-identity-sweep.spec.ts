@@ -220,13 +220,6 @@ const ROWS: SweepRow[] = [
     crumbs: true,
     active: PURCHASES,
   },
-  {
-    id: 'householdItemEdit',
-    path: () => routeUrl('householdItemEdit', { id: seed.householdItemId }),
-    h1: 'Edit purchase',
-    crumbs: true,
-    active: PURCHASES,
-  },
   // Money
   {
     id: 'budgetOverview',

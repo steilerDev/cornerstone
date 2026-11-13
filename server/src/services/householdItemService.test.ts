@@ -339,10 +339,10 @@ describe('Household Item Service', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // getHouseholdItemById()
+  // getHouseholdItemPageDetail()
   // ---------------------------------------------------------------------------
 
-  describe('getHouseholdItemById()', () => {
+  describe('getHouseholdItemPageDetail()', () => {
     it('returns full detail with area, dependencies, and subsidies', () => {
       // Given: An item created with a vendor
       const userId = createTestUser('user@example.com', 'Test User');
@@ -356,7 +356,9 @@ describe('Household Item Service', () => {
       );
 
       // When: Getting by ID
-      const result = householdItemService.getHouseholdItemById(db, created.id, 0.19);
+      const result = householdItemService.getHouseholdItemPageDetail(db, created.id, {
+        vatRate: 0.19,
+      });
 
       // Then: Full detail is returned
       expect(result.id).toBe(created.id);
@@ -369,12 +371,12 @@ describe('Household Item Service', () => {
     it('throws NotFoundError for non-existent ID', () => {
       // Given: No household items exist
       // When/Then: Throws not found error
-      expect(() => householdItemService.getHouseholdItemById(db, 'non-existent-id', 0.19)).toThrow(
-        NotFoundError,
-      );
-      expect(() => householdItemService.getHouseholdItemById(db, 'non-existent-id', 0.19)).toThrow(
-        'Household item not found',
-      );
+      expect(() =>
+        householdItemService.getHouseholdItemPageDetail(db, 'non-existent-id', { vatRate: 0.19 }),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        householdItemService.getHouseholdItemPageDetail(db, 'non-existent-id', { vatRate: 0.19 }),
+      ).toThrow('Household item not found');
     });
 
     it('returns vendor details when vendor is linked', () => {
@@ -393,7 +395,9 @@ describe('Household Item Service', () => {
       );
 
       // When: Getting by ID
-      const result = householdItemService.getHouseholdItemById(db, created.id, 0.19);
+      const result = householdItemService.getHouseholdItemPageDetail(db, created.id, {
+        vatRate: 0.19,
+      });
 
       // Then: Vendor info is populated
       expect(result.vendor?.id).toBe(vendorId);
@@ -434,7 +438,9 @@ describe('Household Item Service', () => {
         .run();
 
       // When: Getting by ID
-      const result = householdItemService.getHouseholdItemById(db, created.id, 0.19);
+      const result = householdItemService.getHouseholdItemPageDetail(db, created.id, {
+        vatRate: 0.19,
+      });
 
       // Then: Dependency is included
       expect(result.dependencies).toHaveLength(1);
@@ -742,9 +748,9 @@ describe('Household Item Service', () => {
       householdItemService.deleteHouseholdItem(db, item.id);
 
       // Then: It can no longer be found
-      expect(() => householdItemService.getHouseholdItemById(db, item.id, 0.19)).toThrow(
-        NotFoundError,
-      );
+      expect(() =>
+        householdItemService.getHouseholdItemPageDetail(db, item.id, { vatRate: 0.19 }),
+      ).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError for non-existent ID', () => {

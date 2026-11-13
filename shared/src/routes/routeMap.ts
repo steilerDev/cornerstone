@@ -667,8 +667,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: 'page',
+    stage: 'done',
     parent: 'householdItem',
   },
   {
@@ -872,8 +871,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: '/project/household-items/:id/edit',
+    stage: 'done',
   },
   {
     from: '/invoices',

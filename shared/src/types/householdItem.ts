@@ -12,6 +12,7 @@ import type { UserSummary } from './workItem.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
 import type { FilterMeta } from './filterMeta.js';
+import type { HouseholdItemBudgetLine } from './householdItemBudget.js';
 
 /**
  * Budget aggregates for a household item.
@@ -217,6 +218,38 @@ export interface HouseholdItemSummary {
 export interface HouseholdItemDetail extends HouseholdItemSummary {
   dependencies: HouseholdItemDepDetail[];
   subsidies: HouseholdItemSubsidySummary[];
+}
+
+/** The company of a purchase page, with the phone for the Call button (#2249). */
+export interface HouseholdItemPageVendor extends HouseholdItemVendorSummary {
+  phone: string | null;
+}
+
+/** The category entry of a purchase page (name plus translation key). */
+export interface HouseholdItemPageCategory {
+  id: string;
+  name: string;
+  translationKey: string | null;
+}
+
+/** First unfinished predecessor (latest end date first) and how many more (#2249). */
+export interface PurchaseWaitsFor {
+  type: HouseholdItemDepPredecessorType;
+  id: string;
+  title: string;
+  more: number;
+}
+
+/** GET /api/household-items/:id only (#2249). */
+export interface HouseholdItemPageDetail extends Omit<HouseholdItemDetail, 'vendor'> {
+  vendor: HouseholdItemPageVendor | null;
+  categoryEntry: HouseholdItemPageCategory;
+  budgets: HouseholdItemBudgetLine[];
+  /** As HouseholdItemListRow.expectedCost (money engine); null without cost lines. */
+  expectedCost: number | null;
+  /** As HouseholdItemListRow.grants (rejected excluded). */
+  grants: ItemGrantChip[];
+  waitsFor: PurchaseWaitsFor | null;
 }
 
 /**

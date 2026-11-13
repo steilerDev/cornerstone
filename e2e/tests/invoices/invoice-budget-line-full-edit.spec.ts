@@ -166,7 +166,7 @@ test.describe('Move from a task to a purchase (Scenario 3)', { tag: '@responsive
     await expect(panel.groupHeading('Cross Purchase')).toBeVisible();
     await expect(panel.groupHeading('Cross Task')).toHaveCount(0);
 
-    await page.goto(routeUrl('householdItem', { id: purchaseId }));
+    await page.goto(routeUrl('householdItem', { id: purchaseId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await expect(panel.row(`${testPrefix} Cross Line`)).toBeVisible();
     await expect(panel.stateChip(panel.row(`${testPrefix} Cross Line`))).toHaveText('Invoiced');

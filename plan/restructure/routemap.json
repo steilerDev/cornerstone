@@ -585,7 +585,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Separate edit page retired; opens the page with the Overview section in edit mode (one hop)."
+    "note": "Separate edit page retired; opens the page with the Overview section in edit mode (one hop). Served (#2249): a live redirect; the Purchase page reads ?edit once, removes it in one replace navigation that keeps location.state, and opens the Details card in edit mode."
   },
   {
     "from": "/budget/sources",
@@ -777,7 +777,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Legacy; retargeted to the final page in one hop."
+    "note": "Legacy; retargeted to the final page in one hop. Served (#2249): a live redirect to ?edit=overview."
   },
   {
     "from": "/invoices",

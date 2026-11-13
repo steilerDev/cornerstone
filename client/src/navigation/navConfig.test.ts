@@ -198,7 +198,6 @@ describe('NAV_LABEL_KEYS', () => {
     'newTask',
     'newPurchase',
     'newMilestone',
-    'editPurchase',
     'taskNotFound',
     'purchaseNotFound',
     'invoice',

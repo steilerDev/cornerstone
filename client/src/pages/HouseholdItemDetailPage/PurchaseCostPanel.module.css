@@ -1,0 +1,11 @@
+.panel {
+  composes: panel from './PurchaseTimingPanel.module.css';
+}
+
+.costCard {
+  composes: card from '../../styles/shared.module.css';
+}
+
+.endClearance {
+  composes: endClearance from './PurchaseTimingPanel.module.css';
+}

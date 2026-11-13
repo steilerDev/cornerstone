@@ -419,7 +419,7 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     );
 
     // Then: HI-B's targetDeliveryDate is updated to reflect WI-A's end date
-    const hiBAfter = householdItemService.getHouseholdItemById(db, hiB.id, 0.19);
+    const hiBAfter = householdItemService.getHouseholdItemPageDetail(db, hiB.id, { vatRate: 0.19 });
     // HI-B depends on WI-A with endDate '2030-03-01'
     // autoReschedule computes HI-B.targetDeliveryDate >= '2030-03-01'
     expect(hiBAfter.targetDeliveryDate).not.toBeNull();

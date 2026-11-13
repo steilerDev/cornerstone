@@ -11,12 +11,12 @@
  * Scenarios covered:
  * 1.  Page loads with item name as heading
  * 2.  "Purchases" breadcrumb navigates to /project/household-items
- * 3.  Edit button navigates to /project/household-items/:id/edit
- * 4.  Budget section is visible on the detail page
+ * 3.  (retired in #2249: the Edit button and edit page are gone; see purchase-page.spec.ts P7)
+ * 4.  Cost tab is visible on the purchase page
  * 5.  Documents button "Documents (0)" is visible (Paperless connected, mocked)
  * 6.  Paperless off, no links: no Documents button, no setup text
  * 7.  Paperless off, kept links: read-only notice (admin gets the Integrations link)
- * 8.  404 / error state for non-existent item ID
+ * 8.  404 state for a non-existent purchase id (h1 "Purchase not found")
  * 9.  Responsive — no horizontal scroll on current viewport
  * 10. Dark mode rendering
  * 11. Documents panel has an accessible dialog title
@@ -91,34 +91,6 @@ test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Edit button navigates to edit page
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit button navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"Edit" button navigates to /project/household-items/:id/edit', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new HouseholdItemDetailPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Edit Button Test`,
-      });
-
-      await detailPage.goto(createdId);
-
-      await detailPage.editButton.click();
-
-      await page.waitForURL(`**/project/household-items/${createdId}/edit`);
-      expect(page.url()).toContain('/edit');
-    } finally {
-      if (createdId) await deleteHouseholdItemViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Budget section visible (Story 4.6)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Cost section visible (Scenario 4 — Story 4.6)', { tag: '@responsive' }, () => {
@@ -133,12 +105,12 @@ test.describe('Cost section visible (Scenario 4 — Story 4.6)', { tag: '@respon
         name: `${testPrefix} HI Budget Section Test`,
       });
 
-      await page.goto(`/project/household-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
+      const detailPage = new HouseholdItemDetailPage(page);
+      // #2249: cost lines live on the Cost tab (panels mount lazily)
+      await detailPage.goto(createdId, { tab: 'cost' });
 
-      // The Cost section heading should be visible (#2235: the Budget section is now "Cost")
       const budgetHeading = page.getByRole('heading', { name: 'Cost', exact: true, level: 2 });
-      await expect(budgetHeading).toBeVisible({ timeout: 10000 });
+      await expect(budgetHeading).toBeVisible();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -152,12 +124,11 @@ test.describe('Cost section visible (Scenario 4 — Story 4.6)', { tag: '@respon
         name: `${testPrefix} HI Budget Add Test`,
       });
 
-      await page.goto(`/project/household-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
+      const detailPage = new HouseholdItemDetailPage(page);
+      await detailPage.goto(createdId, { tab: 'cost' });
 
       // The cost section has an "Add cost line" button
-      const addBudgetButton = page.getByRole('button', { name: 'Add cost line', exact: true });
-      await expect(addBudgetButton).toBeVisible({ timeout: 10000 });
+      await expect(detailPage.costLines.addButton).toBeVisible();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -183,7 +154,8 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
 
-      await expect(page.getByTestId('documents-panel-button')).toHaveText('Documents (0)');
+      // #2249: the trigger is the strip's Documents fact (bare count)
+      await expect(detailPage.documentsButton).toHaveText('0');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -263,14 +235,15 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('404 / error state (Scenario 8)', { tag: '@responsive' }, () => {
   test('Navigating to a non-existent household item shows error state', async ({ page }) => {
+    const detailPage = new HouseholdItemDetailPage(page);
     await page.goto('/project/household-items/non-existent-id-000');
 
-    // The page should either show a not-found message or redirect
-    // The HouseholdItemDetailPage shows "not found" text when item doesn't exist.
-    // Use .first() to avoid strict mode violation: the page renders both a heading
-    // and a description element that match the pattern.
-    const notFoundText = page.getByText(/not found|doesn't exist|has been removed/i).first();
-    await expect(notFoundText).toBeVisible({ timeout: 10000 });
+    // #2249: the h1 names the state and Back to Purchases is offered (no Retry on a 404)
+    await expect(detailPage.heading).toHaveText('Purchase not found');
+    await expect(
+      page.getByRole('button', { name: 'Back to Purchases', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry', exact: true })).toHaveCount(0);
   });
 });
 
@@ -318,15 +291,14 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         name: `${testPrefix} HI Detail Dark Mode`,
       });
 
-      await page.goto(`/project/household-items/${createdId}`);
+      const detailPage = new HouseholdItemDetailPage(page);
+      await detailPage.goto(createdId);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      const detailPage = new HouseholdItemDetailPage(page);
-      await detailPage.heading.waitFor({ state: 'visible', timeout: 10000 });
-
       await expect(detailPage.heading).toBeVisible();
+      await expect(detailPage.summary.root).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
@@ -346,13 +318,11 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       });
       await mockPaperlessConfigured(page);
 
-      await page.goto(`/project/household-items/${createdId}`);
+      const detailPage = new HouseholdItemDetailPage(page);
+      await detailPage.goto(createdId);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
-
-      const detailPage = new HouseholdItemDetailPage(page);
-      await detailPage.heading.waitFor({ state: 'visible', timeout: 10000 });
 
       const panel = new DocumentsPanel(page);
       await expect(panel.button()).toBeVisible();

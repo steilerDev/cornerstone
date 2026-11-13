@@ -96,7 +96,6 @@ const PATHS: Record<string, () => string> = {
   householdItems: () => routeUrl('householdItems'),
   householdItemNew: () => routeUrl('householdItemNew'),
   householdItem: () => routeUrl('householdItem', { id: seed.householdItemId }),
-  householdItemEdit: () => routeUrl('householdItemEdit', { id: seed.householdItemId }),
   budgetOverview: () => routeUrl('budgetOverview'),
   invoices: () => routeUrl('invoices'),
   invoice: () => routeUrl('invoice', { id: seed.invoiceId }),

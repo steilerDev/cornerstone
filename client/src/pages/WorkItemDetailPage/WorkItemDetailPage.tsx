@@ -7,6 +7,7 @@ import type { WorkItemPageDetail, WorkItemStatus } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
+import { ObjectDiaryPanel } from '../../components/FeedRow/ObjectDiaryPanel.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import {
@@ -25,6 +26,8 @@ import { taskTransitions } from '../../components/StatusMenu/statusVocabularies.
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useObjectDiary } from '../../hooks/useObjectDiary.js';
+import type { UseObjectDiaryResult } from '../../hooks/useObjectDiary.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
@@ -33,6 +36,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { fetchFailureMessage } from '../../lib/fetchFailure.js';
 import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { barDates } from '../../lib/scheduleDates.js';
 import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { changeWorkItemStatus, workItemStatusBody } from '../../lib/statusChangeApi.js';
 import { deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -41,13 +45,11 @@ import type { OriginState } from '../../navigation/origin.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import sharedStyles from '../../styles/shared.module.css';
 import { TaskCostPanel } from './TaskCostPanel.js';
-import { TaskDiaryPanel } from './TaskDiaryPanel.js';
 import { TaskOverviewPanel } from './TaskOverviewPanel.js';
 import { TaskTimingPanel } from './TaskTimingPanel.js';
 import { TASK_TIMING_INTENTS } from './taskAnchors.js';
 import type { TaskTimingIntent } from './taskAnchors.js';
 import type { TaskPanelProps } from './taskPageTypes.js';
-import { useTaskDiary } from './useTaskDiary.js';
 import { useTaskRecord } from './useTaskRecord.js';
 import type { UseTaskRecordResult } from './useTaskRecord.js';
 import { useTaskSummaryFacts } from './useTaskSummaryFacts.js';
@@ -173,7 +175,18 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
   useOnObjectCreated('invoice', () => void refresh());
 
   const documents = useDocumentsPanel('work_item', id);
-  const diary = useTaskDiary(task, revision);
+  const { start: barStart, end: barEnd } = barDates(task);
+  const diaryDates =
+    barStart !== null && barEnd !== null ? { dateFrom: barStart, dateTo: barEnd } : null;
+  const diary = useObjectDiary(
+    {
+      subjectKey: task.id,
+      vendorId: task.assignedVendor?.id ?? null,
+      areaId: task.area?.id ?? null,
+      dates: diaryDates,
+    },
+    revision,
+  );
   const tabs = useObjectTabs(['overview', 'timing', 'cost', 'diary', 'history']);
 
   // The one replace: Timing tab, no `depError`, no hash; origin state survives.
@@ -333,6 +346,7 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
         panelProps={panelProps}
         tabs={tabs}
         diary={diary}
+        diaryDates={diaryDates}
         detailsCardRef={detailsCardRef}
         whoWhereCardRef={whoWhereCardRef}
         intent={intent}
@@ -368,7 +382,9 @@ interface TaskTabsProps {
   readonly id: string;
   readonly panelProps: TaskPanelProps;
   readonly tabs: ReturnType<typeof useObjectTabs>;
-  readonly diary: ReturnType<typeof useTaskDiary>;
+  readonly diary: UseObjectDiaryResult;
+  /** The task's shown dates, for the diary's "show all" link; null when it has none. */
+  readonly diaryDates: { readonly dateFrom: string; readonly dateTo: string } | null;
   readonly detailsCardRef: RefObject<SectionCardController | null>;
   readonly whoWhereCardRef: RefObject<SectionCardController | null>;
   readonly intent: TaskTimingIntent | null;
@@ -383,6 +399,7 @@ function TaskTabs({
   panelProps,
   tabs,
   diary,
+  diaryDates,
   detailsCardRef,
   whoWhereCardRef,
   intent,
@@ -425,7 +442,32 @@ function TaskTabs({
           />
         ),
         cost: () => <TaskCostPanel {...panelProps} />,
-        diary: () => <TaskDiaryPanel task={task} diary={diary} originState={originState} />,
+        diary: () => (
+          <ObjectDiaryPanel
+            diary={diary}
+            companyId={task.assignedVendor?.id ?? null}
+            areaId={task.area?.id ?? null}
+            dates={diaryDates}
+            originState={originState}
+            testIdPrefix="task-diary"
+            labels={{
+              title: t('taskPage.diary.title'),
+              log: t('taskPage.diary.logForTask'),
+              forCompany: t('taskPage.diary.forCompany', {
+                company: task.assignedVendor?.name ?? '',
+              }),
+              forSubject: t('taskPage.diary.forTask'),
+              otherEntries: t('taskPage.diary.otherEntries'),
+              fromPhotoTags: t('taskPage.diary.fromPhotoTags'),
+              empty: t('taskPage.diary.empty'),
+              loadError: t('taskPage.diary.loadError'),
+              showAll: t('taskPage.diary.showAll'),
+              retry: t('taskPage.retry'),
+              loading: t('taskPage.loading'),
+              srCount: (count) => t('taskPage.diary.srCount', { count }),
+            }}
+          />
+        ),
         history: () => (
           <div className={styles.panel}>
             <p className={styles.historyLine} data-testid="task-history-created">

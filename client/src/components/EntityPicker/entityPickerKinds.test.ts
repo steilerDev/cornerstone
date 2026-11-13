@@ -660,6 +660,35 @@ describe('entityPickerKinds', () => {
     });
   });
 
+  describe('predecessor values (taskOrMilestone, #2249)', () => {
+    it.each([
+      [{ type: 'work_item', id: 'wi-1' }, 'work_item:wi-1'],
+      [{ type: 'milestone', id: '7' }, 'milestone:7'],
+    ] as const)('encodes %j as %s', (target, value) => {
+      expect(K.predecessorValue(target)).toBe(value);
+    });
+
+    it.each([
+      ['work_item:wi-1', { type: 'work_item', id: 'wi-1' }],
+      ['milestone:7', { type: 'milestone', id: '7' }],
+      ['milestone:a:b', { type: 'milestone', id: 'a:b' }],
+    ])('reads %s', (value, expected) => {
+      expect(K.parsePredecessorValue(value)).toEqual(expected);
+    });
+
+    it.each(['', 'work_item:', 'milestone:', 'household_item:hi-1', 'wi-1', 'milestone'])(
+      'returns null for %p',
+      (value) => {
+        expect(K.parsePredecessorValue(value)).toBeNull();
+      },
+    );
+
+    it('is the inverse of predecessorValue', () => {
+      const target = { type: 'milestone', id: '12' } as const;
+      expect(K.parsePredecessorValue(K.predecessorValue(target))).toEqual(target);
+    });
+  });
+
   describe('parseItemValue', () => {
     it.each([
       ['work_item:wi-1', { type: 'work_item', id: 'wi-1' }],
@@ -778,6 +807,104 @@ describe('entityPickerKinds', () => {
       ]);
     });
 
+    it('with a kind word, maps milestones to predecessor values that carry the word', async () => {
+      mockListMilestones.mockResolvedValue([
+        { id: 4, title: 'Roof closed', targetDate: '2026-05-01' },
+      ] as never);
+
+      expect(await K.loadMilestoneOptions((iso) => `D:${iso}`, 'Milestone')).toEqual([
+        {
+          id: 'milestone:4',
+          label: 'Roof closed',
+          secondary: 'D:2026-05-01',
+          entityId: '4',
+          kindWord: 'Milestone',
+        },
+      ]);
+    });
+
+    describe('searchTaskOrMilestoneOptions', () => {
+      const milestones: EntityOption[] = [
+        { id: 'milestone:4', label: 'Roof closed', entityId: '4', kindWord: 'Milestone' },
+        { id: 'milestone:9', label: 'Shell finished', entityId: '9', kindWord: 'Milestone' },
+      ];
+      const task = (id: string, title: string, areaOf: unknown = null) => ({
+        id,
+        title,
+        area: areaOf,
+      });
+
+      it('lists the matching tasks first, then the milestones filtered by the query', async () => {
+        mockListWorkItems.mockResolvedValue({
+          items: [
+            task('wi-1', 'Roof tiles', {
+              id: 'a2',
+              name: 'Kitchen',
+              ancestors: [{ id: 'a1', name: 'House' }],
+            }),
+            task('wi-2', 'Roof beams'),
+          ],
+        } as never);
+
+        const options = await K.searchTaskOrMilestoneOptions('roof', Promise.resolve(milestones), {
+          task: 'Task',
+        });
+
+        expect(mockListWorkItems).toHaveBeenCalledWith({ q: 'roof', pageSize: 15 });
+        expect(options).toEqual([
+          {
+            id: 'work_item:wi-1',
+            label: 'Roof tiles',
+            entityId: 'wi-1',
+            kindWord: 'Task',
+            secondaryPath: [
+              { id: 'a1', name: 'House' },
+              { id: 'a2', name: 'Kitchen' },
+            ],
+          },
+          {
+            id: 'work_item:wi-2',
+            label: 'Roof beams',
+            entityId: 'wi-2',
+            kindWord: 'Task',
+            secondaryPath: undefined,
+          },
+          milestones[0],
+        ]);
+      });
+
+      it('trims the query for the milestones as it does for the task search', async () => {
+        mockListWorkItems.mockResolvedValue({ items: [] } as never);
+
+        const options = await K.searchTaskOrMilestoneOptions(
+          ' roof ',
+          Promise.resolve(milestones),
+          { task: 'Task' },
+        );
+
+        expect(mockListWorkItems).toHaveBeenCalledWith({ q: 'roof', pageSize: 15 });
+        expect(options).toEqual([milestones[0]]);
+      });
+
+      it('searches without a query for an empty one and offers every milestone', async () => {
+        mockListWorkItems.mockResolvedValue({ items: [] } as never);
+
+        const options = await K.searchTaskOrMilestoneOptions('', Promise.resolve(milestones), {
+          task: 'Task',
+        });
+
+        expect(mockListWorkItems).toHaveBeenCalledWith({ q: undefined, pageSize: 15 });
+        expect(options).toEqual(milestones);
+      });
+
+      it('lets a failed task search reject', async () => {
+        mockListWorkItems.mockRejectedValue(new Error('down'));
+        await expect(
+          K.searchTaskOrMilestoneOptions('x', Promise.resolve(milestones), { task: 'Task' }),
+        ).rejects.toThrow('down');
+      });
+    });
+
     it('lets a failed load reject, so the caller can retry', async () => {
       mockFetchSubsidyPrograms.mockRejectedValue(new Error('down'));
       await expect(K.loadGrantOptions()).rejects.toThrow('down');
@@ -802,6 +929,11 @@ describe('entityPickerKinds', () => {
         expect(K.filterOptionsByLabel(options, 'HEAT').map((o) => o.id)).toEqual(['2']);
       });
 
+      it('trims the query, so surrounding spaces never hide a match', () => {
+        expect(K.filterOptionsByLabel(options, '  heat ').map((o) => o.id)).toEqual(['2']);
+        expect(K.filterOptionsByLabel(options, '   ')).toHaveLength(3);
+      });
+
       it('returns every option for an empty query and none when nothing matches', () => {
         expect(K.filterOptionsByLabel(options, '')).toHaveLength(3);
         expect(K.filterOptionsByLabel(options, 'zzz')).toEqual([]);
@@ -810,7 +942,7 @@ describe('entityPickerKinds', () => {
   });
 
   describe('kinds', () => {
-    it('lists the eleven kinds', () => {
+    it('lists the twelve kinds', () => {
       expect([...K.ENTITY_PICKER_KINDS]).toEqual([
         'company',
         'who',
@@ -820,6 +952,7 @@ describe('entityPickerKinds', () => {
         'category',
         'task',
         'taskOrPurchase',
+        'taskOrMilestone',
         'document',
         'milestone',
         'grant',

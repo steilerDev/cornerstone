@@ -12,7 +12,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { deleteNote } from '../../lib/notesApi.js';
 import { useNoteFormSchema } from '../../objectForms/noteForm.js';
 import type { NoteFormMode } from '../../objectForms/noteForm.js';
-import { taskActionError } from './taskActionError.js';
+import { actionError } from '../../lib/actionError.js';
 import { useRowTriggerRefs } from './useRowTriggerRefs.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -56,7 +56,7 @@ export function TaskNotesCard({
     try {
       await deleteNote(workItemId, target.id);
     } catch (err) {
-      setDeleteError(taskActionError(err, tErrors, t('taskPage.notes.deleteError')));
+      setDeleteError(actionError(err, tErrors, t('taskPage.notes.deleteError')));
       setBusy(false);
       return;
     }

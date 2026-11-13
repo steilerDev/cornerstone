@@ -1,40 +1,25 @@
 /**
- * E2E tests for AreaBreadcrumb in household item dependency list (Story #1273)
+ * E2E tests for the "Waits for" rows of the purchase page (Story #1273, reshaped by #2249)
  *
- * When a household item dependency has predecessorType === 'work_item', the dep row in the
- * ul[role="list"][class*="depList"] renders a compact AreaBreadcrumb beneath the work item link.
- * When predecessorType === 'milestone', no breadcrumb is rendered.
+ * The old dependency list rendered a compact area breadcrumb under a task predecessor. On the
+ * purchase page (Timing tab) a predecessor is a shared RelatedList row: the title links to the
+ * task or milestone page, the muted fact line names the kind and its end date ("Task · date",
+ * "Milestone · date"), a task row carries its status badge. A row shows no area path.
  *
- *   Scenario 1: work_item predecessor with area → breadcrumb visible in dep list row
- *   Scenario 2: work_item predecessor without area → "No area" visible in dep row
- *   Scenario 3: milestone predecessor → no breadcrumb in milestone dep row
+ *   Scenario 1: work_item predecessor with an area -> a Task row that links to the task page,
+ *               with no area path in the row
+ *   Scenario 2: work_item predecessor without an area -> a Task row, no "No area" text
+ *   Scenario 3: milestone predecessor -> a Milestone row that links to the milestone page,
+ *               with no area path
  *
- * Setup path:
- *   1. Create household item
- *   2. Create area (for Scenario 1)
- *   3. Create work item or milestone predecessor
- *   4. Create dependency via POST /api/household-items/:id/dependencies
- *   5. Navigate to household item detail page
- *   6. Assert breadcrumb in dependency list row
+ * Setup path: create the purchase and the predecessor through the API, link them with
+ * POST /api/household-items/:id/dependencies, open the Timing tab, read the row.
  *
- * DOM structure of the dependency list (HouseholdItemDetailPage.tsx):
- *   <ul role="list" class*="depList">
- *     <li role="listitem" class*="depRow">
- *       <span class*="predTypeWorkItem | predTypeMilestone">Work Item | Milestone</span>
- *       <!-- work_item: -->
- *       <a href="/project/work-items/:id" class*="depPredLink">{dep.predecessor.title}</a>
- *       <AreaBreadcrumb area={dep.predecessor.area ?? null} variant="compact" />
- *       <!-- milestone: -->
- *       <span class*="depPredLabel">{dep.predecessor.title}</span>
- *       <button class*="unlinkButton">×</button>
- *     </li>
- *   </ul>
- *
- * The dependency list renders identically across all viewports (no responsive restructuring),
- * so no @responsive tag is needed.
+ * The list renders on every viewport (rows, no responsive restructuring), so no @responsive tag.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import {
   createWorkItemViaApi,
@@ -71,11 +56,11 @@ async function createHouseholdItemDepViaApi(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: work_item predecessor with area → breadcrumb visible in dep row
+// Scenario 1: work_item predecessor with area
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('HI dependency — work_item predecessor with area (Scenario 1)', () => {
-  test('Dep list row shows compact breadcrumb when work item predecessor has an area', async ({
+test.describe('HI dependency - work_item predecessor with area (Scenario 1)', () => {
+  test('The Waits for row names the task, links to it and shows no area path', async ({
     page,
     testPrefix,
   }) => {
@@ -102,25 +87,19 @@ test.describe('HI dependency — work_item predecessor with area (Scenario 1)', 
         predecessorId: workItemId,
       });
 
-      await detailPage.goto(householdItemId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(householdItemId, { tab: 'timing' });
 
-      // The dependency list
-      const depList = page.getByRole('list').filter({ has: page.locator('[class*="depRow"]') });
-      await expect(depList).toBeVisible();
-
-      // Find the dep row for our work item
-      const depRow = depList.locator('[class*="depRow"]').filter({ hasText: wiTitle });
-      await expect(depRow).toBeVisible();
-
-      // Compact breadcrumb inside the dep row (work_item predecessor)
-      const breadcrumbSpan = depRow.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).toBeVisible();
-
-      const breadcrumbText = await breadcrumbSpan.textContent();
-      expect(breadcrumbText).toContain(rootName);
-      expect(breadcrumbText).toContain(childName);
-      expect(breadcrumbText).toContain('›');
+      const row = detailPage.waitsFor.row(`work_item:${workItemId}`);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText(wiTitle);
+      await expect(row).toContainText('Task');
+      await expect(detailPage.waitsFor.link(`work_item:${workItemId}`)).toHaveAttribute(
+        'href',
+        routeUrl('workItem', { id: workItemId }),
+      );
+      await expect(row).not.toContainText(rootName);
+      await expect(row).not.toContainText(childName);
+      await expect(row.locator('[class*="compact"]')).toHaveCount(0);
     } finally {
       if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -131,11 +110,11 @@ test.describe('HI dependency — work_item predecessor with area (Scenario 1)', 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: work_item predecessor without area → "No area" visible in dep row
+// Scenario 2: work_item predecessor without area
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('HI dependency — work_item predecessor without area (Scenario 2)', () => {
-  test('"No area" fallback text visible in dep row when work item predecessor has no area', async ({
+test.describe('HI dependency - work_item predecessor without area (Scenario 2)', () => {
+  test('A task without an area is a plain Task row: no "No area" text', async ({
     page,
     testPrefix,
   }) => {
@@ -148,7 +127,6 @@ test.describe('HI dependency — work_item predecessor without area (Scenario 2)
     const hiName = `${testPrefix} HI Dep Test 2`;
 
     try {
-      // Work item with no area
       workItemId = await createWorkItemViaApi(page, { title: wiTitle });
       householdItemId = await createHouseholdItemViaApi(page, { name: hiName });
 
@@ -157,17 +135,12 @@ test.describe('HI dependency — work_item predecessor without area (Scenario 2)
         predecessorId: workItemId,
       });
 
-      await detailPage.goto(householdItemId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(householdItemId, { tab: 'timing' });
 
-      const depList = page.getByRole('list').filter({ has: page.locator('[class*="depRow"]') });
-      await expect(depList).toBeVisible();
-
-      const depRow = depList.locator('[class*="depRow"]').filter({ hasText: wiTitle });
-      await expect(depRow).toBeVisible();
-
-      // "No area" muted text rendered by AreaBreadcrumb when area is null
-      await expect(depRow.getByText('No area', { exact: true })).toBeVisible();
+      const row = detailPage.waitsFor.row(`work_item:${workItemId}`);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText(wiTitle);
+      await expect(row.getByText('No area', { exact: true })).toHaveCount(0);
     } finally {
       if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -176,11 +149,14 @@ test.describe('HI dependency — work_item predecessor without area (Scenario 2)
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: milestone predecessor → no breadcrumb in milestone dep row
+// Scenario 3: milestone predecessor
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('HI dependency — milestone predecessor has no breadcrumb (Scenario 3)', () => {
-  test('Milestone dep row does not contain a compact breadcrumb', async ({ page, testPrefix }) => {
+test.describe('HI dependency - milestone predecessor (Scenario 3)', () => {
+  test('A milestone row says Milestone, links to the milestone page and has no area path', async ({
+    page,
+    testPrefix,
+  }) => {
     const detailPage = new HouseholdItemDetailPage(page);
 
     let milestoneId: number | null = null;
@@ -201,22 +177,18 @@ test.describe('HI dependency — milestone predecessor has no breadcrumb (Scenar
         predecessorId: String(milestoneId),
       });
 
-      await detailPage.goto(householdItemId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(householdItemId, { tab: 'timing' });
 
-      const depList = page.getByRole('list').filter({ has: page.locator('[class*="depRow"]') });
-      await expect(depList).toBeVisible();
-
-      // The milestone dep row — identified by the milestone title text
-      const depRow = depList.locator('[class*="depRow"]').filter({ hasText: milestoneTitle });
-      await expect(depRow).toBeVisible();
-
-      // Milestone rows render a <span class*="depPredLabel"> — no AreaBreadcrumb
-      const breadcrumbSpan = depRow.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).not.toBeVisible();
-
-      // Also confirm "No area" is not present for milestone rows
-      await expect(depRow.getByText('No area', { exact: true })).not.toBeVisible();
+      const row = detailPage.waitsFor.row(`milestone:${milestoneId}`);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText(milestoneTitle);
+      await expect(row).toContainText('Milestone');
+      await expect(detailPage.waitsFor.link(`milestone:${milestoneId}`)).toHaveAttribute(
+        'href',
+        routeUrl('milestone', { id: milestoneId }),
+      );
+      await expect(row.locator('[class*="compact"]')).toHaveCount(0);
+      await expect(row.getByText('No area', { exact: true })).toHaveCount(0);
     } finally {
       if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
       if (milestoneId) await deleteMilestoneViaApi(page, milestoneId);

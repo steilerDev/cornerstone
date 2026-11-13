@@ -6,7 +6,7 @@
  * where the map says, in ONE hop, with its query string and hash intact.
  *
  * Scenarios:
- * - E0  The map and the frozen table of today's 30 live redirects agree (fails when a route
+ * - E0  The map and the frozen table of today's 31 live redirects agree (fails when a route
  *       is added to / removed from the map without updating this walk)
  * - E1  Every live redirect lands on its target in one hop (bare, and with ?q=walk#walk);
  *       /schedule?view=calendar is the one live query map (D-11, #2202) and lands on
@@ -80,7 +80,7 @@ import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPa
 // Frozen expectations (written out by hand on purpose, NOT derived from the map)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Today's 30 live redirects: legacy/section path -> landing path (query/hash handled apart). */
+/** Today's 31 live redirects: legacy/section path -> landing path (query/hash handled apart). */
 const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   // Section roots (PLT-012)
   // Home is served at `/` since #2230: the old dashboard URL and the Project root land on it
@@ -96,7 +96,9 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   ['/household-items', '/project/household-items'],
   ['/household-items/new', '/project/household-items/new'],
   ['/household-items/:id', '/project/household-items/:id'],
-  ['/household-items/:id/edit', '/project/household-items/:id/edit'],
+  // #2249: the edit URLs land on the purchase page (target ?edit=overview, which the page consumes)
+  ['/household-items/:id/edit', '/project/household-items/:id'],
+  ['/project/household-items/:id/edit', '/project/household-items/:id'],
   ['/invoices', '/budget/invoices'],
   ['/invoices/:id', '/budget/invoices/:id'],
   ['/timeline', '/schedule/gantt'],
@@ -173,6 +175,8 @@ const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
     ],
   },
   { name: 'repairs', from: ['/schedule/milestones', '/schedule/milestones/:id'] },
+  // #2249: the retired purchase edit page
+  { name: 'retired edit URL', from: ['/project/household-items/:id/edit'] },
   { name: 'companies', from: ['/settings/vendors', '/settings/vendors/:id'] },
   {
     name: 'financing',
@@ -358,8 +362,8 @@ test.describe('Legacy URL walk (route map)', () => {
   // E0 — the map and this walk agree
   // ───────────────────────────────────────────────────────────────────────────
 
-  test('E0: the live redirects of the route map are exactly the 30 frozen below', () => {
-    expect(LIVE_REDIRECTS).toHaveLength(30);
+  test('E0: the live redirects of the route map are exactly the 31 frozen below', () => {
+    expect(LIVE_REDIRECTS).toHaveLength(31);
     // Same set of source paths, same count: an unmapped (or newly mapped) route fails here.
     expect(LIVE_REDIRECT_ROUTES.map((rule) => rule.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
@@ -376,7 +380,7 @@ test.describe('Legacy URL walk (route map)', () => {
     expect(withMaps[0]?.queryMaps).toEqual([
       { query: { view: 'calendar' }, target: routeUrl('scheduleCalendar') },
     ]);
-    // The groups below cover every one of the 30.
+    // The groups below cover every one of the 31.
     expect(GROUPS.flatMap((group) => group.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
     );

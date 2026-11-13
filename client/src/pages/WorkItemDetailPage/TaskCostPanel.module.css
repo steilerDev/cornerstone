@@ -1,5 +1,5 @@
 .panel {
-  composes: panel from './WorkItemDetailPage.module.css';
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
 .costCard {

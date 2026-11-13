@@ -225,11 +225,9 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     const { id } = request.params as { id: string };
 
-    const householdItem = householdItemService.getHouseholdItemById(
-      fastify.db,
-      id,
-      fastify.config.vatRate,
-    );
+    const householdItem = householdItemService.getHouseholdItemPageDetail(fastify.db, id, {
+      vatRate: fastify.config.vatRate,
+    });
 
     return reply.status(200).send({ householdItem });
   });

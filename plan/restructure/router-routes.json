@@ -112,7 +112,7 @@
       "path": "/household-items/:id/edit",
       "guard": "member",
       "kind": "redirect",
-      "target": "/project/household-items/:id/edit"
+      "target": "/project/household-items/:id?edit=overview"
     },
     {
       "path": "/household-items/new",
@@ -153,8 +153,8 @@
     {
       "path": "/project/household-items/:id/edit",
       "guard": "member",
-      "kind": "page",
-      "element": "HouseholdItemEditPage"
+      "kind": "redirect",
+      "target": "/project/household-items/:id?edit=overview"
     },
     {
       "path": "/project/household-items/new",

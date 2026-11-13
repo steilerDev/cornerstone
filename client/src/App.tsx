@@ -76,9 +76,6 @@ const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/Househo
 const HouseholdItemDetailPage = lazy(
   () => import('./pages/HouseholdItemDetailPage/HouseholdItemDetailPage'),
 );
-const HouseholdItemEditPage = lazy(
-  () => import('./pages/HouseholdItemEditPage/HouseholdItemEditPage'),
-);
 const MilestonesPage = lazy(() => import('./pages/MilestonesPage/MilestonesPage'));
 const MilestoneDetailPage = lazy(() => import('./pages/MilestoneDetailPage/MilestoneDetailPage'));
 const ManagePage = lazy(() => import('./pages/ManagePage/ManagePage.js'));
@@ -171,10 +168,6 @@ function RoutedApp() {
                           <Route
                             path={routePattern('householdItem')}
                             element={<HouseholdItemDetailPage />}
-                          />
-                          <Route
-                            path={routePattern('householdItemEdit')}
-                            element={<HouseholdItemEditPage />}
                           />
                           <Route path={routePattern('milestones')} element={<MilestonesPage />} />
                           <Route path={routePattern('milestoneNew')} element={<MilestonesPage />} />

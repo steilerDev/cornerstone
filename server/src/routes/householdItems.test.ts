@@ -821,6 +821,52 @@ describe('Household Item Routes', () => {
       expect(item).toHaveProperty('subsidies');
     });
 
+    it('returns the page-detail shape: category entry, cost lines, expected cost, grants, waitsFor and the company phone (#2249)', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const now = new Date().toISOString();
+      app.db
+        .insert(schema.vendors)
+        .values({
+          id: 'v-page',
+          name: 'Company One',
+          phone: '+49 30 1234567',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Oven', category: 'hic-appliances', vendorId: 'v-page' },
+        0.19,
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.vendor).toMatchObject({
+        id: 'v-page',
+        name: 'Company One',
+        phone: '+49 30 1234567',
+      });
+      expect(item.categoryEntry).toMatchObject({ id: 'hic-appliances' });
+      expect(item.budgets).toEqual([]);
+      expect(item.expectedCost).toBeNull();
+      expect(item.grants).toEqual([]);
+      expect(item.waitsFor).toBeNull();
+      expect(item).toHaveProperty('dependencies');
+    });
+
     it('returns 404 for non-existent ID', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');

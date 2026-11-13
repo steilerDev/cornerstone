@@ -76,6 +76,21 @@ describe('SummaryStrip', () => {
     },
   );
 
+  it('uses a fact\'s own screen-reader text for an empty value instead of "Not set"', () => {
+    renderStrip([{ ...link('invoiced', 'Invoiced', null, '/cost'), emptyText: 'None yet' }]);
+    const target = screen.getByTestId('summary-fact-invoiced');
+    expect(within(target).getByText('None yet')).toHaveClass('srOnly');
+    expect(within(target).getByText('–')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(target).queryByText('Not set')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Invoiced None yet' })).toBeInTheDocument();
+  });
+
+  it("ignores a fact's empty text while the value is set", () => {
+    renderStrip([{ ...link('invoiced', 'Invoiced', '€ 40', '/cost'), emptyText: 'None yet' }]);
+    expect(screen.getByTestId('summary-fact-invoiced')).toHaveTextContent('€ 40');
+    expect(screen.queryByText('None yet')).toBeNull();
+  });
+
   it('renders a non-empty falsy value 0 as content', () => {
     renderStrip([link('count', 'Count', 0)]);
     expect(screen.getByTestId('summary-fact-count')).toHaveTextContent('0');

@@ -2223,10 +2223,10 @@
   "HHI-042": {
     "name": "View a household item summary header (name, category, status)",
     "from": "/project/household-items/:id > header > H1 + category badge + status badge",
-    "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; category and area in the summary strip)",
+    "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; area in the summary strip's Where fact, category on the Overview Details card)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1. #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1. #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed. #2249: built on the object template: ObjectHeader (breadcrumb Purchases, h1, StatusMenu chip, one primary, ⋯ Delete). Deviation: the category is a row of the Overview Details card, not a strip fact; the area is the strip's Where fact."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2234,7 +2234,7 @@
     "to": "Global > breadcrumb + top-bar Back (origin-aware)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed. #2202: breadcrumb (parents only) plus one origin-aware \"‹ Back to ‹origin›\" replace the swapping back/\"To …\" buttons; Back returns to the exact origin URL (Schedule or Calendar view and query kept, D-11)."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed. #2202: breadcrumb (parents only) plus one origin-aware \"‹ Back to ‹origin›\" replace the swapping back/\"To …\" buttons; Back returns to the exact origin URL (Schedule or Calendar view and query kept, D-11). #2249: the purchase page uses the shared origin-aware Back; every object link out of the page (company, area, Waits for rows) carries origin state."
   },
   "HHI-044": {
     "name": "View item details (description, vendor, product URL, quantity)",
@@ -2242,7 +2242,7 @@
     "to": "Purchases > Purchase page > Overview tab (description, company, product link, quantity)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2249: Overview tab › one Details card: Description, Category, Quantity (when > 1), Company, Product link, Area; empty rows omitted. Section Edit holds all detail fields."
   },
   "HHI-045": {
     "name": "Jump from a household item to its vendor page",
@@ -2250,7 +2250,7 @@
     "to": "Purchases > Purchase page > summary strip company chip -> Companies > Company page",
     "change": "same",
     "gate": "none",
-    "note": "No jump into Settings."
+    "note": "No jump into Settings. #2249: the strip's Company fact links to the company page (origin state kept) and carries a Call button when the company has a phone; the Details card's Company row links there too."
   },
   "HHI-046": {
     "name": "Open the product web page of a household item",
@@ -2258,7 +2258,7 @@
     "to": "Purchases > Purchase page > Overview tab > Product link",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2249: the Product link is a new-tab link only when the URL is http(s); any other text shows as plain text (no javascript: links)."
   },
   "HHI-047": {
     "name": "See who created a household item and when it was created/updated",
@@ -2268,7 +2268,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Purchase page > History tab (1)",
-    "note": "Tucked away at most 2 clicks from its object in Purchases, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Purchases, because real use is zero or near zero (USE §5); still reachable. #2249: deviation: the History tab shows only the line \"Created by … on … · Last updated …\". Purchases have no history events (no household_item history object type), so there is no history feed."
   },
   "HHI-048": {
     "name": "Recover from a missing or failed household item page",
@@ -2276,7 +2276,7 @@
     "to": "Purchases > Purchase page > error state (Retry / Back to Purchases)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Shared error state; only the shared page template, the words and the navigation around it change (rare use). #2202: error state keeps Retry and \"Back to Purchases\" (glossary word)."
+    "note": "Kept as it works today, inside Shared error state; only the shared page template, the words and the navigation around it change (rare use). #2202: error state keeps Retry and \"Back to Purchases\" (glossary word). #2249: loading, not-found and error states each keep an h1; not-found offers Back to Purchases, the error card Back and Retry."
   },
   "HHI-049": {
     "name": "Change the purchase status inline",
@@ -2284,7 +2284,7 @@
     "to": "Purchases > Purchase page > header StatusMenu + primary by state: 'Mark ordered' (Planned) / 'Mark delivered' (Ordered or Delivery scheduled; date prompt)",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed."
+    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed. #2249: the primary is the next status by state: Mark ordered (Planned) and Mark delivered (Ordered or Delivery scheduled), each with the date step (Ordered asks 'When was it ordered?' and saves orderDate with the status; Undo restores it). A Delivered purchase's primary is Log (the header always has exactly one primary)."
   },
   "HHI-050": {
     "name": "Automatically record today as the actual delivery date when an item is marked Arrived",
@@ -2300,7 +2300,7 @@
     "to": "Purchases > Purchase page > summary strip > Delivery",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Purchases because it serves a frequent job (weekly use)."
+    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2249: the strip's Delivery fact reads Delivered ‹date›, Target ‹date›, Window ‹start› – ‹end› or the one window date set. Deviation: 'Target', not 'Expected' (Expected is the money-scenario word). Timing › Delivery card shows the computed Target delivery read-only."
   },
   "HHI-052": {
     "name": "Edit the order date inline with autosave and clear",
@@ -2309,7 +2309,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Timing section Edit > Ordered on (set or clear); Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Timing › Delivery card Edit > Ordered on (set or clear); also set by Mark ordered with its date step."
   },
   "HHI-053": {
     "name": "Edit the actual delivery date inline with autosave and clear",
@@ -2318,33 +2318,33 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > primary 'Mark delivered' with date prompt; Timing section Edit > Delivered on (set or clear).",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Mark delivered asks the date (Today · As planned · Pick); Timing › Delivery card Edit > Delivered on (must not be before Ordered on)."
   },
   "HHI-054": {
     "name": "Edit the earliest delivery date (delivery window start) inline",
     "from": "/project/household-items/:id > \"Dependencies\" card > \"Earliest Delivery\" date input + \"×\"",
-    "to": "Purchases > Purchase page > Timing tab > Delivery window; section Edit (explicit Save)",
+    "to": "Purchases > Purchase page > Timing tab > Delivery card; section Edit (explicit Save)",
     "change": "merged",
     "gate": "none",
-    "acceptance": "Purchase page > Timing tab > Delivery window > Earliest (set or clear); Save.",
-    "note": "Out of the 'Dependencies' card (JRN-15)."
+    "acceptance": "Purchase page > Timing tab > Delivery card Edit > Earliest delivery (set or clear); Save.",
+    "note": "Out of the 'Dependencies' card (JRN-15). #2249: Timing › Delivery card Edit > Earliest delivery (Latest must not be before it, field error). Deviation: no separate \"Planned: window\" line, the Earliest and Latest rows are the plan."
   },
   "HHI-055": {
     "name": "Edit the latest delivery date (delivery window end) inline",
     "from": "/project/household-items/:id > \"Dependencies\" card > \"Latest Delivery\" date input + \"×\"",
-    "to": "Purchases > Purchase page > Timing tab > Delivery window; section Edit (explicit Save)",
+    "to": "Purchases > Purchase page > Timing tab > Delivery card; section Edit (explicit Save)",
     "change": "merged",
     "gate": "none",
-    "acceptance": "Purchase page > Timing tab > Delivery window > Latest (set or clear); Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "acceptance": "Purchase page > Timing tab > Delivery card Edit > Latest delivery (set or clear); Save.",
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Timing › Delivery card Edit > Latest delivery (set or clear)."
   },
   "HHI-056": {
     "name": "See that a household item delivery is late",
     "from": "/project/household-items/:id > \"Dependencies\" card > \"Late\" chip beside \"Earliest Delivery\" | /schedule/gantt > item tooltip \"floored to today\" note",
-    "to": "Purchases > Purchase page > header 'Late · n d' chip; Home > Needs attention (N10)",
+    "to": "Purchases > Purchase page > summary strip Delivery fact 'Late · n d' badge + Timing › Delivery card reason; Home > Needs attention (N10)",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Purchases because it serves a frequent job (weekly use)."
+    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2249: deviation: the 'Late · n d' badge (the shared schedule-signal badge, as on the Schedule panel) sits on the strip's Delivery fact, not in the header; the fact opens the Timing tab, whose Delivery card repeats the badge with the reason (the latest or target delivery date that has passed, or the generic 'expected after its planned window'). Not shown once Delivered."
   },
   "HHI-057": {
     "name": "Get per-field autosave feedback and dismiss date errors",
@@ -2353,7 +2353,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "ObjectForm: inline field errors (incl. date order errors) and a success toast on Save.",
-    "note": "Per-field autosave replaced by the one save model."
+    "note": "Per-field autosave replaced by the one save model. #2249: on the Purchase page the Details and Delivery cards save explicitly with inline field errors (date order) and an inline error banner on failure."
   },
   "HHI-058": {
     "name": "Change the area of a household item inline",
@@ -2362,7 +2362,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Area picker; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the interim Area card on the Purchase page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.5."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the interim Area card on the Purchase page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.5. #2249: the interim Area card is gone; Area is a field of the Overview Details card Edit (EntityPicker area, \"No area\")."
   },
   "HHI-059": {
     "name": "View the work items and milestones a delivery depends on",
@@ -2370,23 +2370,23 @@
     "to": "Purchases > Purchase page > Timing tab > 'Waits for'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2249: Timing › Waits for list (type, title link with origin state); the strip shows the first unfinished one plus \"+n\"."
   },
   "HHI-060": {
     "name": "Make a delivery wait for a work item (add work-item dependency)",
     "from": "/project/household-items/:id > \"Dependencies\" card > \"Search work items or milestones to add...\" > result with \"Work Item\" badge | /project/household-items/:id > Dependencies card > search \"work items or milestones\" > add; remove with confirm",
-    "to": "Purchases > Purchase page > Timing tab > Waits for > Add task",
+    "to": "Purchases > Purchase page > Timing tab > Waits for > Add (task or milestone)",
     "change": "same",
     "gate": "none",
-    "note": "Server-search picker (no 100-item cap, PAT-05)."
+    "note": "Server-search picker (no 100-item cap, PAT-05). #2249: Waits for › Add opens one picker (EntityPicker kind 'taskOrMilestone') listing tasks and milestones."
   },
   "HHI-061": {
     "name": "Make a delivery wait for a milestone (add milestone dependency)",
     "from": "/project/household-items/:id > \"Dependencies\" card > same search > result with \"Milestone\" badge | /project/milestones/:id > \"Linked Items\" search (reverse direction, see milestone capability)",
-    "to": "Purchases > Purchase page > Timing tab > Waits for > Add milestone",
+    "to": "Purchases > Purchase page > Timing tab > Waits for > Add (task or milestone)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2249: kept (PO ruling on #2249): a purchase waits for tasks or milestones only, not for other purchases (household_item_deps predecessors are work items or milestones); milestones come from the same Add picker as tasks."
   },
   "HHI-062": {
     "name": "Remove a dependency with inline confirmation",
@@ -2394,7 +2394,7 @@
     "to": "Purchases > Purchase page > Timing tab > row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchase page › Dependencies › Remove (ConfirmDialog replaces the inline Confirm/Cancel swap)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchase page › Dependencies › Remove (ConfirmDialog replaces the inline Confirm/Cancel swap). #2249: Waits for row Remove unlinks at once with an Undo toast (no confirm dialog)."
   },
   "HHI-063": {
     "name": "Automatically recompute delivery target dates and late flags when the schedule changes",
@@ -2402,7 +2402,7 @@
     "to": "System (no UI) — delivery targets and late flags recomputed",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2249: unchanged; the page reads isLate and targetDeliveryDate from the server."
   },
   "HHI-089": {
     "name": "Open the full edit form of a household item",
@@ -2410,8 +2410,8 @@
     "to": "Purchases > Purchase page > Overview section Edit; /project/household-items/:id/edit redirects to ?edit=overview",
     "change": "merged",
     "gate": "none",
-    "acceptance": "Purchase page > Overview section Edit opens all detail fields; /project/household-items/:id/edit redirects to ?edit=details.",
-    "note": "Separate edit page retired (P44)."
+    "acceptance": "Purchase page > Overview section Edit opens all detail fields; /project/household-items/:id/edit redirects to ?edit=overview.",
+    "note": "Separate edit page retired (P44). #2249: served: /project/household-items/:id/edit and the legacy /household-items/:id/edit are live one-hop redirects to ?edit=overview; the page consumes ?edit once (replace navigation that keeps location.state) and opens the Details card in edit mode with focus on Name. The HouseholdItemEditPage is deleted."
   },
   "HHI-090": {
     "name": "Rename a household item or update its description",
@@ -2420,7 +2420,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Name, Description; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Overview › Details card Edit > Name (required), Description; Save sends only the changed fields."
   },
   "HHI-091": {
     "name": "Change the category of an existing household item",
@@ -2429,7 +2429,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Category; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; rare use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; rare use). #2249: Overview › Details card Edit > Category (EntityPicker category, required)."
   },
   "HHI-092": {
     "name": "Change the vendor, product URL or quantity of an existing household item",
@@ -2438,7 +2438,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Company, Product link, Quantity; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the purchase edit page's Company field is EntityPicker kind 'company' with inline 'New company'."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the purchase edit page's Company field is EntityPicker kind 'company' with inline 'New company'. #2249: Overview › Details card Edit > Company (EntityPicker company, 'No company'), Product link, Quantity (whole number ≥ 1)."
   },
   "HHI-093": {
     "name": "Delete a household item from its detail page",
@@ -2446,7 +2446,7 @@
     "to": "Purchases > Purchase page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop. #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts)."
+    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop. #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2249: header ⋯ > Delete opens the ConfirmDialog with impact counts; on success a toast and a replace navigation to the Purchases list; a 409 shows the blocked state."
   },
   "HHI-094": {
     "name": "View the household item categories with colour and sort order",

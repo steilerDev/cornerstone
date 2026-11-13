@@ -1,2499 +1,815 @@
 /**
  * @jest-environment jsdom
+ *
+ * The purchase page shell (#2249): states, header (status chip, the two date-step primaries,
+ * Log once delivered), strip, tabs, the one-replace edit intent, delete and shortcuts. The panels
+ * are covered per module; here they are stubs that expose their props.
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { useEffect } from 'react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  Link,
+  useLocation,
+  useNavigationType,
+  useSearchParams,
+} from 'react-router-dom';
+
+import { ApiClientError } from '../../lib/apiClient.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
+import { makePurchasePage } from '../../test/purchasePageFixtures.js';
+import { ToastView } from '../../test/toastView.js';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as StatusApiTypes from '../../lib/statusChangeApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
-import type {
-  HouseholdItemDetail,
-  HouseholdItemStatus,
-  HouseholdItemCategory,
-} from '@cornerstone/shared';
-import type React from 'react';
-import enErrors from '../../i18n/en/errors.json';
-import enCommon from '../../i18n/en/common.json';
-import enHouseholdItems from '../../i18n/en/householdItems.json';
-import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
-import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
-import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
-import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
-import type { HouseholdItemDepDetail } from '@cornerstone/shared';
+import type * as StatusHookTypes from '../../hooks/useUndoableStatusChange.js';
+import type * as CreateMenuTypes from '../../components/CreateMenu/CreateMenuContext.js';
+import type * as EventsTypes from '../../lib/objectCreatedEvents.js';
+import type * as PageModule from './HouseholdItemDetailPage.js';
 
-const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
-const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
-const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
-const mockShowToast = jest.fn();
-const mockShowUndoToast = jest.fn();
-const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
-const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockGetItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
+const mockDeleteItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
+const mockChangeStatus = jest.fn<typeof StatusApiTypes.changeHouseholdItemStatus>();
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
-const mockNavigate = jest.fn();
-const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
-const mockFetchHouseholdItemDeps =
-  jest.fn<typeof HouseholdItemDepsApiTypes.fetchHouseholdItemDeps>();
-const mockCreateHouseholdItemDep =
-  jest.fn<typeof HouseholdItemDepsApiTypes.createHouseholdItemDep>();
-const mockDeleteHouseholdItemDep =
-  jest.fn<typeof HouseholdItemDepsApiTypes.deleteHouseholdItemDep>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchHouseholdItemBudgets = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchBudgetCategories = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchBudgetSources = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchSubsidyPrograms = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchHouseholdItemSubsidies = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchHouseholdItemSubsidyPayback = jest.fn() as any;
+const mockRunStatusChange =
+  jest.fn<ReturnType<typeof StatusHookTypes.useUndoableStatusChange>['run']>();
+const mockUseCreateContext = jest.fn<typeof CreateMenuTypes.useCreateContext>();
+const startEditDetails = jest.fn<() => void>();
+const diaryInputs: unknown[] = [];
+let documentsFact: SummaryFact | null = null;
+let diaryCount: number | null = 3;
 
-// Mock ApiClientError for error scenarios
-class MockApiClientError extends Error {
-  constructor(
-    readonly statusCode: number,
-    readonly error: { code: string; message: string },
-  ) {
-    super(error.message);
-    this.name = 'ApiClientError';
-  }
-}
-
-// Mock only API modules — do NOT mock react-router-dom (causes OOM)
-// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
-// The cost lines section has its own tests; it is not under test here.
-jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
-  CostLinesSection: () => null,
-}));
-
-jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
-  const localeValue = {
-    locale: 'en',
-    resolvedLocale: 'en',
-    currency: 'EUR',
-    vatRate: 0.19,
-    setLocale: jest.fn(),
-    syncWithServer: jest.fn(),
-  };
-  return {
-    LocaleProvider: ({ children }: { children: unknown }) => children,
-    useLocale: () => localeValue,
-  };
-});
+const realItemsApi = await import('../../lib/householdItemsApi.js');
+const realStatusApi = await import('../../lib/statusChangeApi.js');
+const realCreateMenu = await import('../../components/CreateMenu/CreateMenuContext.js');
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
-  createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
-  getHouseholdItem: mockGetHouseholdItem,
-  updateHouseholdItem: mockUpdateHouseholdItem,
-  listHouseholdItems: jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>(),
-  deleteHouseholdItem: mockDeleteHouseholdItem,
+  ...realItemsApi,
+  getHouseholdItem: mockGetItem,
+  deleteHouseholdItem: mockDeleteItem,
 }));
-
-// Mock ApiClientError so instanceof checks work in the component
-class MockNetworkError extends Error {}
-
-jest.unstable_mockModule('../../lib/apiClient.js', () => ({
-  getBaseUrl: () => '/api',
-  toApiClientError: jest.fn(),
-  NetworkError: MockNetworkError,
-  ApiClientError: MockApiClientError,
-  get: jest.fn(),
-  post: mockPost,
-  put: jest.fn(),
-  patch: mockPatch,
-  del: jest.fn(),
+jest.unstable_mockModule('../../lib/statusChangeApi.js', () => ({
+  ...realStatusApi,
+  changeHouseholdItemStatus: mockChangeStatus,
 }));
-
-// Mock useToast so HouseholdItemDetailPage can render without a ToastProvider wrapper
-jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
-  useToast: () => ({
-    toasts: [],
-    showToast: mockShowToast,
-    showUndoToast: mockShowUndoToast,
-    dismissToast: jest.fn(),
-  }),
-}));
-
 jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
   fetchDeleteImpact: mockFetchDeleteImpact,
 }));
-
-jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
-  fetchLinkedHouseholdItems: jest.fn(),
+jest.unstable_mockModule('../../hooks/useUndoableStatusChange.js', () => ({
+  useUndoableStatusChange: () => ({ run: mockRunStatusChange }),
 }));
-
-jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
-  listWorkItems: mockListWorkItems,
-  getWorkItem: jest.fn(),
-  createWorkItem: jest.fn(),
-  updateWorkItem: jest.fn(),
-  deleteWorkItem: jest.fn(),
+jest.unstable_mockModule('../../components/CreateMenu/CreateMenuContext.js', () => ({
+  ...realCreateMenu,
+  useCreateContext: mockUseCreateContext,
 }));
-
-jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
-  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
-  createHouseholdItemBudget: jest.fn(),
-  updateHouseholdItemBudget: jest.fn(),
-  deleteHouseholdItemBudget: jest.fn(),
+jest.unstable_mockModule('../../components/ObjectHeader/useLogPrimary.js', () => ({
+  useLogPrimary: (testId: string) => ({
+    kind: 'link',
+    label: 'Log',
+    to: '/diary/new',
+    state: undefined,
+    testId,
+  }),
 }));
-
-jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
-  fetchBudgetCategories: mockFetchBudgetCategories,
-  createBudgetCategory: jest.fn(),
-  updateBudgetCategory: jest.fn(),
-  deleteBudgetCategory: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
-  fetchBudgetSources: mockFetchBudgetSources,
-  fetchBudgetSource: jest.fn(),
-  createBudgetSource: jest.fn(),
-  updateBudgetSource: jest.fn(),
-  deleteBudgetSource: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: mockFetchVendors,
-  searchCompanies: makeSearchCompanies(mockFetchVendors),
-  fetchVendor: jest.fn(),
-  createVendor: jest.fn(),
-  updateVendor: jest.fn(),
-  deleteVendor: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
-  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
-  fetchSubsidyProgram: jest.fn(),
-  createSubsidyProgram: jest.fn(),
-  updateSubsidyProgram: jest.fn(),
-  deleteSubsidyProgram: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../lib/householdItemSubsidiesApi.js', () => ({
-  fetchHouseholdItemSubsidies: mockFetchHouseholdItemSubsidies,
-  linkHouseholdItemSubsidy: jest.fn(),
-  unlinkHouseholdItemSubsidy: jest.fn(),
-  fetchHouseholdItemSubsidyPayback: mockFetchHouseholdItemSubsidyPayback,
-}));
-
-// Mock householdItemDepsApi (added for Story #415 — Dependencies section)
-jest.unstable_mockModule('../../lib/householdItemDepsApi.js', () => ({
-  fetchHouseholdItemDeps: mockFetchHouseholdItemDeps,
-  createHouseholdItemDep: mockCreateHouseholdItemDep,
-  deleteHouseholdItemDep: mockDeleteHouseholdItemDep,
-}));
-
-// Mock milestonesApi to avoid unhandled promise rejection in add dep modal
-const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
-jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
-  listMilestones: mockListMilestones,
-  getMilestone: jest.fn<typeof MilestonesApiTypes.getMilestone>(),
-  createMilestone: jest.fn<typeof MilestonesApiTypes.createMilestone>(),
-  updateMilestone: jest.fn<typeof MilestonesApiTypes.updateMilestone>(),
-  deleteMilestone: jest.fn<typeof MilestonesApiTypes.deleteMilestone>(),
-  linkWorkItem: jest.fn<typeof MilestonesApiTypes.linkWorkItem>(),
-  unlinkWorkItem: jest.fn<typeof MilestonesApiTypes.unlinkWorkItem>(),
-  addDependentWorkItem: jest.fn<typeof MilestonesApiTypes.addDependentWorkItem>(),
-  removeDependentWorkItem: jest.fn<typeof MilestonesApiTypes.removeDependentWorkItem>(),
-}));
-
-// Mock invoicesApi to avoid unhandled promise rejection
-jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
-  fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
-  fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
-  createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
-  updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
-  deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
-}));
-
-// Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchHouseholdItemCategories = jest.fn() as any;
-jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
-  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
-  createHouseholdItemCategory: jest.fn(),
-  updateHouseholdItemCategory: jest.fn(),
-  deleteHouseholdItemCategory: jest.fn(),
-}));
-
-// Mock useAreas hook — HouseholdItemDetailPage uses useAreas to render AreaPicker
-const mockUseAreas = jest.fn(() => ({
-  areas: [],
-  isLoading: false,
-  error: null,
-  refetch: jest.fn(),
-  createArea: jest.fn(),
-  updateArea: jest.fn(),
-  deleteArea: jest.fn(),
-}));
-jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
-  useAreas: mockUseAreas,
-}));
-
-// Mock the Documents panel host to avoid pulling in the full documents component tree
 jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
-  DocumentsPanelButton: function MockDocumentsPanelButton(props: {
-    entityType: string;
-    entityId: string;
-  }) {
-    return (
-      <div data-testid="documents-panel-button">
-        <span data-testid="entity-type">{props.entityType}</span>
-        <span data-testid="entity-id">{props.entityId}</span>
-      </div>
-    );
+  useDocumentsPanel: () => ({ fact: documentsFact, panel: <div data-testid="stub-documents" /> }),
+}));
+jest.unstable_mockModule('../../hooks/useObjectDiary.js', () => ({
+  useObjectDiary: (input: unknown) => {
+    diaryInputs.push(input);
+    return {
+      primary: { items: [], totalItems: diaryCount, scope: 'company' },
+      other: null,
+      failure: null,
+      reload: () => undefined,
+      count: diaryCount,
+    };
   },
 }));
+jest.unstable_mockModule('../../components/FeedRow/ObjectDiaryPanel.js', () => ({
+  ObjectDiaryPanel: (props: {
+    companyId: string | null;
+    areaId: string | null;
+    dates: unknown;
+    testIdPrefix: string;
+    labels: { srCount: (n: number) => string } & Record<string, unknown>;
+  }) => (
+    <div
+      data-testid="stub-diary"
+      data-prefix={props.testIdPrefix}
+      data-company={props.companyId ?? ''}
+      data-area={props.areaId ?? ''}
+      data-dates={JSON.stringify(props.dates)}
+      data-labels={JSON.stringify({ ...props.labels, srCount: props.labels.srCount(2) })}
+    />
+  ),
+}));
+jest.unstable_mockModule('./PurchaseOverviewPanel.js', () => ({
+  PurchaseOverviewPanel: (props: { detailsCardRef: { current: unknown } }) => {
+    useEffect(() => {
+      props.detailsCardRef.current = { startEdit: startEditDetails };
+    }, [props.detailsCardRef]);
+    return <div data-testid="stub-overview" />;
+  },
+}));
+jest.unstable_mockModule('./PurchaseTimingPanel.js', () => ({
+  PurchaseTimingPanel: () => <div data-testid="stub-timing" />,
+}));
+jest.unstable_mockModule('./PurchaseCostPanel.js', () => ({
+  PurchaseCostPanel: () => <div data-testid="stub-cost" />,
+}));
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: { id: 'u-me', role: 'admin' } }),
+}));
 
-// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+let Page: typeof PageModule;
+let Events: typeof EventsTypes;
 
-jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  return {
-    formatCurrency: fmtCurrency,
-    formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-      formatDayMonth: (d: string | null | undefined) => d ?? '',
-    }),
-  };
+const PURCHASE = makePurchasePage({
+  name: 'Sample sofa',
+  createdBy: { id: 'u-1', displayName: 'Pat Sample', email: 'pat@example.test' },
+  createdAt: '2026-01-05T08:00:00.000Z',
+  updatedAt: '2026-02-10T08:00:00.000Z',
+  budgets: [{ id: 'b1' }, { id: 'b2' }] as never,
 });
 
-// Helper to capture current location
-function LocationDisplay() {
+interface Seen {
+  keys: string[];
+  type: string;
+  path: string;
+  search: string;
+  hash: string;
+  state: unknown;
+}
+const seen: Seen = { keys: [], type: '', path: '', search: '', hash: '', state: null };
+
+function Probe() {
   const location = useLocation();
   const type = useNavigationType();
+  const [params] = useSearchParams();
+  seen.type = type;
+  seen.path = location.pathname;
+  seen.search = location.search;
+  seen.hash = location.hash;
+  seen.state = location.state;
+  useEffect(() => {
+    seen.keys.push(location.key);
+  }, [location.key]);
   return (
     <>
-      <div data-testid="location">{location.pathname}</div>
-      <div data-testid="location-type">{type}</div>
-      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+      <div data-testid="probe-tab">{params.get('tab') ?? ''}</div>
+      <Link data-testid="go-hi-2" to="/project/household-items/hi-2">
+        Other purchase
+      </Link>
     </>
   );
 }
 
+function renderPage(
+  entry:
+    | string
+    | {
+        pathname: string;
+        search?: string;
+        hash?: string;
+        state?: unknown;
+      } = '/project/household-items/hi-1',
+) {
+  return render(
+    <ToastProvider>
+      <MemoryRouter initialEntries={[entry]}>
+        <Probe />
+        <Routes>
+          <Route path="/project/household-items/:id" element={<Page.default />} />
+          <Route path="/project/household-items" element={<div data-testid="purchases-list" />} />
+          <Route path="/needs-no-id" element={<Page.HouseholdItemDetailPage />} />
+          <Route path="*" element={null} />
+        </Routes>
+        <ToastView />
+      </MemoryRouter>
+    </ToastProvider>,
+  );
+}
+
+async function loaded(entry?: Parameters<typeof renderPage>[0]) {
+  const view = renderPage(entry);
+  await screen.findByRole('heading', { level: 1, name: /Sample sofa|Untitled purchase/ });
+  return view;
+}
+
+const h1s = () => screen.queryAllByRole('heading', { level: 1 });
+
 describe('HouseholdItemDetailPage', () => {
-  let HouseholdItemDetailPageModule: typeof HouseholdItemDetailPageTypes;
-
-  function makeItem(overrides: Partial<HouseholdItemDetail> = {}): HouseholdItemDetail {
-    return {
-      id: 'item-1',
-      name: 'Standing Desk',
-      description: 'Electric height-adjustable desk',
-      category: 'furniture' as HouseholdItemCategory,
-      status: 'purchased' as HouseholdItemStatus,
-      vendor: { id: 'vendor-1', name: 'IKEA', trade: null },
-      area: null,
-      quantity: 2,
-      orderDate: '2026-02-15',
-      targetDeliveryDate: '2026-03-01',
-      actualDeliveryDate: null,
-      earliestDeliveryDate: '2026-03-01',
-      latestDeliveryDate: '2026-03-10',
-      isLate: false,
-      url: 'https://example.com/desk',
-      budgetLineCount: 1,
-      totalPlannedAmount: 599.99,
-      budgetSummary: { totalPlanned: 599.99, totalActual: 0, subsidyReduction: 0, netCost: 599.99 },
-      createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
-      createdAt: '2026-01-15T10:00:00Z',
-      updatedAt: '2026-02-15T14:30:00Z',
-      dependencies: [],
-      subsidies: [],
-      ...overrides,
-    };
-  }
-
   beforeEach(async () => {
-    mockGetHouseholdItem.mockReset();
-    mockUpdateHouseholdItem.mockReset();
-    mockDeleteHouseholdItem.mockReset();
-    mockShowToast.mockReset();
-    mockShowUndoToast.mockReset();
-    mockPatch.mockReset();
-    mockPost.mockReset();
-    mockFetchDeleteImpact.mockReset();
+    installMatchMedia({ '(min-width: 768px)': true });
+    for (const mock of [
+      mockGetItem,
+      mockDeleteItem,
+      mockChangeStatus,
+      mockFetchDeleteImpact,
+      mockRunStatusChange,
+      mockUseCreateContext,
+      startEditDetails,
+    ]) {
+      mock.mockReset();
+    }
+    mockGetItem.mockResolvedValue(PURCHASE);
     mockFetchDeleteImpact.mockResolvedValue({
       entityType: 'household_item',
-      id: 'item-1',
+      id: 'hi-1',
       effects: [],
     });
-    mockUseAreas.mockReset();
-    mockUseAreas.mockReturnValue({
-      areas: [],
-      isLoading: false,
-      error: null,
-      refetch: jest.fn(),
-      createArea: jest.fn(),
-      updateArea: jest.fn(),
-      deleteArea: jest.fn(),
-    });
-    mockNavigate.mockReset();
-    mockListWorkItems.mockReset();
-    mockFetchHouseholdItemBudgets.mockReset();
-    mockFetchBudgetCategories.mockReset();
-    mockFetchBudgetSources.mockReset();
-    mockFetchVendors.mockReset();
-    mockFetchSubsidyPrograms.mockReset();
-    mockFetchHouseholdItemSubsidies.mockReset();
-    mockFetchHouseholdItemSubsidyPayback.mockReset();
-    mockFetchHouseholdItemDeps.mockReset();
-    mockCreateHouseholdItemDep.mockReset();
-    mockDeleteHouseholdItemDep.mockReset();
-    mockListMilestones.mockReset();
-    mockFetchHouseholdItemCategories.mockReset();
-
-    if (!HouseholdItemDetailPageModule) {
-      HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
+    mockRunStatusChange.mockResolvedValue(undefined);
+    mockDeleteItem.mockResolvedValue(undefined);
+    documentsFact = null;
+    diaryCount = 3;
+    diaryInputs.length = 0;
+    seen.keys = [];
+    document.title = 'initial';
+    if (!Page) {
+      Page = await import('./HouseholdItemDetailPage.js');
+      Events = await import('../../lib/objectCreatedEvents.js');
     }
-
-    // Setup default API responses
-    mockListWorkItems.mockResolvedValue({
-      items: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    });
-    mockFetchHouseholdItemBudgets.mockResolvedValue([]);
-    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-    mockFetchVendors.mockResolvedValue({
-      vendors: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    });
-    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
-    mockFetchHouseholdItemSubsidies.mockResolvedValue([]);
-    mockFetchHouseholdItemSubsidyPayback.mockResolvedValue({
-      householdItemId: 'item-1',
-      minTotalPayback: 0,
-      maxTotalPayback: 0,
-      subsidies: [],
-    });
-    mockFetchHouseholdItemDeps.mockResolvedValue([]);
-    mockCreateHouseholdItemDep.mockResolvedValue({
-      householdItemId: 'item-1',
-      predecessorType: 'work_item',
-      predecessorId: 'wi-1',
-      predecessor: { id: 'wi-1', title: 'Work Item', status: 'not_started', endDate: null },
-    } as HouseholdItemDepDetail);
-    mockDeleteHouseholdItemDep.mockResolvedValue({
-      undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
-    });
-    mockListMilestones.mockResolvedValue([]);
-    // Use id 'furniture' to match the category value on the test item (category: 'furniture')
-    mockFetchHouseholdItemCategories.mockResolvedValue({
-      categories: [
-        {
-          id: 'furniture',
-          name: 'Furniture',
-          color: '#8B5CF6',
-          sortOrder: 0,
-          createdAt: '2024-01-01T00:00:00.000Z',
-          updatedAt: '2024-01-01T00:00:00.000Z',
-        },
-      ],
-    });
   });
 
-  function renderPage(
-    itemId = 'item-1',
-    entry: string | { pathname: string; state?: unknown } = `/project/household-items/${itemId}`,
-  ) {
-    return render(
-      <MemoryRouter initialEntries={[entry]}>
-        <Routes>
-          <Route
-            path="/project/household-items/:id"
-            element={<HouseholdItemDetailPageModule.default />}
-          />
-          <Route
-            path="/project/household-items/:id/edit"
-            element={<div>Household Item Edit</div>}
-          />
-          <Route path="/project/household-items" element={<div>Household Items List</div>} />
-        </Routes>
-        <LocationDisplay />
-      </MemoryRouter>,
-    );
-  }
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('loading state', () => {
-    it('shows loading state initially', async () => {
-      mockGetHouseholdItem.mockImplementation(() => new Promise(() => {})); // Never resolves
-
-      renderPage();
-
-      expect(screen.getByText('Loading household item...')).toBeInTheDocument();
+  describe('route and states', () => {
+    it('sends a route without a purchase id back to the Purchases list', async () => {
+      renderPage('/needs-no-id');
+      expect(await screen.findByTestId('probe-tab')).toBeInTheDocument();
+      await waitFor(() => expect(seen.path).toBe('/project/household-items'));
+      expect(seen.type).toBe('REPLACE');
+      expect(mockGetItem).not.toHaveBeenCalled();
     });
 
-    it('loading state has status role for accessibility', async () => {
-      // Don't resolve the API call immediately
-      mockGetHouseholdItem.mockReturnValue(new Promise(() => {}));
-      renderPage();
-
-      const loadingEl = screen.getByText('Loading household item...');
-      expect(loadingEl).toHaveAttribute('role', 'status');
+    it('shows exactly one h1 with the purchase name and sets the tab title', async () => {
+      await loaded();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'Sample sofa', level: 1 })).toBeVisible();
+      await waitFor(() => expect(document.title).toBe('Sample sofa · Purchases · Cornerstone'));
+      expect(mockGetItem).toHaveBeenCalledWith('hi-1');
     });
 
-    it('calls getHouseholdItem with the correct id', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage('item-123');
-
-      await waitFor(() => {
-        expect(mockGetHouseholdItem).toHaveBeenCalledWith('item-123');
-      });
-    });
-  });
-
-  describe('404 error state', () => {
-    it('shows the "Purchase not found" h1 when item returns 404', async () => {
-      mockGetHouseholdItem.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
+    it('shows the loading heading, not the first purchase, when the route moves to another one', async () => {
+      mockGetItem.mockImplementation((id) =>
+        id === 'hi-2' ? new Promise(() => {}) : Promise.resolve(PURCHASE),
       );
-
-      renderPage();
-
-      expect(
-        await screen.findByRole('heading', { name: 'Purchase not found', level: 1 }),
-      ).toBeInTheDocument();
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    });
-
-    it('shows "Back to Purchases" button in 404 state', async () => {
-      mockGetHouseholdItem.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
-      );
-
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
-
-      const backLink = screen.getByRole('button', { name: 'Back to Purchases' });
-      expect(backLink).toBeInTheDocument();
-    });
-  });
-
-  describe('generic error state with retry', () => {
-    it('shows error message on generic error', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load household item. Please try again.'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('shows "Retry" button', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-    });
-
-    it('calls getHouseholdItem again on Retry click', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockRejectedValueOnce(new Error('Network error'));
-      mockGetHouseholdItem.mockResolvedValueOnce(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-      });
-
-      expect(mockGetHouseholdItem).toHaveBeenCalledTimes(1);
-
-      await user.click(screen.getByRole('button', { name: /retry/i }));
-
-      await waitFor(() => {
-        expect(mockGetHouseholdItem).toHaveBeenCalledTimes(2);
-      });
-    });
-  });
-
-  describe('full item data rendering', () => {
-    it('renders item name as page heading', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-    });
-
-    it('renders category badge', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-    });
-
-    it('renders status badge', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // HouseholdItemStatusBadge component should be rendered
-      // The actual badge text depends on the component implementation
-    });
-
-    it('renders description', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Electric height-adjustable desk')).toBeInTheDocument();
-      });
-    });
-
-    it('renders vendor as a link to vendor detail', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        const vendorLink = screen.getByRole('link', { name: 'IKEA' });
-        expect(vendorLink).toBeInTheDocument();
-        expect(vendorLink).toHaveAttribute('href', '/companies/vendor-1');
-      });
-    });
-
-    // room field was removed in migration 0028 (replaced by area) — test deleted
-
-    it('renders quantity', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('2')).toBeInTheDocument();
-      });
-    });
-
-    it('renders external URL as link', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        const urlLink = screen.getByRole('link', { name: 'https://example.com/desk' });
-        expect(urlLink).toBeInTheDocument();
-        expect(urlLink).toHaveAttribute('href', 'https://example.com/desk');
-        expect(urlLink).toHaveAttribute('target', '_blank');
-      });
-    });
-
-    // tags were removed in migration 0028 (household_item_tags table dropped) — test deleted
-
-    it('renders order date formatted', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Verify order date is displayed (exact format depends on formatDate)
-      // Use getAllByText for date since it appears in multiple places
-      const orderDates = screen.getAllByText(/Feb 15, 2026|2026-02-15/);
-      expect(orderDates.length).toBeGreaterThan(0);
-    });
-
-    it('renders expected delivery date formatted', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Verify expected delivery date is displayed (may appear multiple times — info row + deps section)
-      const dateMatches = screen.getAllByText(/Mar 1, 2026|2026-03-01/);
-      expect(dateMatches.length).toBeGreaterThan(0);
-    });
-
-    it('has no back or To Schedule buttons; the breadcrumb replaces them', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
-      expect(
-        screen.queryByRole('button', { name: /back to household items/i }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /to schedule/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /back to schedule/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /to household items/i })).not.toBeInTheDocument();
-    });
-  });
-
-  describe('optional fields show placeholder when not set', () => {
-    it('shows dash for missing description', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ description: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Electric height-adjustable desk')).not.toBeInTheDocument();
-      // Description label should still be present with "—" placeholder
-      expect(screen.getByText('Description')).toBeInTheDocument();
-      const dashValues = screen.getAllByText('\u2014');
-      expect(dashValues.length).toBeGreaterThan(0);
-    });
-
-    it('shows area picker with no selection when area is null', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ area: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // The Area section heading should be present
-      expect(screen.getByRole('heading', { name: 'Area', level: 2 })).toBeInTheDocument();
-
-      // The AreaPicker renders an input with "Select an area" placeholder when no area is set
-      const areaInput = screen.getByPlaceholderText('Select an area');
-      expect(areaInput).toBeInTheDocument();
-    });
-
-    it('shows dash for missing vendor', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ vendor: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole('link', { name: 'IKEA' })).not.toBeInTheDocument();
-      // Vendor row is still rendered with "—" placeholder
-      expect(screen.getByText('Vendor')).toBeInTheDocument();
-      const dashValues = screen.getAllByText('\u2014');
-      expect(dashValues.length).toBeGreaterThan(0);
-    });
-
-    it('shows dash for missing URL', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ url: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole('link', { name: /https:\/\/example.com/ })).not.toBeInTheDocument();
-      // Product URL row is still rendered with "—" placeholder
-      expect(screen.getByText('Product URL')).toBeInTheDocument();
-      const dashValues = screen.getAllByText('\u2014');
-      expect(dashValues.length).toBeGreaterThan(0);
-    });
-
-    // tags were removed in migration 0028 — "No tags" test deleted
-
-    it('shows empty Dependencies section when no deps exist', async () => {
-      // The old "linked work items" section was replaced by the Dependencies section (migration 0012)
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Dependencies section should be present even when empty
-      expect(screen.getByText('Dependencies')).toBeInTheDocument();
-    });
-
-    it('shows dash for missing order date', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ orderDate: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-    });
-
-    it('shows dash for missing expected delivery date', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-    });
-
-    it('shows dash for missing actual delivery date', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ actualDeliveryDate: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('edit button navigation', () => {
-    it('navigates to edit page on Edit button click', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /edit/i }));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent(
-          '/project/household-items/item-1/edit',
-        );
-      });
-    });
-  });
-
-  describe('delete dialog (#2209)', () => {
-    async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Delete Item' })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: 'Delete Item' }));
-      return screen.findByRole('alertdialog');
-    }
-
-    async function enabledConfirm() {
-      const btn = await screen.findByTestId('purchase-delete-confirm');
-      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-      return btn;
-    }
-
-    it('opens an alertdialog titled "Delete <name>?" with Cancel focused and the irreversible note', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      renderPage();
-
-      const dialog = await openDeleteDialog(user);
-
-      expect(dialog).toHaveAccessibleName('Delete Standing Desk?');
-      expect(within(dialog).getByText("This can't be undone.")).toBeInTheDocument();
-      await waitFor(() => {
-        expect(screen.getByTestId('purchase-delete-cancel')).toHaveFocus();
-      });
-    });
-
-    it('asks the delete-impact endpoint for this purchase and lists the counts', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchDeleteImpact.mockResolvedValue({
-        entityType: 'household_item',
-        id: 'item-1',
-        effects: [
-          { kind: 'costLines', count: 2 },
-          { kind: 'documentLinks', count: 0 },
-        ],
-      });
-      renderPage();
-      await openDeleteDialog(user);
-
-      await waitFor(() =>
-        expect(screen.getByTestId('purchase-delete-consequences')).toHaveTextContent(
-          'Cost lines deleted with it: 2',
-        ),
-      );
-      expect(screen.queryByText(/Linked documents/)).not.toBeInTheDocument();
-      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'item-1');
-    });
-
-    it('keeps the action disabled until the counts have loaded', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchDeleteImpact.mockReturnValue(new Promise(() => {}));
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(screen.getByTestId('purchase-delete-confirm'));
-      expect(screen.getByTestId('purchase-delete-confirm')).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
-      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
-    });
-
-    it('confirm calls the delete API, toasts, and navigates to the list with REPLACE', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockResolvedValue(undefined);
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(await enabledConfirm());
-
-      await waitFor(() => {
-        expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-1');
-      });
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'success',
-          'Household item deleted successfully',
-        );
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
-      });
-      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
-    });
-
-    it('calls deleteHouseholdItem with the correct item id', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ id: 'item-abc-123' }));
-      mockDeleteHouseholdItem.mockResolvedValue(undefined);
-      renderPage('item-abc-123');
-      await openDeleteDialog(user);
-
-      await user.click(await enabledConfirm());
-
-      await waitFor(() => {
-        expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-abc-123');
-      });
-    });
-
-    it('shows the busy label and ignores Escape while the deletion is in progress', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockImplementation(() => new Promise(() => {}));
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(await enabledConfirm());
-
-      await waitFor(() => {
-        expect(screen.getByTestId('purchase-delete-confirm')).toHaveTextContent('Deleting…');
-      });
-      await user.keyboard('{Escape}');
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    });
-
-    it('Cancel and Escape close the dialog without deleting', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(screen.getByTestId('purchase-delete-cancel'));
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-
-      await openDeleteDialog(user);
-      await user.keyboard('{Escape}');
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
-    });
-
-    it('a non-409 failure keeps the dialog open with the action available for a retry, no navigation', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValueOnce(new Error('Network error'));
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(await enabledConfirm());
-
-      await waitFor(() => {
-        expect(within(screen.getByRole('alertdialog')).getByRole('alert')).toBeInTheDocument();
-      });
-      expect(mockDeleteHouseholdItem).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
-      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/item-1');
-    });
-
-    it('a 409 hides the action, shows the translated error, and reopening is clean', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValueOnce(
-        new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
-      );
-      renderPage();
-      await openDeleteDialog(user);
-
-      await user.click(await enabledConfirm());
-
-      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
-        enErrors.CONFLICT,
-      );
-      expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('purchase-delete-confirm')).not.toBeInTheDocument();
-
-      await user.click(screen.getByTestId('purchase-delete-cancel'));
-      await waitFor(() => {
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      });
-      const reopened = await openDeleteDialog(user);
-      expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument();
-      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
-    });
-
-    it('a 404 failure shows the translated error and never the server text', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
-      );
-      renderPage();
-      await openDeleteDialog(user);
-      await user.click(await enabledConfirm());
-
-      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
-        enErrors.NOT_FOUND,
-      );
-      expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
-      // Only a 409 blocks the action; any other API failure stays retryable.
-      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
-    });
-  });
-
-  // ─── #2196 AC3: category chip never shows a raw id ──────────────────────────
-
-  describe('category chip (#2196 AC3)', () => {
-    it('shows no category chip when the category id cannot be resolved', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ category: 'cat-unknown-uuid-123' as HouseholdItemCategory }),
-      );
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('cat-unknown-uuid-123')).not.toBeInTheDocument();
-      expect(screen.queryByText('Furniture')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('status menu (#2209)', () => {
-    const TOKEN = { token: `u_${'c'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
-
-    async function loadItem(status: HouseholdItemStatus = 'purchased') {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status }));
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-    }
-
-    it('renders the current status as a menu button, not a select', async () => {
-      await loadItem('purchased');
-      const chip = screen.getByTestId('purchase-status');
-      expect(chip).toHaveTextContent(enCommon.statusVocabulary.purchase.purchased);
-      expect(chip).toHaveAttribute('aria-haspopup', 'menu');
-      expect(screen.queryByRole('combobox', { name: /purchase status/i })).toBeNull();
-    });
-
-    it('lists only the allowed transitions, forward before backward', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      await user.click(screen.getByTestId('purchase-status'));
-      const labels = screen.getAllByRole('menuitem').map((r) => r.textContent);
-      expect(labels).toEqual([
-        enCommon.statusAction.purchase.markDeliveryScheduled,
-        `${enCommon.statusAction.purchase.markDelivered}›`,
-        `Back to “${enCommon.statusVocabulary.purchase.planned}”`,
-      ]);
-    });
-
-    it('a dateless transition PATCHes the status and offers Undo', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockResolvedValue({
-        householdItem: makeItem({ status: 'scheduled' }),
-        undo: TOKEN,
-      });
-
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
-
-      await waitFor(() => {
-        expect(mockPatch).toHaveBeenCalledWith('/household-items/item-1', { status: 'scheduled' });
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
-          enCommon.statusVocabulary.purchase.scheduled,
-        );
-      });
-      expect(mockShowUndoToast).toHaveBeenCalledTimes(1);
-      expect(mockShowUndoToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Standing Desk is now “Delivery scheduled”.',
-          dedupeKey: 'purchase:item-1',
-        }),
-      );
-    });
-
-    it('marking delivered asks for the date and sends it as the actual delivery date', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockResolvedValue({
-        householdItem: makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
-        undo: TOKEN,
-      });
-
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-arrived'));
-      expect(screen.getByRole('dialog', { name: 'When did it arrive?' })).toBeInTheDocument();
-      await user.click(screen.getByTestId('purchase-status-date-today'));
-
-      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
-      const [url, body] = mockPatch.mock.calls[0] as [
-        string,
-        { status: string; actualDeliveryDate: string },
-      ];
-      expect(url).toBe('/household-items/item-1');
-      expect(body.status).toBe('arrived');
-      expect(body.actualDeliveryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('shows no Undo toast when the server issued no token', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockResolvedValue({ householdItem: makeItem({ status: 'scheduled' }) });
-
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
-          enCommon.statusVocabulary.purchase.scheduled,
-        );
-      });
-      expect(mockShowUndoToast).not.toHaveBeenCalled();
-    });
-
-    it('Undo posts the token and reloads the purchase', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockResolvedValue({
-        householdItem: makeItem({ status: 'scheduled' }),
-        undo: TOKEN,
-      });
-      mockPost.mockResolvedValue({ restored: [], retractedEventIds: [] });
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
-      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
-
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
-      await act(async () => {
-        await options.onUndo();
-      });
-
-      expect(mockPost).toHaveBeenCalledWith(`/undo/${TOKEN.token}`);
-      await waitFor(() => {
-        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
-          enCommon.statusVocabulary.purchase.purchased,
-        );
-      });
-    });
-
-    it('a failed change shows an error toast, no Undo, and the chip keeps its status', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockRejectedValue(new Error('RAW-LOCAL'));
-
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
-
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith('error', enCommon.statusMenu.changeFailed);
-      });
-      expect(mockShowUndoToast).not.toHaveBeenCalled();
-      expect(screen.getByTestId('purchase-status')).toHaveTextContent(
-        enCommon.statusVocabulary.purchase.purchased,
-      );
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-
-    it('a failed change with an API error toasts the translated message', async () => {
-      const user = userEvent.setup();
-      await loadItem('purchased');
-      mockPatch.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      await user.click(screen.getByTestId('purchase-status'));
-      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
-
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith('error', enErrors.NOT_FOUND);
-      });
-    });
-  });
-
-  describe('inline area update', () => {
-    it('shows an error toast (not a budget banner) on an area update failure', async () => {
-      const user = userEvent.setup();
-      mockUseAreas.mockReturnValue({
-        areas: [{ id: 'area-1', name: 'Kitchen', color: null, ancestors: [] }],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial hook stub
-      } as any);
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ area: null }));
-      mockUpdateHouseholdItem.mockRejectedValue(new Error('RAW-LOCAL'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-      await user.click(screen.getByPlaceholderText('Select an area'));
-      await user.click(await screen.findByText('Kitchen'));
-
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
-          enHouseholdItems.detail.area.updateFailed,
-        );
-      });
-      expect(screen.queryByText(enHouseholdItems.detail.area.updateFailed)).toBeNull();
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-  });
-
-  describe('dependency predecessors display', () => {
-    // Note: migration 0012 replaced the "linked work items" section with a
-    // Dependencies section showing work_item and milestone predecessors.
-
-    it('renders work item dependency predecessor as a link', async () => {
-      const dep: HouseholdItemDepDetail = {
-        householdItemId: 'item-1',
-        predecessorType: 'work_item',
-        predecessorId: 'wi-abc-123',
-        predecessor: {
-          id: 'wi-abc-123',
-          title: 'Install desk',
-          status: 'in_progress',
-          endDate: '2026-04-15',
-          area: null,
-        },
-      };
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([dep]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Install desk')).toBeInTheDocument();
-    });
-
-    it('renders multiple dependency predecessors', async () => {
-      const deps: HouseholdItemDepDetail[] = [
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-1',
-          predecessor: {
-            id: 'wi-1',
-            title: 'Setup cables',
-            status: 'not_started',
-            endDate: null,
-            area: null,
-          },
-        },
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-2',
-          predecessor: {
-            id: 'wi-2',
-            title: 'Test connection',
-            status: 'completed',
-            endDate: '2026-03-05',
-            area: null,
-          },
-        },
-      ];
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue(deps);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Setup cables')).toBeInTheDocument();
-      expect(screen.getByText('Test connection')).toBeInTheDocument();
-    });
-  });
-
-  // Note: The decorative progress stepper (<ol>) was replaced by an interactive
-  // status <select> dropdown. Tests for the new selector are in the
-  // 'inline status selector' describe block above.
-
-  describe('Documents section', () => {
-    it('renders the Documents panel button with entityType="household_item"', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('documents-panel-button')).toBeInTheDocument();
-      expect(screen.getByTestId('entity-type')).toHaveTextContent('household_item');
-    });
-
-    it('renders with correct entityId from URL params', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ id: 'item-abc' }));
-
-      renderPage('item-abc');
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('entity-id')).toHaveTextContent('item-abc');
-    });
-
-    it('renders the Documents panel button after the Cost section', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const budgetHeading = screen
-        .getAllByRole('heading', { level: 2 })
-        .find((heading) => heading.textContent === 'Cost');
-      const button = screen.getByTestId('documents-panel-button');
-      expect(budgetHeading).toBeDefined();
-      // Documents come after Cost in document order (the button replaces the old section).
-      expect(
-        (budgetHeading as HTMLElement).compareDocumentPosition(button) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    });
-
-    it('does not render the Documents panel button in loading state', async () => {
-      mockGetHouseholdItem.mockImplementation(() => new Promise(() => {})); // Never resolves
-
-      renderPage();
-
-      expect(screen.getByText('Loading household item...')).toBeInTheDocument();
-      expect(screen.queryByTestId('documents-panel-button')).not.toBeInTheDocument();
-    });
-
-    it('does not render the Documents panel button when item returns 404', async () => {
-      mockGetHouseholdItem.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
-      );
-
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
-
-      expect(screen.queryByTestId('documents-panel-button')).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Dependencies section (Story #415) ───────────────────────────────────────
-
-  describe('Dependencies section', () => {
-    it('renders "Dependencies" heading when item loads', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
-    });
-
-    it('shows empty state text when no dependencies exist', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(
-        screen.getByText('No dependencies yet. Add a dependency to schedule this item.'),
-      ).toBeInTheDocument();
-    });
-
-    it('shows earliestDeliveryDate label in Dependencies card', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ earliestDeliveryDate: '2026-03-01' }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // "Earliest Delivery" is an inline date input label in the Dependencies card
-      expect(screen.getByLabelText('Earliest Delivery')).toBeInTheDocument();
-    });
-
-    it('shows latestDeliveryDate label in Dependencies card', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ latestDeliveryDate: '2026-03-10' }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // "Latest Delivery" is an inline date input label in the Dependencies card
-      expect(screen.getByLabelText('Latest Delivery')).toBeInTheDocument();
-    });
-
-    it('shows "Late" chip near Earliest Delivery when item is planned and isLate is true', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          status: 'planned',
-          isLate: true,
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // In Story #467, the chip now shows "Late" (not "Floored to today") and is in the Dependencies card
-      expect(screen.getByText('Late')).toBeInTheDocument();
-    });
-
-    it('does NOT show "Floored to today" chip when item is delivered', async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          status: 'arrived',
-          earliestDeliveryDate: today,
-          actualDeliveryDate: today,
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Floored to today')).not.toBeInTheDocument();
-    });
-
-    it('renders dependency list when work_item dependencies exist', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-1',
-          predecessor: {
-            id: 'wi-1',
-            title: 'Foundation Work',
-            status: 'in_progress',
-            endDate: '2026-05-15',
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Work Item')).toBeInTheDocument();
-    });
-
-    it('renders milestone dependency with "Milestone" type badge', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'milestone',
-          predecessorId: '42',
-          predecessor: { id: '42', title: 'Frame Complete', status: null, endDate: '2026-04-30' },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Frame Complete')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Milestone')).toBeInTheDocument();
-    });
-
-    it('inline dependency search input is visible in the Dependencies card', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(
-        screen.getByLabelText(enHouseholdItems.detail.dependencies.search),
-      ).toBeInTheDocument();
-    });
-
-    it('clicking "×" remove button shows Confirm and Cancel actions', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-1',
-          predecessor: {
-            id: 'wi-1',
-            title: 'Foundation Work',
-            status: 'in_progress',
-            endDate: null,
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
-      });
-
-      const removeButton = screen.getByRole('button', {
-        name: /Remove dependency on Foundation Work/i,
-      });
-      await user.click(removeButton);
-
-      expect(screen.getByRole('alertdialog', { name: 'Remove dependency?' })).toBeInTheDocument();
-      expect(screen.getByTestId('purchase-dependency-remove-confirm')).toBeInTheDocument();
-      expect(screen.getByTestId('purchase-dependency-remove-cancel')).toHaveFocus();
-    });
-
-    it('confirming removal calls deleteHouseholdItemDep', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps
-        .mockResolvedValueOnce([
-          {
-            householdItemId: 'item-1',
-            predecessorType: 'work_item',
-            predecessorId: 'wi-1',
-            predecessor: {
-              id: 'wi-1',
-              title: 'Foundation Work',
-              status: 'in_progress',
-              endDate: null,
-            },
-          } as HouseholdItemDepDetail,
-        ])
-        .mockResolvedValueOnce([]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
-      });
-
-      const removeButton = screen.getByRole('button', {
-        name: /Remove dependency on Foundation Work/i,
-      });
-      await user.click(removeButton);
-
-      const confirmButton = screen.getByTestId('purchase-dependency-remove-confirm');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockDeleteHouseholdItemDep).toHaveBeenCalledWith('item-1', 'work_item', 'wi-1');
-      });
-    });
-  });
-
-  describe('dependency rendering (milestone vs work item)', () => {
-    it('milestone dependency is rendered as plain text, not a link', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'milestone',
-          predecessorId: 'milestone-42',
-          predecessor: {
-            id: 'milestone-42',
-            title: 'Foundation Complete',
-            status: null,
-            endDate: '2026-05-15',
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Milestone name should be visible in the DOM
-      expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
-
-      // But it should NOT be a clickable link
-      expect(screen.queryByRole('link', { name: 'Foundation Complete' })).not.toBeInTheDocument();
-    });
-
-    it('work item dependency is rendered as a clickable link', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-install-123',
-          predecessor: {
-            id: 'wi-install-123',
-            title: 'Install Foundation',
-            status: 'in_progress',
-            endDate: '2026-05-10',
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Work item should be a clickable link
-      const link = screen.getByRole('link', { name: 'Install Foundation' });
-      expect(link).toBeInTheDocument();
-      expect(link).toHaveAttribute('href', '/project/work-items/wi-install-123');
-    });
-
-    it('mixed dependencies: milestone is plain text, work item is link', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'milestone',
-          predecessorId: 'ms-1',
-          predecessor: {
-            id: 'ms-1',
-            title: 'Walls Complete',
-            status: null,
-            endDate: '2026-04-20',
-          },
-        } as HouseholdItemDepDetail,
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-paint',
-          predecessor: {
-            id: 'wi-paint',
-            title: 'Paint Walls',
-            status: 'completed',
-            endDate: '2026-04-25',
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Milestone should be plain text (no link)
-      expect(screen.getByText('Walls Complete')).toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'Walls Complete' })).not.toBeInTheDocument();
-
-      // Work item should be a link
-      const workItemLink = screen.getByRole('link', { name: 'Paint Walls' });
-      expect(workItemLink).toBeInTheDocument();
-      expect(workItemLink).toHaveAttribute('href', '/project/work-items/wi-paint');
-    });
-  });
-
-  // ── Dates & Delivery section (Story #467 — replaces Schedule section from issue #462) ──────
-
-  describe('Dates & Delivery section', () => {
-    it('renders the "Dates & Delivery" section heading', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Story #467 replaced the "Schedule" section with "Dates & Delivery"
-      expect(screen.getByRole('heading', { name: 'Dates & Delivery' })).toBeInTheDocument();
-    });
-
-    it('renders "Target Date" label when no actual delivery date', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ targetDeliveryDate: '2026-03-01', actualDeliveryDate: null }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // In Story #467, label is "Target Date" (not "Target Delivery Date")
-      expect(screen.getByText('Target Date')).toBeInTheDocument();
-    });
-
-    it('renders "Actual Date" label when actualDeliveryDate is set', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ actualDeliveryDate: '2026-03-05' }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // In Story #467, label is "Actual Date" (not "Actual Delivery Date")
-      expect(screen.getByText('Actual Date')).toBeInTheDocument();
-    });
-
-    it('shows em-dash when targetDeliveryDate is null', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ targetDeliveryDate: null, actualDeliveryDate: null }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // In Story #467, no target date shows em-dash (not "Not scheduled")
-      const dashValues = screen.getAllByText('\u2014');
-      expect(dashValues.length).toBeGreaterThan(0);
-    });
-
-    it('shows formatted date when targetDeliveryDate is set', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ targetDeliveryDate: '2026-03-01', actualDeliveryDate: null }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // "Not scheduled" text should NOT appear in the new design
-      expect(screen.queryByText('Not scheduled')).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Dependencies section (Story #467 — replaces Constraints section from issue #462) ──────
-
-  describe('Dependencies section', () => {
-    it('renders the Dependencies section heading', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Story #467 replaced "Constraints" with a unified "Dependencies" card
-      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
-    });
-
-    it('does NOT render the old Constraints or Delivery Window headings', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole('heading', { name: 'Constraints' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: 'Delivery Window' })).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Issue #1239 — AreaBreadcrumb in inline dep search dropdown ──────────────
-
-  describe('area breadcrumb in dep search dropdown (Issue #1239)', () => {
-    it('shows area breadcrumb path in dep search dropdown when work item has ancestors', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue({
-        items: [
-          {
-            id: 'wi-with-area',
-            title: 'Electrical Rough-In',
-            status: 'not_started' as const,
-            startDate: null,
-            endDate: null,
-            projectedStartDate: null,
-            projectedEndDate: null,
-            isLate: false,
-            lateDays: null,
-            isHeldUp: false,
-            durationDays: null,
-            actualStartDate: null,
-            actualEndDate: null,
-            assignedUser: null,
-            assignedVendor: null,
-            area: {
-              id: 'area-3',
-              name: 'Bathroom',
-              color: null,
-              ancestors: [{ id: 'area-1', name: 'Upper Floor', color: null }],
-            },
-            budgetLineCount: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Type into the dep search input to open the dropdown
-      const depInput = screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
-      await user.type(depInput, 'Elec');
-
-      await waitFor(() => {
-        expect(screen.getByText('Electrical Rough-In')).toBeInTheDocument();
-      });
-
-      // AreaBreadcrumb compact renders plain span — text appears exactly once.
-      expect(screen.getByText('Upper Floor › Bathroom')).toBeInTheDocument();
-    });
-
-    it('shows "No area" in dep search dropdown when work item has null area', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue({
-        items: [
-          {
-            id: 'wi-no-area-dep',
-            title: 'Foundation Excavation',
-            status: 'not_started' as const,
-            startDate: null,
-            endDate: null,
-            projectedStartDate: null,
-            projectedEndDate: null,
-            isLate: false,
-            lateDays: null,
-            isHeldUp: false,
-            durationDays: null,
-            actualStartDate: null,
-            actualEndDate: null,
-            assignedUser: null,
-            assignedVendor: null,
-            area: null,
-            budgetLineCount: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const depInput = screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
-      await user.type(depInput, 'Found');
-
-      await waitFor(() => {
-        expect(screen.getByText('Foundation Excavation')).toBeInTheDocument();
-      });
-
-      // "No area" appears in the compact breadcrumb inside the dep search dropdown result.
-      expect(screen.getByText('No area')).toBeInTheDocument();
-    });
-  });
-
-  // ─── #2129 / #2131: translated errors, never raw server text ────────────────
-
-  describe('translated API errors (#2129, #2131)', () => {
-    const SENTINEL = 'RAW-SERVER-SENTINEL';
-    const apiError = (status: number, code: string) =>
-      new MockApiClientError(status, { code, message: SENTINEL });
-
-    async function addDependencyWith(rejection: unknown) {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockCreateHouseholdItemDep.mockRejectedValue(rejection);
-      mockListWorkItems.mockResolvedValue({
-        items: [
-          {
-            id: 'wi-x',
-            title: 'Electrical Rough-In',
-            status: 'not_started' as const,
-            startDate: null,
-            endDate: null,
-            projectedStartDate: null,
-            projectedEndDate: null,
-            isLate: false,
-            lateDays: null,
-            isHeldUp: false,
-            durationDays: null,
-            actualStartDate: null,
-            actualEndDate: null,
-            assignedUser: null,
-            assignedVendor: null,
-            area: null,
-            budgetLineCount: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-      });
-      renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
-      );
-      await user.type(screen.getByLabelText(enHouseholdItems.detail.dependencies.search), 'Elec');
-      await user.click(await screen.findByRole('option', { name: /Electrical Rough-In/ }));
-    }
-
-    it('add dependency 409 CIRCULAR_DEPENDENCY shows the circular copy, not the server text', async () => {
-      await addDependencyWith(apiError(409, 'CIRCULAR_DEPENDENCY'));
-      expect(await screen.findByText(enErrors.CIRCULAR_DEPENDENCY)).toBeInTheDocument();
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('add dependency 409 DUPLICATE_DEPENDENCY shows the duplicate copy', async () => {
-      await addDependencyWith(apiError(409, 'DUPLICATE_DEPENDENCY'));
-      expect(await screen.findByText(enErrors.DUPLICATE_DEPENDENCY)).toBeInTheDocument();
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('add dependency with a non-API error toasts the translated fallback', async () => {
-      await addDependencyWith(new Error('RAW-LOCAL'));
-      await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
-          enHouseholdItems.detail.dependencies.failedAdd,
-        ),
-      );
-    });
-
-    it('a successful add dependency toasts the translated success copy', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue({
-        items: [
-          {
-            id: 'wi-x',
-            title: 'Electrical Rough-In',
-            status: 'not_started' as const,
-            startDate: null,
-            endDate: null,
-            projectedStartDate: null,
-            projectedEndDate: null,
-            isLate: false,
-            lateDays: null,
-            isHeldUp: false,
-            durationDays: null,
-            actualStartDate: null,
-            actualEndDate: null,
-            assignedUser: null,
-            assignedVendor: null,
-            area: null,
-            budgetLineCount: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-      });
-      renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
-      );
-      await user.type(screen.getByLabelText(enHouseholdItems.detail.dependencies.search), 'Elec');
-      await user.click(await screen.findByRole('option', { name: /Electrical Rough-In/ }));
-      await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'success',
-          enHouseholdItems.detail.dependencies.addedSuccess,
-        ),
-      );
-    });
-
-    async function removeDependency(rejection?: unknown) {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-1',
-          predecessor: {
-            id: 'wi-1',
-            title: 'Foundation Work',
-            status: 'in_progress',
-            endDate: null,
-          },
-        } as HouseholdItemDepDetail,
-      ]);
-      if (rejection) mockDeleteHouseholdItemDep.mockRejectedValue(rejection);
-      renderPage();
-      await waitFor(() => expect(screen.getByText('Foundation Work')).toBeInTheDocument());
-      await user.click(
-        screen.getByRole('button', { name: /Remove dependency on Foundation Work/i }),
-      );
-      await user.click(screen.getByTestId('purchase-dependency-remove-confirm'));
-    }
-
-    it('a successful remove dependency toasts the translated success copy', async () => {
-      await removeDependency();
-      await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'success',
-          enHouseholdItems.detail.dependencies.removedSuccess,
-        ),
-      );
-    });
-
-    it('a failed remove dependency shows the translated failure copy in the dialog, not the server text', async () => {
-      await removeDependency(apiError(500, 'INTERNAL_ERROR'));
-      // #2209: the failure is shown inside the open confirm dialog, not as a toast.
-      const dialog = await screen.findByRole('alertdialog', { name: 'Remove dependency?' });
-      await waitFor(() =>
-        expect(within(dialog).getByRole('alert')).toHaveTextContent(
-          enHouseholdItems.detail.dependencies.failedRemove,
-        ),
-      );
-      expect(within(dialog).queryByText(new RegExp(SENTINEL))).toBeNull();
-      expect(mockShowToast).not.toHaveBeenCalledWith('error', expect.anything());
-    });
-
-    it('load failure with an ApiClientError shows the translated code copy only', async () => {
-      mockGetHouseholdItem.mockRejectedValue(apiError(500, 'INTERNAL_ERROR'));
-      renderPage();
-      expect(await screen.findByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('load failure with a NetworkError shows the network copy', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new MockNetworkError('RAW-LOCAL'));
-      renderPage();
-      expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    async function deleteWith(rejection: unknown) {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValue(rejection);
-      renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument(),
-      );
-      await user.click(screen.getByRole('button', { name: 'Delete Item' }));
-      const confirm = await screen.findByTestId('purchase-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-      await user.click(confirm);
-    }
-
-    it('delete failure with ApiClientError shows translated copy, not the server text', async () => {
-      await deleteWith(apiError(409, 'CONFLICT'));
-      expect(await screen.findByText(enErrors.CONFLICT)).toBeInTheDocument();
-      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
-    });
-
-    it('delete failure with NetworkError shows the network copy', async () => {
-      await deleteWith(new MockNetworkError('RAW-LOCAL'));
-      expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
-    });
-
-    it('delete failure with a plain Error shows the fallback copy, not the local text', async () => {
-      await deleteWith(new Error('RAW-LOCAL'));
-      expect(
-        await screen.findByText(enHouseholdItems.detail.errors.deleteFailed),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-  });
-
-  // ── Page identity (#2202) ──────────────────────────────────────────────────
-
-  describe('page identity (#2202)', () => {
-    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
-
-    it('shows one h1 with the purchase name and sets the tab title', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      expect(await screen.findByRole('heading', { name: 'Standing Desk', level: 1 })).toBeVisible();
+      const view = renderPage();
+      await screen.findByRole('heading', { level: 1, name: 'Sample sofa' });
+      fireEvent.click(screen.getByTestId('go-hi-2'));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Purchase' })).toBeVisible();
+      expect(screen.queryByRole('heading', { level: 1, name: 'Sample sofa' })).toBeNull();
+      expect(mockGetItem).toHaveBeenCalledWith('hi-2');
+      view.unmount();
+    });
+
+    it('falls back to "Untitled purchase" for a whitespace-only name, without user-text marking', async () => {
+      mockGetItem.mockResolvedValue(makePurchasePage({ name: '   ' }));
+      renderPage();
+      const heading = await screen.findByRole('heading', { name: 'Untitled purchase', level: 1 });
+      expect(heading).toBeVisible();
       expect(h1s()).toHaveLength(1);
       await waitFor(() =>
-        expect(document.title).toBe('Standing Desk \u00B7 Purchases \u00B7 Cornerstone'),
+        expect(document.title).toBe('Untitled purchase · Purchases · Cornerstone'),
       );
     });
 
-    it('falls back to "Untitled purchase" for a whitespace-only name', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ name: '   ' }));
-
+    it('shows the typed h1 "Purchase" with the breadcrumb and a skeleton while loading', async () => {
+      mockGetItem.mockReturnValue(new Promise(() => {}));
       renderPage();
-
-      expect(
-        await screen.findByRole('heading', { name: 'Untitled purchase', level: 1 }),
-      ).toBeVisible();
-      expect(h1s()).toHaveLength(1);
-    });
-
-    it('shows the typed h1 "Purchase" with the breadcrumb while loading', async () => {
-      mockGetHouseholdItem.mockReturnValue(new Promise(() => {}));
-
-      renderPage();
-
       expect(screen.getByRole('heading', { name: 'Purchase', level: 1 })).toBeVisible();
       expect(h1s()).toHaveLength(1);
       expect(screen.getByRole('link', { name: /Purchases/ })).toHaveAttribute(
         'href',
         '/project/household-items',
       );
-      await waitFor(() =>
-        expect(document.title).toBe('Purchase \u00B7 Purchases \u00B7 Cornerstone'),
-      );
+      expect(screen.getByRole('status', { name: 'Loading the purchase…' })).toBeInTheDocument();
+      await waitFor(() => expect(document.title).toBe('Purchase · Purchases · Cornerstone'));
     });
 
-    it('shows h1 "Purchase" above the error card (which keeps its h2) with Back and Retry', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('Network error'));
+    it('shows one "Purchase not found" h1, the breadcrumb and Back to Purchases on 404, without Retry', async () => {
+      mockGetItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Household item not found' }),
+      );
+      renderPage('/project/household-items/missing');
+      expect(
+        await screen.findByRole('heading', { name: 'Purchase not found', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+      await waitFor(() =>
+        expect(document.title).toBe('Purchase not found · Purchases · Cornerstone'),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Purchases' }));
+      expect(await screen.findByTestId('purchases-list')).toBeInTheDocument();
+    });
 
+    it('keeps h1 "Purchase" above an alert with the translated message, Back and Retry on an API error', async () => {
+      mockGetItem.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
       renderPage();
-
-      expect(await screen.findByRole('heading', { name: 'Error', level: 2 })).toBeVisible();
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/.+/);
       expect(screen.getByRole('heading', { name: 'Purchase', level: 1 })).toBeVisible();
       expect(h1s()).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'Back to Purchases' })).toBeVisible();
-      expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
-      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      expect(within(alert).getByRole('button', { name: 'Back to Purchases' })).toBeVisible();
+      expect(within(alert).getByRole('button', { name: 'Retry' })).toBeVisible();
     });
 
-    it('keeps the breadcrumb in the 404 state', async () => {
-      mockGetHouseholdItem.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
-      );
-
+    it('uses the generic sentence for a network failure, and Retry loads the purchase again', async () => {
+      mockGetItem.mockRejectedValueOnce(new Error('down'));
       renderPage();
-
-      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
-      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      expect(await screen.findByRole('alert')).toHaveTextContent(/.+/);
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByRole('heading', { name: 'Sample sofa', level: 1 })).toBeVisible();
+      expect(mockGetItem).toHaveBeenCalledTimes(2);
     });
+  });
 
-    it('trails only Purchases (never the purchase name) and shows no Back without origin', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
+  describe('page identity and origin', () => {
+    it('D-37: trails only the Purchases parent and offers no old back button', async () => {
+      await loaded();
       const nav = screen.getByRole('navigation', { name: 'You are here' });
       expect(within(nav).getAllByRole('link')).toHaveLength(1);
-      expect(nav).not.toHaveTextContent('Standing Desk');
-      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+      expect(within(nav).getByRole('link', { name: /Purchases/ })).toHaveAttribute(
+        'href',
+        '/project/household-items',
+      );
+      expect(nav).not.toHaveTextContent('Sample sofa');
+      expect(screen.queryByRole('button', { name: /back to household items/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /back to schedule/i })).toBeNull();
+      expect(screen.queryByTestId('breadcrumbs-back')).toBeNull();
     });
 
     it('offers Back to the exact Calendar URL the user came from', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage('item-1', {
-        pathname: '/project/household-items/item-1',
+      await loaded({
+        pathname: '/project/household-items/hi-1',
         state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
       });
-
-      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
       expect(screen.getByRole('link', { name: /Back to Calendar/ })).toHaveAttribute(
         'href',
         '/schedule/calendar?calendarMode=week',
       );
     });
 
-    it('passes origin (with the purchase name) to the Edit page', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await user.click(await screen.findByRole('button', { name: /edit/i }));
-
-      await waitFor(() =>
-        expect(screen.getByTestId('location')).toHaveTextContent(
-          '/project/household-items/item-1/edit',
-        ),
-      );
-      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
-        origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+    it('offers no Back when the origin is the Purchases list (the nearest parent)', async () => {
+      await loaded({
+        pathname: '/project/household-items/hi-1',
+        state: { origin: { to: '/project/household-items?status=planned' } },
       });
+      expect(screen.queryByTestId('breadcrumbs-back')).toBeNull();
     });
 
-    it('passes origin (with the purchase name) to a dependency predecessor task link', async () => {
-      const user = userEvent.setup();
-      const dep: HouseholdItemDepDetail = {
-        householdItemId: 'item-1',
-        predecessorType: 'work_item',
-        predecessorId: 'wi-abc-123',
-        predecessor: {
-          id: 'wi-abc-123',
-          title: 'Install desk',
-          status: 'in_progress',
-          endDate: '2026-04-15',
-          area: null,
-        },
-      };
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([dep]);
-
-      renderPage();
-
-      await user.click(await screen.findByRole('link', { name: 'Install desk' }));
-
-      await waitFor(() =>
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/wi-abc-123'),
+    it('carries the page as origin (with the purchase name) on strip links', async () => {
+      mockGetItem.mockResolvedValue(
+        makePurchasePage({ area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] } }),
       );
-      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
-        origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+      await loaded('/project/household-items/hi-1?tab=timing');
+      fireEvent.click(screen.getByTestId('summary-fact-where'));
+      await waitFor(() => expect(seen.path).toBe('/areas'));
+      expect(seen.state).toEqual({
+        origin: { to: '/project/household-items/hi-1?tab=timing', name: 'Sample sofa' },
       });
     });
   });
 
-  // ─── Dependency picker: server-searched tasks, folded milestones ─────────────
-
-  describe('dependency picker (server search)', () => {
-    const task = (id: string, title: string) => ({
-      id,
-      title,
-      status: 'not_started' as const,
-      startDate: null,
-      endDate: null,
-      projectedStartDate: null,
-      projectedEndDate: null,
-      isLate: false,
-      lateDays: null,
-      isHeldUp: false,
-      durationDays: null,
-      actualStartDate: null,
-      actualEndDate: null,
-      assignedUser: null,
-      assignedVendor: null,
-      area: null,
-      budgetLineCount: 0,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    });
-    const milestone = (id: number, title: string) => ({
-      id,
-      title,
-      description: null,
-      targetDate: '2026-12-01',
-      isCompleted: false,
-      completedAt: null,
-      color: null,
-      workItemCount: 0,
-      dependentWorkItemCount: 0,
-      createdBy: null,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    });
-    const page = (items: ReturnType<typeof task>[]) => ({
-      items,
-      pagination: { page: 1, pageSize: 50, totalItems: items.length, totalPages: 1 },
-    });
-    const searchInput = () => screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
-
-    async function ready() {
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
-      );
-    }
-
-    it('loads no tasks and no companies on mount', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      renderPage();
-      await ready();
-
-      expect(mockListWorkItems).not.toHaveBeenCalled();
-      expect(mockFetchVendors).not.toHaveBeenCalled();
-      expect(mockListMilestones).toHaveBeenCalledTimes(1);
+  describe('header', () => {
+    it('shows the status chip and a Mark ordered primary for a planned purchase', async () => {
+      await loaded();
+      expect(screen.getByTestId('purchase-header')).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-status')).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-primary-ordered')).toHaveTextContent('Mark ordered');
+      expect(screen.queryByTestId('purchase-primary-delivered')).toBeNull();
     });
 
-    it('searches tasks on the server with the typed query, 50 per page and a signal', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([task('wi-250', 'Zeta Plastering')]));
-      renderPage();
-      await ready();
+    it.each(['purchased', 'scheduled'] as const)(
+      'offers Mark delivered, not "Mark delivery scheduled", for an %s purchase',
+      async (status) => {
+        mockGetItem.mockResolvedValue(makePurchasePage({ status }));
+        await loaded();
+        expect(screen.getByTestId('purchase-primary-delivered')).toHaveTextContent(
+          'Mark delivered',
+        );
+        expect(screen.queryByTestId('purchase-primary-ordered')).toBeNull();
+        expect(screen.getByTestId('purchase-primary-delivered')).not.toHaveTextContent(
+          /scheduled/i,
+        );
+      },
+    );
 
-      await user.type(searchInput(), 'zeta');
-
-      expect(await screen.findByRole('option', { name: /Zeta Plastering/ })).toBeInTheDocument();
-      expect(mockListWorkItems).toHaveBeenCalledWith(
-        { q: 'zeta', pageSize: 50 },
-        { signal: expect.any(AbortSignal) },
-      );
+    it('offers the Log link once the purchase arrived', async () => {
+      mockGetItem.mockResolvedValue(makePurchasePage({ status: 'arrived' }));
+      await loaded();
+      expect(screen.getByTestId('purchase-primary-log')).toHaveAttribute('href', '/diary/new');
+      expect(screen.queryByTestId('purchase-primary-ordered')).toBeNull();
+      expect(screen.queryByTestId('purchase-primary-delivered')).toBeNull();
     });
 
-    it('lists tasks first, then milestones matched with folding', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([task('wi-1', 'Rohbau Elektro')]));
-      mockListMilestones.mockResolvedValue([milestone(7, 'Rohbau Übergabe')]);
-      renderPage();
-      await ready();
+    type RunOptions = {
+      request: () => Promise<unknown>;
+      recordName: string;
+      statusLabel: string;
+      dedupeKey: string;
+      onChanged: () => void;
+      onUndone: () => Promise<void>;
+    };
+    const lastRun = () => mockRunStatusChange.mock.calls.at(-1)![0] as unknown as RunOptions;
 
-      await user.type(searchInput(), 'ubergabe');
+    it('Mark ordered asks when, then sends the order date, names the purchase and refreshes on change and on undo', async () => {
+      mockChangeStatus.mockResolvedValue({ record: PURCHASE, undo: null } as never);
+      await loaded();
+      fireEvent.click(screen.getByTestId('purchase-primary-ordered'));
+      expect((await screen.findAllByText('When was it ordered?')).length).toBeGreaterThan(0);
+      fireEvent.click(await screen.findByTestId('purchase-primary-ordered-date-today'));
 
-      const options = await screen.findAllByRole('option');
-      expect(options.map((o) => o.textContent)).toEqual([
-        expect.stringContaining('Rohbau Elektro'),
-        expect.stringContaining('Rohbau Übergabe'),
-      ]);
+      await waitFor(() => expect(mockRunStatusChange).toHaveBeenCalledTimes(1));
+      const options = lastRun();
+      expect(options.recordName).toBe('Sample sofa');
+      expect(options.statusLabel).toBe('Ordered');
+      expect(options.dedupeKey).toBe('purchase:hi-1');
+      await options.request();
+      expect(mockChangeStatus).toHaveBeenCalledWith('hi-1', {
+        status: 'purchased',
+        orderDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+      const loads = mockGetItem.mock.calls.length;
+      await act(async () => options.onChanged());
+      await waitFor(() => expect(mockGetItem.mock.calls.length).toBe(loads + 1));
+      await act(async () => options.onUndone());
+      expect(mockGetItem.mock.calls.length).toBe(loads + 2);
     });
 
-    it('does not offer a milestone that does not match the query', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([]));
-      mockListMilestones.mockResolvedValue([milestone(7, 'Roof complete')]);
-      renderPage();
-      await ready();
-
-      await user.type(searchInput(), 'xyz');
-
+    it('Mark ordered offers the planned order date as a chip when there is one', async () => {
+      mockGetItem.mockResolvedValue(makePurchasePage({ orderDate: '2026-02-01' }));
+      await loaded();
+      fireEvent.click(screen.getByTestId('purchase-primary-ordered'));
       expect(
-        await screen.findByText(enHouseholdItems.detail.dependencies.noMatches),
+        await screen.findByTestId('purchase-primary-ordered-date-planned'),
       ).toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: /Roof complete/ })).not.toBeInTheDocument();
     });
 
-    it('leaves out tasks and milestones that are already linked', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemDeps.mockResolvedValue([
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'work_item',
-          predecessorId: 'wi-1',
-          predecessor: { id: 'wi-1', title: 'Linked Task', status: 'in_progress', endDate: null },
-        } as HouseholdItemDepDetail,
-        {
-          householdItemId: 'item-1',
-          predecessorType: 'milestone',
-          predecessorId: '7',
-          predecessor: { id: '7', title: 'Linked Stone', status: 'in_progress', endDate: null },
-        } as unknown as HouseholdItemDepDetail,
-      ]);
-      mockListWorkItems.mockResolvedValue(
-        page([task('wi-1', 'Linked Task'), task('wi-2', 'Free Task')]),
+    it('Mark delivered sends the delivery date as the actual delivery date', async () => {
+      mockGetItem.mockResolvedValue(
+        makePurchasePage({ status: 'purchased', targetDeliveryDate: '2026-03-10' }),
       );
-      mockListMilestones.mockResolvedValue([
-        milestone(7, 'Linked Stone'),
-        milestone(8, 'Free Stone'),
-      ]);
-      renderPage();
-      await ready();
-      await waitFor(() => expect(screen.getAllByText('Linked Task').length).toBeGreaterThan(0));
+      mockChangeStatus.mockResolvedValue({ record: PURCHASE, undo: null } as never);
+      await loaded();
+      fireEvent.click(screen.getByTestId('purchase-primary-delivered'));
+      fireEvent.click(await screen.findByTestId('purchase-primary-delivered-date-planned'));
+      await waitFor(() => expect(mockRunStatusChange).toHaveBeenCalledTimes(1));
+      await lastRun().request();
+      expect(mockChangeStatus).toHaveBeenCalledWith('hi-1', {
+        status: 'arrived',
+        actualDeliveryDate: '2026-03-10',
+      });
+      expect(lastRun().statusLabel).toBe('Delivered');
+    });
+  });
 
-      await user.type(searchInput(), 'e');
-
-      expect(await screen.findByRole('option', { name: /Free Task/ })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /Free Stone/ })).toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: /Linked Task/ })).not.toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: /Linked Stone/ })).not.toBeInTheDocument();
+  describe('strip and tabs', () => {
+    it('shows the strip with the seven facts of the purchase when there is a Documents fact', async () => {
+      documentsFact = { id: 'documents', kind: 'static', label: 'Documents', value: '2' };
+      await loaded();
+      expect(screen.getByTestId('purchase-summary')).toBeInTheDocument();
+      for (const id of [
+        'delivery',
+        'where',
+        'company',
+        'cost',
+        'invoiced',
+        'waitsFor',
+        'documents',
+      ]) {
+        expect(screen.getByTestId(`summary-fact-${id}`)).toBeInTheDocument();
+      }
+      expect(screen.getByTestId('stub-documents')).toBeInTheDocument();
     });
 
-    it('adds a task with the work_item type and a milestone with the milestone type', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
-      mockListMilestones.mockResolvedValue([milestone(8, 'Free Stone')]);
-      renderPage();
-      await ready();
-
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
-      expect(mockCreateHouseholdItemDep).toHaveBeenLastCalledWith('item-1', {
-        predecessorType: 'work_item',
-        predecessorId: 'wi-2',
-      });
-
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Stone/ }));
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(2));
-      expect(mockCreateHouseholdItemDep).toHaveBeenLastCalledWith('item-1', {
-        predecessorType: 'milestone',
-        predecessorId: '8',
-      });
+    it('leaves the Documents fact out when there is none', async () => {
+      await loaded();
+      expect(screen.queryByTestId('summary-fact-documents')).toBeNull();
     });
 
-    it('ignores a second selection while an add is in flight', async () => {
+    it('lists Overview, Timing, Cost, Site diary and History with the cost and diary counts', async () => {
+      await loaded();
+      const tabs = screen.getByRole('tablist');
+      expect(within(tabs).getAllByRole('tab')).toHaveLength(5);
+      expect(within(tabs).getByRole('tab', { name: /Cost/ })).toHaveTextContent('2');
+      expect(within(tabs).getByRole('tab', { name: /diary/i })).toHaveTextContent('3');
+      expect(screen.getByTestId('stub-overview')).toBeInTheDocument();
+      expect(screen.queryByTestId('stub-timing')).toBeNull();
+    });
+
+    it('mounts each panel on its first visit', async () => {
       const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(
-        page([task('wi-2', 'Free Task'), task('wi-3', 'Other Task')]),
-      );
-      let finish!: () => void;
-      mockCreateHouseholdItemDep.mockReturnValue(
-        new Promise((resolve) => {
-          finish = () => resolve({} as HouseholdItemDepDetail);
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /Timing/ }));
+      expect(await screen.findByTestId('stub-timing')).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: /Cost/ }));
+      expect(await screen.findByTestId('stub-cost')).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      expect(await screen.findByTestId('stub-diary')).toBeInTheDocument();
+    });
+
+    it('the Site diary panel gets the purchase window, company, area and its own labels', async () => {
+      mockGetItem.mockResolvedValue(
+        makePurchasePage({
+          orderDate: '2026-02-01',
+          targetDeliveryDate: '2026-03-10',
+          vendor: { id: 'v-1', name: 'Company One', trade: null, phone: null },
+          area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
         }),
       );
-      renderPage();
-      await ready();
-
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Other Task/ }));
-
-      expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1);
-      await act(async () => {
-        finish();
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      const diary = await screen.findByTestId('stub-diary');
+      expect(diary).toHaveAttribute('data-prefix', 'purchase-diary');
+      expect(diary).toHaveAttribute('data-company', 'v-1');
+      expect(diary).toHaveAttribute('data-area', 'a-1');
+      expect(JSON.parse(diary.dataset.dates!)).toEqual({
+        dateFrom: '2026-02-01',
+        dateTo: '2026-03-10',
+      });
+      expect(JSON.parse(diary.dataset.labels!)).toMatchObject({
+        title: 'Site diary',
+        log: 'Log for this purchase',
+        forCompany: 'Entries for Company One',
+        forSubject: 'Entries for this purchase',
+        srCount: '2 entries',
+      });
+      expect(diaryInputs.at(-1)).toMatchObject({
+        subjectKey: 'hi-1',
+        vendorId: 'v-1',
+        areaId: 'a-1',
+        dates: { dateFrom: '2026-02-01', dateTo: '2026-03-10' },
       });
     });
 
-    it('allows another add once the previous one finished with an error', async () => {
+    it('the Site diary panel works without company, area or dates', async () => {
       const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
-      mockCreateHouseholdItemDep.mockRejectedValueOnce(new Error('boom'));
-      renderPage();
-      await ready();
-
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
-
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(2));
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /diary/i }));
+      const diary = await screen.findByTestId('stub-diary');
+      expect(diary).toHaveAttribute('data-company', '');
+      expect(diary).toHaveAttribute('data-area', '');
+      expect(diary.dataset.dates).toBe('null');
+      expect(diaryInputs.at(-1)).toMatchObject({ vendorId: null, areaId: null, dates: null });
     });
 
-    it('keeps focus on the input (not body) after an add', async () => {
+    it('History shows who created the purchase and when it was last updated', async () => {
       const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
-      renderPage();
-      await ready();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /History/ }));
+      expect(await screen.findByRole('heading', { level: 2, name: 'History' })).toBeVisible();
+      const line = screen.getByTestId('purchase-history-created');
+      expect(line).toHaveTextContent('Created by Pat Sample on Jan 5, 2026');
+      expect(line).toHaveTextContent('Last updated Feb 10, 2026');
+    });
 
-      await user.type(searchInput(), 'e');
-      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
-      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
+    it('History says "Created on" when the creator is unknown', async () => {
+      mockGetItem.mockResolvedValue(makePurchasePage({ createdBy: null }));
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: /History/ }));
+      const line = await screen.findByTestId('purchase-history-created');
+      expect(line).toHaveTextContent(/^Created on/);
+      expect(line).not.toHaveTextContent('Created by');
+    });
 
-      expect(document.activeElement).toBe(searchInput());
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    it('registers the purchase area and company as the creation context', async () => {
+      mockGetItem.mockResolvedValue(
+        makePurchasePage({
+          area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
+          vendor: { id: 'v-1', name: 'Company One', trade: null, phone: null },
+        }),
+      );
+      await loaded();
+      expect(mockUseCreateContext).toHaveBeenLastCalledWith({ areaId: 'a-1', companyId: 'v-1' });
+    });
+
+    it('registers no area or company for a purchase without them', async () => {
+      await loaded();
+      expect(mockUseCreateContext).toHaveBeenLastCalledWith({
+        areaId: undefined,
+        companyId: undefined,
+      });
+    });
+
+    it('refreshes the purchase when an invoice was created from its dialog, and only then', async () => {
+      await loaded();
+      const loads = mockGetItem.mock.calls.length;
+      act(() => Events.notifyObjectCreated('purchase'));
+      expect(mockGetItem.mock.calls.length).toBe(loads);
+      act(() => Events.notifyObjectCreated('invoice'));
+      await waitFor(() => expect(mockGetItem.mock.calls.length).toBe(loads + 1));
+    });
+  });
+
+  describe('empty Where and Company facts open the Details card', () => {
+    it.each(['where', 'company'])(
+      '%s on the Overview tab starts editing right away',
+      async (id) => {
+        await loaded();
+        fireEvent.click(screen.getByTestId(`summary-fact-${id}`));
+        expect(startEditDetails).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('from another tab it selects Overview first, then starts editing', async () => {
+      await loaded('/project/household-items/hi-1?tab=timing');
+      expect(screen.queryByTestId('stub-overview')).toBeNull();
+      fireEvent.click(screen.getByTestId('summary-fact-company'));
+      expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('probe-tab')).toHaveTextContent('');
+    });
+  });
+
+  describe('edit intent (the old edit URLs; read once, one replace)', () => {
+    it('does not navigate without an edit intent', async () => {
+      await loaded('/project/household-items/hi-1?tab=cost#something');
+      expect(seen.keys).toHaveLength(1);
+      expect(seen.type).toBe('POP');
+      expect(seen.hash).toBe('#something');
+      expect(startEditDetails).not.toHaveBeenCalled();
+    });
+
+    it('drops edit and tab in one replace, keeps the state, other parameters and the hash, and opens the Details card once', async () => {
+      const state = { origin: { to: '/project/household-items', name: 'Purchases' } };
+      await loaded({
+        pathname: '/project/household-items/hi-1',
+        search: '?edit=overview&tab=cost&foo=bar',
+        hash: '#details',
+        state,
+      });
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+      expect(seen.type).toBe('REPLACE');
+      expect(seen.keys).toHaveLength(2);
+      expect(seen.state).toEqual(state);
+      expect(seen.hash).toBe('#details');
+      const params = new URLSearchParams(seen.search);
+      expect(params.has('edit')).toBe(false);
+      expect(params.has('tab')).toBe(false);
+      expect(params.get('foo')).toBe('bar');
+      expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Overview/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    });
+
+    it('leaves no query string behind when edit was the only parameter', async () => {
+      await loaded('/project/household-items/hi-1?edit=overview');
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+      expect(seen.search).toBe('');
+      expect(seen.type).toBe('REPLACE');
+    });
+
+    it('does not open the Details card again on a later refresh', async () => {
+      await loaded('/project/household-items/hi-1?edit=overview');
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+      act(() => Events.notifyObjectCreated('invoice'));
+      await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(2));
+      expect(startEditDetails).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('delete', () => {
+    async function openByKey(key: string) {
+      await loaded();
+      fireEvent.keyDown(document.body, { key });
+      return screen.findByRole('alertdialog');
+    }
+
+    it('opens from the header menu with the purchase name and loads the delete impact', async () => {
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+      const dialog = await screen.findByRole('alertdialog');
+      expect(dialog).toHaveTextContent('Sample sofa');
+      await waitFor(() =>
+        expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'hi-1'),
+      );
+    });
+
+    it.each(['Delete', 'Backspace'])('opens with the %s key', async (key) => {
+      const dialog = await openByKey(key);
+      expect(dialog).toHaveTextContent('Sample sofa');
+    });
+
+    it('does not load the delete impact before the dialog opens', async () => {
+      await loaded();
+      expect(mockFetchDeleteImpact).not.toHaveBeenCalled();
+    });
+
+    it('Cancel after the shortcut returns focus to the page heading', async () => {
+      await openByKey('Delete');
+      fireEvent.click(screen.getByTestId('purchase-delete-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(mockDeleteItem).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: 'Sample sofa' })).toHaveFocus(),
+      );
+    });
+
+    it('Cancel after the header menu returns focus to the page heading (the menu item is gone)', async () => {
+      const user = userEvent.setup();
+      await loaded();
+      await user.click(screen.getByTestId('object-header-menu'));
+      await user.click(await screen.findByTestId('object-header-delete'));
+      await screen.findByRole('alertdialog');
+      await user.click(screen.getByTestId('purchase-delete-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: 'Sample sofa' })).toHaveFocus(),
+      );
+    });
+
+    it('deleting returns to the Purchases list with a replace and a toast', async () => {
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('purchase-delete-confirm'));
+      });
+      expect(mockDeleteItem).toHaveBeenCalledWith('hi-1');
+      expect(await screen.findByTestId('purchases-list')).toBeInTheDocument();
+      expect(seen.path).toBe('/project/household-items');
+      expect(seen.type).toBe('REPLACE');
+      expect(await screen.findByText('Purchase deleted.')).toBeInTheDocument();
+    });
+
+    it('a blocked delete (409) shows the translated reason and no confirm button', async () => {
+      mockDeleteItem.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('purchase-delete-confirm'));
+      });
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toBeInTheDocument();
+      expect(screen.queryByTestId('purchase-delete-confirm')).toBeNull();
+    });
+
+    it('another API error keeps the confirm button', async () => {
+      mockDeleteItem.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('purchase-delete-confirm'));
+      });
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('a network failure shows the fallback sentence; reopening clears the error', async () => {
+      mockDeleteItem.mockRejectedValueOnce(new Error('down'));
+      await openByKey('Delete');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('purchase-delete-confirm'));
+      });
+      expect(await screen.findByText("Couldn't delete the purchase.")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('purchase-delete-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      fireEvent.keyDown(document.body, { key: 'Delete' });
+      await screen.findByRole('alertdialog');
+      expect(screen.queryByText("Couldn't delete the purchase.")).toBeNull();
+    });
+  });
+
+  describe('keyboard shortcuts', () => {
+    it('e starts editing the Details card on the Overview tab', async () => {
+      await loaded();
+      fireEvent.keyDown(document.body, { key: 'e' });
+      expect(startEditDetails).toHaveBeenCalledTimes(1);
+    });
+
+    it('e from another tab selects Overview first, then edits the Details card', async () => {
+      await loaded('/project/household-items/hi-1?tab=cost');
+      fireEvent.keyDown(document.body, { key: 'e' });
+      expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+    });
+
+    it('? opens the shortcut help with the page shortcuts, without the Backspace twin', async () => {
+      await loaded();
+      fireEvent.keyDown(document.body, { key: '?' });
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent('Edit the purchase details');
+      expect(dialog).toHaveTextContent('Delete the purchase');
+      expect(dialog).toHaveTextContent('Show keyboard shortcuts');
+      expect(within(dialog).queryByText('Backspace')).toBeNull();
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
   });
 });

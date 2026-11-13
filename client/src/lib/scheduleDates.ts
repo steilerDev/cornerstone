@@ -1,6 +1,6 @@
 import type {
+  HouseholdItemSummary,
   ScheduleSignal,
-  TimelineHouseholdItem,
   WorkItemScheduleFields,
 } from '@cornerstone/shared';
 import { formatDayRange } from './formatters.js';
@@ -79,8 +79,21 @@ export function daysBetweenKeys(from: string, to: string): number {
 }
 
 /** Days since the latest (else earliest) delivery date, at least 1; 0 when the purchase is not late. */
-export function purchaseLateDays(item: TimelineHouseholdItem, todayKey: string): number {
+export function purchaseLateDays(
+  item: Pick<HouseholdItemSummary, 'isLate' | 'latestDeliveryDate' | 'earliestDeliveryDate'>,
+  todayKey: string,
+): number {
   if (!item.isLate) return 0;
   const due = item.latestDeliveryDate ?? item.earliestDeliveryDate;
   return due === null ? 1 : Math.max(1, daysBetweenKeys(due, todayKey));
+}
+
+/** The date a purchase arrived, else its target delivery date; null when it has neither. */
+export function purchaseDeliveryOf(
+  item: Pick<HouseholdItemSummary, 'status' | 'actualDeliveryDate' | 'targetDeliveryDate'>,
+): { date: string; delivered: boolean } | null {
+  if (item.status === 'arrived' && item.actualDeliveryDate) {
+    return { date: item.actualDeliveryDate, delivered: true };
+  }
+  return item.targetDeliveryDate ? { date: item.targetDeliveryDate, delivered: false } : null;
 }

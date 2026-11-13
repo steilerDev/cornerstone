@@ -371,7 +371,7 @@ test.describe('ConfirmDialog — cost line delete', { tag: '@responsive' }, () =
       const lineBody = (await line.json()) as { budget: { id: string } };
 
       const detail = new HouseholdItemDetailPage(page);
-      await detail.goto(purchaseId);
+      await detail.goto(purchaseId, { tab: 'cost' });
       await detail.costLines.waitForLoaded();
       await expect(detail.budgetSection).toContainText(description);
 

@@ -82,7 +82,7 @@
       "name": {
         "label": "Name",
         "placeholder": "Enter item name",
-        "error": "Name is required"
+        "error": "Enter a name."
       },
       "description": {
         "label": "Description",
@@ -90,189 +90,120 @@
       },
       "category": {
         "label": "Category",
-        "placeholder": "— Select Category —",
-        "error": "Category is required"
+        "placeholder": "Choose a category",
+        "error": "Choose a category."
       },
       "status": {
-        "label": "Purchase Status"
+        "label": "Status"
       },
       "quantity": {
         "label": "Quantity",
-        "error": "Quantity must be at least 1"
+        "error": "Enter a whole number, 1 or more."
       },
       "vendor": {
-        "label": "Vendor",
-        "placeholder": "No vendor"
+        "label": "Company",
+        "placeholder": "No company"
       },
       "url": {
-        "label": "URL",
+        "label": "Product link",
         "placeholder": "https://example.com"
       },
       "area": {
         "label": "Area"
       },
-      "room": {
-        "label": "Room",
-        "placeholder": "e.g., Kitchen, Bedroom"
-      },
       "orderDate": {
-        "label": "Order Date"
+        "label": "Ordered on"
       },
       "earliestDelivery": {
-        "label": "Earliest Delivery"
+        "label": "Earliest delivery"
       },
       "latestDelivery": {
-        "label": "Latest Delivery"
+        "label": "Latest delivery"
       },
       "actualDelivery": {
-        "label": "Actual Delivery"
+        "label": "Delivered on"
       },
       "deliveryWindow": {
-        "error": "Earliest delivery date must be before or equal to latest delivery date"
+        "error": "Latest delivery can't be before earliest delivery."
       },
       "deliveryDates": {
-        "error": "Actual delivery date must be after or equal to order date"
-      },
-      "tags": {
-        "label": "Tags"
+        "error": "The delivery date can't be before the order date."
       }
     }
   },
-  "edit": {
-    "errors": {
-      "loadFailed": "Failed to load form data. Please try again."
-    },
-    "loading": "Loading...",
-    "errorBanner": "Failed to load form data. Please try again.",
-    "notFoundMessage": "The household item you are looking for does not exist.",
-    "form": {
-      "name": {
-        "label": "Name",
-        "required": "*",
-        "placeholder": "Enter item name",
-        "error": "Name is required"
-      },
-      "description": {
-        "label": "Description",
-        "placeholder": "Describe the item"
-      },
-      "category": {
-        "label": "Category",
-        "required": "*",
-        "placeholder": "— Select Category —",
-        "error": "Category is required"
-      },
-      "quantity": {
-        "label": "Quantity",
-        "error": "Quantity must be at least 1"
-      },
-      "vendor": {
-        "label": "Vendor",
-        "placeholder": "No vendor"
-      },
-      "url": {
-        "label": "URL",
-        "placeholder": "https://example.com"
-      },
-      "area": {
-        "label": "Area"
-      },
-      "room": {
-        "label": "Room",
-        "placeholder": "e.g., Kitchen, Bedroom"
-      },
-      "tags": {
-        "label": "Tags"
-      }
-    },
-    "cancel": "Cancel",
-    "submit": "Save Changes",
-    "submitting": "Saving...",
-    "success": "Household item updated successfully"
-  },
-  "detail": {
-    "loading": "Loading household item...",
-    "error": "Error",
-    "notFoundMessage": "The household item you're looking for doesn't exist or has been removed.",
+  "purchasePage": {
+    "typeLabel": "Purchase",
+    "loading": "Loading the purchase…",
     "retry": "Retry",
-    "edit": "Edit",
-    "details": {
-      "title": "Details",
-      "description": "Description",
-      "vendor": "Vendor",
-      "productUrl": "Product URL",
-      "room": "Room",
-      "quantity": "Quantity",
-      "tags": "Tags",
-      "noTags": "No tags"
+    "deleted": "Purchase deleted.",
+    "deleteError": "Couldn't delete the purchase.",
+    "strip": {
+      "delivery": "Delivery",
+      "where": "Where",
+      "company": "Company",
+      "cost": "Expected cost",
+      "invoiced": "Invoiced",
+      "waitsFor": "Waits for",
+      "delivered": "Delivered {{date}}",
+      "target": "Target {{date}}",
+      "window": "Window {{start}} – {{end}}",
+      "noneYet": "None yet",
+      "nothing": "Nothing",
+      "more": "+{{count}}",
+      "grantsMore_one": "{{name}} and {{count}} more",
+      "grantsMore_other": "{{name}} and {{count}} more"
     },
-    "area": {
-      "title": "Area",
-      "label": "Area",
-      "updated": "Area updated successfully",
-      "updateFailed": "Failed to update area. Please try again."
+    "overview": {
+      "details": "Details",
+      "nothingYet": "Nothing added yet",
+      "opensInNewTab": "(opens in a new tab)",
+      "saveError": "Couldn't save the purchase."
     },
-    "datesDelivery": {
-      "title": "Dates & Delivery",
-      "actualDate": "Actual Date",
-      "targetDate": "Target Date",
-      "orderDate": "Order Date",
-      "actualDelivery": "Actual Delivery",
-      "earliestDelivery": "Earliest Delivery",
-      "latestDelivery": "Latest Delivery",
-      "actualDeliveryAria": "Actual delivery: {{actual}}, target was {{target}}",
-      "targetNotSet": "not set",
-      "clearOrderDate": "Clear order date",
-      "clearActualDelivery": "Clear actual delivery date",
-      "clearEarliestDelivery": "Clear earliest delivery date",
-      "clearLatestDelivery": "Clear latest delivery date",
-      "failedUpdateOrderDate": "Failed to update order date",
-      "failedUpdateActualDelivery": "Failed to update actual delivery date",
-      "failedUpdateEarliestDelivery": "Failed to update earliest delivery date",
-      "failedUpdateLatestDelivery": "Failed to update latest delivery date"
+    "timing": {
+      "delivery": "Delivery",
+      "targetDelivery": "Target delivery",
+      "saveError": "Couldn't save the dates.",
+      "lateLatest": "The latest delivery date ({{date}}) has passed and nothing has arrived.",
+      "lateTarget": "The target delivery date ({{date}}) has passed and nothing has arrived.",
+      "lateGeneric": "Late: the delivery is now expected after its planned window.",
+      "waitsFor": "Waits for",
+      "waitsForEmpty": "This purchase doesn't wait for a task or milestone.",
+      "add": "Add",
+      "addError": "Couldn't add it. Try again.",
+      "kindTask": "Task",
+      "kindMilestone": "Milestone",
+      "rowFacts": "{{kind}} · {{date}}"
     },
-    "dependencies": {
-      "title": "Dependencies",
-      "noDependencies": "No dependencies yet. Add a dependency to schedule this item.",
-      "workItem": "Work Item",
-      "milestone": "Milestone",
-      "removeDependency": "Remove dependency on",
-      "removeTitle": "Remove dependency?",
-      "confirm": "Remove",
-      "removing": "Removing…",
-      "search": "Search work items or milestones to add...",
-      "noMatches": "No items match your search",
-      "failedAdd": "Failed to add dependency",
-      "failedRemove": "Failed to remove dependency",
-      "addedSuccess": "Dependency added successfully",
-      "removedSuccess": "Dependency removed"
+    "cost": {
+      "grants": "Grants",
+      "grantsEmpty": "No grant covers this purchase.",
+      "add": "Add",
+      "loadError": "Couldn't load the list.",
+      "linkError": "Couldn't add it. Try again."
     },
-    "metadata": {
-      "createdBy": "Created by",
-      "createdAt": "Created at",
-      "updatedAt": "Updated at"
+    "diary": {
+      "title": "Site diary",
+      "log": "Log for this purchase",
+      "forCompany": "Entries for {{company}}",
+      "forPurchase": "Entries for this purchase",
+      "otherEntries": "Other entries",
+      "fromPhotoTags": "from photo tags and dates",
+      "empty": "No entries for this purchase yet.",
+      "loadError": "Couldn't load the entries.",
+      "showAll": "Show all in the Site diary",
+      "srCount_one": "{{count}} entry",
+      "srCount_other": "{{count}} entries"
     },
-    "delete": {
-      "delete": "Delete Item",
-      "deleted": "Household item deleted successfully"
+    "history": {
+      "title": "History",
+      "created": "Created by {{name}} on {{date}}",
+      "createdUnknown": "Created on {{date}}",
+      "updated": "Last updated {{date}}"
     },
-    "status": {
-      "late": "Late"
-    },
-    "budget": {
-      "confidenceLabel": "Confidence:",
-      "plannedAmountLabel": "Planned Amount",
-      "actualCostLabel": "Actual Cost",
-      "paybackLabel": "Payback"
-    },
-    "errors": {
-      "itemNotFound": "Item not found",
-      "loadFailed": "Failed to load household item. Please try again.",
-      "deleteFailed": "Failed to delete household item. Please try again.",
-      "alreadyLinkedSubsidy": "This grant is already linked to this item.",
-      "linkSubsidy": "Could not link the grant to this item.",
-      "unlinkSubsidy": "Could not unlink the grant from this item."
-    },
-    "closeErrorMessage": "Close error message"
+    "shortcuts": {
+      "edit": "Edit the purchase details",
+      "delete": "Delete the purchase",
+      "help": "Show keyboard shortcuts"
+    }
   }
 }

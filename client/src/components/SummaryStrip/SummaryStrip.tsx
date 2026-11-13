@@ -25,6 +25,8 @@ interface FactBase {
    * interactive content is invalid.
    */
   readonly trailing?: ReactNode;
+  /** Screen-reader text of an empty value; default "Not set". */
+  readonly emptyText?: string;
 }
 
 export type SummaryFact =
@@ -89,7 +91,7 @@ function Fact({
       {empty ? (
         <>
           <span aria-hidden="true">–</span>
-          <span className={sharedStyles.srOnly}>{t('summaryStrip.notSet')}</span>
+          <span className={sharedStyles.srOnly}>{fact.emptyText ?? t('summaryStrip.notSet')}</span>
         </>
       ) : (
         fact.value
