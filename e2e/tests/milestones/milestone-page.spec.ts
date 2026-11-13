@@ -111,7 +111,15 @@ test.describe('Strip and title (M1, AC1)', { tag: '@responsive' }, () => {
     async ({ page, testPrefix }) => {
       const title = `${testPrefix} M1 Shell complete`;
       const id = await makeMilestone(page, title);
-      await linkCountsToward(page, id, await makeTask(page, `${testPrefix} M1 Task`));
+      // A dated task: its projection equals the target, so the strip says On target
+      const datedTaskId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} M1 Task`,
+        startDate: todayIso(20),
+        endDate: todayIso(30),
+        durationDays: 10,
+      });
+      cleanup.fns.push(() => deleteWorkItemViaApi(page, datedTaskId));
+      await linkCountsToward(page, id, datedTaskId);
       const milestone = new MilestoneDetailPage(page);
 
       await milestone.goto(id);
@@ -144,7 +152,7 @@ test.describe('Strip and title (M1, AC1)', { tag: '@responsive' }, () => {
 
     await expect(milestone.summary.item('projected')).toContainText('No tasks yet');
     await expect(milestone.summary.item('countsToward')).toContainText('None yet');
-    await expect(milestone.againstTargetBadge).toHaveText('On target');
+    await expect(milestone.againstTargetBadge).toHaveText('Upcoming');
   });
 });
 

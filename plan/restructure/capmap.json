@@ -552,7 +552,7 @@
     "to": "Tasks > Milestone page > summary strip > Target vs Projected, 'Late · n d' / 'Early · n d'",
     "change": "same",
     "gate": "none",
-    "note": "One status word ('Late') everywhere (P42). #2250: the strip's Against target fact shows the same chip as the Milestones list (Late · n d / Early · n d / On target / Reached); Projected shows the projected date, or 'No tasks yet' / 'No dates yet'."
+    "note": "One status word ('Late') everywhere (P42). #2250: the strip's Against target fact uses the same helper as the Milestones list and shows Late · n d / Early · n d / Reached / Upcoming like the list, but labels an on-schedule milestone that has a projection 'On target'; Projected shows the projected date, or 'No tasks yet' / 'No dates yet'."
   },
   "WRK-083": {
     "name": "Edit a milestone's title, target date and description",
@@ -747,7 +747,7 @@
     "to": "Tasks > Schedule > milestone diamonds with states Upcoming / Early · n d / Late · n d / Reached",
     "change": "same",
     "gate": "none",
-    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01). #2247: a late milestone keeps its own Late · n d / Early · n d chip; Show › Done off hides reached milestones. #2250: the milestone page's strip carries the same Late · n d / Early · n d / On target / Reached chip as the Schedule diamonds and the Milestones list."
+    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01). #2247: a late milestone keeps its own Late · n d / Early · n d chip; Show › Done off hides reached milestones. #2250: the milestone page's strip uses the same helper as the Schedule diamonds and the Milestones list and shows Late · n d / Early · n d / Reached / Upcoming like them, but labels an on-schedule milestone that has a projection 'On target'."
   },
   "WRK-107": {
     "name": "See a milestone tooltip with target, projected and completion dates plus contributing and blocked items",

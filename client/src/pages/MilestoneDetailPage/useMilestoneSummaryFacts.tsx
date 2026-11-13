@@ -75,7 +75,11 @@ export function useMilestoneSummaryFacts({
     targetDate,
     projectedDate,
   });
-  if (milestoneDisplayStatus({ isCompleted, targetDate, projectedDate }).status === 'upcoming') {
+  // "On target" claims a projection: without one the helper's own word (Upcoming) stays.
+  if (
+    projectedDate !== null &&
+    milestoneDisplayStatus({ isCompleted, targetDate, projectedDate }).status === 'upcoming'
+  ) {
     badge.variants = {
       ...badge.variants,
       upcoming: {

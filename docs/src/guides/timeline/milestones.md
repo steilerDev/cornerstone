@@ -40,7 +40,7 @@ The strip shows the facts that matter most at a glance. Select a fact to open th
 |------|---------------|
 | **Target** | The target date |
 | **Projected** | The latest end date of the tasks that count toward the milestone. It reads **No tasks yet** when no task counts toward it, and **No dates yet** when those tasks have no dates. Once the milestone is reached, this fact becomes **Reached** and shows the date it was reached |
-| **Against target** | **Late · n d**, **Early · n d**, **On target**, or **Reached**, always as text |
+| **Against target** | **Late · n d**, **Early · n d**, **On target** (upcoming with a projected date), **Upcoming** (no projected date), or **Reached**, always as text |
 | **Counts toward** | The number of tasks that count toward the milestone, followed by how many of them are still open. Reads **None yet** when there are none |
 
 ### Overview
@@ -96,7 +96,7 @@ Each milestone shows one status word on the [Milestones list](#milestones-list):
 | **Late · n d** | The projected date is n days after the target date |
 | **Reached** | The milestone is complete |
 
-On the milestone's page, an upcoming milestone reads **On target** in the **Against target** fact.
+On the milestone's page, the **Against target** fact reads **On target** when the milestone is upcoming and has a projected date. A milestone without a projected date (no tasks with dates) reads **Upcoming**, as it does on the list.
 
 ## Milestones List
 

@@ -166,9 +166,12 @@ describe('useMilestoneSummaryFacts', () => {
       expect(badge()).not.toHaveTextContent('Upcoming');
     });
 
-    it('says "On target" when nothing is projected', () => {
+    // Mutation: relabelling without the projectedDate !== null guard claims "On target" for a
+    // milestone with no tasks, i.e. with nothing to measure.
+    it('says "Upcoming", not "On target", when nothing is projected', () => {
       renderFacts(makeMilestoneDetail({ projectedDate: null }));
-      expect(badge()).toHaveTextContent('On target');
+      expect(badge()).toHaveTextContent('Upcoming');
+      expect(badge()).not.toHaveTextContent('On target');
     });
 
     it('says "Reached" once reached, whatever the projection', () => {
