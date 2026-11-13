@@ -35,7 +35,6 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   unlinkWorkItem: jest.fn(),
   addDependentWorkItem: jest.fn(),
   removeDependentWorkItem: jest.fn(),
-  fetchMilestoneLinkedHouseholdItems: jest.fn(),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({

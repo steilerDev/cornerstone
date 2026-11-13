@@ -3,24 +3,20 @@
  *
  * Validates that the AreaBreadcrumb compact variant renders correctly in contexts
  * where work items are referenced:
- *   - Milestone detail — linked WI list (compact breadcrumb below title)
- *   - Milestone detail — item search dropdown (compact breadcrumb in results)
  *   - task picker of the dependency dialog (#2248) — area path in search results
  *   - Gantt sidebar — compact breadcrumb below WI title in sidebar row
  *   - Gantt bar hover tooltip — full area path text in tooltip body
  *
  * Scenarios:
- * 1. Milestone detail — linked WI breadcrumb (desktop + responsive)
- * 2. Milestone detail — null area "No area" in linked WI list
+ * (Scenarios 1-2, the milestone page's linked-task rows, were retired in #2250: the milestone page
+ * now lists tasks in RelatedLists that carry title, status and dates, not an area path.)
  * 3. WorkItemPicker — breadcrumb in dependency builder search result (desktop)
  * 4. Gantt sidebar — WI row shows breadcrumb (desktop only)
  * 5. Gantt bar hover — tooltip contains full path (desktop only)
  * 6. Gantt sidebar — null area "No area" in sidebar row (desktop only)
  */
 
-import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { WorkItemDetailPage, dependencyDialogTitles } from '../../pages/WorkItemDetailPage.js';
 import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
@@ -29,122 +25,7 @@ import {
   deleteWorkItemViaApi,
   createAreaViaApi,
   deleteAreaViaApi,
-  createMilestoneViaApi,
-  deleteMilestoneViaApi,
 } from '../../fixtures/apiHelpers.js';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: link a work item to a milestone via the API
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function linkWorkItemToMilestone(
-  page: Page,
-  milestoneId: number,
-  workItemId: string,
-): Promise<void> {
-  const response = await page.request.post(`/api/milestones/${milestoneId}/work-items`, {
-    data: { workItemId },
-  });
-  expect(response.ok(), `Link WI ${workItemId} to milestone ${milestoneId}`).toBeTruthy();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Milestone detail — linked WI breadcrumb
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Milestone detail — linked WI compact breadcrumb (Scenario 1)',
-  { tag: '@responsive' },
-  () => {
-    test('Linked work item row shows compact breadcrumb with ancestor chain', async ({
-      page,
-      testPrefix,
-    }) => {
-      const milestoneDetailPage = new MilestoneDetailPage(page);
-
-      let rootAreaId: string | null = null;
-      let childAreaId: string | null = null;
-      let workItemId: string | null = null;
-      let milestoneId: number | null = null;
-
-      const rootName = `${testPrefix} Ground Floor`;
-      const childName = `${testPrefix} Kitchen`;
-      const wiTitle = `${testPrefix} Install tiles`;
-
-      try {
-        rootAreaId = await createAreaViaApi(page, { name: rootName });
-        childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
-        workItemId = await createWorkItemViaApi(page, { title: wiTitle, areaId: childAreaId });
-        milestoneId = await createMilestoneViaApi(page, {
-          title: `${testPrefix} Milestone 1`,
-          targetDate: '2026-12-31',
-        });
-        await linkWorkItemToMilestone(page, milestoneId, workItemId);
-
-        await milestoneDetailPage.goto(milestoneId);
-
-        // The linked work items list renders inside the viewCard.
-        // Each linked WI row contains: typeBadge, workItemTitleCell (link + AreaBreadcrumb compact), unlinkButton.
-        const linkedRow = milestoneDetailPage.linkedWorkItemRow(wiTitle);
-        await expect(linkedRow).toBeVisible();
-
-        // Compact breadcrumb is the span[class*="compact"] inside the row
-        const breadcrumbSpan = linkedRow.locator('[class*="compact"]');
-        await expect(breadcrumbSpan).toBeVisible();
-
-        const breadcrumbText = await breadcrumbSpan.textContent();
-        expect(breadcrumbText).toContain(rootName);
-        expect(breadcrumbText).toContain(childName);
-        // Separator character ›
-        expect(breadcrumbText).toContain('›');
-      } finally {
-        if (milestoneId) await deleteMilestoneViaApi(page, milestoneId);
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        if (childAreaId) await deleteAreaViaApi(page, childAreaId);
-        if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
-      }
-    });
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Milestone detail — null area "No area" in linked WI list
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Milestone detail — null area "No area" in linked WI (Scenario 2)', () => {
-  test('"No area" fallback text visible in linked WI row when work item has no area', async ({
-    page,
-    testPrefix,
-  }) => {
-    const milestoneDetailPage = new MilestoneDetailPage(page);
-
-    let workItemId: string | null = null;
-    let milestoneId: number | null = null;
-
-    const wiTitle = `${testPrefix} No Area Embed WI`;
-
-    try {
-      // Work item with no area
-      workItemId = await createWorkItemViaApi(page, { title: wiTitle });
-      milestoneId = await createMilestoneViaApi(page, {
-        title: `${testPrefix} Milestone NoArea`,
-        targetDate: '2026-12-31',
-      });
-      await linkWorkItemToMilestone(page, milestoneId, workItemId);
-
-      await milestoneDetailPage.goto(milestoneId);
-
-      const linkedRow = milestoneDetailPage.linkedWorkItemRow(wiTitle);
-      await expect(linkedRow).toBeVisible();
-
-      // Null area renders <span class*="muted">No area</span>
-      await expect(linkedRow.getByText('No area', { exact: true })).toBeVisible();
-    } finally {
-      if (milestoneId) await deleteMilestoneViaApi(page, milestoneId);
-      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-    }
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: task picker — breadcrumb in the dependency dialog result

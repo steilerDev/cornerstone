@@ -5,6 +5,7 @@
  */
 
 import type { UserSummary, WorkItemSummary } from './workItem.js';
+import type { WorkItemLinkedHouseholdItemSummary } from './householdItem.js';
 import type { AttentionHoldsUp } from './attention.js';
 
 /**
@@ -58,8 +59,12 @@ export interface MilestoneDetail {
   completedAt: string | null; // ISO 8601 timestamp
   color: string | null;
   workItems: WorkItemSummary[]; // Linked work items (full summary)
-  /** Work items that depend on this milestone completing before they can start. */
-  dependentWorkItems: WorkItemDependentSummary[]; // EPIC-06 UAT Fix 4
+  /** Work items that depend on this milestone completing before they can start (full summaries). */
+  dependentWorkItems: WorkItemSummary[];
+  /** Household items (purchases) that depend on this milestone. */
+  dependentHouseholdItems: WorkItemLinkedHouseholdItemSummary[];
+  /** Server-projected date; same value the milestones list row carries. Null when not projected. */
+  projectedDate: string | null;
   createdBy: UserSummary | null;
   createdAt: string; // ISO 8601 timestamp
   updatedAt: string; // ISO 8601 timestamp

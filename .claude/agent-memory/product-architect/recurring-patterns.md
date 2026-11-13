@@ -2268,3 +2268,10 @@ renders object A under B's URL, and child effects fire with mixed ids (A's area/
 Look for `useParams` id passed to an unkeyed child on every detail page. Fix: `key={id}`, plus a page
 test that re-renders with a second id. Same review: `?? null` after a same-call FK lookup
 (`vendorRow?.phone`) is an unreachable arm; use `!` (sync).
+
+## Capmap "same chip as X" claims vs page-local relabels (PR #2357)
+
+A page that overrides one variant label of a shared badge helper (the strip relabels `upcoming` to "On target")
+breaks the parity a capmap note claims ("same chip as the Milestones list"). Grep every caller of the shared
+helper (`milestoneBadgeProps`) before accepting a parity note. Also check what the relabel says when its input
+is absent: "On target" with `projectedDate === null` claims a projection that does not exist.

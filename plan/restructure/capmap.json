@@ -122,7 +122,7 @@
     "to": "Tasks > Tasks list / Schedule rows and all task pickers > area chip (link to Area page)",
     "change": "promoted",
     "gate": "none",
-    "note": "Area path becomes a link to the area hub. #2245: Tasks list rows show the area chip via AreaLink (links to the interim Areas page until P5.7)."
+    "note": "Area path becomes a link to the area hub. #2245: Tasks list rows show the area chip via AreaLink (links to the interim Areas page until P5.7). #2250: the milestone page's Counts toward / Waiting for rows show title, status and dates, not the area path; the task picker on the milestone page still shows each task's area path."
   },
   "WRK-017": {
     "name": "Start creating a work item from any of six entry points",
@@ -544,7 +544,7 @@
     "to": "Tasks > Milestone page (/project/milestones/:id, URL kept)",
     "change": "same",
     "gate": "none",
-    "note": "Title shown once."
+    "note": "Title shown once. #2250: built on the object template: ObjectHeader (breadcrumb Milestones, h1, StatusMenu chip, one primary, Change target, ⋯ Delete), summary strip (Target, Projected or Reached, Against target, Counts toward) and tabs Overview, Work, History. The Details card shows description, target date, Reached on (when reached) and colour."
   },
   "WRK-082": {
     "name": "See a milestone's projected date and how many days late or ahead it is",
@@ -552,7 +552,7 @@
     "to": "Tasks > Milestone page > summary strip > Target vs Projected, 'Late · n d' / 'Early · n d'",
     "change": "same",
     "gate": "none",
-    "note": "One status word ('Late') everywhere (P42)."
+    "note": "One status word ('Late') everywhere (P42). #2250: the strip's Against target fact uses the same helper as the Milestones list and shows Late · n d / Early · n d / Reached / Upcoming like the list, but labels an on-schedule milestone that has a projection 'On target'; Projected shows the projected date, or 'No tasks yet' / 'No dates yet'."
   },
   "WRK-083": {
     "name": "Edit a milestone's title, target date and description",
@@ -561,15 +561,15 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Milestone page > section Edit > Title, Target date, Description; Save.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2250: Overview tab › Details card › Edit: Title, Target date, Description, Color; explicit Save with client validation (title and target date required). Header › Change target opens the same card with the target date focused."
   },
   "WRK-084": {
     "name": "Mark a milestone completed or reopen it",
     "from": "/project/milestones/:id > \"Edit\" > \"Mark as completed\" checkbox > Save",
-    "to": "Tasks > Milestone page > primary 'Mark reached' (date prompt: Today · target date · Pick) / StatusMenu > Reopen",
+    "to": "Tasks > Milestone page > primary 'Mark reached' (date prompt: Today · On target · Pick a date) / once reached, primary 'Reopen'",
     "change": "promoted",
     "gate": "none",
-    "note": "No longer hidden behind Edit + checkbox (P21). #2209: Tasks › Milestone page › header StatusMenu chip (Mark reached with date chips; Back to “Upcoming”); the Edit-form checkbox is removed."
+    "note": "No longer hidden behind Edit + checkbox (P21). #2209: Tasks › Milestone page › header StatusMenu chip (Mark reached with date chips; Back to “Upcoming”); the Edit-form checkbox is removed. #2250: the header primary is Mark reached (date step: Today · On target · Pick a date, Toast with Undo); once reached it is Reopen (no date step, Toast with Undo)."
   },
   "WRK-085": {
     "name": "Link contributing work items to a milestone",
@@ -577,7 +577,7 @@
     "to": "Tasks > Milestone page > Work tab > 'Counts toward this milestone' > Add tasks",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2250: Work tab › 'Counts toward this milestone' list; Add task picks from tasks that neither count toward nor wait for this milestone; a failed add keeps the picker open with the reason."
   },
   "WRK-086": {
     "name": "Make a household-item delivery wait for a milestone",
@@ -585,7 +585,7 @@
     "to": "Tasks > Milestone page > Work tab > 'Waiting for this milestone' > Add purchase",
     "change": "same",
     "gate": "none",
-    "note": "Separated from the mixed-direction list (DOM-09)."
+    "note": "Separated from the mixed-direction list (DOM-09). #2250: Work tab › 'Waiting for this milestone' list: Add task or purchase picks from one shared list; a purchase is linked as a delivery dependency on the milestone."
   },
   "WRK-087": {
     "name": "Unlink a work item or household item from a milestone",
@@ -593,7 +593,7 @@
     "to": "Tasks > Milestone page > Work tab > related row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2250: Work tab › row ⋯ › Remove unlinks the task (Toast with Undo); the page refreshes after Remove and Undo."
   },
   "WRK-088": {
     "name": "Add work items that must wait for a milestone (\"Dependent Work Items\")",
@@ -601,7 +601,7 @@
     "to": "Tasks > Milestone page > Work tab > 'Waiting for this milestone' > Add task",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2250: Work tab › 'Waiting for this milestone' › Add task or purchase; adding a task that already counts toward the milestone is refused inline ('This task counts toward this milestone, so it cannot wait for it.')."
   },
   "WRK-089": {
     "name": "Remove a dependent work item from a milestone",
@@ -609,7 +609,7 @@
     "to": "Tasks > Milestone page > Work tab > 'Waiting for this milestone' row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2250: Work tab › 'Waiting for this milestone' row ⋯ › Remove (Toast with Undo), for tasks and purchases alike."
   },
   "WRK-090": {
     "name": "Delete a milestone from its detail page",
@@ -617,7 +617,7 @@
     "to": "Tasks > Milestone page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestone page › Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestone page › Delete (ConfirmDialog with counts). #2250: header ⋯ › Delete opens ConfirmDialog with the counts; Delete and Backspace open it from the keyboard; a refused delete (409) shows the blocked state."
   },
   "WRK-091": {
     "name": "Return to the milestone list or the schedule from a milestone",
@@ -747,7 +747,7 @@
     "to": "Tasks > Schedule > milestone diamonds with states Upcoming / Early · n d / Late · n d / Reached",
     "change": "same",
     "gate": "none",
-    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01). #2247: a late milestone keeps its own Late · n d / Early · n d chip; Show › Done off hides reached milestones."
+    "note": "'Ahead of plan' is kept as the derived chip 'Early · n d', the mirror of 'Late · n d' (C-01). #2247: a late milestone keeps its own Late · n d / Early · n d chip; Show › Done off hides reached milestones. #2250: the milestone page's strip uses the same helper as the Schedule diamonds and the Milestones list and shows Late · n d / Early · n d / Reached / Upcoming like them, but labels an on-schedule milestone that has a projection 'On target'."
   },
   "WRK-107": {
     "name": "See a milestone tooltip with target, projected and completion dates plus contributing and blocked items",
@@ -902,10 +902,10 @@
   "WRK-138": {
     "name": "Give a milestone a colour, link work items at creation, or back-date its completion (API only)",
     "from": "No UI — POST/PATCH /api/milestones (color, workItemIds, completedAt)",
-    "to": "Tasks > New milestone dialog (ObjectForm; /project/milestones/new opens it over the list) > 'Counts toward' tasks at creation + 'Reached on' date; colour stays API-only",
+    "to": "Tasks > New milestone dialog (ObjectForm; /project/milestones/new opens it over the list) > 'Counts toward' tasks at creation + 'Reached on' date; colour shown and edited on the Milestone page's Details card; Reached on set via Mark reached › Pick a date",
     "change": "promoted",
     "gate": "none",
-    "note": "Partially surfaced in the milestone form."
+    "note": "Partially surfaced in the milestone form. #2250: colour is shown and edited on the Overview › Details card (Color row, Edit with a 'No color' option); Reached on is set through Mark reached › Pick a date."
   },
   "MNY-001": {
     "name": "View the project cost breakdown (cost, subsidy payback, net) for work items and household items",

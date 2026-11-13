@@ -1326,6 +1326,141 @@ describe('Milestone Service', () => {
     });
   });
 
+  // ─── getMilestoneById: the milestone page's second list and projected date (#2250) ──────
+
+  describe('getMilestoneById — waiting-for list and projected date (#2250)', () => {
+    const NOW = '2026-03-10T09:00:00.000Z';
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date(NOW), doNotFake: DO_NOT_FAKE_TIMERS });
+    });
+
+    function datedItem(
+      id: string,
+      startDate: string,
+      endDate: string,
+      durationDays: number | null = null,
+    ): void {
+      db.insert(schema.workItems)
+        .values({
+          id,
+          title: `Task ${id}`,
+          status: 'not_started',
+          startDate,
+          endDate,
+          durationDays,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })
+        .run();
+    }
+
+    function purchase(id: string, name: string, targetDeliveryDate: string | null): void {
+      db.insert(schema.householdItems)
+        .values({
+          id,
+          name,
+          categoryId: 'hic-furniture',
+          status: 'purchased',
+          quantity: 1,
+          targetDeliveryDate,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })
+        .run();
+    }
+
+    function waitFor(purchaseId: string, milestoneId: number): void {
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: purchaseId,
+          predecessorType: 'milestone',
+          predecessorId: String(milestoneId),
+        })
+        .run();
+    }
+
+    function newMilestone(title: string): number {
+      return milestoneService.createMilestone(
+        db,
+        { title, targetDate: '2026-03-30' },
+        createTestUser(`${title}@example.test`, title),
+      ).id;
+    }
+
+    // Mutation: mapping dependentWorkItems back to the slim {id,title} shape drops these fields.
+    it('gives dependent tasks full summaries with status, planned and forecast start', () => {
+      const id = newMilestone('Shell');
+      datedItem('waiter', '2026-03-05', '2026-03-08', 3);
+      db.insert(schema.workItemMilestoneDeps)
+        .values({ workItemId: 'waiter', milestoneId: id })
+        .run();
+
+      const dependent = milestoneService.getMilestoneById(db, id).dependentWorkItems;
+
+      expect(dependent).toHaveLength(1);
+      expect(dependent[0]!.id).toBe('waiter');
+      expect(dependent[0]!.title).toBe('Task waiter');
+      expect(dependent[0]!.status).toBe('not_started');
+      expect(dependent[0]!.startDate).toBe('2026-03-05');
+      // The fixture skips autoReschedule, so the stored start is stale; planned and forecast runs
+      // agree (both start after the milestone), so the projection keeps the stored start. The
+      // point here is that the field is filled.
+      expect(dependent[0]!.projectedStartDate).toBe('2026-03-05');
+    });
+
+    // Mutation: dropping the predecessor_id filter lists purchases waiting for other milestones.
+    it('lists the purchases waiting for this milestone and not those waiting for another', () => {
+      const mine = newMilestone('Mine');
+      const other = newMilestone('Other');
+      purchase('hi-a', 'Sample sofa', '2026-05-01');
+      purchase('hi-b', 'Sample table', null);
+      purchase('hi-c', 'Sample lamp', '2026-06-01');
+      waitFor('hi-a', mine);
+      waitFor('hi-b', mine);
+      waitFor('hi-c', other);
+
+      const detail = milestoneService.getMilestoneById(db, mine);
+
+      expect(detail.dependentHouseholdItems).toHaveLength(2);
+      expect(detail.dependentHouseholdItems.map((h) => h.id).sort()).toEqual(['hi-a', 'hi-b']);
+      const sofa = detail.dependentHouseholdItems.find((h) => h.id === 'hi-a')!;
+      expect(sofa.name).toBe('Sample sofa');
+      expect(sofa.status).toBe('purchased');
+      expect(sofa.targetDeliveryDate).toBe('2026-05-01');
+      const otherDetail = milestoneService.getMilestoneById(db, other);
+      expect(otherDetail.dependentHouseholdItems.map((h) => h.id)).toEqual(['hi-c']);
+    });
+
+    it('has no waiting purchases for a milestone nothing waits for', () => {
+      const id = newMilestone('Alone');
+      purchase('hi-a', 'Sample sofa', null);
+
+      expect(milestoneService.getMilestoneById(db, id).dependentHouseholdItems).toEqual([]);
+    });
+
+    // Mutation: computing the projection separately (or not at all) breaks list/detail parity.
+    it('carries the same projectedDate as the list row for the same milestone', () => {
+      const id = newMilestone('With tasks');
+      datedItem('c1', '2026-03-12', '2026-03-20');
+      datedItem('c2', '2026-03-12', '2026-03-28');
+      milestoneService.linkWorkItem(db, id, 'c1');
+      milestoneService.linkWorkItem(db, id, 'c2');
+
+      const row = milestoneService.getAllMilestones(db).milestones.find((m) => m.id === id)!;
+      const detail = milestoneService.getMilestoneById(db, id);
+
+      expect(detail.projectedDate).toBe('2026-03-28');
+      expect(detail.projectedDate).toBe(row.projectedDate);
+    });
+
+    it('has a null projectedDate when no task contributes', () => {
+      const id = newMilestone('Empty');
+
+      expect(milestoneService.getMilestoneById(db, id).projectedDate).toBeNull();
+    });
+  });
+
   // ─── updateMilestone: completedAt handling ─────────────────────────────────
 
   describe('updateMilestone completedAt', () => {

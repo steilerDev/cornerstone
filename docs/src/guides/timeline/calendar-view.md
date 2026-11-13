@@ -62,7 +62,7 @@ Select a task bar to open its detail page.
 
 ## Milestone Interactions
 
-Select a milestone diamond on the calendar to open that [milestone's page](milestones#editing-a-milestone), where you can edit it.
+Select a milestone diamond on the calendar to open that [milestone's page](milestones#milestone-page), where you can review and change it.
 
 Hover over a milestone diamond to see a tooltip showing:
 

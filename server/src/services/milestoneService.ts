@@ -34,6 +34,7 @@ import {
   type DeletedMilestoneLinkSnapshot,
 } from './workItemMilestoneService.js';
 import { toWorkItemSummary } from './workItemService.js';
+import { listDependentHouseholdItemsForMilestone } from './householdItemDepService.js';
 import {
   autoReschedule,
   computeScheduleProjection,
@@ -80,6 +81,25 @@ function getLinkedWorkItems(
     .from(milestoneWorkItems)
     .innerJoin(workItems, eq(workItems.id, milestoneWorkItems.workItemId))
     .where(eq(milestoneWorkItems.milestoneId, milestoneId))
+    .all();
+
+  return rows.map((row) => toWorkItemSummary(db, row.workItem, areaMap, projection));
+}
+
+/**
+ * Fetch full summaries of work items that depend on this milestone (milestone detail).
+ */
+function getDependentWorkItemSummaries(
+  db: DbType,
+  milestoneId: number,
+  areaMap: Map<string, AreaMapEntry>,
+  projection: ScheduleProjection,
+): WorkItemSummary[] {
+  const rows = db
+    .select({ workItem: workItems })
+    .from(workItemMilestoneDeps)
+    .innerJoin(workItems, eq(workItems.id, workItemMilestoneDeps.workItemId))
+    .where(eq(workItemMilestoneDeps.milestoneId, milestoneId))
     .all();
 
   return rows.map((row) => toWorkItemSummary(db, row.workItem, areaMap, projection));
@@ -183,6 +203,7 @@ function toMilestoneDetail(
   milestone: typeof milestones.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
 ): MilestoneDetail {
+  const projection = computeScheduleProjection(db);
   return {
     id: milestone.id,
     title: milestone.title,
@@ -191,8 +212,10 @@ function toMilestoneDetail(
     isCompleted: milestone.isCompleted,
     completedAt: milestone.completedAt,
     color: milestone.color,
-    workItems: getLinkedWorkItems(db, milestone.id, areaMap, computeScheduleProjection(db)),
-    dependentWorkItems: getWorkItemsWithDep(db, milestone.id),
+    workItems: getLinkedWorkItems(db, milestone.id, areaMap, projection),
+    dependentWorkItems: getDependentWorkItemSummaries(db, milestone.id, areaMap, projection),
+    dependentHouseholdItems: listDependentHouseholdItemsForMilestone(db, milestone.id),
+    projectedDate: projection.milestones.get(milestone.id)?.projectedDate ?? null,
     createdBy: getCreatedByUser(db, milestone.createdBy),
     createdAt: milestone.createdAt,
     updatedAt: milestone.updatedAt,

@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2250 milestone page tests](story-2250-milestone-page-tests.md) (2026-11-13) — strip label via accessible name, default-tab URL, delete-impact numeric id, stale-start fixtures
 - [Story #2249 purchase page tests](story-2249-purchase-page-tests.md) (2026-10-28) — fixtures, moved-file import trap, ReferenceError in list path, focus/picker quirks
 - [Story #2247 Schedule tests](story-2247-schedule-tests.md) (2026-10-28) — shared fixtures, jest-from-root, real-module spread, preview defect, dead chains
 - [Story #2246 object-list tests](story-2246-object-lists-tests.md) (2026-10-28) — no-line purchase engine-map crash, fixtures, headingCount/chip quirks
