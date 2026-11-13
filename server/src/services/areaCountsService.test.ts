@@ -12,6 +12,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
   let seq = 0;
 
   const NOW = '2026-08-07T10:00:00.000Z';
+  const VAT = 0.19;
 
   function addArea(name: string, parentId: string | null = null, sortOrder = 0): string {
     const id = `area-${++seq}`;
@@ -98,13 +99,13 @@ describe('areaCountsService.listAreasWithCounts', () => {
   });
 
   it('returns an empty list when there are no areas', () => {
-    expect(listAreasWithCounts(db)).toEqual([]);
+    expect(listAreasWithCounts(db, undefined, VAT)).toEqual([]);
   });
 
   it('gives an area without attachments zero counts and a null latestDate', () => {
     const id = addArea('Attic');
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area!.id).toBe(id);
     expect(area!.counts).toEqual({
@@ -117,7 +118,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
   it('keeps every AreaResponse field next to counts', () => {
     const id = addArea('Attic');
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area).toMatchObject({
       id,
@@ -140,7 +141,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     addWorkItem(hall, 'completed');
     addWorkItem(null, 'in_progress');
 
-    const byId = new Map(listAreasWithCounts(db).map((a) => [a.id, a.counts]));
+    const byId = new Map(listAreasWithCounts(db, undefined, VAT).map((a) => [a.id, a.counts]));
 
     expect(byId.get(kitchen)!.workItems).toEqual({ total: 3, open: 2 });
     expect(byId.get(hall)!.workItems).toEqual({ total: 1, open: 0 });
@@ -154,7 +155,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     addHouseholdItem(kitchen, 'arrived');
     addHouseholdItem(null, 'planned');
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area!.counts.householdItems).toEqual({ total: 4, open: 3 });
   });
@@ -171,7 +172,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     addPhoto(kitchen, late, 'work_item'); // not a diary photo
     addPhoto(null, late); // no area
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area!.counts.photos).toEqual({ total: 3, latestDate: '2026-05-20' });
   });
@@ -180,7 +181,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     const kitchen = addArea('Kitchen');
     addPhoto(kitchen, addDiaryEntry('2026-09-09', 'draft'));
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area!.counts.photos).toEqual({ total: 0, latestDate: null });
   });
@@ -192,7 +193,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     addHouseholdItem(child);
     addPhoto(child, addDiaryEntry('2026-04-04'));
 
-    const byId = new Map(listAreasWithCounts(db).map((a) => [a.id, a.counts]));
+    const byId = new Map(listAreasWithCounts(db, undefined, VAT).map((a) => [a.id, a.counts]));
 
     expect(byId.get(parent)).toEqual({
       workItems: { total: 0, open: 0 },
@@ -213,7 +214,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     const entry = addDiaryEntry('2026-06-06');
     for (let i = 0; i < 4; i++) addPhoto(kitchen, entry);
 
-    const [area] = listAreasWithCounts(db);
+    const [area] = listAreasWithCounts(db, undefined, VAT);
 
     expect(area!.counts).toEqual({
       workItems: { total: 3, open: 3 },
@@ -227,7 +228,7 @@ describe('areaCountsService.listAreasWithCounts', () => {
     addArea('Bathroom');
     addWorkItem(kitchen);
 
-    const result = listAreasWithCounts(db, 'kitch');
+    const result = listAreasWithCounts(db, 'kitch', VAT);
 
     expect(result.map((a) => a.name)).toEqual(['Kitchen']);
     expect(result[0]!.counts.workItems.total).toBe(1);
@@ -236,6 +237,68 @@ describe('areaCountsService.listAreasWithCounts', () => {
   it('returns nothing when the search matches no area', () => {
     addArea('Kitchen');
 
-    expect(listAreasWithCounts(db, 'zzz')).toEqual([]);
+    expect(listAreasWithCounts(db, 'zzz', VAT)).toEqual([]);
+  });
+
+  describe('expectedCost (#2251)', () => {
+    function addLine(workItemId: string, plannedAmount: number): void {
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: `wl-${++seq}`,
+          workItemId,
+          plannedAmount,
+          confidence: 'invoice',
+          includesVat: true,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })
+        .run();
+    }
+
+    function addTask(areaId: string): string {
+      const id = `wi-${++seq}`;
+      db.insert(schema.workItems)
+        .values({
+          id,
+          title: 'Task',
+          status: 'not_started',
+          areaId,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })
+        .run();
+      return id;
+    }
+
+    it('gives an area without cost lines own 0 and subtree 0', () => {
+      addArea('Attic');
+
+      const [area] = listAreasWithCounts(db, undefined, VAT);
+
+      expect(area!.expectedCost).toEqual({ own: 0, subtree: 0 });
+    });
+
+    it('splits own and subtree: the parent subtree includes the child, own does not', () => {
+      const floor = addArea('Floor');
+      const room = addArea('Room', floor);
+      addLine(addTask(floor), 100);
+      addLine(addTask(room), 40);
+
+      const byId = new Map(listAreasWithCounts(db, undefined, VAT).map((a) => [a.id, a]));
+
+      expect(byId.get(floor)!.expectedCost).toEqual({ own: 100, subtree: 140 });
+      expect(byId.get(room)!.expectedCost).toEqual({ own: 40, subtree: 40 });
+    });
+
+    it('keeps the counts direct while the cost is a roll-up', () => {
+      const floor = addArea('Floor');
+      const room = addArea('Room', floor);
+      addLine(addTask(room), 40);
+
+      const byId = new Map(listAreasWithCounts(db, undefined, VAT).map((a) => [a.id, a]));
+
+      expect(byId.get(floor)!.counts.workItems.total).toBe(0);
+      expect(byId.get(floor)!.expectedCost.subtree).toBe(40);
+    });
   });
 });

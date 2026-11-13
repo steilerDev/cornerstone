@@ -110,8 +110,7 @@ export function usePurchaseSummaryFacts({
     facts.push({
       id: 'where',
       kind: 'link',
-      // Interim until route `area` (P5.7) is served: then routeUrl('area', { id }) (as AreaLink).
-      to: routeUrl('areas'),
+      to: routeUrl('area', { id: purchase.area.id }),
       state: originState,
       label: t('purchasePage.strip.where'),
       value: <AreaBreadcrumb area={purchase.area} variant="compact" />,

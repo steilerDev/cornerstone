@@ -15,6 +15,7 @@ import { isEscapeHandled, markEscapeHandled } from '../Modal/useFocusTrap.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { isApplePlatform } from '../../lib/platform.js';
 import sharedStyles from '../../styles/shared.module.css';
+import { SectionCardFrame } from './SectionCardFrame.js';
 import { SectionCardScopeContext } from './SectionCardScope.js';
 import type { SectionCardHandle } from './SectionCardScope.js';
 import styles from './SectionCard.module.css';
@@ -113,7 +114,6 @@ export function SectionCard({
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const editRef = useRef(edit);
   editRef.current = edit;
-  const titleId = `${id}-title`;
   const cardTestId = testId ?? `section-${id}`;
   const dirty = editing && (edit?.dirty ?? false);
 
@@ -285,17 +285,14 @@ export function SectionCard({
   const saveDisabled = !edit?.dirty || busy;
 
   return (
-    <section
-      className={editing ? `${styles.card} ${styles.cardEditing}` : styles.card}
-      aria-labelledby={titleId}
-      aria-busy={loading ? 'true' : undefined}
-      data-testid={cardTestId}
-    >
-      <div className={styles.header}>
-        <h2 id={titleId} className={styles.title}>
-          {title}
-        </h2>
-        {edit && !editing && !loading && (
+    <SectionCardFrame
+      id={id}
+      title={title}
+      editing={editing}
+      loading={loading}
+      testId={testId}
+      headerAction={
+        edit && !editing && !loading ? (
           <button
             ref={editButtonRef}
             type="button"
@@ -306,8 +303,9 @@ export function SectionCard({
           >
             {t('button.edit')}
           </button>
-        )}
-      </div>
+        ) : null
+      }
+    >
       {loading ? (
         <Skeleton lines={3} />
       ) : editing && edit ? (
@@ -372,6 +370,6 @@ export function SectionCard({
           testIdPrefix={`${cardTestId}-discard`}
         />
       )}
-    </section>
+    </SectionCardFrame>
   );
 }

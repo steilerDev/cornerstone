@@ -165,6 +165,35 @@ describe('ObjectHeader', () => {
     ).toBeTruthy();
   });
 
+  it('titleLeading renders aria-hidden before the h1 on one title line (#2251)', () => {
+    renderHeader({ titleLeading: <i data-testid="lead-dot" /> });
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Fixture task' });
+    const lead = screen.getByTestId('lead-dot').parentElement!;
+    expect(lead).toHaveAttribute('aria-hidden', 'true');
+    expect(lead).toHaveClass('titleLeading');
+    expect(lead.parentElement).toBe(h1.parentElement);
+    expect(lead.parentElement).toHaveClass('titleLine');
+    expect(lead.nextElementSibling).toBe(h1);
+    // the accessible name of the heading never includes the decoration
+    expect(h1).toHaveAccessibleName('Fixture task');
+  });
+
+  it('titleLeading keeps the description under the title line, inside the title block', () => {
+    renderHeader({ titleLeading: <i data-testid="lead-dot" />, description: 'Living level' });
+    const block = screen.getByTestId('object-header-description').parentElement!;
+    expect(block).toHaveClass('titleBlock');
+    expect(block.firstElementChild).toHaveClass('titleLine');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('renders no title line or leading wrapper when titleLeading is unset (#2251)', () => {
+    renderHeader();
+    const root = screen.getByTestId('object-header');
+    expect(root.querySelector('.titleLine')).toBeNull();
+    expect(root.querySelector('.titleLeading')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 }).parentElement).toHaveClass('titleBlock');
+  });
+
   it('renders no status or secondary wrapper when none is given', () => {
     renderHeader();
     expect(screen.getByTestId('object-header').querySelector('.status')).toBeNull();

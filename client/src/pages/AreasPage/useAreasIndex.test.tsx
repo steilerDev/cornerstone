@@ -35,6 +35,7 @@ function area(id: string, parentId: string | null, sortOrder: number): AreaWithC
     sortOrder,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    expectedCost: { own: 0, subtree: 0 },
     counts: {
       workItems: { total: 0, open: 0 },
       householdItems: { total: 0, open: 0 },

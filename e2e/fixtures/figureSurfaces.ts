@@ -73,6 +73,9 @@ export interface InvoiceSubject {
 export interface SourceSubject {
   sourceId: string;
 }
+export interface AreaSubject {
+  areaId: string;
+}
 
 export interface SubjectSurface<S> {
   id: string;
@@ -84,7 +87,8 @@ export interface SubjectSurface<S> {
     | 'invoice-paid'
     | 'invoice-still-to-pay'
     | 'source-paid'
-    | 'source-ready-to-submit';
+    | 'source-ready-to-submit'
+    | 'area-paid';
   /** Every marker of the kind on the surface (a company page shows its balance twice). */
   readAll(page: Page, subject: S): Promise<Array<number | null>>;
 }
@@ -482,6 +486,26 @@ export async function readFinancingReadyCount(page: Page, subject: SourceSubject
   return Number(text);
 }
 
+/**
+ * An area page's Paid remark on the Expected cost fact (#2251, story 5.7): the money service's
+ * `byArea` Paid for the area and everything below it (`[data-figure="paid"]`, `area-paid-figure`).
+ * The remark is absent while nothing is paid (the reading is then empty).
+ */
+export const AREA_PAID_SURFACE: SubjectSurface<AreaSubject> = {
+  id: 'area.page.paid',
+  story: '5.7',
+  kind: 'area-paid',
+  async readAll(page, subject) {
+    await page.goto(routeUrl('area', { id: subject.areaId }));
+    const strip = page.getByTestId('area-summary');
+    await strip.waitFor({ state: 'visible' });
+    // The Tasks fact is always present: the strip has rendered its facts
+    await strip.getByTestId('summary-fact-tasks').waitFor({ state: 'visible' });
+    const texts = await strip.locator('[data-figure="paid"]').allInnerTexts();
+    return texts.map((text) => parseMoney(text));
+  },
+};
+
 export const SUBJECT_SURFACES = [
   COMPANY_SURFACE,
   COMPANY_PAID_SURFACE,
@@ -497,6 +521,7 @@ export const SUBJECT_SURFACES = [
   INVOICE_STILL_TO_PAY_SURFACE,
   FINANCING_SOURCE_PAID_SURFACE,
   FINANCING_READY_SURFACE,
+  AREA_PAID_SURFACE,
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────

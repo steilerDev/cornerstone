@@ -32,6 +32,7 @@ const FIGURE_FILES = [
   'client/src/components/ReschedulePanel/ReschedulePanel.tsx',
   'client/src/components/StatTile/StatTile.tsx',
   'client/src/components/SummaryStrip/SummaryStrip.tsx',
+  'client/src/pages/AreaDetailPage/useAreaSummaryFacts.tsx',
   'client/src/pages/BudgetOverviewPage/BudgetOverviewPage.tsx',
   'client/src/pages/BudgetSourcesPage/FinancingSourceCard.tsx',
   'client/src/pages/HomePage/PulseSection.tsx',

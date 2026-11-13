@@ -57,6 +57,8 @@ export interface ObjectHeaderProps<S extends string = string> {
    * user-text spans with `userTextProps`; the paragraph itself carries no `lang`.
    */
   readonly description?: ReactNode;
+  /** Rendered aria-hidden before the title (e.g. an area's colour dot). */
+  readonly titleLeading?: ReactNode;
   /** false when `title` is a translated fallback ("Untitled task"): no lang, no hyphenation. Default true. */
   readonly titleIsUserText?: boolean;
   /** `PageBreadcrumbs` node (it portals itself into the top bar). */
@@ -142,6 +144,7 @@ function PrimaryControl<S extends string>({ primary, className }: PrimaryControl
 export function ObjectHeader<S extends string = string>({
   title,
   description,
+  titleLeading,
   titleIsUserText = true,
   breadcrumbs,
   status,
@@ -209,17 +212,30 @@ export function ObjectHeader<S extends string = string>({
     ? userTextProps(entriesLanguage, styles.title)
     : { className: styles.title };
 
+  const pageTitle = (
+    <PageTitle
+      title={title}
+      headingRef={headingRef}
+      lang={titleProps.lang}
+      className={titleProps.className}
+    />
+  );
+
   return (
     <div className={styles.root} data-testid={testId}>
       {breadcrumbs}
       <header className={secondary ? `${styles.row} ${styles.hasSecondary}` : styles.row}>
         <div className={styles.titleBlock}>
-          <PageTitle
-            title={title}
-            headingRef={headingRef}
-            lang={titleProps.lang}
-            className={titleProps.className}
-          />
+          {titleLeading ? (
+            <div className={styles.titleLine}>
+              <span className={styles.titleLeading} aria-hidden="true">
+                {titleLeading}
+              </span>
+              {pageTitle}
+            </div>
+          ) : (
+            pageTitle
+          )}
           {description ? (
             <p className={styles.description} data-testid={`${testId}-description`}>
               {description}

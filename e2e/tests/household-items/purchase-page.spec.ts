@@ -360,7 +360,7 @@ test.describe('Summary strip (P2, AC6)', { tag: '@responsive' }, () => {
     await expect(purchase.summary.fact('delivery')).toContainText(/Target|Window/);
     // Where: the area as a link
     await expect(purchase.summary.fact('where')).toContainText(areaName);
-    await expect(purchase.summary.fact('where')).toHaveAttribute('href', /^\/areas/);
+    await expect(purchase.summary.fact('where')).toHaveAttribute('href', `/areas/${areaId}`);
     // Company: a link to the company page, with Call beside it
     await expect(purchase.summary.fact('company')).toContainText(companyName);
     await expect(purchase.summary.fact('company')).toHaveAttribute(

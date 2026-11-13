@@ -7,6 +7,10 @@
     "emptyTitle": "No diary photos yet",
     "emptyDescription": "Photos you add to diary entries appear here, sorted by area and orientation."
   },
+  "filter": {
+    "label": "Filter photos",
+    "removeArea": "{{area}}, remove filter"
+  },
   "spots": {
     "tableCaption": "Photos by area and orientation",
     "areaColumn": "Area",
@@ -22,7 +26,7 @@
     "groupAnnouncement_other": "Showing {{group}}: {{count}} spots",
     "noAreaCount_one": "{{count}} photo",
     "noAreaCount_other": "{{count}} photos",
-    "areaLinkSuffix": ", open in Areas",
+    "areaLinkSuffix": ", open area",
     "noAreaGroupLabel": "Photos with no area"
   },
   "viewer": {

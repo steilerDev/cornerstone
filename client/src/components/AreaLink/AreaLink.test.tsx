@@ -18,15 +18,15 @@ function renderLink(props: Partial<AreaLinkProps> = {}, initial = '/photos?view=
 }
 
 describe('AreaLink', () => {
-  it('links to the Areas index (interim until the area page is served)', () => {
+  it('links to the area page of the area (#2251)', () => {
     renderLink();
-    expect(screen.getByRole('link')).toHaveAttribute('href', routeUrl('areas'));
+    expect(screen.getByRole('link')).toHaveAttribute('href', routeUrl('area', { id: 'a1' }));
   });
 
   it('a string name gets one exact accessible name and no hidden span', () => {
     renderLink();
-    const link = screen.getByRole('link', { name: 'Garden › Shed, open in Areas' });
-    expect(link).toHaveAttribute('aria-label', 'Garden › Shed, open in Areas');
+    const link = screen.getByRole('link', { name: 'Garden › Shed, open area' });
+    expect(link).toHaveAttribute('aria-label', 'Garden › Shed, open area');
     expect(link).toHaveTextContent(/^Garden › Shed$/);
     expect(link.querySelector('span')).toBeNull();
   });
@@ -41,14 +41,14 @@ describe('AreaLink', () => {
     );
     const link = screen.getByTestId('area-link-a2');
     expect(link).not.toHaveAttribute('aria-label');
-    expect(link).toHaveTextContent('Shed, open in Areas');
-    expect(screen.getByText(', open in Areas').className).toMatch(/srOnly/);
+    expect(link).toHaveTextContent('Shed, open area');
+    expect(screen.getByText(', open area').className).toMatch(/srOnly/);
   });
 
   it('carries the current page as origin so Back returns to it', () => {
     renderLink();
     fireEvent.click(screen.getByRole('link'));
-    expect(probedPath()).toBe(routeUrl('areas'));
+    expect(probedPath()).toBe(routeUrl('area', { id: 'a1' }));
     expect(probedOrigin()?.to).toBe('/photos?view=spots');
   });
 

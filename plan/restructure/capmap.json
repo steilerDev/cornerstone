@@ -122,7 +122,7 @@
     "to": "Tasks > Tasks list / Schedule rows and all task pickers > area chip (link to Area page)",
     "change": "promoted",
     "gate": "none",
-    "note": "Area path becomes a link to the area hub. #2245: Tasks list rows show the area chip via AreaLink (links to the interim Areas page until P5.7). #2250: the milestone page's Counts toward / Waiting for rows show title, status and dates, not the area path; the task picker on the milestone page still shows each task's area path."
+    "note": "Area path becomes a link to the area hub. #2245: Tasks list rows show the area chip via AreaLink (links to the interim Areas page until P5.7). #2250: the milestone page's Counts toward / Waiting for rows show title, status and dates, not the area path; the task picker on the milestone page still shows each task's area path. #2251: AreaLink chips and the task strip Where fact open the Area page."
   },
   "WRK-017": {
     "name": "Start creating a work item from any of six entry points",
@@ -130,7 +130,7 @@
     "to": "Global > New menu > Task (context-aware: area, company or date pre-filled from the current page, e.g. the date on Tasks > Schedule); Tasks > Tasks list > primary 'New task'; Areas > Area page via the context-aware New menu",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there. #2212: Global › New menu › Task; Tasks › Tasks list › primary 'New Work Item', empty state and n (each opens the New task dialog over the page they are on); Tasks › Schedule › 'Add' menu (kept until its own story). #2245: the Tasks list primary reads 'New task' and n still opens the dialog; the empty state has no create action."
+    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there. #2212: Global › New menu › Task; Tasks › Tasks list › primary 'New Work Item', empty state and n (each opens the New task dialog over the page they are on); Tasks › Schedule › 'Add' menu (kept until its own story). #2245: the Tasks list primary reads 'New task' and n still opens the dialog; the empty state has no create action. #2251: the Area page pre-fills the area in New."
   },
   "WRK-018": {
     "name": "Create a work item with title, description and initial status",
@@ -238,7 +238,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Area picker; Save.",
-    "note": "180 px single-field card retired. #2236: the interim Area card on the Task page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.2. #2248: Area sits in the Who and where card; the strip's Where fact links to the area (interim: the Areas page until P5.7), or opens this card in edit mode when no area is set."
+    "note": "180 px single-field card retired. #2236: the interim Area card on the Task page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.2. #2248: Area sits in the Who and where card; the strip's Where fact links to the area (interim: the Areas page until P5.7), or opens this card in edit mode when no area is set. #2251: the area link opens the Area page."
   },
   "WRK-031": {
     "name": "Assign or reassign a work item to a household member or a vendor",
@@ -2226,7 +2226,7 @@
     "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; area in the summary strip's Where fact, category on the Overview Details card)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1. #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed. #2249: built on the object template: ObjectHeader (breadcrumb Purchases, h1, StatusMenu chip, one primary, ⋯ Delete). Deviation: the category is a row of the Overview Details card, not a strip fact; the area is the strip's Where fact."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1. #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed. #2249: built on the object template: ObjectHeader (breadcrumb Purchases, h1, StatusMenu chip, one primary, ⋯ Delete). Deviation: the category is a row of the Overview Details card, not a strip fact; the area is the strip's Where fact. #2251: the strip's Where fact opens the Area page."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2721,7 +2721,7 @@
     "to": "Site diary > Entry page (/diary/:id)",
     "change": "same",
     "gate": "none",
-    "note": "Photos first. #2204: h1 = entry title, else \"‹Type› · ‹date›\"; breadcrumb \"Site diary\"; Home and spot-viewer openers pass origin (\"Back to Home\" / \"Back to ‹spot›\"). #2225: entry page order: photos, type · date · author, title, text, Site details, Signatures, Areas (chips; they open the Areas index until route `area` is served by P5.7, then the area page), Related to, History (collapsed)."
+    "note": "Photos first. #2204: h1 = entry title, else \"‹Type› · ‹date›\"; breadcrumb \"Site diary\"; Home and spot-viewer openers pass origin (\"Back to Home\" / \"Back to ‹spot›\"). #2225: entry page order: photos, type · date · author, title, text, Site details, Signatures, Areas (chips; they open the Areas index until route `area` is served by P5.7, then the area page), Related to, History (collapsed). #2251: the area link opens the Area page."
   },
   "JRN-032": {
     "name": "Edit a saved diary entry",
@@ -2999,7 +2999,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q16a, Q16c (approved, PLAN §2.0 #24)",
-    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct). #2204: h1 \"Photos\", tab title \"Photos · ‹house›\". #2226: the 'No area' group is the last group (band 'No area', '‹n› photos', Select photos), never a warning; area row headers link to the Areas index until route `area` is served (P5.7)."
+    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct). #2204: h1 \"Photos\", tab title \"Photos · ‹house›\". #2226: the 'No area' group is the last group (band 'No area', '‹n› photos', Select photos), never a warning; area row headers link to the Areas index until route `area` is served (P5.7). #2251: area row headers open the Area page; ?areaId= shows a removable area chip and only that area and its sub-areas."
   },
   "JRN-064": {
     "name": "See per spot the photo count, latest diary date and latest thumbnail",
@@ -3031,7 +3031,7 @@
     "to": "Photos > Spot viewer > details panel (diary date, area path as link, orientation, caption)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Photos; only the shared page template, the words and the navigation around it change (monthly use). #2226: one PhotoDetailsPanel for the spot viewer and the entry photo viewer; the area path links to the Areas index until route `area` (P5.7)."
+    "note": "Kept as it works today, inside Photos; only the shared page template, the words and the navigation around it change (monthly use). #2226: one PhotoDetailsPanel for the spot viewer and the entry photo viewer; the area path links to the Areas index until route `area` (P5.7). #2251: the area link opens the Area page."
   },
   "JRN-068": {
     "name": "Jump between photos of the same spot via a history list",
@@ -3982,34 +3982,34 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index tree with counts; Area page sections with roll-up rules.",
-    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags. #2218: Areas index tree with direct counts rolled up; quiet 'Whole … (no …)' rows."
+    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags. #2218: Areas index tree with direct counts rolled up; quiet 'Whole … (no …)' rows. #2251: Area page built (/areas/:id): Log here primary (New menu pre-fills the area), room chips, strip Tasks · Expected cost · Photos · Companies, sections Now & next here (with context rows for items booked on an ancestor), Latest from the site, Companies here (Call), Rooms, Cost (CostLineTable). Roll-ups and money come from the server (contract 10). Areas index gains the Expected cost column and row names open the Area page. The Photos page gains a removable areaId chip."
   },
   "PLT-095": {
     "name": "Edit an area inline (name, colour, sort order, description)",
     "from": "/settings/manage?tab=areas > row \"Edit\" > inline form > \"Save\" / \"Cancel\" | Settings > Manage > Areas > existing area \"Edit\" (name, colour, sort order, parent, description)",
-    "to": "Areas > Area page > section Edit (Save); Areas > Areas index > row ⋯ > Edit",
+    "to": "Areas > Areas index > row ⋯ > Edit",
     "change": "moved",
     "gate": "none",
-    "acceptance": "Area page section Edit; Areas index row ⋯ > Edit.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit (ObjectForm)."
+    "acceptance": "Areas index row ⋯ > Edit.",
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit (ObjectForm). #2251 (PO ruling 6): the Area page has no Edit; editing stays on the Areas index."
   },
   "PLT-096": {
     "name": "Move an area under a different parent area",
     "from": "/settings/manage?tab=areas > row \"Edit\" > Parent Area picker",
-    "to": "Areas > Area page > section Edit > Parent area; Areas > Areas index > row ⋯ > Edit > Part of",
+    "to": "Areas > Areas index > row ⋯ > Edit > Part of",
     "change": "moved",
     "gate": "none",
-    "acceptance": "Area page section Edit > Parent area.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit > Part of. #2236: the area form's Parent area field is EntityPicker kind 'area' ('Top level' as the none option); AreaPicker retired."
+    "acceptance": "Areas index row ⋯ > Edit > Part of.",
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit > Part of. #2236: the area form's Parent area field is EntityPicker kind 'area' ('Top level' as the none option); AreaPicker retired. #2251 (PO ruling 6): the Area page has no Edit; editing stays on the Areas index."
   },
   "PLT-097": {
     "name": "Delete an area together with its sub-areas",
     "from": "/settings/manage?tab=areas > row \"Delete\" > dialog \"Delete Area\" > \"Delete Area\" | Settings > Manage > Areas > \"Delete\" > confirm | /settings/manage?tab=areas > area \"Delete\" -> blocked with \"This area cannot be deleted because it is currently in use.\" (counts household items)",
-    "to": "Areas > Area page > header ⋯ > Delete (modal lists affected tasks, purchases and photos); Areas > Areas index > row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo)",
+    "to": "Areas > Areas index > row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo)",
     "change": "moved",
     "gate": "none",
-    "acceptance": "Area page ⋯ > Delete with consequences modal.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2218: Areas index row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo)."
+    "acceptance": "Areas index row ⋯ > Delete with the blocked/confirm dialog.",
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2218: Areas index row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo). #2251 (PO ruling 6): the Area page has no ⋯ Delete; delete stays on the Areas index."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",

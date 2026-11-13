@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "measured": {
     "screens": {
+      "AreaDetailPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "AreasPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 1 },
       "AutoItemizePage": { "destinations": 1, "primaryButtons": 5, "searchFields": 0 },
       "BackupsPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },

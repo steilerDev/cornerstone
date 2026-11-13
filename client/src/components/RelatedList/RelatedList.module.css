@@ -118,6 +118,12 @@
   min-width: 0;
 }
 
+.leading {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: var(--spacing-2);
+}
+
 .link,
 .plainTitle {
   font-size: var(--font-size-base);

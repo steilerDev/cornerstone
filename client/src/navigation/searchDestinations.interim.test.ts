@@ -34,8 +34,8 @@ const ADMIN = { role: 'admin', paperlessConfigured: true } as const;
 const find = (word: string) => findSearchDestinations(word, ADMIN, label);
 
 describe('interim search targets', () => {
-  it('PIN: `area` is still planned; `areas` and `history` are served', () => {
-    expect(getRouteEntryReal('area').stage).toBe('planned');
+  it('PIN: `area`, `areas` and `history` are all served (#2251)', () => {
+    expect(getRouteEntryReal('area').stage).toBe('done');
     expect(getRouteEntryReal('areas').stage).toBe('done');
     expect(getRouteEntryReal('history').stage).toBe('done');
   });

@@ -208,10 +208,10 @@ describe('PhotoDetailsPanel read mode', () => {
     expect(container.querySelector('span[style*="--area-color"]')).not.toBeNull();
   });
 
-  it('opens the Areas index with this page as origin when the area link is used', () => {
+  it('opens the area page with this page as origin when the area link is used', () => {
     setup();
     fireEvent.click(screen.getByTestId('area-link-kitchen'));
-    expect(probedPath()).toBe('/areas');
+    expect(probedPath()).toBe('/areas/kitchen');
     expect(probedOrigin()?.to).toBe('/photos/spot/kitchen/o1');
   });
 

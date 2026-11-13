@@ -141,7 +141,7 @@ The strip shows the facts that matter most at a glance. Select a fact to open th
 | Fact | What it shows |
 |------|---------------|
 | **When** | The planned dates, or **No dates yet** |
-| **Where** | The area as a breadcrumb, or an empty value (shown as a dash) when no area is set |
+| **Where** | The area as a breadcrumb, or an empty value (shown as a dash) when no area is set. Select it to open the area's [Area page](/guides/work-items/areas-and-trades#area-page) |
 | **Who** | The company or household member doing the task. A company with a phone number also gets a **Call** button |
 | **Expected cost** | The expected cost, with the name of the grant that covers it. If several grants apply, the strip names the first and says how many more |
 | **Waits for** | The first unfinished task this one waits for, followed by a **+n** count (for example, **+2**) when there are others, or **Nothing** |

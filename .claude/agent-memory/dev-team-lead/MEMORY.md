@@ -85,4 +85,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Task page specs](task-page-specs.md) — StatusMenu owns date chips+Undo, strip can't nest Call, 7-fact cap, direct vs transitive Holds up, hash lost on tab select, prefill keys
 - [Purchase page specs](purchase-page-specs.md) — AC kinds vs schema enum, no history object type, undo tracked cols, required primary, Link=destination, URL schemes, docs claims vs model
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling
+- [Area page specs](area-page-specs.md) — no money gate exists, byArea is already a roll-up, AreaSummary name taken, routemap interim notes, capmap rows naming dropped surfaces, ObjectHeader ⋯ always
 - [Milestone page specs](milestone-page-specs.md) — backward primary = "Back to", uncounted Work tab, slim detail payloads, page-side projections, startEdit focus, stale-date fixtures, capmap from-surfaces, undated=today projection, read toast copy from locale

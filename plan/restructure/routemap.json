@@ -332,8 +332,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["area"],
-    "note": "Photos (spots). Photos without an area form a neutral 'No area' group, shown last (§2.0 #24): no Unsorted banner, no Tidy-up row; 'Select photos' in that group sets area and/or orientation in place (bulk, Undo); Edit tags in the viewer; area row headers link to the Areas index until /areas/:id is served (#2226). ?area= filters rows."
+    "carries": ["areaId"],
+    "note": "Photos (spots). Photos without an area form a neutral 'No area' group, shown last (§2.0 #24): no Unsorted banner, no Tidy-up row; 'Select photos' in that group sets area and/or orientation in place (bulk, Undo); Edit tags in the viewer; area row headers open the Area page (#2251). ?areaId= shows the area and its sub-areas only, as a removable area chip (#2251)."
   },
   {
     "from": "/photos/spot/:areaKey/:orientationKey",
@@ -525,7 +525,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list). Interim consumers to switch when served: command-search area results (`searchResultTarget.ts`) and the diary entry page's area chips (#2225), and AreaLink (Photos page area rows, spot viewer and entry photo viewer details, #2226)."
+    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list). Served by #2251; the interim consumers (command-search area results, diary entry page area chips, AreaLink, the Task and Purchase strip Where facts) link here."
   },
   {
     "from": "/history",

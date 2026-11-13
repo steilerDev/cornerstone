@@ -8,12 +8,14 @@ import * as schema from '../../db/schema.js';
 import { NotFoundError, ValidationError, BudgetLineInUseError } from '../../errors/AppError.js';
 import {
   listWorkItemBudgets,
+  listWorkItemBudgetsForItems,
   createWorkItemBudget,
   updateWorkItemBudget,
   deleteWorkItemBudget,
 } from '../workItemBudgetService.js';
 import {
   listHouseholdItemBudgets,
+  listHouseholdItemBudgetsForItems,
   createHouseholdItemBudget,
   updateHouseholdItemBudget,
   deleteHouseholdItemBudget,
@@ -390,6 +392,82 @@ describe('budgetServiceFactory — createBudgetService()', () => {
   });
 
   // ─── create() ─────────────────────────────────────────────────────────────
+
+  // ─── listForEntities() (#2251) ────────────────────────────────────────────
+
+  describe('listForEntities()', () => {
+    it('returns [] for no ids without touching the database', () => {
+      expect(listWorkItemBudgetsForItems(db, [])).toEqual([]);
+      expect(listHouseholdItemBudgetsForItems(db, [])).toEqual([]);
+    });
+
+    it('returns the lines of several work items in one list and leaves other items out', () => {
+      const a = insertWorkItem('A');
+      const b = insertWorkItem('B');
+      const other = insertWorkItem('Other');
+      const lineA = createWorkItemBudget(db, a, 'user-001', {
+        plannedAmount: 100,
+        budgetSourceId: 'discretionary-system',
+      });
+      const lineB = createWorkItemBudget(db, b, 'user-001', {
+        plannedAmount: 200,
+        budgetSourceId: 'discretionary-system',
+      });
+      createWorkItemBudget(db, other, 'user-001', {
+        plannedAmount: 999,
+        budgetSourceId: 'discretionary-system',
+      });
+
+      const result = listWorkItemBudgetsForItems(db, [a, b]);
+
+      expect(result.map((l) => l.id)).toEqual([lineA.id, lineB.id]);
+      expect(result.map((l) => l.workItemId)).toEqual([a, b]);
+      expect(result.map((l) => l.plannedAmount)).toEqual([100, 200]);
+    });
+
+    it('returns the lines of several purchases in one list and leaves other items out', () => {
+      const a = insertHouseholdItem();
+      const b = insertHouseholdItem();
+      const other = insertHouseholdItem();
+      const lineA = createHouseholdItemBudget(db, a, 'user-001', {
+        plannedAmount: 10,
+        budgetSourceId: 'discretionary-system',
+      });
+      const lineB = createHouseholdItemBudget(db, b, 'user-001', {
+        plannedAmount: 20,
+        budgetSourceId: 'discretionary-system',
+      });
+      createHouseholdItemBudget(db, other, 'user-001', {
+        plannedAmount: 999,
+        budgetSourceId: 'discretionary-system',
+      });
+
+      const result = listHouseholdItemBudgetsForItems(db, [a, b]);
+
+      expect(result.map((l) => l.id)).toEqual([lineA.id, lineB.id]);
+      expect(result.map((l) => l.householdItemId)).toEqual([a, b]);
+    });
+
+    it('does not check that the ids exist (unknown ids yield no lines instead of a 404)', () => {
+      expect(listWorkItemBudgetsForItems(db, ['no-such-wi'])).toEqual([]);
+      expect(listHouseholdItemBudgetsForItems(db, ['no-such-hi'])).toEqual([]);
+    });
+
+    it('carries the same invoice aggregates as list() for the same line', () => {
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 300,
+        budgetSourceId: 'discretionary-system',
+      });
+      insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 150, status: 'paid' });
+
+      expect(listWorkItemBudgetsForItems(db, [workItemId])).toEqual(
+        listWorkItemBudgets(db, workItemId),
+      );
+      expect(listWorkItemBudgetsForItems(db, [workItemId])[0]!.actualCostPaid).toBe(150);
+    });
+  });
 
   describe('create()', () => {
     describe('work-item configuration', () => {

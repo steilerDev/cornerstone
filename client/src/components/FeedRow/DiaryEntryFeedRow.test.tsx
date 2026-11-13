@@ -255,5 +255,42 @@ describe('DiaryEntryFeedRow', () => {
       setup(makeEntry({ photoAreas: undefined }));
       expect(screen.queryByTestId('diary-entry-e1-areas')).toBeNull();
     });
+
+    describe('hideAreas (#2251)', () => {
+      const withAreas = makeEntry({ photoAreas: [area('a1', 'Room 1'), area('a2', 'Area B')] });
+
+      function renderRow(hideAreas?: boolean) {
+        render(
+          <LocaleProvider>
+            <RecordingRouter entries={['/areas/x']} log={createRouterLog()}>
+              <ul>
+                <DiaryEntryFeedRow entry={withAreas} hideAreas={hideAreas} />
+              </ul>
+            </RecordingRouter>
+          </LocaleProvider>,
+        );
+      }
+
+      it('suppresses every area chip although the entry has photo areas', () => {
+        renderRow(true);
+        expect(screen.queryByTestId('diary-entry-e1-areas')).toBeNull();
+        expect(screen.queryByText('Room 1')).toBeNull();
+        // the rest of the row is unchanged: still one link, the title
+        expect(screen.getAllByRole('link')).toHaveLength(1);
+        expect(screen.getByTestId('diary-entry-e1-link')).toHaveTextContent('Entry A');
+      });
+
+      it('keeps the chips when hideAreas is false or omitted', () => {
+        renderRow(false);
+        expect(
+          within(screen.getByTestId('diary-entry-e1-areas')).getAllByRole('listitem'),
+        ).toHaveLength(2);
+        document.body.innerHTML = '';
+        renderRow();
+        expect(
+          within(screen.getByTestId('diary-entry-e1-areas')).getAllByRole('listitem'),
+        ).toHaveLength(2);
+      });
+    });
   });
 });
