@@ -19,7 +19,7 @@
       "InvoicesPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "LoginPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "ManagePage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
-      "MilestoneDetailPage": { "destinations": 4, "primaryButtons": 6, "searchFields": 0 },
+      "MilestoneDetailPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 0 },
       "MilestonesPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "NoAccessPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
       "NotFoundPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },

@@ -180,77 +180,67 @@
     },
     "detail": {
       "loading": "Meilenstein wird geladen...",
-      "error": "Fehler beim Laden des Meilensteins. Bitte versuche es erneut.",
-      "editButton": "Bearbeiten",
       "notFound": "Meilenstein nicht gefunden",
-      "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
-      "edit": {
-        "title": "Meilenstein bearbeiten",
-        "form": {
-          "title": {
-            "label": "Titel",
-            "required": "*",
-            "placeholder": "Meilensteintitel"
-          },
-          "targetDate": {
-            "label": "Zieldatum",
-            "required": "*"
-          },
-          "description": {
-            "label": "Beschreibung",
-            "placeholder": "Optionale Beschreibung"
-          },
-          "isCompleted": {
-            "label": "Als abgeschlossen markieren"
-          }
-        },
-        "save": "Änderungen speichern",
-        "saving": "Wird gespeichert...",
-        "cancel": "Abbrechen"
+      "retry": "Erneut versuchen",
+      "deleted": "Meilenstein gelöscht",
+      "deleteError": "Der Meilenstein konnte nicht gelöscht werden.",
+      "primary": {
+        "reopen": "Wieder öffnen"
       },
-      "delay": {
-        "late": "verspätet",
-        "ahead": "im Voraus",
-        "day": "Tag",
-        "days": "Tage"
+      "secondary": {
+        "changeTarget": "Zieltermin ändern"
       },
-      "unlinkButton": "Diesen Arbeitspaket aus dem Meilenstein entfernen",
-      "unlinkHouseholdButton": "Diesen Haushaltsartikel aus dem Meilenstein entfernen",
-      "removeDependentButton": "Diesen abhängigen Arbeitspaket aus dem Meilenstein entfernen",
-      "linkedItems": "Verknüpfte Artikel",
-      "noItemsLinked": "Keine Artikel verknüpft",
-      "dependentItems": "Abhängige Arbeitspakete",
-      "noDependentItems": "Keine abhängigen Arbeitspakete",
-      "workItem": "Arbeitspaket",
-      "householdItem": "Haushaltsartikel",
-      "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
-      "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
-      "noMatches": "Keine Artikel entsprechen deiner Suche",
-      "noDepMatches": "Keine Arbeitspakete entsprechen deiner Suche",
-      "form": {
-        "title": "Meilenstein bearbeiten",
-        "titleLabel": "Titel",
-        "targetDateLabel": "Zieldatum",
-        "descriptionLabel": "Beschreibung",
-        "placeholderTitle": "Meilensteintitel",
-        "placeholderDescription": "Optionale Beschreibung",
-        "save": "Änderungen speichern",
-        "saving": "Wird gespeichert...",
-        "cancel": "Abbrechen"
+      "strip": {
+        "target": "Ziel",
+        "projected": "Voraussichtlich",
+        "reached": "Erreicht",
+        "againstTarget": "Gegenüber Ziel",
+        "onTarget": "Im Plan",
+        "countsToward": "Zählt zu",
+        "tasks_one": "{{count}} Aufgabe",
+        "tasks_other": "{{count}} Aufgaben",
+        "open": "{{count}} offen",
+        "noneYet": "Noch keine",
+        "noTasksYet": "Noch keine Aufgaben",
+        "noDatesYet": "Noch keine Termine"
       },
-      "view": {
-        "targetDate": "Zieldatum",
-        "projectedDate": "Voraussichtliches Datum",
-        "description": "Beschreibung",
-        "completedAt": "Abgeschlossen am"
+      "overview": {
+        "details": "Details",
+        "nothingYet": "Noch nichts hinzugefügt",
+        "reachedOn": "Erreicht am",
+        "color": "Farbe",
+        "noColor": "Keine Farbe",
+        "saveError": "Der Meilenstein konnte nicht gespeichert werden."
       },
-      "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuche es erneut.",
-      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuche es erneut.",
-      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitspakets. Bitte versuche es erneut.",
-      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuche es erneut.",
-      "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuche es erneut.",
-      "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuche es erneut.",
-      "deleteButton": "Meilenstein löschen"
+      "work": {
+        "countsToward": "Zählt zu diesem Meilenstein",
+        "waitingFor": "Wartet auf diesen Meilenstein",
+        "countsEmpty": "Noch keine Aufgabe zählt zu diesem Meilenstein.",
+        "waitingEmpty": "Noch nichts wartet auf diesen Meilenstein.",
+        "addTask": "Aufgabe hinzufügen",
+        "addWaiting": "Aufgabe oder Anschaffung hinzufügen",
+        "kindTask": "Aufgabe",
+        "kindPurchase": "Anschaffung",
+        "rowFacts": "{{kind}} · {{date}}",
+        "dateRange": "{{start}} – {{end}}",
+        "addError": "Konnte nicht hinzugefügt werden. Versuche es erneut.",
+        "alreadyWaiting": "Diese Aufgabe wartet auf diesen Meilenstein, daher kann sie nicht zu ihm zählen.",
+        "alreadyCounts": "Diese Aufgabe zählt zu diesem Meilenstein, daher kann sie nicht auf ihn warten."
+      },
+      "history": {
+        "title": "Verlauf",
+        "empty": "An diesem Meilenstein ist noch nichts passiert.",
+        "loadError": "Der Verlauf konnte nicht geladen werden.",
+        "showAll": "Alle im Verlauf anzeigen",
+        "created": "Erstellt von {{name}} am {{date}}",
+        "createdUnknown": "Erstellt am {{date}}",
+        "updated": "Zuletzt aktualisiert {{date}}"
+      },
+      "shortcuts": {
+        "edit": "Details des Meilensteins bearbeiten",
+        "delete": "Meilenstein löschen",
+        "help": "Tastenkürzel anzeigen"
+      }
     }
   },
   "view": {

@@ -1,269 +1,241 @@
 /**
- * Page Object Model for the Milestone Detail page (/project/milestones/:id)
+ * Page Object Model for the Milestone page (/project/milestones/:id), rebuilt on the object
+ * template in #2250 (EPIC-21 P5.6). It replaces the old view card, the hand-rolled edit form and
+ * both SearchPicker link pickers.
  *
- * The page renders two modes:
+ * The page is composed of shared controls:
+ * - `breadcrumbs` (Tasks > Milestones, optional origin Back) and `header` (`milestone-header`):
+ *   h1 = the title (once, no card repeats it), the status chip (`milestone-status`), ONE primary
+ *   (not reached: Mark reached `milestone-primary-reached`, a StatusMenu in its `action`
+ *   appearance with the date chips Today / On target / Pick a date; reached: Reopen
+ *   `milestone-primary-reopen`, a plain button with no date step), the secondary Change target
+ *   (`milestone-secondary-change-target`, hidden once reached) and the ⋯ menu (Delete
+ *   `object-header-delete`)
+ * - `summary` (`milestone-summary`): facts `target`, `projected` (label "Reached" once reached),
+ *   `againstTarget` (Badge `milestone-against-target`) and `countsToward`; ids `summary-fact-<id>`
+ * - `tabs` (`milestone-tabs`): overview (default), work, history; `?tab=` carries them
+ * - Overview: ONE Details card (`section-milestone-details`): read rows `milestone-detail-*`
+ *   (target, reached, color), the empty note `milestone-detail-empty`, edit fields
+ *   `milestone-field-*` (title, target-date, description, color)
+ * - Work: the RelatedLists `milestone-counts` (tasks only; row ids are the task id) and
+ *   `milestone-waiting` (tasks and purchases; row ids are `work_item:<id>` / `household_item:<id>`)
+ * - History: the created line `milestone-history-created` and the feed `section-milestone-history`
  *
- * **View mode** (default, isEditing = false):
- * - h1 with milestone title (class pageTitle)
- * - Breadcrumbs (Story #2202): trail "Tasks" > "Milestones" + optional "Back to {origin}"
- * - View card (.viewCard) containing:
- *   - h2 = milestone.title (class milestoneTitle)
- *   - Status badge: "Reached" or "Upcoming"
- *   - Edit button: data-testid="edit-milestone-button"
- *   - Fields: Target Date, Description (conditional), Completed At (conditional)
- *   - Linked Items section (list + search input: #milestone-link-search)
- *   - Dependent Work Items section (data-testid="dependent-items-section")
- *   - Delete button: data-testid="delete-milestone-button", text t('milestones.detail.deleteButton') = "Delete Milestone"
- *
- * **Edit mode** (isEditing = true, after clicking Edit button):
- * - Form card (.editCard) with h2 "Edit Milestone" (t('milestones.detail.form.title'))
- * - Form fields:
- *   - #title — data-testid="milestone-title-input"
- *   - #targetDate — data-testid="milestone-target-date-input"
- *   - #description — data-testid="milestone-description-input"
- * - Save button: data-testid="save-milestone-button", text "Save Changes" / "Saving..."
- * - Cancel button: class cancelButton, text "Cancel"
- *
- * **Status** (#2209): the header chip is a StatusMenu (data-testid="milestone-status"); "Mark
- * reached" (date step) and "Back to “Upcoming”" live there. The Edit form no longer has a
- * "Mark as completed" checkbox.
- *
- * **Delete confirmation** (shared ConfirmDialog, role="alertdialog", testid prefix milestone-delete):
- * - title: "Delete <title>?"
- * - Cancel: milestone-delete-cancel; Confirm: milestone-delete-confirm ("Delete" / "Deleting…")
- *
- * **Not found state** (is404 = true):
- * - div.notFound with the page h1 t('milestones.detail.notFound') = "Milestone not found"
- * - Link "Back to Milestones" (h1 is now "Milestone not found")
- *
- * **Error banner** (role="alert", class errorBanner) — shown for API errors
- *
- * Key DOM observations from source code:
- * - Delete dialog is the shared ConfirmDialog (alertdialog)
- * - Edit button and save button use data-testid for stable selection
- * - The page h1 = milestone.title (not a fixed string)
+ * Panels mount lazily, so a spec that touches Work or History opens that tab (`goto` takes
+ * `tab`). Not found renders the h1 "Milestone not found" and a "Back to Milestones" button inside
+ * the error card (role="alert").
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
+import { ObjectHeaderControl } from './components/ObjectHeaderControl.js';
+import { ObjectTabsControl } from './components/ObjectTabsControl.js';
+import { RelatedListControl } from './components/RelatedListControl.js';
+import { SectionCardControl } from './components/SectionCardControl.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
-import { SearchPickerControl } from './components/SearchPickerControl.js';
+import { SummaryStripControl } from './components/SummaryStripControl.js';
+import { ToastRegion } from './components/ToastRegion.js';
+
+export type MilestoneTab = 'overview' | 'work' | 'history';
 
 export class MilestoneDetailPage {
   readonly page: Page;
 
-  // Header — shown in BOTH view and edit modes
+  // Header
   readonly breadcrumbs: BreadcrumbsBar;
+  readonly header: ObjectHeaderControl;
   readonly heading: Locator; // h1 = milestone.title
-
-  // View mode elements
-  readonly editButton: Locator; // data-testid="edit-milestone-button"
-  readonly deleteButton: Locator; // data-testid="delete-milestone-button"
-  readonly viewCard: Locator;
+  /** Header StatusMenu chip (data-testid="milestone-status"). */
   readonly statusMenu: StatusMenuControl;
-  /** The status chip trigger/badge (data-testid="milestone-status"). */
+  /** Alias of the chip trigger (its text is the canonical status word). */
   readonly statusBadge: Locator;
+  /** The not-reached primary: Mark reached (a StatusMenu in its `action` appearance). */
+  readonly reachedPrimary: StatusMenuControl;
+  /** The reached primary: Reopen (plain button, no date step). */
+  readonly reopenPrimary: Locator;
+  /** The secondary: Change target (focuses the Target date field of the Details card). */
+  readonly changeTargetButton: Locator;
+  readonly toasts: ToastRegion;
 
-  // Edit mode elements
-  readonly titleInput: Locator; // data-testid="milestone-title-input"
-  readonly targetDateInput: Locator; // data-testid="milestone-target-date-input"
-  readonly descriptionInput: Locator; // data-testid="milestone-description-input"
-  readonly saveButton: Locator; // data-testid="save-milestone-button"
-  readonly cancelEditButton: Locator; // "Cancel" in edit mode (class cancelButton)
+  // Strip, tabs
+  readonly summary: SummaryStripControl;
+  readonly againstTargetBadge: Locator;
+  readonly tabs: ObjectTabsControl;
 
-  // Linked items
-  readonly itemSearchInput: Locator; // #milestone-link-search (SearchPicker, add mode)
-  readonly depSearchInput: Locator; // #milestone-dependent-search (SearchPicker, add mode)
-  readonly linkPicker: SearchPickerControl;
-  readonly dependentPicker: SearchPickerControl;
-  readonly dependentItemsSection: Locator; // data-testid="dependent-items-section"
+  // Overview
+  readonly detailsCard: SectionCardControl;
+  readonly titleInput: Locator;
+  readonly targetDateInput: Locator;
+  readonly descriptionInput: Locator;
+  readonly emptyNote: Locator;
 
-  // Delete confirmation (shared ConfirmDialog, role="alertdialog")
+  // Work
+  readonly counts: RelatedListControl;
+  readonly waiting: RelatedListControl;
+  /** The task chooser opened by the Counts toward Add action. */
+  readonly countsPicker: EntityPickerControl;
+  /** The task-or-purchase chooser opened by the Waiting for Add action. */
+  readonly waitingPicker: EntityPickerControl;
+
+  // History
+  readonly historyCreated: Locator;
+  readonly history: Locator;
+
+  // Delete (ConfirmDialog, role="alertdialog", testid prefix milestone-delete)
+  readonly deleteDialog: ConfirmDialogControl;
   readonly deleteModal: Locator;
-  readonly deleteConfirmButton: Locator; // data-testid="milestone-delete-confirm"
-  readonly deleteCancelButton: Locator; // data-testid="milestone-delete-cancel"
+  readonly deleteConfirmButton: Locator;
+  readonly deleteCancelButton: Locator;
 
-  // Error / not-found states
-  readonly errorBanner: Locator; // role="alert", class errorBanner
-  readonly notFoundState: Locator; // div.notFound
+  // Error / not-found states (one error card, role="alert")
+  readonly errorState: Locator;
+  readonly notFoundState: Locator;
+  readonly backToMilestonesButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     this.breadcrumbs = new BreadcrumbsBar(page);
-    // h1 = milestone.title (dynamic — matched by level only, caller checks text)
+    this.header = new ObjectHeaderControl(page, 'milestone-header');
     this.heading = page.getByRole('heading', { level: 1 });
-
-    // View mode
-    this.editButton = page.getByTestId('edit-milestone-button');
-    this.deleteButton = page.getByTestId('delete-milestone-button');
-    this.viewCard = page.locator('[class*="viewCard"]');
-    // Status chip: StatusMenu (testid milestone-status)
     this.statusMenu = new StatusMenuControl(page, 'milestone-status');
     this.statusBadge = this.statusMenu.trigger;
+    this.reachedPrimary = new StatusMenuControl(page, 'milestone-primary-reached');
+    this.reopenPrimary = page.getByTestId('milestone-primary-reopen');
+    this.changeTargetButton = page.getByTestId('milestone-secondary-change-target');
+    this.toasts = new ToastRegion(page);
 
-    // Edit mode form fields — same data-testids used in both create and edit forms
-    this.titleInput = page.getByTestId('milestone-title-input');
-    this.targetDateInput = page.getByTestId('milestone-target-date-input');
-    this.descriptionInput = page.getByTestId('milestone-description-input');
-    this.saveButton = page.getByTestId('save-milestone-button');
-    // Cancel edit button: class cancelButton (in editActions div)
-    this.cancelEditButton = page.locator('[class*="cancelButton"]').filter({ hasText: 'Cancel' });
+    this.summary = new SummaryStripControl(page, 'milestone-summary');
+    this.againstTargetBadge = page.getByTestId('milestone-against-target');
+    this.tabs = new ObjectTabsControl(page, 'milestone-tabs');
 
-    // Linked items search inputs
-    this.linkPicker = new SearchPickerControl(page, 'milestone-link-search');
-    this.dependentPicker = new SearchPickerControl(page, 'milestone-dependent-search');
-    this.itemSearchInput = this.linkPicker.input;
-    this.depSearchInput = this.dependentPicker.input;
-    this.dependentItemsSection = page.getByTestId('dependent-items-section');
+    this.detailsCard = new SectionCardControl(page, 'section-milestone-details');
+    this.titleInput = page.getByTestId('milestone-field-title');
+    this.targetDateInput = page.getByTestId('milestone-field-target-date');
+    this.descriptionInput = page.getByTestId('milestone-field-description');
+    this.emptyNote = page.getByTestId('milestone-detail-empty');
 
-    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)
-    this.deleteModal = page
-      .getByRole('alertdialog')
-      .filter({ has: page.getByTestId('milestone-delete-cancel') });
-    this.deleteConfirmButton = this.deleteModal.getByTestId('milestone-delete-confirm');
-    this.deleteCancelButton = this.deleteModal.getByTestId('milestone-delete-cancel');
+    this.counts = new RelatedListControl(page, 'milestone-counts');
+    this.waiting = new RelatedListControl(page, 'milestone-waiting');
+    this.countsPicker = new EntityPickerControl(page, this.counts.root.locator('input').first());
+    this.waitingPicker = new EntityPickerControl(page, this.waiting.root.locator('input').first());
 
-    // Error / load states
-    this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
-    this.notFoundState = page.locator('[class*="notFound"]');
+    this.historyCreated = page.getByTestId('milestone-history-created');
+    // ObjectHistorySection is a SectionCard without a test id: `section-<prefix>`
+    this.history = page.getByTestId('section-milestone-history');
+
+    this.deleteDialog = new ConfirmDialogControl(page, 'milestone-delete');
+    this.deleteModal = this.deleteDialog.dialog;
+    this.deleteConfirmButton = this.deleteDialog.confirmButton;
+    this.deleteCancelButton = this.deleteDialog.cancelButton;
+
+    this.errorState = page.locator('[role="alert"][class*="errorCard"]');
+    this.notFoundState = this.errorState;
+    this.backToMilestonesButton = this.errorState.getByRole('button', {
+      name: 'Back to Milestones',
+    });
   }
 
   /**
-   * Navigate directly to a milestone detail page by ID.
-   * Waits for either:
-   *   - h1 heading to appear (successful load)
-   *   - notFound state to appear (404)
-   * No explicit timeout — uses project-level actionTimeout.
+   * Navigate to the milestone page by id (optionally on a tab). Waits for the summary strip (the
+   * loaded page; the h1 is already present on the loading skeleton) or the error state (404).
    */
-  async goto(id: number | string): Promise<void> {
-    await this.page.goto(routeUrl('milestone', { id }));
+  async goto(id: number | string, options: { tab?: MilestoneTab } = {}): Promise<void> {
+    const url = routeUrl('milestone', { id }, options.tab ? { tab: options.tab } : undefined);
+    await this.page.goto(url, { waitUntil: 'domcontentloaded' });
     await Promise.race([
-      this.heading.waitFor({ state: 'visible' }),
-      this.notFoundState.waitFor({ state: 'visible' }),
+      this.summary.root.waitFor({ state: 'visible' }),
+      this.errorState.waitFor({ state: 'visible' }),
     ]);
   }
 
-  /**
-   * Get the milestone title from the h1 heading.
-   */
+  /** The h1 text (the milestone title). */
   async getTitle(): Promise<string> {
     return (await this.heading.textContent()) ?? '';
   }
 
-  /**
-   * Switch to edit mode by clicking the Edit button.
-   * Waits for the save button to be visible (edit form is rendered).
-   */
-  async startEditing(): Promise<void> {
-    await this.editButton.click();
-    await this.saveButton.waitFor({ state: 'visible' });
+  /** The status chip text (e.g. "Upcoming", "Late · 3 d", "Reached"). */
+  async getStatusText(): Promise<string> {
+    return (await this.statusBadge.textContent()) ?? '';
+  }
+
+  /** Select a tab and wait for its panel. */
+  async openTab(tab: MilestoneTab): Promise<void> {
+    await this.tabs.select(tab);
+    await expect(this.tabs.panel(tab)).toBeVisible();
+  }
+
+  /** Edit the Details card: set the given fields and Save. */
+  async editDetails(values: {
+    title?: string;
+    targetDate?: string;
+    description?: string;
+  }): Promise<void> {
+    await this.detailsCard.startEdit();
+    if (values.title !== undefined) await this.titleInput.fill(values.title);
+    if (values.targetDate !== undefined) await this.targetDateInput.fill(values.targetDate);
+    if (values.description !== undefined) await this.descriptionInput.fill(values.description);
+    await this.detailsCard.save();
+  }
+
+  /** A Details read row (dd) by field. */
+  detail(field: 'target' | 'reached' | 'color'): Locator {
+    return this.page.getByTestId(`milestone-detail-${field}`);
   }
 
   /**
-   * Save changes in edit mode.
-   * Registers the PATCH response listener BEFORE clicking save to avoid missing
-   * the response on fast runners.
-   * Waits for: PATCH 200 response, then the edit form to disappear.
+   * The Add action of a related list: the header button, or the empty state's button of the same
+   * label ("Add task" / "Add task or purchase").
    */
-  async saveChanges(): Promise<void> {
-    const saveResponsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/milestones') &&
-        resp.request().method() === 'PATCH' &&
-        resp.status() === 200,
-    );
-    await this.saveButton.click();
-    await saveResponsePromise;
-    // Wait for edit form to close (saveButton disappears)
-    await this.saveButton.waitFor({ state: 'hidden' });
+  addAction(list: RelatedListControl, label: string): Locator {
+    return list.addButton.or(list.addAction(label)).first();
   }
 
-  /**
-   * Cancel edit mode by clicking "Cancel".
-   * Waits for the saveButton to disappear.
-   */
-  async cancelEditing(): Promise<void> {
-    await this.cancelEditButton.click();
-    await this.saveButton.waitFor({ state: 'hidden' });
+  /** The row key of a task in the Waiting for list. */
+  static taskKey(id: string): string {
+    return `work_item:${id}`;
   }
 
-  /**
-   * Open the delete confirmation modal.
-   * Clicks the "Delete Milestone" button in the view footer.
-   */
+  /** The row key of a purchase in the Waiting for list. */
+  static purchaseKey(id: string): string {
+    return `household_item:${id}`;
+  }
+
+  // ─── Delete ────────────────────────────────────────────────────────────────
+
+  /** Open the delete confirmation from the ⋯ menu. */
   async openDeleteModal(): Promise<void> {
-    await this.deleteButton.click();
-    await this.deleteModal.waitFor({ state: 'visible' });
+    await this.header.chooseMenuItem('object-header-delete');
+    await this.deleteDialog.waitForOpen();
   }
 
-  /**
-   * Confirm the deletion.
-   * Waits for the DELETE API response then navigation to /project/milestones.
-   */
-  async confirmDelete(): Promise<void> {
-    await this.deleteConfirmButton.click();
-    await this.page.waitForURL('**/project/milestones');
-  }
-
-  /**
-   * Cancel the delete modal without deleting.
-   */
+  /** Cancel the delete dialog without deleting. */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Delete the milestone via the modal flow (open + confirm).
-   */
+  /** Confirm deletion in the dialog. The page navigates to the Milestones list on success. */
+  async confirmDelete(): Promise<void> {
+    await this.deleteConfirmButton.click();
+    await this.page.waitForURL('**/project/milestones');
+  }
+
+  /** Delete the milestone through the ⋯ menu and the confirm dialog. */
   async deleteMilestone(): Promise<void> {
     await this.openDeleteModal();
     await this.confirmDelete();
   }
 
-  /**
-   * Check if the page is in the not-found state (404).
-   * Uses a short probe timeout since this is an optional check.
-   */
+  /** Probe for the not-found state (the error card with the "Milestone not found" h1). */
   async isInNotFoundState(): Promise<boolean> {
-    try {
-      await this.notFoundState.waitFor({ state: 'visible', timeout: 3000 });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Return the list item element for a linked work item by its title.
-   *
-   * The linked work items list renders <li class*="linkedWorkItem"> elements.
-   * Each item contains: itemTypeBadge, workItemTitleCell (link + AreaBreadcrumb compact), unlinkButton.
-   * This locator scopes assertions to a specific WI row in the linked items list.
-   */
-  linkedWorkItemRow(title: string): Locator {
-    return this.page.locator('li[class*="linkedWorkItem"]').filter({ hasText: title });
-  }
-
-  /**
-   * Get the error banner text, or null if not visible.
-   * Uses a short probe timeout.
-   */
-  async getErrorBannerText(): Promise<string | null> {
-    try {
-      await this.errorBanner.waitFor({ state: 'visible', timeout: 3000 });
-      return await this.errorBanner.textContent();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Get the status badge text (e.g., "Reached" or "Upcoming").
-   */
-  async getStatusText(): Promise<string> {
-    return (await this.statusBadge.textContent()) ?? '';
+    return (
+      (await this.errorState.isVisible()) &&
+      (await this.heading.textContent()) === 'Milestone not found'
+    );
   }
 }

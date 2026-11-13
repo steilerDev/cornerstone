@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-26",
+    "lastUpdated": "2026-11-13",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -1172,6 +1172,32 @@
       },
       "deSource": "approved",
       "definition": "A milestone projected before its target date.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Target": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Target"
+      },
+      "de": {
+        "singular": "Ziel"
+      },
+      "deSource": "shipped",
+      "definition": "The date a milestone or purchase is aimed at. Projected is measured against it.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Projected": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Projected"
+      },
+      "de": {
+        "singular": "Voraussichtlich"
+      },
+      "deSource": "shipped",
+      "definition": "The date a milestone is expected to be reached, given the current schedule. Compared with its target.",
       "doNotUse": [],
       "formerly": []
     },

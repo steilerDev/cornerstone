@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest } from '@jest/globals';
-import { createRef, useState } from 'react';
+import { createRef, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -50,7 +50,7 @@ function Card({ id, title, controllerRef, noEdit = false, loading = false, onSta
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                   />
-                  <input aria-label={`${title} second`} />
+                  <input id={`${id}-second`} aria-label={`${title} second`} />
                 </>
               ),
             }
@@ -161,5 +161,162 @@ describe('SectionCard controllerRef.startEdit (#2244)', () => {
     render(<Card id="a" title="Alpha" />);
     await user.click(screen.getByTestId('section-a-edit'));
     expect(screen.getByTestId('section-a-form')).toBeInTheDocument();
+  });
+});
+
+describe('SectionCard controllerRef.startEdit options (#2250)', () => {
+  function Host({ onReady }: { onReady: (ref: RefObject<SectionCardController | null>) => void }) {
+    const ref = useRef<SectionCardController>(null);
+    onReady(ref);
+    return (
+      <>
+        <button type="button">Change target</button>
+        <Card id="a" title="Alpha" controllerRef={ref} />
+      </>
+    );
+  }
+
+  function setup() {
+    let ref!: RefObject<SectionCardController | null>;
+    render(<Host onReady={(r) => (ref = r)} />);
+    return { ref, host: screen.getByRole('button', { name: 'Change target' }) };
+  }
+
+  describe('focusId', () => {
+    // Mutation: ignoring focusId focuses the first field (Alpha field) instead.
+    it('focuses the field with that id when it opens the card', async () => {
+      const { ref } = setup();
+
+      act(() => ref.current!.startEdit({ focusId: 'a-second' }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Alpha second' })).toHaveFocus(),
+      );
+      expect(screen.getByRole('textbox', { name: 'Alpha field' })).not.toHaveFocus();
+    });
+
+    it('focuses the field with that id while the card is already editing', async () => {
+      const user = userEvent.setup();
+      const { ref } = setup();
+      await user.click(screen.getByTestId('section-a-edit'));
+      expect(screen.getByRole('textbox', { name: 'Alpha field' })).toHaveFocus();
+
+      act(() => ref.current!.startEdit({ focusId: 'a-second' }));
+
+      expect(screen.getByRole('textbox', { name: 'Alpha second' })).toHaveFocus();
+    });
+
+    it('falls back to the first field when no field has that id', async () => {
+      const { ref } = setup();
+
+      act(() => ref.current!.startEdit({ focusId: 'does-not-exist' }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Alpha field' })).toHaveFocus(),
+      );
+    });
+
+    // Mutation: not clearing focusId makes a later plain startEdit jump to the old field.
+    it('forgets the id once used: the next plain startEdit focuses the first field again', async () => {
+      const user = userEvent.setup();
+      const { ref } = setup();
+      act(() => ref.current!.startEdit({ focusId: 'a-second' }));
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Alpha second' })).toHaveFocus(),
+      );
+      await user.click(screen.getByTestId('section-a-cancel'));
+      await waitFor(() => expect(screen.queryByTestId('section-a-form')).toBeNull());
+
+      act(() => ref.current!.startEdit());
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Alpha field' })).toHaveFocus(),
+      );
+    });
+
+    it('works through the scope too (a clean neighbour closes, then the field is focused)', async () => {
+      const user = userEvent.setup();
+      const ref = createRef<SectionCardController>();
+      render(
+        <SectionCardScope>
+          <Card id="a" title="Alpha" />
+          <Card id="b" title="Beta" controllerRef={ref} />
+        </SectionCardScope>,
+      );
+      await user.click(screen.getByTestId('section-a-edit'));
+
+      act(() => ref.current!.startEdit({ focusId: 'b-second' }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Beta second' })).toHaveFocus(),
+      );
+    });
+  });
+
+  describe('returnFocus', () => {
+    // Mutation: always returning to the Edit button leaves focus on a button the host did not use.
+    it('gets focus after Cancel', async () => {
+      const user = userEvent.setup();
+      const { ref, host } = setup();
+      act(() => ref.current!.startEdit({ returnFocus: host }));
+      await screen.findByTestId('section-a-form');
+
+      await user.click(screen.getByTestId('section-a-cancel'));
+
+      await waitFor(() => expect(host).toHaveFocus());
+      expect(screen.getByTestId('section-a-edit')).not.toHaveFocus();
+    });
+
+    it('gets focus after Esc', async () => {
+      const user = userEvent.setup();
+      const { ref, host } = setup();
+      act(() => ref.current!.startEdit({ returnFocus: host }));
+      await screen.findByTestId('section-a-form');
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() => expect(host).toHaveFocus());
+    });
+
+    it('gets focus after a successful Save', async () => {
+      const user = userEvent.setup();
+      const { ref, host } = setup();
+      act(() => ref.current!.startEdit({ returnFocus: host }));
+      await user.type(await screen.findByRole('textbox', { name: 'Alpha field' }), 'x');
+
+      await user.click(screen.getByTestId('section-a-save'));
+
+      await waitFor(() => expect(screen.queryByTestId('section-a-form')).toBeNull());
+      await waitFor(() => expect(host).toHaveFocus());
+    });
+
+    // Mutation: dropping the isConnected guard calls focus() on a detached node and loses focus.
+    it('falls back to the Edit button when the return target is no longer in the page', async () => {
+      const user = userEvent.setup();
+      const { ref } = setup();
+      const detached = document.createElement('button');
+      act(() => ref.current!.startEdit({ returnFocus: detached }));
+      await screen.findByTestId('section-a-form');
+
+      await user.click(screen.getByTestId('section-a-cancel'));
+
+      await waitFor(() => expect(screen.getByTestId('section-a-edit')).toHaveFocus());
+    });
+
+    // Mutation: not clearing the ref sends a later Edit-button session back to the old host.
+    it('is forgotten after the session: a later Edit-button session returns to the Edit button', async () => {
+      const user = userEvent.setup();
+      const { ref, host } = setup();
+      act(() => ref.current!.startEdit({ returnFocus: host }));
+      await screen.findByTestId('section-a-form');
+      await user.click(screen.getByTestId('section-a-cancel'));
+      await waitFor(() => expect(host).toHaveFocus());
+
+      await user.click(screen.getByTestId('section-a-edit'));
+      await user.click(screen.getByTestId('section-a-cancel'));
+
+      await waitFor(() => expect(screen.getByTestId('section-a-edit')).toHaveFocus());
+      expect(host).not.toHaveFocus();
+    });
   });
 });

@@ -181,76 +181,66 @@
     "detail": {
       "loading": "Loading milestone...",
       "notFound": "Milestone not found",
-      "notFoundMessage": "The milestone you're looking for doesn't exist.",
-      "error": "Failed to load milestone. Please try again.",
-      "editButton": "Edit",
-      "edit": {
-        "title": "Edit Milestone",
-        "form": {
-          "title": {
-            "label": "Title",
-            "required": "*",
-            "placeholder": "Milestone title"
-          },
-          "targetDate": {
-            "label": "Target Date",
-            "required": "*"
-          },
-          "description": {
-            "label": "Description",
-            "placeholder": "Optional description"
-          },
-          "isCompleted": {
-            "label": "Mark as completed"
-          }
-        },
-        "save": "Save Changes",
-        "saving": "Saving...",
-        "cancel": "Cancel"
+      "retry": "Try again",
+      "deleted": "Milestone deleted",
+      "deleteError": "Couldn't delete the milestone.",
+      "primary": {
+        "reopen": "Reopen"
       },
-      "delay": {
-        "late": "late",
-        "ahead": "ahead",
-        "day": "day",
-        "days": "days"
+      "secondary": {
+        "changeTarget": "Change target"
       },
-      "unlinkButton": "Remove this work item from the milestone",
-      "unlinkHouseholdButton": "Remove this household item from the milestone",
-      "removeDependentButton": "Remove this dependent work item from the milestone",
-      "linkedItems": "Linked Items",
-      "noItemsLinked": "No items linked",
-      "dependentItems": "Dependent Work Items",
-      "noDependentItems": "No dependent work items",
-      "workItem": "Work Item",
-      "householdItem": "Household Item",
-      "searchPlaceholder": "Search work items or household items to link...",
-      "depSearchPlaceholder": "Search work items to add as dependent...",
-      "noMatches": "No items match your search",
-      "noDepMatches": "No work items match your search",
-      "form": {
-        "title": "Edit Milestone",
-        "titleLabel": "Title",
-        "targetDateLabel": "Target Date",
-        "descriptionLabel": "Description",
-        "placeholderTitle": "Milestone title",
-        "placeholderDescription": "Optional description",
-        "save": "Save Changes",
-        "saving": "Saving...",
-        "cancel": "Cancel"
+      "strip": {
+        "target": "Target",
+        "projected": "Projected",
+        "reached": "Reached",
+        "againstTarget": "Against target",
+        "onTarget": "On target",
+        "countsToward": "Counts toward",
+        "tasks_one": "{{count}} task",
+        "tasks_other": "{{count}} tasks",
+        "open": "{{count}} open",
+        "noneYet": "None yet",
+        "noTasksYet": "No tasks yet",
+        "noDatesYet": "No dates yet"
       },
-      "view": {
-        "targetDate": "Target Date",
-        "projectedDate": "Projected Date",
-        "description": "Description",
-        "completedAt": "Completed At"
+      "overview": {
+        "details": "Details",
+        "nothingYet": "Nothing added yet",
+        "reachedOn": "Reached on",
+        "color": "Color",
+        "noColor": "No color",
+        "saveError": "Couldn't save the milestone."
       },
-      "failedLink": "Failed to link work item. Please try again.",
-      "failedUnlink": "Failed to unlink work item. Please try again.",
-      "failedAddDependent": "Failed to add dependent work item. Please try again.",
-      "failedRemoveDependent": "Failed to remove dependent work item. Please try again.",
-      "failedSave": "Failed to save milestone. Please try again.",
-      "failedDelete": "Failed to delete milestone. Please try again.",
-      "deleteButton": "Delete Milestone"
+      "work": {
+        "countsToward": "Counts toward this milestone",
+        "waitingFor": "Waiting for this milestone",
+        "countsEmpty": "No task counts toward this milestone yet.",
+        "waitingEmpty": "Nothing waits for this milestone yet.",
+        "addTask": "Add task",
+        "addWaiting": "Add task or purchase",
+        "kindTask": "Task",
+        "kindPurchase": "Purchase",
+        "rowFacts": "{{kind}} · {{date}}",
+        "dateRange": "{{start}} – {{end}}",
+        "addError": "Couldn't add it. Try again.",
+        "alreadyWaiting": "This task waits for this milestone, so it cannot count toward it.",
+        "alreadyCounts": "This task counts toward this milestone, so it cannot wait for it."
+      },
+      "history": {
+        "title": "History",
+        "empty": "Nothing has happened to this milestone yet.",
+        "loadError": "Couldn't load the history.",
+        "showAll": "Show all in History",
+        "created": "Created by {{name}} on {{date}}",
+        "createdUnknown": "Created on {{date}}",
+        "updated": "Last updated {{date}}"
+      },
+      "shortcuts": {
+        "edit": "Edit the milestone details",
+        "delete": "Delete the milestone",
+        "help": "Show keyboard shortcuts"
+      }
     }
   },
   "view": {

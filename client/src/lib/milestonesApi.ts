@@ -10,7 +10,6 @@ import type {
   UpdateMilestoneRequest,
   LinkWorkItemRequest,
   MilestoneWorkItemLinkResponse,
-  WorkItemLinkedHouseholdItemSummary,
 } from '@cornerstone/shared';
 
 /**
@@ -102,15 +101,4 @@ export function removeDependentWorkItem(
   workItemId: string,
 ): Promise<UndoableDeleteResponse> {
   return del<UndoableDeleteResponse>(`/milestones/${milestoneId}/dependents/${workItemId}`);
-}
-
-/**
- * Fetches household items that depend on a milestone.
- */
-export function fetchMilestoneLinkedHouseholdItems(
-  milestoneId: number,
-): Promise<WorkItemLinkedHouseholdItemSummary[]> {
-  return get<{ householdItems: WorkItemLinkedHouseholdItemSummary[] }>(
-    `/milestones/${milestoneId}/dependent-household-items`,
-  ).then((r) => r.householdItems);
 }

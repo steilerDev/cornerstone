@@ -40,8 +40,18 @@ export interface SectionCardController {
   /**
    * Same as the Edit button (through the scope, so a dirty neighbour asks first). While the card
    * is already editing it focuses the first field. No-op without `edit` or while loading.
+   *
+   * `focusId` focuses the field with that DOM id instead of the first one (falls back to the
+   * first field when it is not in the form). `returnFocus` is where focus goes when the card
+   * leaves edit mode by Cancel, Esc or a successful Save (a host button that opened it); the
+   * Edit button takes it when `returnFocus` is gone. It is forgotten once edit mode ends.
    */
-  readonly startEdit: () => void;
+  readonly startEdit: (options?: StartEditOptions) => void;
+}
+
+export interface StartEditOptions {
+  readonly focusId?: string;
+  readonly returnFocus?: HTMLElement | null;
 }
 
 export interface SectionCardProps {
@@ -99,6 +109,8 @@ export function SectionCard({
     setHasTextarea(el?.querySelector('textarea') != null);
   }, []);
   const pendingFocusRef = useRef<PendingFocus>(null);
+  const focusIdRef = useRef<string | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const editRef = useRef(edit);
   editRef.current = edit;
   const titleId = `${id}-title`;
@@ -106,6 +118,16 @@ export function SectionCard({
   const dirty = editing && (edit?.dirty ?? false);
 
   const focusField = () => {
+    const wanted = focusIdRef.current;
+    focusIdRef.current = null;
+    const byId =
+      wanted === null
+        ? null
+        : formRef.current!.querySelector<HTMLElement>(`#${CSS.escape(wanted)}`);
+    if (byId) {
+      byId.focus();
+      return;
+    }
     // The form always holds Cancel and Save, so the fallback query finds something.
     const field =
       firstFieldRef.current ??
@@ -119,15 +141,23 @@ export function SectionCard({
     const target = pendingFocusRef.current;
     pendingFocusRef.current = null;
     // 'edit' is set while the card is editable; 'save' only while it is in edit mode.
-    if (target === 'edit') editButtonRef.current?.focus();
-    else if (target === 'field') focusField();
+    if (target === 'edit') {
+      const back = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (back?.isConnected) back.focus();
+      else editButtonRef.current?.focus();
+    } else if (target === 'field') focusField();
     else if (target === 'save') saveRef.current!.focus();
   }, [editing, confirm, busy]);
 
   // Leaving edit mode (or unmounting) frees the scope for the next card.
   useEffect(() => {
     if (!editing) return undefined;
-    return () => scope?.release(id);
+    return () => {
+      // Edit mode ended: a host's return target (set by `startEdit`) is no longer wanted.
+      returnFocusRef.current = null;
+      scope?.release(id);
+    };
   }, [editing, scope, id]);
 
   // Unsaved changes survive an in-app tab switch, not a page unload.
@@ -157,6 +187,9 @@ export function SectionCard({
   };
 
   const startEdit = () => {
+    // The card's own Edit button: no host to return to.
+    returnFocusRef.current = null;
+    focusIdRef.current = null;
     // Edit is only rendered for a card with `edit` that is not editing.
     if (!scope) {
       begin();
@@ -166,10 +199,13 @@ export function SectionCard({
   };
 
   useImperativeHandle(controllerRef, () => ({
-    startEdit: () => {
+    startEdit: (options) => {
       if (!edit || loading) return;
+      focusIdRef.current = options?.focusId ?? null;
+      returnFocusRef.current = options?.returnFocus ?? null;
       if (editing) focusField();
-      else startEdit();
+      else if (!scope) begin();
+      else scope.requestEdit(id, handle, begin);
     },
   }));
 

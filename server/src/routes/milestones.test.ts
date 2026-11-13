@@ -14,6 +14,7 @@ import type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
 } from '@cornerstone/shared';
+import { eq } from 'drizzle-orm';
 import { householdItemDeps, householdItems, workItems } from '../db/schema.js';
 
 describe('Milestone Routes', () => {
@@ -548,6 +549,98 @@ describe('Milestone Routes', () => {
       const ids = body.workItems.map((w) => w.id);
       expect(ids).toContain(workItemA);
       expect(ids).toContain(workItemB);
+    });
+
+    // #2250: the page reads its second list and projected date from this one response.
+    // Mutation: a route that serialises only the old fields drops any of the three.
+    it('includes dependentWorkItems (full summaries), dependentHouseholdItems and projectedDate', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'page@example.com',
+        'Test User',
+        'password123',
+      );
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Roof complete',
+        targetDate: '2026-04-15',
+      });
+      const contributor = createTestWorkItem(userId, 'Frame roof');
+      const waiter = createTestWorkItem(userId, 'Tile roof');
+      app.db
+        .update(workItems)
+        .set({ endDate: '2099-01-20' })
+        .where(eq(workItems.id, contributor))
+        .run();
+      await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/work-items`,
+        headers: { cookie },
+        payload: { workItemId: contributor },
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/dependents/${waiter}`,
+        headers: { cookie },
+      });
+      const ts = new Date().toISOString();
+      app.db
+        .insert(householdItems)
+        .values({
+          id: 'hi-sofa',
+          name: 'Sofa',
+          categoryId: 'hic-furniture',
+          createdBy: userId,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      app.db
+        .insert(householdItemDeps)
+        .values({
+          householdItemId: 'hi-sofa',
+          predecessorType: 'milestone',
+          predecessorId: String(milestone.id),
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/milestones/${milestone.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<MilestoneDetail>();
+      expect(body.dependentWorkItems).toHaveLength(1);
+      expect(body.dependentWorkItems[0]!.id).toBe(waiter);
+      expect(body.dependentWorkItems[0]!.title).toBe('Tile roof');
+      expect(body.dependentWorkItems[0]!.status).toBe('not_started');
+      expect(body.dependentHouseholdItems).toHaveLength(1);
+      expect(body.dependentHouseholdItems[0]!.id).toBe('hi-sofa');
+      expect(body.dependentHouseholdItems[0]!.name).toBe('Sofa');
+      expect(body.projectedDate).toBe('2099-01-20');
+    });
+
+    it('returns an empty waiting-for list and a null projectedDate for a bare milestone', async () => {
+      const { cookie } = await createUserWithSession(
+        'bare@example.com',
+        'Test User',
+        'password123',
+      );
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Bare',
+        targetDate: '2026-04-15',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/milestones/${milestone.id}`,
+        headers: { cookie },
+      });
+
+      const body = response.json<MilestoneDetail>();
+      expect(body.dependentWorkItems).toEqual([]);
+      expect(body.dependentHouseholdItems).toEqual([]);
+      expect(body.projectedDate).toBeNull();
     });
 
     it('should return 404 when milestone does not exist', async () => {

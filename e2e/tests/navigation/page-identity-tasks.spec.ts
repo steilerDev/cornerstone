@@ -603,10 +603,11 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
     }) => {
       const bc = new BreadcrumbsBar(page);
 
-      await page.goto(routeUrl('milestone', { id: seed.milestoneId }));
+      // The linked task is listed on the Work tab (Counts toward this milestone)
+      await page.goto(routeUrl('milestone', { id: seed.milestoneId }, { tab: 'work' }));
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.milestone);
 
-      await page.getByRole('main').getByRole('link', { name: NAMES.task }).first().click();
+      await page.getByTestId('milestone-counts').getByRole('link', { name: NAMES.task }).click();
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('workItem', { id: seed.workItemId }),
       );

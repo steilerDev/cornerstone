@@ -57,8 +57,6 @@
 
 /* ---- Page end ---- */
 
-/* The last list of the Timing and Cost panels opens its picker downward over the page end; with
-   the phone/tablet bottom bar shown, keep room for the bar below it so the listbox clears it. */
-:root[data-shell-bar='shown'] .pageEndClearance:last-child {
-  padding-bottom: calc(var(--shell-bottom-height) + var(--spacing-16));
+.pageEndClearance {
+  composes: pageEndClearance from '../../styles/objectPage.module.css';
 }

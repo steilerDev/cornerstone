@@ -50,6 +50,8 @@ const MILESTONE_DETAIL: MilestoneDetail = {
   color: null,
   workItems: [],
   dependentWorkItems: [],
+  dependentHouseholdItems: [],
+  projectedDate: null,
   createdBy: null,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -516,7 +518,7 @@ describe('milestonesApi', () => {
     });
   });
 
-  // ─── addDependentWorkItem / fetchMilestoneLinkedHouseholdItems ────────────
+  // ─── addDependentWorkItem ────────────────────────────────────────────────
 
   describe('addDependentWorkItem', () => {
     it('sends POST to /api/milestones/:milestoneId/dependents/:workItemId and resolves with the dependents', async () => {
@@ -535,26 +537,6 @@ describe('milestonesApi', () => {
         expect.objectContaining({ method: 'POST' }),
       );
       expect(result).toEqual(body);
-    });
-  });
-
-  describe('fetchMilestoneLinkedHouseholdItems', () => {
-    it('sends GET to the dependent-household-items endpoint and unwraps the list', async () => {
-      const { fetchMilestoneLinkedHouseholdItems } = await import('./milestonesApi.js');
-      const items = [{ id: 'hi-1', name: 'Sofa' }];
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ householdItems: items }),
-      } as Response);
-
-      const result = await fetchMilestoneLinkedHouseholdItems(7);
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/milestones/7/dependent-household-items',
-        expect.any(Object),
-      );
-      expect(result).toEqual(items);
     });
   });
 

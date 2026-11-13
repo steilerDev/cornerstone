@@ -1,412 +1,54 @@
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem;
+.panel {
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
-.header {
-  margin-bottom: 2rem;
+.errorCard {
+  composes: errorCard from '../../styles/objectPage.module.css';
 }
 
-.pageTitle {
-  font-size: 2rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0;
-  overflow-wrap: anywhere;
+.errorActions {
+  composes: errorActions from '../../styles/objectPage.module.css';
 }
 
-.loading {
-  text-align: center;
-  padding: 3rem;
-  color: var(--color-text-muted);
-  font-size: 1rem;
+.remark {
+  composes: remark from '../../styles/objectPage.module.css';
 }
 
-.notFound {
-  text-align: center;
-  padding: 3rem 1rem;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+.details {
+  composes: details from '../../styles/objectPage.module.css';
 }
 
-.notFound h1 {
-  font-size: 1.5rem;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin-bottom: 0.5rem;
+.muted {
+  composes: muted from '../../styles/objectPage.module.css';
 }
 
-.notFound p {
-  color: var(--color-text-muted);
-  margin-bottom: 1.5rem;
+.fields {
+  composes: fields from '../../styles/objectPage.module.css';
 }
 
-.linkButton {
+.historyLine {
+  composes: historyLine from '../../styles/objectPage.module.css';
+}
+
+.userTextBlock {
+  composes: userTextBlock from '../../styles/objectPage.module.css';
+}
+
+.pageEndClearance {
+  composes: pageEndClearance from '../../styles/objectPage.module.css';
+}
+
+/* The colour reaches CSS only through the custom property set on the element. */
+.swatch {
   display: inline-block;
-  padding: 0.625rem 1.25rem;
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  border-radius: 0.5rem;
-  text-decoration: none;
-  font-weight: var(--font-weight-medium);
-  transition: background-color 0.2s;
-}
-
-.linkButton:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.errorBanner {
-  background-color: var(--color-danger-bg-strong);
-  border: 1px solid var(--color-danger-border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  color: var(--color-danger-active);
-}
-
-/* View Mode */
-.viewCard {
-  background-color: var(--color-bg-primary);
+  vertical-align: middle;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  margin-right: var(--spacing-2);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow-md);
-  padding: 2rem;
+  border-radius: var(--radius-circle);
 }
 
-.viewHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.viewTitle {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-}
-
-.milestoneTitle {
-  font-size: 1.75rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.editButton {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.editButton:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.viewBody {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.viewField {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.fieldLabel {
-  font-size: 0.75rem;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.fieldValue {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin: 0;
-}
-
-/* Linked Work Items */
-.linkedWorkItemsList {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0 1rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.linkedWorkItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background-color: var(--color-bg-tertiary);
-  border-radius: 0.375rem;
-  border: 1px solid var(--color-border);
-}
-
-.workItemTitleCell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.workItemLink {
-  flex: 1;
-  color: var(--color-primary);
-  text-decoration: none;
-  font-size: 0.875rem;
-  word-break: break-word;
-}
-
-.workItemLink:hover {
-  text-decoration: underline;
-  color: var(--color-primary-hover);
-}
-
-.unlinkButton {
-  flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border: none;
-  background-color: transparent;
-  color: var(--color-danger);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.25rem;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
-}
-
-.unlinkButton:hover:not(:disabled) {
-  background-color: var(--color-danger-bg-subtle);
-  color: var(--color-danger-active);
-}
-
-.unlinkButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.inlineSearch {
-  margin-top: 0.5rem;
-}
-
-.itemTypeBadge {
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.7rem;
-  font-weight: var(--font-weight-semibold);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  flex-shrink: 0;
-}
-
-.emptyMessage {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  margin: 0.5rem 0 0 0;
-  font-style: italic;
-}
-
-.viewActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.deleteButton {
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.deleteButton:hover {
-  background-color: var(--color-danger-hover);
-}
-
-/* Edit Mode */
-.editCard {
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow-md);
-  padding: 2rem;
-}
-
-.editTitle {
-  font-size: 1.5rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0 0 1.5rem 0;
-}
-
-.formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.label {
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-}
-
-.required {
-  color: var(--color-danger);
-}
-
-.input,
-.textarea {
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  transition: border-color 0.2s;
-}
-
-.input:focus,
-.textarea:focus {
-  outline: none;
-  border-color: var(--color-primary-hover);
-  box-shadow: var(--shadow-focus-primary-alt);
-}
-
-.textarea {
-  resize: vertical;
-  min-height: 120px;
-}
-
-.editActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.saveButton {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.saveButton:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.saveButton:disabled {
-  background-color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
-.cancelButton {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.cancelButton:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-}
-
-.cancelButton:disabled {
-  color: var(--color-text-placeholder);
-  cursor: not-allowed;
-}
-
-/* Responsive */
-.delayBadge {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: var(--font-weight-semibold);
-  background-color: var(--color-danger-bg-subtle);
-  color: var(--color-danger);
-}
-
-.aheadBadge {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: var(--font-weight-semibold);
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
-}
-
-@media (max-width: 767px) {
-  .container {
-    padding: 0;
-  }
-
-  .pageTitle {
-    font-size: 1.5rem;
-  }
-
-  .viewHeader {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .editCard,
-  .viewCard {
-    padding: 1rem;
-  }
-
-  .editTitle,
-  .milestoneTitle {
-    font-size: 1.25rem;
-  }
+.swatch[data-color='set'] {
+  background-color: var(--milestone-color);
 }

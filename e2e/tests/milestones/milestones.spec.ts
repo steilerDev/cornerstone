@@ -14,10 +14,10 @@
  * 10. The row's title link navigates to the detail page
  * 11. Detail page loads with correct title and status badge
  * 12. Edit milestone — change title and targetDate, save via PATCH
- * 13. Mark milestone as completed via edit form
+ * 13. Mark milestone reached via the status menu (Today), back to Upcoming
  * 14. Delete milestone from list (via actions menu + modal confirm)
  * 15. Delete modal — cancel leaves milestone in list
- * 16. Delete milestone from detail page (via delete button + modal confirm)
+ * 16. Delete milestone from detail page (⋯ menu + confirm dialog)
  * 17. Detail page 404 — not found state rendered
  * 18. Responsive — list page no horizontal scroll on current viewport
  * 19. Responsive — create dialog no horizontal scroll on current viewport
@@ -430,7 +430,7 @@ test.describe('Row click navigates to detail (Scenario 10)', { tag: '@responsive
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
   test(
-    'Detail page shows milestone title, target date field, and Upcoming status badge',
+    'Detail page shows milestone title, target date and Upcoming status badge',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const detailPage = new MilestoneDetailPage(page);
@@ -456,11 +456,11 @@ test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
         await detailPage.breadcrumbs.expectTrail(['Tasks', 'Milestones']);
         await detailPage.breadcrumbs.expectNoBack();
 
-        // Edit button is visible
-        await expect(detailPage.editButton).toBeVisible();
-
-        // Delete button is visible
-        await expect(detailPage.deleteButton).toBeVisible();
+        // Target date shows in the strip and the Details card; the page actions are there
+        await expect(detailPage.summary.item('target')).toContainText('2027');
+        await expect(detailPage.detail('target')).toContainText('2027');
+        await expect(detailPage.changeTargetButton).toBeVisible();
+        await expect(detailPage.header.menuTrigger).toBeVisible();
       } finally {
         if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
       }
@@ -513,19 +513,17 @@ test.describe('Edit milestone (Scenario 12)', { tag: '@responsive' }, () => {
         await detailPage.goto(createdId);
         await expect(detailPage.heading).toHaveText(originalTitle);
 
-        // Enter edit mode
-        await detailPage.startEditing();
+        // Details card in edit mode: update title and target date, then Save
+        await detailPage.detailsCard.startEdit();
         await expect(detailPage.titleInput).toBeVisible();
-
-        // Update title and target date
         await detailPage.titleInput.fill(updatedTitle);
         await detailPage.targetDateInput.fill('2027-11-30');
+        await detailPage.detailsCard.save();
 
-        // Save — waits for PATCH 200 and edit form to close
-        await detailPage.saveChanges();
-
-        // h1 should now show the updated title
+        // h1 and the Target date row show the update
         await expect(detailPage.heading).toHaveText(updatedTitle);
+        await expect(detailPage.detail('target')).toContainText('2027');
+        await expect(detailPage.detail('target')).toContainText('30');
       } finally {
         if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
       }
@@ -548,12 +546,12 @@ test.describe('Edit milestone (Scenario 12)', { tag: '@responsive' }, () => {
 
       await detailPage.goto(createdId);
 
-      // Enter edit mode
-      await detailPage.startEditing();
+      // Enter edit mode, type, then Cancel and confirm the discard
+      await detailPage.detailsCard.startEdit();
       await detailPage.titleInput.fill('Should Not Be Saved');
-
-      // Cancel — returns to view mode
-      await detailPage.cancelEditing();
+      await detailPage.detailsCard.cancel();
+      await detailPage.detailsCard.discardConfirm.confirmButton.click();
+      await expect(detailPage.titleInput).toHaveCount(0);
 
       // h1 should still show the original title
       await expect(detailPage.heading).toHaveText(originalTitle);
@@ -585,10 +583,11 @@ test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, 
       // Verify initial status is Upcoming
       await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
 
-      // #2209: the Edit form no longer has a completion checkbox; the status chip does it
-      await detailPage.startEditing();
+      // #2209: the Edit form has no completion checkbox; the status chip does it
+      await detailPage.detailsCard.startEdit();
       await expect(page.getByTestId('milestone-completed-checkbox')).toHaveCount(0);
-      await detailPage.cancelEditing();
+      await detailPage.detailsCard.cancel();
+      await expect(detailPage.titleInput).toHaveCount(0);
 
       // Mark reached › Today
       await detailPage.statusMenu.chooseToday('reached');
@@ -763,14 +762,14 @@ test.describe('Detail page 404 (Scenario 17)', () => {
     // Use an ID that is extremely unlikely to exist
     await detailPage.goto(999999999);
 
-    const isNotFound = await detailPage.isInNotFoundState();
-    expect(isNotFound).toBe(true);
+    await expect(detailPage.errorState).toBeVisible();
+    expect(await detailPage.isInNotFoundState()).toBe(true);
 
-    // The h1 is "Milestone not found" and the "Back to Milestones" link is visible
+    // The h1 is "Milestone not found" and the "Back to Milestones" button is visible
     await expect(
       page.getByRole('heading', { level: 1, name: 'Milestone not found' }),
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Back to Milestones' })).toBeVisible();
+    await expect(detailPage.backToMilestonesButton).toBeVisible();
   });
 });
 
