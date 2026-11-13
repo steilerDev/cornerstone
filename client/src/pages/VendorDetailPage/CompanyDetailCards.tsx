@@ -1,18 +1,17 @@
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import type { Ref, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UpdateVendorRequest, VendorDetail } from '@cornerstone/shared';
 import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import { useCardDraft } from '../../components/SectionCard/useCardDraft.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
 import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
 import { telHref } from '../../components/CallButton/telHref.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useUserText } from '../../hooks/useUserText.js';
-import { ApiClientError } from '../../lib/apiClient.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { isEmailAddress } from '../../lib/emailAddress.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
 import { updateVendor } from '../../lib/vendorsApi.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorDetailPage.module.css';
@@ -36,8 +35,8 @@ interface CardDraftOptions<K extends string> {
   readonly onSaved: () => Promise<unknown>;
 }
 
-/** The draft, field errors and explicit Save of one detail card. */
-function useCardDraft<K extends string>({
+/** Binds the shared card draft to the vendor PATCH; `toBody` maps the draft to the request. */
+function useVendorCardDraft<K extends string>({
   vendorId,
   initial,
   validate,
@@ -45,43 +44,18 @@ function useCardDraft<K extends string>({
   onSaved,
 }: CardDraftOptions<K>) {
   const { t } = useTranslation('budget');
-  const { t: tErrors } = useTranslation('errors');
-  const [draft, setDraft] = useState<Readonly<Record<K, string>>>(initial);
-  const [errors, setErrors] = useState<Partial<Record<K, string>>>({});
-  const [banner, setBanner] = useState<string | null>(null);
-
-  const keys = Object.keys(initial) as K[];
-  const dirty = keys.some((key) => draft[key] !== initial[key]);
-
-  const discard = () => {
-    setDraft(initial);
-    setErrors({});
-    setBanner(null);
-  };
-
-  const save = async (): Promise<boolean> => {
-    const found = validate(draft);
-    setErrors(found);
-    if (Object.keys(found).length > 0) return false;
-    try {
-      await updateVendor(vendorId, toBody(draft, initial));
-    } catch (err) {
-      setBanner(
-        err instanceof ApiClientError
-          ? translateApiError(err.error.code, tErrors)
-          : t('companyPage.saveError'),
-      );
-      return false;
-    }
-    setBanner(null);
+  return useCardDraft<K>({
+    initial,
+    validate,
+    save: (draft) => updateVendor(vendorId, toBody(draft, initial)),
+    saveError: t('companyPage.saveError'),
     // The PATCH succeeded: a failed page refresh is the page's own error state, not a failed save.
-    await onSaved().catch(() => undefined);
-    return true;
-  };
-
-  const set = (field: K, value: string) => setDraft((prev) => ({ ...prev, [field]: value }));
-
-  return { draft, set, errors, banner, dirty, discard, save };
+    onSaved: () =>
+      onSaved().then(
+        () => undefined,
+        () => undefined,
+      ),
+  });
 }
 
 export interface CompanyDetailCardsProps {
@@ -119,7 +93,7 @@ function PhoneEmailCard({
 }: CardProps & { readonly controllerRef: Ref<SectionCardController> }) {
   const { t } = useTranslation('budget');
   const baseId = useId();
-  const card = useCardDraft({
+  const card = useVendorCardDraft({
     vendorId: vendor.id,
     initial: { phone: vendor.phone ?? '', email: vendor.email ?? '' },
     validate: (draft) => {
@@ -212,7 +186,7 @@ function AddressCard({ vendor, onSaved }: CardProps) {
   const { t } = useTranslation('budget');
   const userText = useUserText();
   const baseId = useId();
-  const card = useCardDraft({
+  const card = useVendorCardDraft({
     vendorId: vendor.id,
     initial: { address: vendor.address ?? '' },
     validate: () => ({}),
@@ -270,7 +244,7 @@ function AboutCard({ vendor, onSaved }: CardProps) {
   const userText = useUserText();
   const { trades } = useTrades();
   const baseId = useId();
-  const card = useCardDraft({
+  const card = useVendorCardDraft({
     vendorId: vendor.id,
     initial: {
       name: vendor.name,
