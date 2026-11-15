@@ -52,7 +52,24 @@ describe('ObjectListHeader', () => {
     const button = screen.getByTestId('tasks-new');
     expect(button).toHaveTextContent('New task');
     fireEvent.click(button);
-    expect(props.primary.onClick).toHaveBeenCalledTimes(1);
+    expect(props.primary!.onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no primary button when the list has none, and keeps the h1, count and page menu (#2252)', () => {
+    renderHeader({ primary: undefined });
+    expect(screen.queryByTestId('tasks-new')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Tasks');
+    expect(screen.getByText('(12)')).toBeInTheDocument();
+    expect(screen.getByTestId('tasks-page-menu')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button').map((b) => b.getAttribute('data-testid'))).toEqual([
+      'tasks-page-menu',
+    ]);
+  });
+
+  it('still lists Print in the page menu without a primary', () => {
+    renderHeader({ primary: undefined });
+    fireEvent.click(screen.getByTestId('tasks-page-menu'));
+    expect(screen.getByTestId('tasks-print')).toBeInTheDocument();
   });
 
   it('uses the primary testId when given', () => {

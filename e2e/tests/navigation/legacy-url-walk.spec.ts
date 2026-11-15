@@ -12,8 +12,9 @@
  *       /schedule?view=calendar is the one live query map (D-11, #2202) and lands on
  *       /schedule/calendar
  * - E1b Every page the map serves (every id'd route, 'interim: page' included) loads on its
- *       own URL without a redirect hop; planned routes are not served; planned query maps
- *       keep rendering today's page with the query intact
+ *       own URL without a redirect hop; no planned page route is left (the last one,
+ *       /documents, is served since #2252); planned query maps keep rendering today's page
+ *       with the query intact
  * - E1c The six /settings/manage?tab=... links the Project setup page serves itself (#2215)
  *       land on their section anchor, `tab` removed, by exactly one replaceState
  * - E1d The two /diary?filterMode=automatic|all links the Site diary page serves itself (#2224)
@@ -22,6 +23,7 @@
  *       /login without ever touching its target
  * - E3  Permanent URLs (vCard /companies/:id, /budget/vendors/:id, calendar-entry URLs) work
  * - E4  Conditional redirect: Paperless off sends the review page to the New invoice dialog
+ *       (E4c/E4d: /documents goes Home with Paperless off and is served with it on, #2252)
  *
  * Desktop project only: a route walk is viewport-independent.
  *
@@ -74,6 +76,8 @@ import {
 } from '../../fixtures/paperlessInvoiceMocks.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
+import { mockPaperlessLibrary } from '../../fixtures/paperlessLibraryMock.js';
+import { DocumentsLibraryPage } from '../../pages/DocumentsLibraryPage.js';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { NotFoundPage } from '../../pages/NotFoundPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
@@ -530,19 +534,24 @@ test.describe('Legacy URL walk (route map)', () => {
     }
   });
 
-  test('E1b: planned routes are not served yet and render the not-found page', async ({ page }) => {
+  test('E1b: no planned page route is left (the last one, /documents, is served since #2252)', async ({
+    page,
+  }) => {
     const planned = ENTRIES.filter(
       (entry) => entry.stage === 'planned' && entry.match === undefined,
     );
-    expect(planned.length).toBeGreaterThan(0);
-    const notFound = new NotFoundPage(page);
+    expect(
+      planned.map((entry) => entry.from),
+      'planned page routes in the route map',
+    ).toEqual([]);
 
-    for (const entry of planned) {
-      const path = withSeed(entry.from, false);
-      await page.goto(path);
-      await expect(notFound.heading, `${entry.from} is planned, not served`).toBeVisible();
-      await expect(page).toHaveURL((url) => url.pathname === path);
-    }
+    // The route that was planned last is served now: Paperless on keeps /documents on its URL
+    // (E4d); with Paperless off it is a gated redirect Home (E4c), never the not-found page.
+    const documents = ENTRIES.find((entry) => entry.id === 'documents');
+    expect(documents?.stage).toBe('done');
+    await page.goto(routeUrl('documents'));
+    await waitForShell(page);
+    await expect(new NotFoundPage(page).heading).toHaveCount(0);
   });
 
   test('E1b: planned query maps keep rendering today’s page with the query intact', async ({
@@ -859,6 +868,32 @@ test.describe('Legacy URL walk (route map)', () => {
     await expect(reviewPage.heading).toHaveText('New invoice');
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoicePaperlessReview'));
     await expectSingleHop(page, routeUrl('invoicePaperlessReview'), false);
+  });
+
+  test('E4c: with Paperless off /documents sends you Home in one hop', async ({ page }) => {
+    await installRouteLog(page);
+
+    // The E2E container has Paperless off: no mock needed
+    await page.goto(`${routeUrl('documents')}?q=walk`);
+
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
+    await waitForShell(page);
+    await expectSingleHop(page, routeUrl('home'), true);
+  });
+
+  test('E4d: with Paperless configured /documents renders and keeps its URL and query', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    await mockPaperlessLibrary(page);
+
+    await page.goto(`${routeUrl('documents')}?q=walk`);
+
+    await expect(new DocumentsLibraryPage(page).heading).toBeVisible();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('documents') && url.searchParams.get('q') === 'walk',
+    );
+    await expectSingleHop(page, routeUrl('documents'), false);
   });
 });
 

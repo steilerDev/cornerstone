@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -22,11 +22,14 @@ import {
   householdItems,
   budgetSources,
   subsidyPrograms,
+  vendors,
 } from '../db/schema.js';
 import { AppError, ConflictError, NotFoundError } from '../errors/AppError.js';
 import type {
   DocumentLink,
   DocumentLinkWithMetadata,
+  DocumentLinkEntitySummary,
+  DocumentLinkWithEntity,
   DocumentLinkEntityType,
   PaperlessDocument,
   AttachmentType,
@@ -336,6 +339,129 @@ export function getAllLinkedDocumentIds(db: DbType): number[] {
     .from(documentLinks)
     .all();
   return rows.map((r) => r.paperlessDocumentId);
+}
+
+/**
+ * Resolve the display summaries of the records a set of links point at, one query per entity
+ * type present. A record that no longer exists is absent from the returned map.
+ */
+function resolveEntitySummaries(
+  db: DbType,
+  rows: (typeof documentLinks.$inferSelect)[],
+): Map<string, DocumentLinkEntitySummary> {
+  const idsByType = new Map<DocumentLinkEntityType, string[]>();
+  for (const row of rows) {
+    const ids = idsByType.get(row.entityType) ?? [];
+    ids.push(row.entityId);
+    idsByType.set(row.entityType, ids);
+  }
+
+  const summaries = new Map<string, DocumentLinkEntitySummary>();
+  const put = (type: DocumentLinkEntityType, id: string, summary: DocumentLinkEntitySummary) =>
+    summaries.set(`${type}:${id}`, summary);
+  const plain = (title: string): DocumentLinkEntitySummary => ({
+    title,
+    vendorName: null,
+    invoiceStatus: null,
+  });
+
+  const workItemIds = idsByType.get('work_item');
+  if (workItemIds) {
+    for (const r of db
+      .select({ id: workItems.id, title: workItems.title })
+      .from(workItems)
+      .where(inArray(workItems.id, workItemIds))
+      .all()) {
+      put('work_item', r.id, plain(r.title));
+    }
+  }
+  const householdItemIds = idsByType.get('household_item');
+  if (householdItemIds) {
+    for (const r of db
+      .select({ id: householdItems.id, name: householdItems.name })
+      .from(householdItems)
+      .where(inArray(householdItems.id, householdItemIds))
+      .all()) {
+      put('household_item', r.id, plain(r.name));
+    }
+  }
+  const budgetSourceIds = idsByType.get('budget_source');
+  if (budgetSourceIds) {
+    for (const r of db
+      .select({ id: budgetSources.id, name: budgetSources.name })
+      .from(budgetSources)
+      .where(inArray(budgetSources.id, budgetSourceIds))
+      .all()) {
+      put('budget_source', r.id, plain(r.name));
+    }
+  }
+  const subsidyProgramIds = idsByType.get('subsidy_program');
+  if (subsidyProgramIds) {
+    for (const r of db
+      .select({ id: subsidyPrograms.id, name: subsidyPrograms.name })
+      .from(subsidyPrograms)
+      .where(inArray(subsidyPrograms.id, subsidyProgramIds))
+      .all()) {
+      put('subsidy_program', r.id, plain(r.name));
+    }
+  }
+  const invoiceIds = idsByType.get('invoice');
+  if (invoiceIds) {
+    for (const r of db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        status: invoices.status,
+        vendorName: vendors.name,
+      })
+      .from(invoices)
+      .leftJoin(vendors, eq(invoices.vendorId, vendors.id))
+      .where(inArray(invoices.id, invoiceIds))
+      .all()) {
+      put('invoice', r.id, {
+        title: r.invoiceNumber,
+        vendorName: r.vendorName,
+        invoiceStatus: r.status,
+      });
+    }
+  }
+  return summaries;
+}
+
+/**
+ * Reverse lookup: every link of one Paperless-ngx document, each with a summary of the record it
+ * points at (`entity: null` when that record no longer exists). Local data only — no Paperless-ngx
+ * call, so it works with Paperless-ngx off. An unknown document id yields an empty list.
+ * Ordered by creation time, oldest first.
+ */
+export function getLinksForDocument(
+  db: DbType,
+  paperlessDocumentId: number,
+): DocumentLinkWithEntity[] {
+  const rows = db
+    .select()
+    .from(documentLinks)
+    .where(eq(documentLinks.paperlessDocumentId, paperlessDocumentId))
+    .orderBy(asc(documentLinks.createdAt), asc(documentLinks.id))
+    .all();
+
+  if (rows.length === 0) return [];
+
+  const userCache = new Map<string, typeof users.$inferSelect | null>();
+  const resolveUser = (createdBy: string | null) => {
+    if (!createdBy) return null;
+    const cached = userCache.get(createdBy);
+    if (cached !== undefined) return cached;
+    const user = resolveCreatedBy(db, createdBy);
+    userCache.set(createdBy, user);
+    return user;
+  };
+
+  const summaries = resolveEntitySummaries(db, rows);
+  return rows.map((row) => ({
+    ...toDocumentLink(row, resolveUser(row.createdBy)),
+    entity: summaries.get(`${row.entityType}:${row.entityId}`) ?? null,
+  }));
 }
 
 /**

@@ -110,6 +110,63 @@
     "pages": "Seiten",
     "tags": "Etiketten",
     "contentPreview": "Inhaltsvorschau",
-    "viewInPaperless": "In Paperless-ngx anzeigen ↗"
+    "viewInPaperless": "In Paperless-ngx anzeigen ↗",
+    "added": "Hinzugefügt",
+    "modified": "Zuletzt geändert"
+  },
+  "page": {
+    "search": "Dokumente durchsuchen",
+    "count_one": "{{count}} Dokument",
+    "count_other": "{{count}} Dokumente",
+    "empty": "Noch keine Dokumente in Paperless vorhanden.",
+    "noMatch": "Keine Dokumente entsprechen deiner Suche.",
+    "loadFailed": "Dokumente konnten nicht geladen werden.",
+    "unavailable": "Dieses Dokument ist nicht verfügbar",
+    "tagsMore": "+{{count}}",
+    "filters": {
+      "type": "Dokumenttyp",
+      "anyType": "Alle Typen",
+      "tags": "Etiketten",
+      "linkedLegend": "Verknüpft",
+      "hideLinked": "Bereits verknüpfte Dokumente ausblenden",
+      "optionsFailed": "Die Auswahl konnte nicht geladen werden."
+    },
+    "sort": {
+      "added": "Hinzugefügt am",
+      "created": "Dokumentdatum",
+      "modified": "Zuletzt geändert",
+      "title": "Titel",
+      "archiveSerialNumber": "Archivnummer"
+    },
+    "columns": {
+      "title": "Titel",
+      "type": "Typ",
+      "tags": "Etiketten",
+      "created": "Dokumentdatum",
+      "added": "Hinzugefügt",
+      "modified": "Zuletzt geändert",
+      "archiveNumber": "Archiv-Nr.",
+      "linked": "Verknüpft"
+    },
+    "badge": {
+      "linked": "Verknüpft"
+    }
+  },
+  "sheet": {
+    "linkedTo": "Verknüpft mit",
+    "linkTo": "Verknüpfen mit…",
+    "notLinked": "Noch mit nichts verknüpft.",
+    "unlinked": "Verknüpfung mit {{title}} gelöst.",
+    "linked": "Verknüpft mit {{title}}.",
+    "unavailableObject": "Datensatz existiert nicht mehr",
+    "loadFailed": "Die Verknüpfungen konnten nicht geladen werden.",
+    "detailFailed": "Dieses Dokument konnte nicht geladen werden.",
+    "kind": {
+      "work_item": "Aufgabe",
+      "household_item": "Anschaffung",
+      "invoice": "Rechnung",
+      "budget_source": "Finanzierungsquelle",
+      "subsidy_program": "Förderprogramm"
+    }
   }
 }

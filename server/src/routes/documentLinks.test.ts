@@ -15,7 +15,9 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
+import * as schema from '../db/schema.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
@@ -1073,6 +1075,286 @@ describe('Document Links Routes', () => {
   });
 
   // ─── GET /api/document-links/linked-ids ───────────────────────────────────
+
+  // ─── GET /api/document-links?paperlessDocumentId= (reverse lookup, #2252) ──
+
+  describe('GET /api/document-links?paperlessDocumentId=', () => {
+    interface ReverseLink {
+      id: string;
+      entityType: string;
+      entityId: string;
+      paperlessDocumentId: number;
+      createdAt: string;
+      entity: {
+        title: string | null;
+        vendorName: string | null;
+        invoiceStatus: string | null;
+      } | null;
+    }
+
+    async function linkTo(
+      cookie: string,
+      entityType: string,
+      entityId: string,
+      paperlessDocumentId: number,
+    ): Promise<string> {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ entityType, entityId, paperlessDocumentId }),
+      });
+      expect(response.statusCode).toBe(201);
+      return response.json<DocumentLinkResponse>().documentLink.id;
+    }
+
+    async function reverse(cookie: string, query: string) {
+      return app.inject({
+        method: 'GET',
+        url: `/api/document-links?${query}`,
+        headers: { cookie },
+      });
+    }
+
+    function insertHouseholdItem(id: string, name: string) {
+      const now = new Date().toISOString();
+      app.db
+        .insert(schema.householdItems)
+        .values({
+          id,
+          name,
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links?paperlessDocumentId=42',
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('lists the links of all five kinds with the title of each linked record, oldest first', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie, 'Fixture task');
+      insertHouseholdItem('hi-fixture', 'Fixture oven');
+      const sourceId = await createBudgetSource(cookie, 'Fixture loan');
+      const programId = await createSubsidyProgram(cookie, 'Fixture grant');
+      const invoiceId = await createVendorAndInvoice(cookie);
+      app.db
+        .update(schema.invoices)
+        .set({ invoiceNumber: 'FX-2026-1', status: 'paid' })
+        .where(eq(schema.invoices.id, invoiceId))
+        .run();
+      // creation times can tie within one millisecond: pin them so the order is deterministic
+      const linkIds = [
+        await linkTo(cookie, 'work_item', workItemId, 42),
+        await linkTo(cookie, 'budget_source', sourceId, 42),
+        await linkTo(cookie, 'subsidy_program', programId, 42),
+        await linkTo(cookie, 'invoice', invoiceId, 42),
+      ];
+      linkIds.forEach((id, index) => {
+        app.db
+          .update(schema.documentLinks)
+          .set({ createdAt: `2026-02-0${index + 1}T00:00:00.000Z` })
+          .where(eq(schema.documentLinks.id, id))
+          .run();
+      });
+      // household_item links cannot be created over the API yet: insert the row directly
+      app.db
+        .insert(schema.documentLinks)
+        .values({
+          id: 'link-hi',
+          entityType: 'household_item',
+          entityId: 'hi-fixture',
+          paperlessDocumentId: 42,
+          createdBy: null,
+          createdAt: '2999-01-01T00:00:00.000Z',
+        })
+        .run();
+      // a link of another document must not show
+      await linkTo(cookie, 'work_item', workItemId, 43);
+
+      const response = await reverse(cookie, 'paperlessDocumentId=42');
+
+      expect(response.statusCode).toBe(200);
+      const { documentLinks } = response.json<{ documentLinks: ReverseLink[] }>();
+      expect(documentLinks.map((l) => l.entityType)).toEqual([
+        'work_item',
+        'budget_source',
+        'subsidy_program',
+        'invoice',
+        'household_item',
+      ]);
+      expect(documentLinks.every((l) => l.paperlessDocumentId === 42)).toBe(true);
+      expect(documentLinks.map((l) => l.entity)).toEqual([
+        { title: 'Fixture task', vendorName: null, invoiceStatus: null },
+        { title: 'Fixture loan', vendorName: null, invoiceStatus: null },
+        { title: 'Fixture grant', vendorName: null, invoiceStatus: null },
+        { title: 'FX-2026-1', vendorName: 'Test Vendor', invoiceStatus: 'paid' },
+        { title: 'Fixture oven', vendorName: null, invoiceStatus: null },
+      ]);
+    });
+
+    it('returns 200 with an empty list for an unknown document id and never calls Paperless', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(cookie, 'paperlessDocumentId=987654');
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ documentLinks: [] });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not call Paperless even when it is configured and the document has links', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie, 'Fixture task');
+      await linkTo(cookie, 'work_item', workItemId, 42);
+
+      const response = await reverse(cookie, 'paperlessDocumentId=42');
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ documentLinks: ReverseLink[] }>().documentLinks).toHaveLength(1);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('works with Paperless not configured', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie, 'Fixture task');
+      await linkTo(cookie, 'work_item', workItemId, 42);
+
+      const response = await reverse(cookie, 'paperlessDocumentId=42');
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ documentLinks: ReverseLink[] }>().documentLinks[0]!.entity).toEqual({
+        title: 'Fixture task',
+        vendorName: null,
+        invoiceStatus: null,
+      });
+    });
+
+    it('lists a link whose record is gone with entity null, and it can still be deleted', async () => {
+      const { cookie } = await createUserWithSession();
+      app.db
+        .insert(schema.documentLinks)
+        .values({
+          id: 'orphan-link',
+          entityType: 'work_item',
+          entityId: 'record-that-is-gone',
+          paperlessDocumentId: 42,
+          createdBy: null,
+          createdAt: new Date().toISOString(),
+        })
+        .run();
+
+      const listed = await reverse(cookie, 'paperlessDocumentId=42');
+
+      expect(listed.statusCode).toBe(200);
+      const [link] = listed.json<{ documentLinks: ReverseLink[] }>().documentLinks;
+      expect(link).toMatchObject({
+        id: 'orphan-link',
+        entityId: 'record-that-is-gone',
+        entity: null,
+      });
+
+      const deleted = await app.inject({
+        method: 'DELETE',
+        url: '/api/document-links/orphan-link',
+        headers: { cookie },
+      });
+      expect(deleted.statusCode).toBe(200);
+      expect(deleted.json<DeleteDocumentLinkResponse>().undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+
+      const after = await reverse(cookie, 'paperlessDocumentId=42');
+      expect(after.json()).toEqual({ documentLinks: [] });
+    });
+
+    it('returns 400 VALIDATION_ERROR when combined with entityType and entityId', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(
+        cookie,
+        'paperlessDocumentId=42&entityType=work_item&entityId=abc',
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR when combined with only entityType', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(cookie, 'paperlessDocumentId=42&entityType=work_item');
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR when combined with only entityId', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(cookie, 'paperlessDocumentId=42&entityId=abc');
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR when no filter at all is given', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(cookie, '');
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      expect(response.json<ApiErrorResponse>().error.message).toBe(
+        'entityType and entityId are required',
+      );
+    });
+
+    it('returns 400 for a half entity form without paperlessDocumentId', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const onlyType = await reverse(cookie, 'entityType=work_item');
+      const onlyId = await reverse(cookie, 'entityId=abc');
+
+      expect(onlyType.statusCode).toBe(400);
+      expect(onlyType.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      expect(onlyId.statusCode).toBe(400);
+      expect(onlyId.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it.each(['0', '-3', 'abc', '1.5'])('returns 400 for paperlessDocumentId=%s', async (value) => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await reverse(cookie, `paperlessDocumentId=${value}`);
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('keeps the by-entity form working next to the reverse form', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie, 'Fixture task');
+      await linkTo(cookie, 'work_item', workItemId, 42);
+
+      const response = await reverse(cookie, `entityType=work_item&entityId=${workItemId}`);
+
+      expect(response.statusCode).toBe(200);
+      const [link] = response.json<DocumentLinkListResponse>().documentLinks;
+      expect(link!.paperlessDocumentId).toBe(42);
+      expect(link).not.toHaveProperty('entity');
+    });
+  });
 
   describe('GET /api/document-links/linked-ids', () => {
     it('returns 401 with UNAUTHORIZED error code when not authenticated', async () => {

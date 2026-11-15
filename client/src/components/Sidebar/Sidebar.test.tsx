@@ -17,6 +17,7 @@ import type * as SidebarTypes from './Sidebar.js';
 // Mock the AuthContext BEFORE importing Sidebar
 const mockLogout = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 let mockRole: 'admin' | 'member' = 'admin';
+let mockPaperlessConfigured = false;
 
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({
@@ -44,7 +45,7 @@ jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// The sidebar must not ask Paperless anything today (no served route is Paperless-gated).
+// The sidebar never asks Paperless itself: the shell (useNavContext) does and hands the sections down.
 const mockGetPaperlessStatus = jest.fn<() => Promise<{ configured: boolean }>>();
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
@@ -60,6 +61,7 @@ describe('Sidebar', () => {
     mockLogout.mockReset().mockResolvedValue(undefined);
     mockGetPaperlessStatus.mockReset();
     mockRole = 'admin';
+    mockPaperlessConfigured = false;
   });
 
   afterEach(() => {
@@ -69,7 +71,10 @@ describe('Sidebar', () => {
   // The shell computes the sections and the active entry and hands them down; mirror that here.
   function Host() {
     const { pathname } = useLocation();
-    const sections = useMemo(() => navSections({ role: mockRole, paperlessConfigured: false }), []);
+    const sections = useMemo(
+      () => navSections({ role: mockRole, paperlessConfigured: mockPaperlessConfigured }),
+      [],
+    );
     const active = useMemo(() => resolveNavActive(pathname, sections), [pathname, sections]);
     return <SidebarModule.Sidebar sections={sections} active={active} />;
   }
@@ -112,7 +117,7 @@ describe('Sidebar', () => {
       expect(screen.queryByRole('link', { name: /^schedule$/i })).not.toBeInTheDocument();
     });
 
-    it('renders the separator and a quiet group with Areas and History while Documents is planned', () => {
+    it('renders the separator and a quiet group with Areas and History without Paperless', () => {
       const { container } = renderAt('/project/work-items');
 
       expect(container.querySelector('[aria-hidden="true"][class*="navSeparator"]')).not.toBeNull();
@@ -120,9 +125,33 @@ describe('Sidebar', () => {
       expect(screen.getByTestId('sidebar-section-areas')).toBeInTheDocument();
       expect(screen.getByTestId('sidebar-section-history')).toHaveAttribute('href', '/history');
       expect(screen.getByTestId('sidebar-section-areas')).toHaveAttribute('href', '/areas');
-      for (const id of ['documents']) {
-        expect(screen.queryByTestId(`sidebar-section-${id}`)).not.toBeInTheDocument();
-      }
+      expect(screen.queryByTestId('sidebar-section-documents')).not.toBeInTheDocument();
+    });
+
+    it('adds Documents to the quiet group after History when Paperless is configured (#2252)', () => {
+      mockPaperlessConfigured = true;
+      const { container } = renderAt('/project/work-items');
+
+      expect(container.querySelectorAll('[class*="navLinkQuiet"]')).toHaveLength(3);
+      expect(screen.getByTestId('sidebar-section-documents')).toHaveAttribute('href', '/documents');
+      const quiet = Array.from(container.querySelectorAll('[class*="navLinkQuiet"]')).map((el) =>
+        el.getAttribute('data-testid'),
+      );
+      expect(quiet).toEqual([
+        'sidebar-section-areas',
+        'sidebar-section-history',
+        'sidebar-section-documents',
+      ]);
+    });
+
+    it('marks Documents as the current section on /documents', () => {
+      mockPaperlessConfigured = true;
+      renderAt('/documents?doc=5');
+
+      expect(screen.getByTestId('sidebar-section-documents')).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
     });
 
     it('uses real lists for each group', () => {

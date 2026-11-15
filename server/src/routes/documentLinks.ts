@@ -10,7 +10,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { NotFoundError, UnauthorizedError } from '../errors/AppError.js';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as documentLinkService from '../services/documentLinkService.js';
 import { issueRestoreToken, undoStore } from '../services/undoService.js';
 import { DOCUMENT_LINK_ENTITY_TYPES } from '@cornerstone/shared';
@@ -20,6 +20,7 @@ import type {
   DocumentLinkEntityType,
   AllLinkedDocumentIdsResponse,
   DeleteDocumentLinkResponse,
+  DocumentLinksForDocumentResponse,
 } from '@cornerstone/shared';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -63,13 +64,13 @@ const updateLinkSchema = {
 const listLinksSchema = {
   querystring: {
     type: 'object',
-    required: ['entityType', 'entityId'],
     properties: {
       entityType: {
         type: 'string',
         enum: [...DOCUMENT_LINK_ENTITY_TYPES],
       },
       entityId: { type: 'string', minLength: 1, maxLength: 36 },
+      paperlessDocumentId: { type: 'integer', minimum: 1 },
     },
     additionalProperties: false,
   },
@@ -120,31 +121,51 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/document-links?entityType=...&entityId=...
+   * GET /api/document-links?paperlessDocumentId=...   (#2252, mutually exclusive with the above)
    *
-   * List all document links for a given entity, enriched with Paperless-ngx metadata.
+   * By entity: all document links for a given entity, enriched with Paperless-ngx metadata.
    * If Paperless-ngx is not configured or a document has been deleted, `document` is null.
    * The `content` field is null in list responses (use GET /api/paperless/documents/:id for full content).
    *
+   * By document: all links of one Paperless-ngx document with a summary of each linked record
+   * (`entity` is null when the record is gone). Local data only, works with Paperless-ngx off.
+   *
    * Auth required: Yes
    */
-  fastify.get<{ Querystring: { entityType: DocumentLinkEntityType; entityId: string } }>(
-    '/',
-    { schema: listLinksSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.get<{
+    Querystring: {
+      entityType?: DocumentLinkEntityType;
+      entityId?: string;
+      paperlessDocumentId?: number;
+    };
+  }>('/', { schema: listLinksSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const { entityType, entityId } = request.query;
-      const links = await documentLinkService.getLinksForEntity(fastify.db, entityType, entityId, {
-        paperlessEnabled: fastify.config.paperlessEnabled,
-        paperlessUrl: fastify.config.paperlessUrl,
-        paperlessApiToken: fastify.config.paperlessApiToken,
-        paperlessFilterTag: fastify.config.paperlessFilterTag,
-      });
-      return reply.status(200).send({ documentLinks: links });
-    },
-  );
+    const { entityType, entityId, paperlessDocumentId } = request.query;
+
+    if (paperlessDocumentId !== undefined) {
+      if (entityType !== undefined || entityId !== undefined) {
+        throw new ValidationError('Use either paperlessDocumentId or entityType and entityId');
+      }
+      return reply.status(200).send({
+        documentLinks: documentLinkService.getLinksForDocument(fastify.db, paperlessDocumentId),
+      } satisfies DocumentLinksForDocumentResponse);
+    }
+
+    if (entityType === undefined || entityId === undefined) {
+      throw new ValidationError('entityType and entityId are required');
+    }
+
+    const links = await documentLinkService.getLinksForEntity(fastify.db, entityType, entityId, {
+      paperlessEnabled: fastify.config.paperlessEnabled,
+      paperlessUrl: fastify.config.paperlessUrl,
+      paperlessApiToken: fastify.config.paperlessApiToken,
+      paperlessFilterTag: fastify.config.paperlessFilterTag,
+    });
+    return reply.status(200).send({ documentLinks: links });
+  });
 
   /**
    * GET /api/document-links/linked-ids

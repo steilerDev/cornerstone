@@ -155,23 +155,38 @@ describe('MoreSheet', () => {
         'companies',
         'areas',
         'history',
+        'documents',
         'settings',
       ]);
     });
 
     it('renders one list per group', () => {
-      // Areas and History are served; Documents is still planned, so the middle group has two entries.
+      // Areas, History and Documents (Paperless configured) form the middle group.
       renderSheet();
       const lists = within(screen.getByRole('navigation', { name: 'More' })).getAllByRole('list');
       expect(lists).toHaveLength(3);
       expect(within(lists[0]!).getAllByRole('listitem')).toHaveLength(4);
-      expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(2);
+      expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(3);
       expect(within(lists[2]!).getAllByRole('listitem')).toHaveLength(1);
     });
 
-    it('never lists a section the user cannot open', () => {
+    it('never lists a section the user cannot open (Documents needs Paperless)', () => {
       renderSheet({ ctx: MEMBER });
       expect(rowIds()).not.toContain('documents');
+    });
+
+    it('lists Documents for a member when Paperless is configured, linking to /documents (#2252)', () => {
+      renderSheet({ ctx: { role: 'member', paperlessConfigured: true } });
+      expect(screen.getByTestId('more-sheet-section-documents')).toHaveAttribute(
+        'href',
+        '/documents',
+      );
+    });
+
+    it('keeps the middle group at Areas and History without Paperless', () => {
+      renderSheet({ ctx: MEMBER });
+      const lists = within(screen.getByRole('navigation', { name: 'More' })).getAllByRole('list');
+      expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(2);
     });
 
     it('renders no list for a group that has no visible section', () => {

@@ -43,6 +43,45 @@ afterEach(() => {
 });
 
 describe('documentLinksApi', () => {
+  describe('listDocumentLinksForDocument (#2252)', () => {
+    it('calls GET /document-links?paperlessDocumentId=<id> and returns the documentLinks array', async () => {
+      const links = [
+        {
+          id: 'link-1',
+          entityType: 'work_item',
+          entityId: 'wi-abc',
+          paperlessDocumentId: 42,
+          attachmentType: null,
+          createdBy: null,
+          createdAt: '2026-01-01T00:00:00Z',
+          entity: { title: 'Synthetic task', vendorName: null, invoiceStatus: null },
+        },
+        {
+          id: 'link-2',
+          entityType: 'invoice',
+          entityId: 'inv-1',
+          paperlessDocumentId: 42,
+          attachmentType: null,
+          createdBy: null,
+          createdAt: '2026-01-02T00:00:00Z',
+          entity: null,
+        },
+      ];
+      mockGet.mockResolvedValueOnce({ documentLinks: links });
+
+      const result = await documentLinksApi.listDocumentLinksForDocument(42);
+
+      expect(mockGet).toHaveBeenCalledWith('/document-links?paperlessDocumentId=42');
+      expect(result).toEqual(links);
+    });
+
+    it('returns an empty array for a document without links', async () => {
+      mockGet.mockResolvedValueOnce({ documentLinks: [] });
+
+      expect(await documentLinksApi.listDocumentLinksForDocument(7)).toEqual([]);
+    });
+  });
+
   describe('listDocumentLinks', () => {
     it('calls GET /document-links with entityType and entityId query params and returns documentLinks array', async () => {
       const mockLinks = [

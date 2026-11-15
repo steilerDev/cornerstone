@@ -9,8 +9,9 @@
  *
  * Completeness: the table is checked against the route map. A page added to
  * `shared/src/routes/routeMap.ts` without a row here fails the first test, so the sweep cannot
- * silently fall behind. The two exemptions are Paperless+AI pages that redirect away when the
- * integration is off, which is the case in the E2E environment (covered by their own suites).
+ * silently fall behind. The three exemptions are Paperless (+AI) pages that redirect away when
+ * the integration is off, which is the case in the E2E environment (covered by their own
+ * suites; the Documents page, #2252, by documents-page.spec.ts).
  *
  * Home is served at `/` since #2230 (its legacy URLs `/project/overview` and `/project` redirect
  * to it and are covered by legacy-url-walk.spec.ts, not by a row here). Companies are served on
@@ -87,8 +88,8 @@ const seed = {
   grantId: '',
 };
 
-/** Ids of served pages that the sweep deliberately skips (Paperless+AI gate redirects). */
-const EXEMPT_IDS = ['invoicePaperlessReview', 'invoiceAutoItemize'];
+/** Ids of served pages that the sweep deliberately skips (Paperless (+AI) gate redirects). */
+const EXEMPT_IDS = ['invoicePaperlessReview', 'invoiceAutoItemize', 'documents'];
 
 const MISSING_PATH = `/does-not-exist-${runId}`;
 

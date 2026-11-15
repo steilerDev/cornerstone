@@ -10,7 +10,8 @@ export interface ObjectListHeaderProps {
   readonly title: string;
   /** The "(n)" or "(n of m)" node; null while the count is unknown. */
   readonly count: ReactNode | null;
-  readonly primary: {
+  /** The one primary; omitted when the list has none (Documents: records are created elsewhere). */
+  readonly primary?: {
     readonly label: string;
     readonly onClick: () => void;
     readonly testId?: string;
@@ -25,8 +26,8 @@ export interface ObjectListHeaderProps {
 }
 
 /**
- * The list header: h1 with the count, the one primary ("New ‹object›") and the page ⋯ menu
- * (list-specific entries, Columns…, Print). Use it as the `header` of `PageLayout`.
+ * The list header: h1 with the count, at most one primary ("New ‹object›"; none on Documents)
+ * and the page ⋯ menu (list-specific entries, Columns…, Print). Use it as the `header` of `PageLayout`.
  */
 export function ObjectListHeader({
   title,
@@ -84,14 +85,16 @@ export function ObjectListHeader({
         className={styles.title}
         suffix={count ? <span className={styles.count}>{count}</span> : undefined}
       />
-      <button
-        type="button"
-        className={styles.primary}
-        onClick={primary.onClick}
-        data-testid={primary.testId ?? `${testIdPrefix}-new`}
-      >
-        {primary.label}
-      </button>
+      {primary ? (
+        <button
+          type="button"
+          className={styles.primary}
+          onClick={primary.onClick}
+          data-testid={primary.testId ?? `${testIdPrefix}-new`}
+        >
+          {primary.label}
+        </button>
+      ) : null}
       <div className={styles.menu}>
         <OverflowMenu
           items={items}

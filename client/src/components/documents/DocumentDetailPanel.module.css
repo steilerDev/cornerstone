@@ -188,3 +188,42 @@
   grid-template-columns: 1fr;
   gap: var(--spacing-3);
 }
+
+/* In the Documents page side panel: the panel supplies the surface; one column, thumbnail on top. */
+.sheet {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.sheet .content {
+  grid-template-columns: 1fr;
+  gap: var(--spacing-4);
+}
+
+.sheet .metaList {
+  overflow-wrap: anywhere;
+}
+
+.openButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  text-decoration: none;
+  min-height: var(--touch-target-min);
+}
+
+.openButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 767px) {
+  .openButton {
+    align-self: stretch;
+  }
+}

@@ -53,8 +53,8 @@ export interface ObjectListProps<T, M = undefined, C = never> {
   readonly config: ObjectListConfig<T>;
   readonly labels: ObjectListLabels;
   readonly breadcrumbs?: ReactNode;
-  /** The one primary: "New task" (the host calls useOpenCreate). */
-  readonly primary: {
+  /** At most one primary: "New task" (the host calls useOpenCreate). Omitted: none (Documents). */
+  readonly primary?: {
     readonly label: string;
     readonly onClick: () => void;
     readonly testId?: string;
@@ -114,7 +114,7 @@ function cssEscape(value: string): string {
 }
 
 /**
- * The shared object list: header (h1 + count, one primary, page ⋯), toolbar (search, status
+ * The shared object list: header (h1 + count, at most one primary, page ⋯), toolbar (search, status
  * chips, Filters, Group by, Sort), grouped or flat rows in a table from 768px list width and
  * cards below, bulk selection, 100-row batches with an infinite-scroll footer. Hosts pair it
  * with `useObjectList` and supply the data, columns and row controls.

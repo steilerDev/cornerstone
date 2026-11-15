@@ -331,3 +331,36 @@ export async function createSsoOnlyUserViaApi(
 export async function deleteUserViaApi(page: Page, userId: string): Promise<void> {
   await page.request.delete(`${API.users}/${userId}`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Document links (work without Paperless; the Paperless document id is just a number)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DocumentLinkTarget =
+  'work_item' | 'household_item' | 'invoice' | 'budget_source' | 'subsidy_program';
+
+/** Links a Paperless document id to a record; returns the link id. */
+export async function createDocumentLinkViaApi(
+  page: Page,
+  data: { entityType: DocumentLinkTarget; entityId: string; paperlessDocumentId: number },
+): Promise<string> {
+  const response = await page.request.post(API.documentLinks, { data });
+  expect(response.ok(), `POST document link ${data.entityType}:${data.entityId}`).toBeTruthy();
+  const body = (await response.json()) as { documentLink: { id: string } };
+  return body.documentLink.id;
+}
+
+/** Every link of one Paperless document id (the Documents page's reverse lookup). */
+export async function listLinksOfDocumentViaApi(
+  page: Page,
+  paperlessDocumentId: number,
+): Promise<Array<{ id: string; entityType: string; entityId: string }>> {
+  const response = await page.request.get(
+    `${API.documentLinks}?paperlessDocumentId=${paperlessDocumentId}`,
+  );
+  expect(response.ok(), `GET links of document ${paperlessDocumentId}`).toBeTruthy();
+  const body = (await response.json()) as {
+    documentLinks: Array<{ id: string; entityType: string; entityId: string }>;
+  };
+  return body.documentLinks;
+}

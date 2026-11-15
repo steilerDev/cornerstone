@@ -12,7 +12,6 @@ import type { NavContext, NavSection } from '../../navigation/navConfig.js';
 import { useRealLocation } from '../../navigation/realLocation.js';
 import { Modal } from '../Modal/Modal.js';
 import { Sheet } from '../Modal/Sheet.js';
-import { usePaperlessBaseUrl } from './CommandSearchContext.js';
 import {
   CommandSearchFooter,
   CommandSearchInputRow,
@@ -57,7 +56,6 @@ export function CommandSearch({
   const { refreshAuth } = useAuth();
   const deps = useModelDeps();
   const location = useRealLocation();
-  const getPaperlessBaseUrl = usePaperlessBaseUrl();
   const listboxId = useId();
   const inputId = useId();
   const sheetId = useId();
@@ -67,8 +65,6 @@ export function CommandSearch({
   const skipOpenerRef = useRef(returnFocusRef !== undefined);
   const [initialReturnTarget] = useState(() => returnFocusRef?.current ?? null);
   const returnTargetRef = useRef<HTMLElement | null>(initialReturnTarget);
-
-  const [paperlessBaseUrl, setPaperlessBaseUrl] = useState<string | null | undefined>(undefined);
 
   // Read lazily by the query hook when a response arrives.
   const latestRef = useRef<Omit<BuildInput, 'response' | 'expanded'> | null>(null);
@@ -113,9 +109,8 @@ export function CommandSearch({
       ctx: navContext,
       sections,
       active,
-      paperlessBaseUrl,
     }),
-    [deps, liveQuery, navContext, sections, active, paperlessBaseUrl],
+    [deps, liveQuery, navContext, sections, active],
   );
   useEffect(() => {
     latestRef.current = baseInput;
@@ -128,21 +123,6 @@ export function CommandSearch({
   const activeId = built.flat.some((option) => option.id === state.activeId)
     ? state.activeId
     : null;
-
-  // Paperless links need the browser-facing base URL; ask once, the first time a document shows.
-  const hasDocuments =
-    state.response?.groups.some((g) => g.type === 'paperless_document' && g.items.length > 0) ??
-    false;
-  useEffect(() => {
-    if (!hasDocuments || paperlessBaseUrl !== undefined) return;
-    let cancelled = false;
-    void getPaperlessBaseUrl().then((base) => {
-      if (!cancelled) setPaperlessBaseUrl(base);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasDocuments, paperlessBaseUrl, getPaperlessBaseUrl]);
 
   // A prefilled query starts selected so typing replaces it.
   useEffect(() => {

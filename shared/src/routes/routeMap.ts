@@ -626,8 +626,8 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'paperless',
     permanent: false,
-    carries: ['q', 'type', 'sort'],
-    stage: 'planned',
+    carries: ['q', 'type', 'tags', 'unlinked', 'sortBy', 'sortOrder', 'doc'],
+    stage: 'done',
   },
   {
     id: 'settingsIntegrations',
@@ -1284,7 +1284,7 @@ export const ROUTE_MAP = [
     gate: 'paperless',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'done',
     match: {
       condition: 'paperless-off',
       appliesTo: ['documents'],

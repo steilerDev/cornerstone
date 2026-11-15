@@ -19,6 +19,7 @@ import type {
   PaperlessDocumentListQuery,
   PaperlessTagListResponse,
   PaperlessCorrespondentListResponse,
+  PaperlessDocumentTypeListResponse,
   PaperlessStatusResponse,
   PaperlessUploadResponse,
 } from '@cornerstone/shared';
@@ -72,6 +73,8 @@ interface RawPaperlessDocument {
 
 interface RawPaperlessListResponse {
   count: number;
+  /** Ids of the whole filtered result (Paperless-ngx `all`), present on list responses. */
+  all?: number[];
   results: RawPaperlessDocument[];
 }
 
@@ -467,23 +470,17 @@ export async function getStatus(
 }
 
 /**
- * List or search documents in Paperless-ngx with pagination, filtering, and sorting.
- * Tag, correspondent, and document type names are resolved server-side.
+ * Build the Paperless-ngx filter and ordering params of a listing (without paging), including the
+ * configured filter tag merged into `tags__id__all`.
+ * @throws AppError('PAPERLESS_ERROR', 502) when the configured filter tag cannot be resolved
  */
-export async function listDocuments(
+async function buildListParams(
   baseUrl: string,
   token: string,
   query: PaperlessDocumentListQuery,
-  filterTagName?: string | null,
-): Promise<PaperlessDocumentListResponse> {
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
-
-  // Build Paperless-ngx query string
-  const params = new URLSearchParams();
-  params.set('page', String(page));
-  params.set('page_size', String(pageSize));
-
+  filterTagName: string | null | undefined,
+  params: URLSearchParams = new URLSearchParams(),
+): Promise<URLSearchParams> {
   if (query.query) {
     params.set('query', query.query);
   }
@@ -523,16 +520,25 @@ export async function listDocuments(
     : `${direction}${paperlessSortField},${direction}id`;
   params.set('ordering', ordering);
 
-  const path = `/api/documents/?${params.toString()}`;
-  const raw = await fetchPaperless<RawPaperlessListResponse>(baseUrl, token, path);
+  return params;
+}
 
+/**
+ * Map raw list rows to search results: tag map fetched once, unique correspondent and document
+ * type names resolved in parallel. List rows never carry content.
+ */
+async function enrichRawDocuments(
+  baseUrl: string,
+  token: string,
+  raw: RawPaperlessDocument[],
+): Promise<PaperlessDocumentSearchResult[]> {
   // Fetch tags once for the whole result set
   const tagsMap = await fetchTagsMap(baseUrl, token);
 
   // Collect unique correspondent and document type IDs to avoid N+1 calls
   const correspondentIds = new Set<number>();
   const documentTypeIds = new Set<number>();
-  for (const doc of raw.results) {
+  for (const doc of raw) {
     if (doc.correspondent !== null) correspondentIds.add(doc.correspondent);
     if (doc.document_type !== null) documentTypeIds.add(doc.document_type);
   }
@@ -556,8 +562,7 @@ export async function listDocuments(
   const correspondentMap = new Map<number, string | null>(correspondentNames);
   const documentTypeMap = new Map<number, string | null>(documentTypeNames);
 
-  // Map documents
-  const documents: PaperlessDocumentSearchResult[] = raw.results.map((rawDoc) => {
+  return raw.map((rawDoc) => {
     const correspondentName =
       rawDoc.correspondent !== null ? (correspondentMap.get(rawDoc.correspondent) ?? null) : null;
     const documentTypeName =
@@ -578,6 +583,53 @@ export async function listDocuments(
 
     return { ...doc, searchHit };
   });
+}
+
+/** Max ids per `id__in` request when counting linked documents inside a result. */
+const ID_IN_CHUNK_SIZE = 100;
+
+/**
+ * List or search documents in Paperless-ngx with pagination, filtering, and sorting.
+ * Tag, correspondent, and document type names are resolved server-side.
+ *
+ * With a non-empty `excludeIds` (the ids linked to any record, #2252, ADR-015 §7) the listing
+ * hides those documents with exact paging: every page but the last is full and `totalItems`
+ * counts only the remaining documents. Mechanism: one probe (`count` + `all`), the total from
+ * `all` or from `id__in` counts, then one page call (an `id__in` fetch of the page's ids when
+ * there is no full-text query and `all` is usable, else a single bounded over-fetch window).
+ */
+export async function listDocuments(
+  baseUrl: string,
+  token: string,
+  query: PaperlessDocumentListQuery,
+  filterTagName?: string | null,
+  excludeIds: readonly number[] = [],
+): Promise<PaperlessDocumentListResponse> {
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+
+  if (excludeIds.length > 0) {
+    const filterParams = await buildListParams(baseUrl, token, query, filterTagName);
+    return listDocumentsExcluding(
+      baseUrl,
+      token,
+      filterParams,
+      page,
+      pageSize,
+      excludeIds,
+      !!query.query,
+    );
+  }
+
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  await buildListParams(baseUrl, token, query, filterTagName, params);
+
+  const path = `/api/documents/?${params.toString()}`;
+  const raw = await fetchPaperless<RawPaperlessListResponse>(baseUrl, token, path);
+
+  const documents = await enrichRawDocuments(baseUrl, token, raw.results);
 
   return {
     documents,
@@ -588,6 +640,93 @@ export async function listDocuments(
       totalPages: Math.ceil(raw.count / pageSize),
     },
   };
+}
+
+/**
+ * The exact "hide linked" listing (see listDocuments). `params` carries the filters, the filter tag
+ * and the ordering, but no paging.
+ */
+async function listDocumentsExcluding(
+  baseUrl: string,
+  token: string,
+  params: URLSearchParams,
+  page: number,
+  pageSize: number,
+  excludeIds: readonly number[],
+  hasQuery: boolean,
+): Promise<PaperlessDocumentListResponse> {
+  const excluded = new Set(excludeIds);
+  const offset = (page - 1) * pageSize;
+  const withParams = (extra: Record<string, string>): string => {
+    const p = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(extra)) p.set(key, value);
+    return `/api/documents/?${p.toString()}`;
+  };
+
+  // 1. Probe: count and (usually) the ids of the whole filtered result.
+  const probe = await fetchPaperless<RawPaperlessListResponse>(
+    baseUrl,
+    token,
+    withParams({ page: '1', page_size: '1' }),
+  );
+  const count = probe.count;
+  const all = Array.isArray(probe.all) && probe.all.length === count ? probe.all : null;
+
+  // 2. Exact total of unlinked documents in the result.
+  let totalItems: number;
+  if (all) {
+    totalItems = all.filter((id) => !excluded.has(id)).length;
+  } else {
+    const chunks: number[][] = [];
+    for (let i = 0; i < excludeIds.length; i += ID_IN_CHUNK_SIZE) {
+      chunks.push(excludeIds.slice(i, i + ID_IN_CHUNK_SIZE));
+    }
+    const linkedCounts = await Promise.all(
+      chunks.map(async (chunk) => {
+        const res = await fetchPaperless<RawPaperlessListResponse>(
+          baseUrl,
+          token,
+          withParams({ id__in: chunk.join(','), page: '1', page_size: '1' }),
+        );
+        return res.count;
+      }),
+    );
+    totalItems = count - linkedCounts.reduce((sum, n) => sum + n, 0);
+  }
+  const linkedInResult = count - totalItems;
+  const pagination = { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) };
+
+  // 3. Past the end: nothing to fetch.
+  if (offset >= totalItems) {
+    return { documents: [], pagination };
+  }
+
+  // 4./5. The page itself.
+  let rawPage: RawPaperlessDocument[];
+  if (!hasQuery && all) {
+    // `all` is in list order: slice the unlinked ids and fetch exactly those documents
+    // (the filter tag is part of `params`, so it is enforced on this call too).
+    const ids = all.filter((id) => !excluded.has(id)).slice(offset, offset + pageSize);
+    const res = await fetchPaperless<RawPaperlessListResponse>(
+      baseUrl,
+      token,
+      withParams({ id__in: ids.join(','), page: '1', page_size: String(ids.length) }),
+    );
+    rawPage = res.results;
+  } else {
+    // At most `linkedInResult` of the first `windowSize` results are linked, so the window
+    // contains the requested page of unlinked documents.
+    const windowSize = Math.min(count, offset + pageSize + linkedInResult);
+    const res = await fetchPaperless<RawPaperlessListResponse>(
+      baseUrl,
+      token,
+      withParams({ page: '1', page_size: String(windowSize), truncate_content: 'true' }),
+    );
+    rawPage = res.results.filter((d) => !excluded.has(d.id)).slice(offset, offset + pageSize);
+  }
+
+  const documents = await enrichRawDocuments(baseUrl, token, rawPage);
+  return { documents, pagination };
 }
 
 /**
@@ -794,4 +933,27 @@ export async function listCorrespondents(
     .map((r) => ({ id: r.id, name: r.name }))
     .sort((a, b) => a.id - b.id);
   return { correspondents };
+}
+
+/**
+ * List all document types available in Paperless-ngx, sorted by ID ascending (#2252).
+ */
+export async function listDocumentTypes(
+  baseUrl: string,
+  token: string,
+): Promise<PaperlessDocumentTypeListResponse> {
+  interface RawPaperlessDocumentType {
+    id: number;
+    name: string;
+  }
+
+  const data = await fetchPaperless<{ count: number; results: RawPaperlessDocumentType[] }>(
+    baseUrl,
+    token,
+    '/api/document_types/?page_size=1000',
+  );
+  const documentTypes = data.results
+    .map((r) => ({ id: r.id, name: r.name }))
+    .sort((a, b) => a.id - b.id);
+  return { documentTypes };
 }

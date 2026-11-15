@@ -548,8 +548,8 @@
     "guard": "member",
     "gate": "paperless",
     "permanent": false,
-    "carries": ["q", "type", "sort"],
-    "note": "NEW Documents (Paperless library; only when Paperless is configured, else the conditional redirect above)."
+    "carries": ["q", "type", "tags", "unlinked", "sortBy", "sortOrder", "doc"],
+    "note": "Documents page (#2252): the Paperless library on the ObjectList template (search, Type and Tags filters, 'Hide already linked', sort; no primary); ?doc=<id> opens the details side panel (metadata, content preview, Open in Paperless, 'Linked to' with Unlink/Undo and 'Link to…' for tasks and purchases). Only when Paperless is configured, else the conditional redirect below. Reached from the sidebar secondary group, the More sheet, the Documents panel's 'Browse all' and command-search document results."
   },
   {
     "from": "/settings/integrations",

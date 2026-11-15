@@ -167,6 +167,8 @@ function Host(props: HostProps) {
         {...(props.onEdit ? { onEdit: props.onEdit } : {})}
         {...(props.collapsedLimit ? { collapsedLimit: props.collapsedLimit } : {})}
         {...(props.linkState ? { linkState: props.linkState } : {})}
+        {...(props.removeLabel !== undefined ? { removeLabel: props.removeLabel } : {})}
+        {...(props.removedMessage ? { removedMessage: props.removedMessage } : {})}
         {...(props.noRemove
           ? {}
           : {
@@ -603,6 +605,39 @@ describe('RelatedList: row menu and Remove', () => {
     expect(items).toEqual(['Open elsewhere', 'Remove']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Open elsewhere' }));
     expect(onHost).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels the row menu entry with removeLabel when given (#2252)', () => {
+    renderHost({ initialRows: makeRows(1), removeLabel: 'Unlink' });
+
+    fireEvent.click(trigger('r1'));
+
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(['Unlink']);
+    expect(screen.queryByRole('menuitem', { name: 'Remove' })).toBeNull();
+    // the testid does not depend on the label
+    expect(screen.getByTestId('rel-remove-r1')).toHaveTextContent('Unlink');
+  });
+
+  it('keeps the default "Remove" label without removeLabel', () => {
+    renderHost({ initialRows: makeRows(1) });
+
+    fireEvent.click(trigger('r1'));
+
+    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeInTheDocument();
+  });
+
+  it('uses removedMessage for the Undo toast text and still Undoes (#2252)', async () => {
+    const removedMessage = jest.fn((row: RelatedListRow) => `Unlinked from ${row.title}`);
+    renderHost({ removeLabel: 'Unlink', removedMessage });
+
+    await removeRow('r2');
+
+    expect(removedMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 'r2' }));
+    expect(screen.getByText('Unlinked from Row 2')).toBeInTheDocument();
+    expect(screen.queryByText('Row 2 removed from Things.')).toBeNull();
+    await clickUndo();
+    await waitFor(() => expect(screen.getByTestId('rel-row-r2')).toBeInTheDocument());
+    expect(mockUndoChange).toHaveBeenCalledWith('tok-1');
   });
 
   it('names the trigger "<title>, actions"', () => {

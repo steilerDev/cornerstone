@@ -4,20 +4,14 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { PaperlessStatusResponse } from '@cornerstone/shared';
-import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as ContextTypes from './CommandSearchContext.js';
 import type * as CreateMenuTypes from '../CreateMenu/CreateMenuContext.js';
 import type * as RegistryTypes from '../../hooks/shortcutRegistry.js';
 import type * as ShortcutsTypes from '../../hooks/useKeyboardShortcuts.js';
 import type { OverflowMenuControl } from '../OverflowMenu/OverflowMenu.js';
 
-const mockStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
-jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({ getPaperlessStatus: mockStatus }));
-
 let CommandSearchProvider: typeof ContextTypes.CommandSearchProvider;
 let useCommandSearch: typeof ContextTypes.useCommandSearch;
-let usePaperlessBaseUrl: typeof ContextTypes.usePaperlessBaseUrl;
 let CreateMenuProvider: typeof CreateMenuTypes.CreateMenuProvider;
 let useCreateMenuShell: typeof CreateMenuTypes.useCreateMenuShell;
 let ShortcutRegistryProvider: typeof RegistryTypes.ShortcutRegistryProvider;
@@ -25,10 +19,8 @@ let useShortcutRegistry: typeof RegistryTypes.useShortcutRegistry;
 let useKeyboardShortcuts: typeof ShortcutsTypes.useKeyboardShortcuts;
 
 beforeEach(async () => {
-  mockStatus.mockReset();
   if (!CommandSearchProvider) {
-    ({ CommandSearchProvider, useCommandSearch, usePaperlessBaseUrl } =
-      await import('./CommandSearchContext.js'));
+    ({ CommandSearchProvider, useCommandSearch } = await import('./CommandSearchContext.js'));
     ({ CreateMenuProvider, useCreateMenuShell } =
       await import('../CreateMenu/CreateMenuContext.js'));
     ({ ShortcutRegistryProvider, useShortcutRegistry } =
@@ -385,68 +377,5 @@ describe('useCommandSearch outside a provider', () => {
       detached.close();
       detached.toggle();
     }).not.toThrow();
-  });
-});
-
-describe('usePaperlessBaseUrl', () => {
-  function Reader({ onRead }: { onRead: (get: () => Promise<string | null>) => void }) {
-    onRead(usePaperlessBaseUrl());
-    return null;
-  }
-
-  function renderReader() {
-    let getter: (() => Promise<string | null>) | null = null;
-    render(
-      <MemoryRouter>
-        <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={jest.fn()}>
-          <CommandSearchProvider isOpen={false} onOpen={jest.fn()} onClose={jest.fn()}>
-            <Reader onRead={(g) => (getter = g)} />
-          </CommandSearchProvider>
-        </CreateMenuProvider>
-      </MemoryRouter>,
-    );
-    expect(getter).not.toBeNull();
-    return getter as unknown as () => Promise<string | null>;
-  }
-
-  const STATUS: PaperlessStatusResponse = {
-    configured: true,
-    reachable: true,
-    error: null,
-    paperlessUrl: 'https://docs.example.test',
-    filterTag: null,
-  };
-
-  it('fetches the status once and returns the browser-facing URL', async () => {
-    mockStatus.mockResolvedValue(STATUS);
-    const get = renderReader();
-    await expect(get()).resolves.toBe('https://docs.example.test');
-    await expect(get()).resolves.toBe('https://docs.example.test');
-    expect(mockStatus).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns null when Paperless is not configured', async () => {
-    mockStatus.mockResolvedValue({ ...STATUS, configured: false });
-    await expect(renderReader()()).resolves.toBeNull();
-  });
-
-  it('returns null when the configured status carries no URL', async () => {
-    mockStatus.mockResolvedValue({ ...STATUS, paperlessUrl: null });
-    await expect(renderReader()()).resolves.toBeNull();
-  });
-
-  it('maps a failed request to null and does not retry', async () => {
-    mockStatus.mockRejectedValue(new Error('down'));
-    const get = renderReader();
-    await expect(get()).resolves.toBeNull();
-    await expect(get()).resolves.toBeNull();
-    expect(mockStatus).toHaveBeenCalledTimes(1);
-  });
-
-  it('resolves null without a provider and never calls the API', async () => {
-    let getter: (() => Promise<string | null>) | null = null;
-    render(<Reader onRead={(g) => (getter = g)} />);
-    await expect((getter as unknown as () => Promise<string | null>)()).resolves.toBeNull();
-    expect(mockStatus).not.toHaveBeenCalled();
   });
 });

@@ -25,7 +25,6 @@ export interface SearchResultRowProps {
   readonly deps: ModelDeps;
   readonly originState: OriginState;
   readonly callHintId: string;
-  readonly newTabHintId: string;
   readonly onActivate: (id: string) => void;
   /** A plain click on an in-app row: the host prepares focus and closes if the URL is the same. */
   readonly onChoose: (target: string) => void;
@@ -130,10 +129,9 @@ export function SearchResultRow(props: SearchResultRowProps): ReactNode {
     variants && item.status !== null && item.status in variants ? (
       <Badge variants={variants} value={item.status} />
     ) : null;
-  const parts = line2Parts(type, item, deps, option.disabled, !option.pending);
+  const parts = line2Parts(type, item, deps, option.disabled);
   const phone = type === 'vendor' ? item.phone : null;
-  const external = target?.kind === 'external';
-  const describedBy = phone ? props.callHintId : external ? props.newTabHintId : undefined;
+  const describedBy = phone ? props.callHintId : undefined;
   const testId = `command-search-option-${type}-${item.id}`;
 
   const content = (
@@ -144,22 +142,6 @@ export function SearchResultRow(props: SearchResultRowProps): ReactNode {
             <HighlightedText text={option.title} query={itemQuery} />
           </span>
           {chip}
-          {external && (
-            <svg
-              className={styles.externalGlyph}
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7 9" />
-            </svg>
-          )}
         </span>
         <Line2 parts={parts} query={itemQuery} />
       </span>
@@ -179,24 +161,6 @@ export function SearchResultRow(props: SearchResultRowProps): ReactNode {
       >
         {content}
       </div>
-    );
-  } else if (target.kind === 'external') {
-    row = (
-      <a
-        role="option"
-        id={domId}
-        aria-selected={active}
-        aria-describedby={describedBy}
-        tabIndex={-1}
-        href={target.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={styles.option}
-        onPointerMove={() => props.onActivate(option.id)}
-        data-testid={testId}
-      >
-        {content}
-      </a>
     );
   } else {
     const href = target.href;

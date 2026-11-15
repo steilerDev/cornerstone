@@ -41,7 +41,6 @@ function input(overrides: Partial<BuildInput> = {}): BuildInput {
     ctx: CTX,
     sections: SECTIONS,
     active: null,
-    paperlessBaseUrl: null,
     ...overrides,
   };
 }
@@ -358,21 +357,10 @@ describe('line2Parts', () => {
     expect(textsOf(parts)).toEqual(["Can't be opened from here", 'Found in Document text']);
   });
 
-  it('omits the "can\'t be opened" text while the link base is still pending', () => {
-    const parts = line2Parts(
-      'paperless_document',
-      makeItem({ matchedField: 'fullText' }),
-      DEPS,
-      true,
-      false,
-    );
-    expect(textsOf(parts)).toEqual(['Found in Document text']);
-  });
-
-  it('returns nothing for a disabled row whose match is visible and cannot-open is hidden', () => {
+  it('always shows "can\'t be opened" for a disabled row (no pending state any more, #2252)', () => {
     expect(
-      line2Parts('paperless_document', makeItem({ matchedField: 'title' }), DEPS, true, false),
-    ).toEqual([]);
+      textsOf(line2Parts('paperless_document', makeItem({ matchedField: 'title' }), DEPS, true)),
+    ).toEqual(["Can't be opened from here"]);
   });
 
   it('skips a blank sublabel', () => {
@@ -537,37 +525,21 @@ describe('buildOptions', () => {
     if (option.kind === 'item') {
       expect(option.target).toEqual({ kind: 'app', href: routeUrl('workItem', { id: 'w9' }) });
       expect(option.disabled).toBe(false);
-      expect(option.pending).toBe(false);
+      expect(option).not.toHaveProperty('pending');
     }
   });
 
-  it('disables a document when Paperless has no link base', () => {
+  it('opens a document in the app on the Documents page with its panel (#2252)', () => {
     const response = makeResponse('roof', {
       paperless_document: makeGroup('paperless_document', [makeItem({ id: 'd1' })]),
     });
-    const option = buildOptions(input({ response, paperlessBaseUrl: null })).flat[0]!;
-    expect(option).toMatchObject({ kind: 'item', disabled: true, pending: false, target: null });
-  });
-
-  it('marks a document as pending while the link base is not fetched yet', () => {
-    const response = makeResponse('roof', {
-      paperless_document: makeGroup('paperless_document', [makeItem({ id: 'd1' })]),
-    });
-    const option = buildOptions(input({ response, paperlessBaseUrl: undefined })).flat[0]!;
-    expect(option).toMatchObject({ kind: 'item', disabled: true, pending: true });
-  });
-
-  it('makes a document an external link once the link base is known', () => {
-    const response = makeResponse('roof', {
-      paperless_document: makeGroup('paperless_document', [makeItem({ id: 'd1' })]),
-    });
-    const option = buildOptions(input({ response, paperlessBaseUrl: 'https://docs.example.test' }))
-      .flat[0]!;
+    const option = buildOptions(input({ response })).flat[0]!;
     expect(option).toMatchObject({
       kind: 'item',
       disabled: false,
-      target: { kind: 'external', href: 'https://docs.example.test/documents/d1/details' },
+      target: { kind: 'app', href: routeUrl('documents', undefined, { doc: 'd1' }) },
     });
+    expect(option).not.toHaveProperty('pending');
   });
 
   it('numbers destination ids by position and prefixes the route', () => {
@@ -632,7 +604,6 @@ describe('buildOptions', () => {
     const built = buildOptions(
       input({
         response: makeResponse('roof', groups),
-        paperlessBaseUrl: 'https://docs.example.test',
       }),
     );
     expect(built.groups.map((g) => g.type)).toEqual([...SEARCH_RESULT_TYPES]);

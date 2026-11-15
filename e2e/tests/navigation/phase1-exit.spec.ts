@@ -123,6 +123,9 @@ const PATHS: Record<string, () => string> = {
   companies: () => routeUrl('companies'),
   companyNew: () => routeUrl('companyNew'),
   company: () => routeUrl('company', { id: seed.vendorId }),
+  // #2252: gated on Paperless, which is off in the E2E container, so this lands on Home (the
+  // page itself, with the primary and search checks, is covered by documents-page.spec.ts)
+  documents: () => routeUrl('documents'),
   notFound: () => MISSING_PATH,
 };
 

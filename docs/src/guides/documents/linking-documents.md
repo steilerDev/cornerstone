@@ -68,6 +68,10 @@ Unlinking happens straight away. There is no confirmation dialog. A notice confi
 Unlinking removes the connection between the record and the Paperless-ngx document. The document itself is not deleted from Paperless-ngx -- it remains in your document store.
 :::
 
+## Linking from the Documents Page
+
+The **Documents** page lists every document in Paperless-ngx, whether or not it is linked yet. Open a document there to see its **Linked to** list, where you can unlink it or link it to a task or purchase. Invoices, funding sources, and grants are still linked from their own **Documents** panels. See [Browsing Documents](browsing-documents).
+
 ## Without Paperless-ngx
 
 What you see depends on whether Paperless-ngx is connected and whether any documents are already linked:

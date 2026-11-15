@@ -16,6 +16,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
+import * as schema from '../db/schema.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { _resetFilterTagCache } from '../services/paperlessService.js';
@@ -1046,6 +1047,227 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(502);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('PAPERLESS_UNREACHABLE');
+    });
+  });
+
+  // ─── GET /api/paperless/document-types (#2252) ───────────────────────────────
+
+  describe('GET /api/paperless/document-types', () => {
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/paperless/document-types' });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 503 PAPERLESS_NOT_CONFIGURED when Paperless is not configured', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/document-types',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_NOT_CONFIGURED');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns the document types mapped to { id, name } and sorted by id', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({
+          count: 2,
+          results: [
+            { id: 8, name: 'Invoice', slug: 'invoice' },
+            { id: 3, name: 'Contract', slug: 'contract' },
+          ],
+        }),
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/document-types',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        documentTypes: [
+          { id: 3, name: 'Contract' },
+          { id: 8, name: 'Invoice' },
+        ],
+      });
+      expect((mockFetch.mock.calls[0] as [string])[0]).toBe(
+        'http://paperless:8000/api/document_types/?page_size=1000',
+      );
+    });
+
+    it('passes the 502 PAPERLESS_UNREACHABLE code through when Paperless is down', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/document-types',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_UNREACHABLE');
+    });
+
+    it('passes the 502 PAPERLESS_ERROR code through on an upstream error status', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({}, 500));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/document-types',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_ERROR');
+    });
+  });
+
+  // ─── GET /api/paperless/documents?excludeLinked= (#2252) ─────────────────────
+
+  describe('GET /api/paperless/documents with excludeLinked', () => {
+    const CORPUS_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
+
+    function linkDocuments(paperlessIds: number[]) {
+      paperlessIds.forEach((paperlessDocumentId, index) => {
+        app.db
+          .insert(schema.documentLinks)
+          .values({
+            id: `link-${paperlessDocumentId}`,
+            entityType: 'work_item',
+            entityId: `record-${index}`,
+            paperlessDocumentId,
+            createdBy: null,
+            createdAt: new Date().toISOString(),
+          })
+          .run();
+      });
+    }
+
+    function fakeCorpus() {
+      mockFetch.mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname === '/api/tags/') return mockJsonResponse(RAW_TAGS_RESPONSE);
+        const q = url.searchParams;
+        let ids = CORPUS_IDS;
+        const idIn = q.get('id__in');
+        if (idIn) {
+          const wanted = new Set(idIn.split(',').map(Number));
+          ids = ids.filter((id) => wanted.has(id));
+        }
+        const page = Number(q.get('page') ?? '1');
+        const pageSize = Number(q.get('page_size') ?? '25');
+        return mockJsonResponse({
+          count: ids.length,
+          all: ids,
+          results: ids
+            .slice((page - 1) * pageSize, page * pageSize)
+            .map((id) => ({ ...RAW_DOCUMENT, id, title: `Document ${id}`, tags: [5] })),
+        });
+      });
+    }
+
+    it('returns 503 PAPERLESS_NOT_CONFIGURED when Paperless is not configured', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?excludeLinked=true',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_NOT_CONFIGURED');
+    });
+
+    it('returns 400 VALIDATION_ERROR for a non-boolean value, even when Paperless is not configured', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?excludeLinked=abc',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('hides the documents linked to any record and reports the exact total', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      linkDocuments([2, 4, 6]);
+      fakeCorpus();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?excludeLinked=true&page=1&pageSize=10',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PaperlessDocumentListResponse>();
+      expect(body.documents.map((d) => d.id)).toEqual([1, 3, 5, 7, 8, 9, 10, 11, 12, 13]);
+      expect(body.pagination).toEqual({ page: 1, pageSize: 10, totalItems: 27, totalPages: 3 });
+    });
+
+    it('keeps a linked document in the plain listing when excludeLinked is absent or false', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      linkDocuments([2]);
+      fakeCorpus();
+
+      const plain = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?pageSize=5',
+        headers: { cookie },
+      });
+      const off = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?pageSize=5&excludeLinked=false',
+        headers: { cookie },
+      });
+
+      expect(plain.json<PaperlessDocumentListResponse>().documents.map((d) => d.id)).toEqual([
+        1, 2, 3, 4, 5,
+      ]);
+      expect(off.json<PaperlessDocumentListResponse>().documents.map((d) => d.id)).toEqual([
+        1, 2, 3, 4, 5,
+      ]);
+    });
+
+    it('behaves like the plain listing when nothing is linked yet', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      fakeCorpus();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?excludeLinked=true&pageSize=5',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PaperlessDocumentListResponse>();
+      expect(body.documents.map((d) => d.id)).toEqual([1, 2, 3, 4, 5]);
+      expect(body.pagination.totalItems).toBe(30);
+      // no probe: a single documents request
+      const documentCalls = mockFetch.mock.calls.filter(
+        (c) => new URL(String(c[0])).pathname === '/api/documents/',
+      );
+      expect(documentCalls).toHaveLength(1);
     });
   });
 

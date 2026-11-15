@@ -238,11 +238,6 @@
   color: var(--color-text-muted);
 }
 
-.externalGlyph {
-  flex: none;
-  color: var(--color-text-muted);
-}
-
 .mark {
   background: transparent;
   color: inherit;

@@ -44,6 +44,8 @@ export function RelatedList({
   onEdit,
   onRemove,
   onRestored,
+  removeLabel,
+  removedMessage,
   linkState,
   collapsedLimit = DEFAULT_COLLAPSED_LIMIT,
   testId,
@@ -141,7 +143,7 @@ export function RelatedList({
     }
     focus.afterRemove(before, row.id);
     showUndoToast({
-      message: t('relatedList.removed', { title: row.title, list: title }),
+      message: removedMessage?.(row) ?? t('relatedList.removed', { title: row.title, list: title }),
       dedupeKey: `${testId}-remove-${row.id}`,
       focusFallback: fallback,
       onUndo: async () => {
@@ -182,7 +184,7 @@ export function RelatedList({
     if (onRemove && row.removable !== false) {
       items.push({
         id: 'remove',
-        label: t('relatedList.remove'),
+        label: removeLabel ?? t('relatedList.remove'),
         variant: 'default',
         testId: `${testId}-remove-${row.id}`,
         onClick: () => void handleRemove(row, onRemove),

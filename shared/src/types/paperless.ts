@@ -24,3 +24,13 @@ export interface PaperlessCorrespondentListResponse {
 export interface PaperlessUploadResponse {
   taskId: string;
 }
+
+/** Document type in Paperless-ngx. */
+export interface PaperlessDocumentType {
+  id: number;
+  name: string;
+}
+
+export interface PaperlessDocumentTypeListResponse {
+  documentTypes: PaperlessDocumentType[];
+}

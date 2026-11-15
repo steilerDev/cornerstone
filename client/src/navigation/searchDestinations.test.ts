@@ -354,14 +354,27 @@ describe('findSearchDestinations: role and gating', () => {
     expect(routesOf('Zeitplan', MEMBER)[0]).toBe('scheduleGantt');
   });
 
-  it('does not offer a planned route by its own name', () => {
+  it('has no planned navigation route left once the Documents page is served (#2252)', () => {
     const planned = NAV_SECTIONS.flatMap((s) => [s, ...s.views]).filter(
       (e) => !isRouteServed(e.route),
     );
-    expect(planned.length).toBeGreaterThan(0);
-    for (const entry of planned) {
-      expect(routesOf(EN(entry.labelKey))).not.toContain(entry.route);
-    }
+    expect(planned).toEqual([]);
+  });
+
+  describe('AC4.1: Documents is offered only when Paperless is configured (real route map)', () => {
+    it('offers Documents with Paperless configured, to an admin and a member', () => {
+      expect(routesOf('Documents', ADMIN)).toContain('documents');
+      expect(routesOf('Documents', MEMBER)).toContain('documents');
+      expect(routesOf('Dokumente', ADMIN, DE)).toContain('documents');
+    });
+
+    it('does not offer Documents without Paperless', () => {
+      for (const role of ['admin', 'member'] as const) {
+        const ctx: NavContext = { role, paperlessConfigured: false };
+        expect(routesOf('Documents', ctx)).not.toContain('documents');
+        expect(routesOf('Dokumente', ctx, DE)).not.toContain('documents');
+      }
+    });
   });
 
   it('never returns a planned (not yet served) route', () => {

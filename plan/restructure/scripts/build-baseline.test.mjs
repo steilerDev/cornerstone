@@ -299,6 +299,61 @@ describe('analyzeFile', () => {
     );
     assert.equal(r.primaryButtons, 0);
   });
+  describe('primary class element set (#2252)', () => {
+    const primaryCtx = {
+      ...ctx,
+      readCss: () => '.primaryish { background: var(--color-primary); } .plain { color: red; }',
+    };
+    const count = (jsx, extraImports = '') =>
+      analyzeFile(
+        '/s/x.tsx',
+        `import s from './x.module.css'; ${extraImports} export const X = () => ${jsx};`,
+        primaryCtx,
+      ).primaryButtons;
+
+    it('does not count a primary class on a non-interactive span or div (decoration)', () => {
+      assert.equal(count('<span className={s.primaryish}>3</span>'), 0);
+      assert.equal(count('<div className={s.primaryish} />'), 0);
+      assert.equal(count('<td className={s.primaryish} />'), 0);
+    });
+
+    it('counts a primary class on a button, a link, an input, a label and a summary', () => {
+      for (const tag of ['button', 'a', 'input', 'label', 'summary']) {
+        assert.equal(count(`<${tag} className={s.primaryish} />`), 1, tag);
+      }
+    });
+
+    it('counts a primary class on a component tag, a dotted component and NavAnchor', () => {
+      assert.equal(count('<NavAnchor className={s.primaryish} />'), 1);
+      assert.equal(count('<Custom className={s.primaryish} />'), 1);
+      assert.equal(count('<Ns.Widget className={s.primaryish} />'), 1);
+    });
+
+    it('counts a primary class on a built-in tag made interactive by role or onClick', () => {
+      for (const role of ['button', 'link', 'menuitem', 'tab']) {
+        assert.equal(count(`<span role="${role}" className={s.primaryish} />`), 1, role);
+      }
+      assert.equal(count('<span onClick={go} className={s.primaryish} />'), 1);
+    });
+
+    it('does not count a non-interactive role or a dynamic role', () => {
+      assert.equal(count('<span role="status" className={s.primaryish} />'), 0);
+      assert.equal(count('<span role={kind} className={s.primaryish} />'), 0);
+    });
+
+    it('does not count a non-primary class on an interactive element', () => {
+      assert.equal(count('<button className={s.plain} />'), 0);
+    });
+
+    it('counts each primary element separately (button + span = 1)', () => {
+      assert.equal(
+        count(
+          '<><button className={s.primaryish}>New</button><span className={s.primaryish}>2</span></>',
+        ),
+        1,
+      );
+    });
+  });
   it('counts window.confirm calls but not bare confirm', () => {
     const r = analyzeFile('/s/x.ts', 'window.confirm("a"); confirm("b"); window.alert("c");', ctx);
     assert.equal(r.windowConfirm, 1);

@@ -6,6 +6,7 @@ import type {
   PaperlessTagListResponse,
   PaperlessDocumentListQuery,
   PaperlessCorrespondentListResponse,
+  PaperlessDocumentTypeListResponse,
   PaperlessUploadResponse,
 } from '@cornerstone/shared';
 
@@ -31,6 +32,7 @@ export function listPaperlessDocuments(
   if (query?.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
   if (query?.sortBy) params.set('sortBy', query.sortBy);
   if (query?.sortOrder) params.set('sortOrder', query.sortOrder);
+  if (query?.excludeLinked) params.set('excludeLinked', 'true');
   const qs = params.toString();
   return get<PaperlessDocumentListResponse>(`/paperless/documents${qs ? `?${qs}` : ''}`);
 }
@@ -54,6 +56,13 @@ export function listPaperlessTags(): Promise<PaperlessTagListResponse> {
  */
 export function listPaperlessCorrespondents(): Promise<PaperlessCorrespondentListResponse> {
   return get<PaperlessCorrespondentListResponse>('/paperless/correspondents');
+}
+
+/**
+ * Lists all Paperless-ngx document types for filtering documents.
+ */
+export function listPaperlessDocumentTypes(): Promise<PaperlessDocumentTypeListResponse> {
+  return get<PaperlessDocumentTypeListResponse>('/paperless/document-types');
 }
 
 /**

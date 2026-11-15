@@ -1227,6 +1227,187 @@ describe('documentLinkService', () => {
     });
   });
 
+  // ─── getLinksForDocument() (#2252) ─────────────────────────────────────────
+
+  describe('getLinksForDocument()', () => {
+    function insertHouseholdItem(id: string, name: string) {
+      const now = new Date().toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id,
+          name,
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function insertLinkRow(
+      id: string,
+      entityType: DocumentLinkEntityType,
+      entityId: string,
+      paperlessDocumentId: number,
+      createdAt: string,
+      createdBy: string | null = 'user-001',
+    ) {
+      db.insert(schema.documentLinks)
+        .values({ id, entityType, entityId, paperlessDocumentId, createdBy, createdAt })
+        .run();
+    }
+
+    it('returns an empty list for a document that has no links, without calling Paperless', () => {
+      const workItemId = insertTestWorkItem();
+      insertRawDocumentLink('work_item', workItemId, 42);
+
+      expect(documentLinkService.getLinksForDocument(db, 999)).toEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('summarises the linked record of each of the five kinds', () => {
+      const workItemId = insertTestWorkItem('Fixture task');
+      insertHouseholdItem('hi-77', 'Fixture oven');
+      const sourceId = insertTestBudgetSource('Fixture loan');
+      const programId = insertTestSubsidyProgram('Fixture grant');
+      const vendorId = insertTestVendor('Fixture Roofing Ltd');
+      const invoiceId = insertTestInvoice(vendorId);
+      const invoiceRow = db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, invoiceId))
+        .get()!;
+      insertRawDocumentLink('work_item', workItemId, 42);
+      insertRawDocumentLink('household_item', 'hi-77', 42);
+      insertRawDocumentLink('budget_source', sourceId, 42);
+      insertRawDocumentLink('subsidy_program', programId, 42);
+      insertRawDocumentLink('invoice', invoiceId, 42);
+
+      const result = documentLinkService.getLinksForDocument(db, 42);
+
+      const byType = Object.fromEntries(result.map((l) => [l.entityType, l]));
+      expect(result).toHaveLength(5);
+      expect(byType.work_item!.entity).toEqual({
+        title: 'Fixture task',
+        vendorName: null,
+        invoiceStatus: null,
+      });
+      expect(byType.household_item!.entity).toEqual({
+        title: 'Fixture oven',
+        vendorName: null,
+        invoiceStatus: null,
+      });
+      expect(byType.budget_source!.entity).toEqual({
+        title: 'Fixture loan',
+        vendorName: null,
+        invoiceStatus: null,
+      });
+      expect(byType.subsidy_program!.entity).toEqual({
+        title: 'Fixture grant',
+        vendorName: null,
+        invoiceStatus: null,
+      });
+      expect(byType.invoice!.entity).toEqual({
+        title: invoiceRow.invoiceNumber,
+        vendorName: 'Fixture Roofing Ltd',
+        invoiceStatus: 'pending',
+      });
+      expect(byType.invoice!.entityId).toBe(invoiceId);
+    });
+
+    it('reports the offer (quotation) status and a null invoice number of an invoice record', () => {
+      const vendorId = insertTestVendor('Fixture Plumbing');
+      const invoiceId = insertTestInvoice(vendorId);
+      db.update(schema.invoices)
+        .set({ status: 'quotation', invoiceNumber: null })
+        .where(eq(schema.invoices.id, invoiceId))
+        .run();
+      insertRawDocumentLink('invoice', invoiceId, 7);
+
+      const [link] = documentLinkService.getLinksForDocument(db, 7);
+
+      expect(link!.entity).toEqual({
+        title: null,
+        vendorName: 'Fixture Plumbing',
+        invoiceStatus: 'quotation',
+      });
+    });
+
+    it('returns entity null for a link whose record no longer exists, and keeps the link listed', () => {
+      const keptId = insertTestWorkItem('Still here');
+      insertLinkRow('l-1', 'work_item', keptId, 42, '2026-01-01T00:00:00.000Z');
+      insertLinkRow('l-2', 'work_item', 'gone-work-item', 42, '2026-01-02T00:00:00.000Z');
+      insertLinkRow('l-3', 'invoice', 'gone-invoice', 42, '2026-01-03T00:00:00.000Z');
+      insertLinkRow('l-4', 'household_item', 'gone-hi', 42, '2026-01-04T00:00:00.000Z');
+      insertLinkRow('l-5', 'budget_source', 'gone-src', 42, '2026-01-05T00:00:00.000Z');
+      insertLinkRow('l-6', 'subsidy_program', 'gone-prog', 42, '2026-01-06T00:00:00.000Z');
+
+      const result = documentLinkService.getLinksForDocument(db, 42);
+
+      expect(result.map((l) => [l.id, l.entity === null])).toEqual([
+        ['l-1', false],
+        ['l-2', true],
+        ['l-3', true],
+        ['l-4', true],
+        ['l-5', true],
+        ['l-6', true],
+      ]);
+    });
+
+    it('does not resolve a record id under the wrong entity type', () => {
+      const workItemId = insertTestWorkItem('A task');
+      insertLinkRow('l-1', 'invoice', workItemId, 42, '2026-01-01T00:00:00.000Z');
+
+      const [link] = documentLinkService.getLinksForDocument(db, 42);
+
+      expect(link!.entity).toBeNull();
+    });
+
+    it('only returns the links of the requested document', () => {
+      const workItemId = insertTestWorkItem('Shared task');
+      insertLinkRow('l-1', 'work_item', workItemId, 42, '2026-01-01T00:00:00.000Z');
+      insertLinkRow('l-2', 'work_item', workItemId, 43, '2026-01-02T00:00:00.000Z');
+
+      const result = documentLinkService.getLinksForDocument(db, 43);
+
+      expect(result.map((l) => l.id)).toEqual(['l-2']);
+      expect(result[0]!.paperlessDocumentId).toBe(43);
+    });
+
+    it('orders by creation time, then by id', () => {
+      const a = insertTestWorkItem('A');
+      const b = insertTestWorkItem('B');
+      const c = insertTestWorkItem('C');
+      insertLinkRow('z-first', 'work_item', a, 42, '2026-01-01T00:00:00.000Z');
+      insertLinkRow('m-tie', 'work_item', b, 42, '2026-01-02T00:00:00.000Z');
+      insertLinkRow('b-tie', 'work_item', c, 42, '2026-01-02T00:00:00.000Z');
+
+      const result = documentLinkService.getLinksForDocument(db, 42);
+
+      expect(result.map((l) => l.id)).toEqual(['z-first', 'b-tie', 'm-tie']);
+    });
+
+    it('resolves the creator of each link, and null when the creator is unset', () => {
+      const [w1, w2, w3, w4] = [1, 2, 3, 4].map((n) => insertTestWorkItem(`Task ${n}`));
+      const other = insertTestUser('user-002', 'other@example.com', 'Other Person');
+      insertLinkRow('l-1', 'work_item', w1!, 42, '2026-01-01T00:00:00.000Z', 'user-001');
+      insertLinkRow('l-2', 'work_item', w2!, 42, '2026-01-02T00:00:00.000Z', other);
+      insertLinkRow('l-3', 'work_item', w3!, 42, '2026-01-03T00:00:00.000Z', null);
+      insertLinkRow('l-4', 'work_item', w4!, 42, '2026-01-04T00:00:00.000Z', 'user-001');
+
+      const result = documentLinkService.getLinksForDocument(db, 42);
+
+      expect(result.map((l) => l.createdBy)).toEqual([
+        { id: 'user-001', displayName: 'Test User' },
+        { id: 'user-002', displayName: 'Other Person' },
+        null,
+        { id: 'user-001', displayName: 'Test User' },
+      ]);
+    });
+  });
+
   // ─── getAllLinkedDocumentIds() ─────────────────────────────────────────────
 
   describe('getAllLinkedDocumentIds()', () => {

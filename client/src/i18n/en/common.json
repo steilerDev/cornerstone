@@ -727,7 +727,6 @@
       "invoiceUnnamed": "In an invoice without a number"
     },
     "callHint": "Press Shift+Enter to call",
-    "opensInNewTab": "(opens in a new tab)",
     "cannotOpen": "Can't be opened from here",
     "documentsUnavailable": "Documents can't be reached right now. Other results are shown.",
     "documentsUnavailableLive": "Documents are not available right now.",

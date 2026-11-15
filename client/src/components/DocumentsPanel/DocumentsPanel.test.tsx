@@ -10,7 +10,6 @@ import type {
   PaperlessDocumentSearchResult,
 } from '@cornerstone/shared';
 import { DOCUMENT_LINK_ENTITY_TYPES } from '@cornerstone/shared';
-import * as sharedActual from '@cornerstone/shared';
 import type * as PanelModule from './DocumentsPanel.js';
 import type { ApiClientError as ApiClientErrorType } from '../../lib/apiClient.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
@@ -39,13 +38,6 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessDocument: jest.fn(),
   getDocumentThumbnailUrl: (id: number) => `/api/paperless/documents/${id}/thumb`,
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
-}));
-
-let mockDocumentsServed = false;
-jest.unstable_mockModule('@cornerstone/shared', () => ({
-  ...sharedActual,
-  isRouteServed: (id: string) =>
-    id === 'documents' ? mockDocumentsServed : sharedActual.isRouteServed(id as never),
 }));
 
 const PICKED: PaperlessDocumentSearchResult = {
@@ -253,7 +245,6 @@ beforeEach(async () => {
   ({ ApiClientError } = await import('../../lib/apiClient.js'));
   media = installMatchMedia({ '(min-width: 768px)': true });
   mockRole = 'member';
-  mockDocumentsServed = false;
   browserProps = {};
   localStorage.clear();
 });
@@ -794,15 +785,14 @@ describe('DocumentsPanel — Link document picker', () => {
 });
 
 describe('DocumentsPanel — Browse all', () => {
-  it('is absent while the documents route is not served', () => {
+  it('is always offered in edit mode, as an anchor to /documents (#2252)', () => {
     renderHost();
     openPanel();
 
-    expect(screen.queryByTestId('documents-browse-all')).toBeNull();
+    expect(screen.getByTestId('documents-browse-all')).toHaveAttribute('href', '/documents');
   });
 
-  it('is an anchor with origin state that closes the sheet when the route is served', () => {
-    mockDocumentsServed = true;
+  it('is an anchor with origin state that closes the sheet', () => {
     renderHost();
     openPanel();
 
@@ -813,6 +803,13 @@ describe('DocumentsPanel — Browse all', () => {
     expect(probedPath()).toBe('/documents');
     expect(probedOrigin()?.to).toBe('/project/work-items/wi-1?tab=cost');
     expectSheetClosed();
+  });
+
+  it('is absent in the read-only (Paperless off) panel', () => {
+    renderHost({ mode: 'readOnly', initialLinks: [makeLink('l1', 'Sample offer.pdf')] });
+    openPanel();
+
+    expect(screen.queryByTestId('documents-browse-all')).toBeNull();
   });
 });
 

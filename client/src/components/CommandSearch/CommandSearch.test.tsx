@@ -8,7 +8,11 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { routeUrl } from '@cornerstone/shared';
-import type { PaperlessStatusResponse, SearchResponse } from '@cornerstone/shared';
+import type {
+  PaperlessStatusResponse,
+  SearchResponse,
+  SearchResultItem,
+} from '@cornerstone/shared';
 import type * as SearchApiTypes from '../../lib/searchApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as TradesApiTypes from '../../lib/tradesApi.js';
@@ -479,44 +483,24 @@ describe('rows', () => {
     expect(option('vendor', 'v1').contains(call)).toBe(false);
   });
 
-  it('renders a document without a link base as a disabled option that explains why', async () => {
+  it('opens a document in the app on the Documents page with its panel (#2252)', async () => {
     respondWith(full);
     renderSearch();
     await settled();
-    await waitFor(() =>
-      expect(option('paperless_document', 'd1')).toHaveAttribute('aria-disabled', 'true'),
-    );
     const row = option('paperless_document', 'd1');
-    expect(row).toHaveAttribute('aria-selected', 'false');
-    expect(row.textContent).toContain("Can't be opened from here");
+    expect(row.tagName).toBe('A');
+    expect(row).toHaveAttribute('href', routeUrl('documents', undefined, { doc: 'd1' }));
+    expect(row).not.toHaveAttribute('target');
+    expect(row).not.toHaveAttribute('aria-disabled');
     expect(row.textContent).toContain('Found in Document text');
-    expect(row.tagName).toBe('DIV');
+    expect(row.textContent).not.toContain("Can't be opened");
   });
 
-  it('turns a document into an external link once the Paperless URL is known', async () => {
-    mockStatus.mockResolvedValue({
-      configured: true,
-      reachable: true,
-      error: null,
-      paperlessUrl: 'https://docs.example.test/',
-      filterTag: null,
-    });
+  it('never asks Paperless for its URL, with or without a document shown', async () => {
     respondWith(full);
     renderSearch();
     await settled();
-    await waitFor(() => expect(option('paperless_document', 'd1').tagName).toBe('A'));
-    const link = option('paperless_document', 'd1');
-    expect(link).toHaveAttribute('href', 'https://docs.example.test/documents/d1/details');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(link.getAttribute('aria-describedby')).toBeTruthy();
-    expect(mockStatus).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not ask for the Paperless URL when no document is shown', async () => {
-    respondWith((q) => makeResponse(q, { work_item: WORK_ITEMS }));
-    renderSearch();
-    await settled();
+    expect(option('paperless_document', 'd1')).toBeInTheDocument();
     expect(mockStatus).not.toHaveBeenCalled();
   });
 
@@ -551,28 +535,58 @@ describe('rows', () => {
 
 describe('keyboard', () => {
   it('moves down and up through the options, wrapping and skipping the disabled one', async () => {
-    respondWith(full);
+    respondWith((q) =>
+      makeResponse(q, {
+        work_item: WORK_ITEMS,
+        vendor: VENDOR,
+        // a budget line whose parent type is unknown has no page to open: a disabled row
+        budget_line: makeGroup('budget_line', [
+          makeItem({
+            id: 'b1',
+            parent: {
+              type: 'future',
+              id: 'x',
+              label: null,
+            } as unknown as SearchResultItem['parent'],
+          }),
+        ]),
+        paperless_document: DOC,
+      }),
+    );
     renderSearch();
     await settled();
-    await waitFor(() =>
-      expect(option('paperless_document', 'd1')).toHaveAttribute('aria-disabled', 'true'),
-    );
+    expect(option('budget_line', 'b1')).toHaveAttribute('aria-disabled', 'true');
     const user = userEvent.setup();
     const selected = () =>
       screen
         .getAllByRole('option')
         .filter((o) => o.getAttribute('aria-selected') === 'true')
         .map((o) => o.getAttribute('data-testid'));
-    expect(selected()).toEqual(['command-search-option-work_item-w1']);
+    const activatable = screen
+      .getAllByRole('option')
+      .filter((o) => o.getAttribute('aria-disabled') !== 'true')
+      .map((o) => o.getAttribute('data-testid'));
+    expect(activatable).toEqual([
+      'command-search-option-work_item-w1',
+      'command-search-option-work_item-w2',
+      'command-search-option-vendor-v1',
+      'command-search-option-paperless_document-d1',
+    ]);
+    expect(selected()).toEqual([activatable[0]]);
     await user.keyboard('{ArrowDown}');
-    expect(selected()).toEqual(['command-search-option-work_item-w2']);
+    expect(selected()).toEqual([activatable[1]]);
     await user.keyboard('{ArrowDown}');
-    expect(selected()).toEqual(['command-search-option-vendor-v1']);
+    expect(selected()).toEqual([activatable[2]]);
     await user.keyboard('{ArrowDown}');
-    expect(selected()).toEqual(['command-search-option-work_item-w1']);
+    // the document is a real, selectable option now; the disabled row is skipped after the vendor
+    expect(selected()).toEqual([activatable[3]]);
+    await user.keyboard('{ArrowDown}');
+    expect(selected()).toEqual([activatable[0]]);
     await user.keyboard('{ArrowUp}');
-    expect(selected()).toEqual(['command-search-option-vendor-v1']);
-    expect(input().getAttribute('aria-activedescendant')).toBe(option('vendor', 'v1').id);
+    expect(selected()).toEqual([activatable[3]]);
+    expect(input().getAttribute('aria-activedescendant')).toBe(
+      option('paperless_document', 'd1').id,
+    );
   });
 
   it('wraps to the last option on ArrowUp from the first', async () => {
@@ -1262,14 +1276,7 @@ describe('footer', () => {
 });
 
 describe('pointer and composition', () => {
-  it('activates a destination, a "Show more" row and an external link on pointer move', async () => {
-    mockStatus.mockResolvedValue({
-      configured: true,
-      reachable: true,
-      error: null,
-      paperlessUrl: 'https://docs.example.test',
-      filterTag: null,
-    });
+  it('activates a destination, a "Show more" row and a document link on pointer move', async () => {
     respondWith((q) =>
       makeResponse(q, {
         work_item: makeGroup('work_item', [makeItem({ id: 'a' }), makeItem({ id: 'b' })], {
@@ -1280,7 +1287,7 @@ describe('pointer and composition', () => {
     );
     renderSearch({ startQuery: 'Gantt' });
     await settled();
-    await waitFor(() => expect(option('paperless_document', 'd1').tagName).toBe('A'));
+    expect(option('paperless_document', 'd1').tagName).toBe('A');
     fireEvent.pointerMove(option('work_item', 'b'));
     fireEvent.pointerMove(screen.getByTestId('command-search-dest-scheduleGantt'));
     expect(screen.getByTestId('command-search-dest-scheduleGantt')).toHaveAttribute(

@@ -11,12 +11,12 @@ Cornerstone integrates with [Paperless-ngx](https://docs.paperless-ngx.com/) to 
 
 The document integration provides:
 
-- **Document Browser** -- A dedicated page to search, filter, and browse all documents in your Paperless-ngx instance
+- **Documents Page** -- A dedicated page to search, filter, and browse all documents in your Paperless-ngx instance, and to see and change the tasks and purchases each one is linked to
 - **Document Linking** -- Attach Paperless-ngx documents to tasks, purchases, invoices, funding sources, and grants from their **Documents** panel, so related documents are always one click away
 - **Thumbnail Previews** -- Document thumbnails are displayed inline so you can identify documents at a glance
-- **Detail Panel** -- View document metadata (title, created date, correspondent, document type, tags, content preview) without leaving Cornerstone
-- **Tag Filtering** -- Filter documents by Paperless-ngx tags in the document browser
-- **Graceful Degradation** -- If Paperless-ngx is not configured or unreachable, Cornerstone shows clear status messages instead of errors
+- **Details Panel** -- View document metadata (title, document date, correspondent, document type, tags, content preview) without leaving Cornerstone
+- **Filters** -- Narrow the Documents page by type, by tags, or to documents not yet linked to anything
+- **Graceful Degradation** -- If Paperless-ngx is not configured, the Documents page and every document control are hidden. If it is unreachable, the Documents page says so and offers a retry
 
 ## How It Works
 

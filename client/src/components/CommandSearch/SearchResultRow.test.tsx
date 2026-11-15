@@ -27,7 +27,6 @@ function itemOption(
     title: item.label ?? '',
     target: { kind: 'app', href: routeUrl('workItem', { id: item.id }) },
     disabled: false,
-    pending: false,
     ...overrides,
   };
 }
@@ -49,7 +48,6 @@ function setup(option: CommandOption, props: Partial<SearchResultRowProps> = {})
         deps={DEPS}
         originState={{ origin: { to: '/start' } }}
         callHintId="call-hint"
-        newTabHintId="tab-hint"
         {...handlers}
         {...props}
       />
@@ -148,7 +146,7 @@ describe('SearchResultRow', () => {
     });
   });
 
-  describe('disabled and external rows', () => {
+  describe('disabled rows', () => {
     it('renders a disabled option as a div that is never selected', () => {
       setup(
         itemOption(
@@ -163,36 +161,6 @@ describe('SearchResultRow', () => {
       expect(row).toHaveAttribute('aria-disabled', 'true');
       expect(row).toHaveAttribute('aria-selected', 'false');
       expect(row.textContent).toContain("Can't be opened from here");
-    });
-
-    it('omits the cannot-open text while the link base is pending', () => {
-      setup(itemOption('paperless_document', { disabled: true, target: null, pending: true }));
-      expect(screen.getByRole('option').textContent).not.toContain("Can't be opened");
-    });
-
-    it('renders an external option as a new-tab link described by the new-tab hint', () => {
-      setup(
-        itemOption('paperless_document', {
-          target: { kind: 'external', href: 'https://docs.example.test/documents/1/details' },
-        }),
-      );
-      const row = screen.getByRole('option');
-      expect(row.tagName).toBe('A');
-      expect(row).toHaveAttribute('target', '_blank');
-      expect(row).toHaveAttribute('rel', 'noopener noreferrer');
-      expect(row).toHaveAttribute('aria-describedby', 'tab-hint');
-    });
-
-    it('does not report a choice for an external link', () => {
-      const { onChoose } = setup(
-        itemOption('paperless_document', {
-          target: { kind: 'external', href: 'https://docs.example.test/documents/1/details' },
-        }),
-      );
-      const row = screen.getByRole('option');
-      row.addEventListener('click', (e) => e.preventDefault());
-      fireEvent.click(row);
-      expect(onChoose).not.toHaveBeenCalled();
     });
   });
 

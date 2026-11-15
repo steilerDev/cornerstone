@@ -19,8 +19,6 @@ function item(overrides: Partial<SearchResultItem> = {}): SearchResultItem {
   };
 }
 
-const NO_PAPERLESS = { paperlessBaseUrl: null };
-
 describe('searchResultTarget', () => {
   it.each([
     ['work_item', routeUrl('workItem', { id: '42' })],
@@ -30,12 +28,12 @@ describe('searchResultTarget', () => {
     ['vendor', routeUrl('company', { id: '42' })],
     ['diary_entry', routeUrl('diaryEntry', { id: '42' })],
   ] as const)('opens a %s in the app at its own page', (type, href) => {
-    expect(searchResultTarget(type, item(), NO_PAPERLESS)).toEqual({ kind: 'app', href });
+    expect(searchResultTarget(type, item())).toEqual({ kind: 'app', href });
   });
 
   it('returns a target for every search result type', () => {
     for (const type of SEARCH_RESULT_TYPES) {
-      const target = searchResultTarget(type, item(), { paperlessBaseUrl: 'https://p.example' });
+      const target = searchResultTarget(type, item());
       expect(target).not.toBeNull();
     }
   });
@@ -43,7 +41,7 @@ describe('searchResultTarget', () => {
   describe('budget_line', () => {
     it('opens the parent work item', () => {
       const parent = { type: 'work_item', id: '7', label: 'T' } as const;
-      expect(searchResultTarget('budget_line', item({ parent }), NO_PAPERLESS)).toEqual({
+      expect(searchResultTarget('budget_line', item({ parent }))).toEqual({
         kind: 'app',
         href: routeUrl('workItem', { id: '7' }),
       });
@@ -51,7 +49,7 @@ describe('searchResultTarget', () => {
 
     it('opens the parent household item', () => {
       const parent = { type: 'household_item', id: '8', label: 'P' } as const;
-      expect(searchResultTarget('budget_line', item({ parent }), NO_PAPERLESS)).toEqual({
+      expect(searchResultTarget('budget_line', item({ parent }))).toEqual({
         kind: 'app',
         href: routeUrl('householdItem', { id: '8' }),
       });
@@ -59,14 +57,14 @@ describe('searchResultTarget', () => {
 
     it('opens the linked invoice of an orphan line', () => {
       const parent = { type: 'invoice', id: '9', label: 'INV-1' } as const;
-      expect(searchResultTarget('budget_line', item({ parent }), NO_PAPERLESS)).toEqual({
+      expect(searchResultTarget('budget_line', item({ parent }))).toEqual({
         kind: 'app',
         href: routeUrl('invoice', { id: '9' }),
       });
     });
 
     it('falls back to the budget overview without a parent', () => {
-      expect(searchResultTarget('budget_line', item({ parent: null }), NO_PAPERLESS)).toEqual({
+      expect(searchResultTarget('budget_line', item({ parent: null }))).toEqual({
         kind: 'app',
         href: routeUrl('budgetOverview'),
       });
@@ -76,7 +74,7 @@ describe('searchResultTarget', () => {
   describe('defensive exhaustiveness fallbacks', () => {
     it('returns null for an unknown result type from a newer server', () => {
       const unknown = 'future_type' as unknown as Parameters<typeof searchResultTarget>[0];
-      expect(searchResultTarget(unknown, item(), NO_PAPERLESS)).toBeNull();
+      expect(searchResultTarget(unknown, item())).toBeNull();
     });
 
     it('returns null for an unknown budget-line parent type', () => {
@@ -85,67 +83,40 @@ describe('searchResultTarget', () => {
         id: '1',
         label: null,
       } as unknown as SearchResultItem['parent'];
-      expect(searchResultTarget('budget_line', item({ parent }), NO_PAPERLESS)).toBeNull();
+      expect(searchResultTarget('budget_line', item({ parent }))).toBeNull();
     });
   });
 
-  describe('interim targets (routes not yet served)', () => {
+  describe('former interim targets (all routes served now)', () => {
     it('area opens the area page of the hit now that route `area` is served (#2251)', () => {
       expect(getRouteEntry('area').stage).toBe('done');
       const href = routeUrl('area', { id: 'a-7' });
       expect(href).toBe('/areas/a-7');
-      expect(searchResultTarget('area', item({ id: 'a-7' }), NO_PAPERLESS)).toEqual({
+      expect(searchResultTarget('area', item({ id: 'a-7' }))).toEqual({
         kind: 'app',
         href,
       });
     });
-
-    it('paperless documents open in Paperless while route `documents` is planned', () => {
-      expect(getRouteEntry('documents').stage).toBe('planned');
-      expect(
-        searchResultTarget('paperless_document', item({ id: '5' }), {
-          paperlessBaseUrl: 'https://paperless.example',
-        }),
-      ).toEqual({ kind: 'external', href: 'https://paperless.example/documents/5/details' });
-    });
-
-    it('INTERIM PIN: when `documents` is served, update searchResultTarget and this test', () => {
-      // Fails on purpose when the Documents page story flips the stage: the mapper must then link
-      // to the Documents page instead of the interim Paperless target.
-      const flipped = (['documents'] as const).filter(
-        (id) => getRouteEntry(id).stage !== 'planned',
-      );
-      expect(flipped).toEqual([]);
-    });
   });
 
-  describe('paperless_document', () => {
-    it('strips trailing slashes from the base URL', () => {
-      expect(
-        searchResultTarget('paperless_document', item({ id: '5' }), {
-          paperlessBaseUrl: 'https://paperless.example///',
-        }),
-      ).toEqual({ kind: 'external', href: 'https://paperless.example/documents/5/details' });
+  describe('paperless_document (#2252)', () => {
+    it('opens the Documents page with the details panel of the hit', () => {
+      expect(getRouteEntry('documents').stage).toBe('done');
+      expect(searchResultTarget('paperless_document', item({ id: '5' }))).toEqual({
+        kind: 'app',
+        href: '/documents?doc=5',
+      });
     });
 
-    it('keeps a base path', () => {
-      expect(
-        searchResultTarget('paperless_document', item({ id: '5' }), {
-          paperlessBaseUrl: 'https://host.example/paperless/',
-        }),
-      ).toEqual({ kind: 'external', href: 'https://host.example/paperless/documents/5/details' });
+    it('never opens Paperless itself (no external target)', () => {
+      expect(searchResultTarget('paperless_document', item({ id: '5' }))?.kind).toBe('app');
     });
 
-    it('encodes the id', () => {
-      expect(
-        searchResultTarget('paperless_document', item({ id: 'a/b c' }), {
-          paperlessBaseUrl: 'https://p.example',
-        }),
-      ).toEqual({ kind: 'external', href: 'https://p.example/documents/a%2Fb%20c/details' });
-    });
-
-    it('returns null without a Paperless base URL', () => {
-      expect(searchResultTarget('paperless_document', item(), NO_PAPERLESS)).toBeNull();
+    it('encodes the id in the query', () => {
+      expect(searchResultTarget('paperless_document', item({ id: 'a/b c' }))).toEqual({
+        kind: 'app',
+        href: '/documents?doc=a%2Fb+c',
+      });
     });
   });
 });

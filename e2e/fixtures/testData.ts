@@ -85,4 +85,5 @@ export const API = {
   sourceReportsGenerateContent: '/api/source-reports/generate-content',
   paperlessStatus: '/api/paperless/status',
   paperlessDocuments: '/api/paperless/documents',
+  documentLinks: '/api/document-links',
 };

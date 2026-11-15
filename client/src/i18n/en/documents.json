@@ -110,6 +110,63 @@
     "pages": "Pages",
     "tags": "Tags",
     "contentPreview": "Content Preview",
-    "viewInPaperless": "View in Paperless-ngx ↗"
+    "viewInPaperless": "View in Paperless-ngx ↗",
+    "added": "Added",
+    "modified": "Last modified"
+  },
+  "page": {
+    "search": "Search documents",
+    "count_one": "{{count}} document",
+    "count_other": "{{count}} documents",
+    "empty": "No documents in Paperless yet.",
+    "noMatch": "No documents match.",
+    "loadFailed": "Documents could not be loaded.",
+    "unavailable": "That document is not available",
+    "tagsMore": "+{{count}}",
+    "filters": {
+      "type": "Type",
+      "anyType": "Any type",
+      "tags": "Tags",
+      "linkedLegend": "Linked",
+      "hideLinked": "Hide already linked",
+      "optionsFailed": "Couldn't load the choices."
+    },
+    "sort": {
+      "added": "Date added",
+      "created": "Document date",
+      "modified": "Last modified",
+      "title": "Title",
+      "archiveSerialNumber": "Archive number"
+    },
+    "columns": {
+      "title": "Title",
+      "type": "Type",
+      "tags": "Tags",
+      "created": "Document date",
+      "added": "Added",
+      "modified": "Last modified",
+      "archiveNumber": "Archive no.",
+      "linked": "Linked"
+    },
+    "badge": {
+      "linked": "Linked"
+    }
+  },
+  "sheet": {
+    "linkedTo": "Linked to",
+    "linkTo": "Link to…",
+    "notLinked": "Not linked to anything yet.",
+    "unlinked": "Unlinked from {{title}}",
+    "linked": "Linked to {{title}}",
+    "unavailableObject": "Record no longer exists",
+    "loadFailed": "The links could not be loaded.",
+    "detailFailed": "This document could not be loaded.",
+    "kind": {
+      "work_item": "Task",
+      "household_item": "Purchase",
+      "invoice": "Invoice",
+      "budget_source": "Funding source",
+      "subsidy_program": "Grant"
+    }
   }
 }

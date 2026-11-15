@@ -226,6 +226,13 @@ describe('liveConditionalRules', () => {
     expect(rules.map((r) => r.match?.condition)).toEqual(['paperless-off', 'ai-off']);
   });
 
+  it('returns the live Paperless-off rule for the Documents page (#2252)', () => {
+    const rules = liveConditionalRules('documents');
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).toBe(ROUTE_MAP.find((e) => e.from === '/documents (Paperless off)'));
+    expect(rules[0]).toMatchObject({ stage: 'done', match: { condition: 'paperless-off' } });
+  });
+
   it('returns nothing for the auto-itemize page (its rule is planned)', () => {
     expect(liveConditionalRules('invoiceAutoItemize')).toEqual([]);
   });
