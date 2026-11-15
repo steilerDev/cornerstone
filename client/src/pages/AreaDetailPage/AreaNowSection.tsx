@@ -12,7 +12,7 @@ import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import type { OriginState } from '../../navigation/origin.js';
-import { quietKindForDepth } from '../AreasPage/areaTree.js';
+import { quietKindForDepth } from '../../lib/areaTree.js';
 import styles from './AreaDetailPage.module.css';
 
 export interface AreaNowSectionProps {

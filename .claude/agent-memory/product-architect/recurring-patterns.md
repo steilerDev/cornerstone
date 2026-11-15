@@ -2275,3 +2275,12 @@ A page that overrides one variant label of a shared badge helper (the strip rela
 breaks the parity a capmap note claims ("same chip as the Milestones list"). Grep every caller of the shared
 helper (`milestoneBadgeProps`) before accepting a parity note. Also check what the relabel says when its input
 is absent: "On target" with `projectedDate === null` claims a projection that does not exist.
+
+## Page stories add shared-component props without Architecture docs (PR #2358)
+
+An object-page story (Area page) added `SectionCardFrame` (new shared component), `PageBreadcrumbs
+extraParents` (which changes the Back-suppression rule), `ObjectHeader.titleLeading` and `leading` slots,
+and updated only the API Contract and Route Map. In review, grep the diff for new props on files under
+`client/src/components/` and `client/src/navigation/` and check each against its Architecture bullet.
+Also grep `from '../[A-Za-z]*Page/'` in `client/src/pages`: a page importing a sibling page's helper
+(`AreasPage/areaTree.ts`) means the helper belongs in `client/src/lib/`.

@@ -18,7 +18,7 @@ import { getPhotoSpotPhotos, getPhotoSpots } from '../../lib/photoApi.js';
 import { areaPathFromList, buildSpotGroups } from '../../lib/photoSpots.js';
 import { undoChange } from '../../lib/undoApi.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { subtreeIds } from '../AreasPage/areaTree.js';
+import { subtreeIds } from '../../lib/areaTree.js';
 import { usePhotoDialogs } from '../../photos/usePhotoDialogs.js';
 import type { BulkTagResult } from '../../photos/photoDialogsContext.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';

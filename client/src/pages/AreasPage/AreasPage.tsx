@@ -36,8 +36,8 @@ import {
   computeRollups,
   filterAreas,
   siblingsOf,
-} from './areaTree.js';
-import type { AreaRollup, AreaTreeRow, OpenTotal } from './areaTree.js';
+} from '../../lib/areaTree.js';
+import type { AreaRollup, AreaTreeRow, OpenTotal } from '../../lib/areaTree.js';
 import styles from './AreasPage.module.css';
 import { useAreasIndex } from './useAreasIndex.js';
 
