@@ -108,6 +108,7 @@ const PATHS: Record<string, () => string> = {
   diaryEntryNew: () => routeUrl('diaryEntryNew'),
   diaryEntry: () => routeUrl('diaryEntry', { id: seed.diaryId }),
   diaryEntryEdit: () => routeUrl('diaryEntryEdit', { id: seed.diaryId }),
+  area: () => routeUrl('area', { id: seed.areaId }),
   photos: () => routeUrl('photos'),
   photoSpot: () =>
     routeUrl('photoSpot', { areaKey: seed.areaId, orientationKey: seed.orientationId }),

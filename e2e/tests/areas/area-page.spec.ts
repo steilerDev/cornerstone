@@ -446,7 +446,9 @@ test.describe('Area page: sections (AC3, AC7)', { tag: '@responsive' }, () => {
     await expect(area.companyRow(callable)).toContainText(`Tischler ${tag}`);
     await expect(area.companyRow(silent)).toContainText(`Maler ${tag}`);
     await expect(area.callLink(callable)).toHaveAttribute('href', /^tel:/);
-    await expect(area.callLink(callable)).toHaveAccessibleName(`Call Tischler ${tag}`);
+    await expect(area.callLink(callable)).toHaveAccessibleName(
+      new RegExp(`^Call Tischler ${escapeRegExp(tag)} on `),
+    );
     await expect(area.callLink(silent)).toHaveCount(0);
 
     // Rooms: each child with its photo count

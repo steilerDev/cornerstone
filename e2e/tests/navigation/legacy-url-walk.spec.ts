@@ -47,11 +47,13 @@ import { API } from '../../fixtures/testData.js';
 import {
   createBudgetSourceViaApi,
   createDiaryEntryViaApi,
+  createAreaViaApi,
   createHouseholdItemViaApi,
   createMilestoneViaApi,
   createSubsidyProgramViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
+  deleteAreaViaApi,
   deleteBudgetSourceViaApi,
   deleteDiaryEntryViaApi,
   deleteHouseholdItemViaApi,
@@ -231,6 +233,7 @@ const NAMES = {
   task: `Route walk task ${runId}`,
   milestone: `Route walk milestone ${runId}`,
   household: `Route walk purchase ${runId}`,
+  area: `Route walk area ${runId}`,
   company: `Route walk company ${runId}`,
   source: `Route walk loan ${runId}`,
   grant: `Route walk grant ${runId}`,
@@ -240,6 +243,7 @@ const seed = {
   workItemId: '',
   milestoneId: 0,
   householdItemId: '',
+  areaId: '',
   vendorId: '',
   invoiceId: '',
   diaryEntryId: '',
@@ -276,6 +280,7 @@ function withSeed(pattern: string, strict = true): string {
   if (/(^|\/)(work-items)\//.test(path)) id = seed.workItemId;
   else if (/(^|\/)milestones\//.test(path)) id = seed.milestoneId;
   else if (/(^|\/)household-items\//.test(path)) id = seed.householdItemId;
+  else if (/^\/areas\//.test(path)) id = seed.areaId;
   else if (/(^|\/)(vendors|companies)\//.test(path)) id = seed.vendorId;
   else if (/(^|\/)invoices\//.test(path)) id = seed.invoiceId;
   else if (/^\/diary\//.test(path)) id = seed.diaryEntryId;
@@ -306,6 +311,7 @@ test.describe('Legacy URL walk (route map)', () => {
         targetDate: '2026-12-01',
       });
       seed.householdItemId = await createHouseholdItemViaApi(page, { name: NAMES.household });
+      seed.areaId = await createAreaViaApi(page, { name: NAMES.area });
       seed.vendorId = await createVendorViaApi(page, { name: NAMES.company });
       const invoiceResp = await page.request.post(`${API.vendors}/${seed.vendorId}/invoices`, {
         data: {
@@ -349,6 +355,7 @@ test.describe('Legacy URL walk (route map)', () => {
       if (seed.milestoneId) await deleteMilestoneViaApi(page, seed.milestoneId);
       if (seed.workItemId) await deleteWorkItemViaApi(page, seed.workItemId);
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId);
+      if (seed.areaId) await deleteAreaViaApi(page, seed.areaId);
     } finally {
       await context.close();
     }
