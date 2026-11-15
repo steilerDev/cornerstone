@@ -64,7 +64,7 @@ Use the **Sort** control to choose the order:
 - **Title**
 - **Archive number**
 
-The list shows 100 documents per page. Use the page controls at the bottom of the list to move between pages. The document count at the top matches the filtered list, so it already leaves out documents hidden by **Hide already linked**.
+Documents load in batches of 100 as you scroll. If the next batch does not load, select **Load more** at the bottom of the list. The footer shows "Showing N of M" and, once every document has loaded, "All rows shown." The count `M` already leaves out documents hidden by **Hide already linked**.
 
 ## The Details Panel
 

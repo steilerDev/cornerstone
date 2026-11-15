@@ -182,6 +182,13 @@ afterEach(() => {
 
 // ─── Status states ────────────────────────────────────────────────────────────
 
+// The page's own live region is the only <p role="status"> (ObjectList's is a <div>).
+const unavailableRegion = (): HTMLElement => {
+  const region = screen.getAllByRole('status').find((el) => el.tagName === 'P');
+  if (!region) throw new Error('page status live region missing');
+  return region;
+};
+
 describe('page identity and the status states', () => {
   it('titles the tab "Documents" and has the one Documents heading', async () => {
     renderPage();
@@ -378,6 +385,15 @@ describe('the list', () => {
     expect(await screen.findByTestId('documents-library-row-7')).toBeInTheDocument();
   });
 
+  it('renders an always-present, empty status live region when no document is unavailable', async () => {
+    renderPage();
+    await loaded();
+
+    const region = unavailableRegion();
+    expect(region).toBeEmptyDOMElement();
+    expect(screen.queryByTestId('documents-library-unavailable')).toBeNull();
+  });
+
   it('shows no "only documents tagged" note without a filter tag', async () => {
     renderPage();
     await loaded();
@@ -394,6 +410,8 @@ describe('the list', () => {
     const note = screen.getByRole('note');
     expect(note).toBe(screen.getByTestId('documents-library-filter-note'));
     expect(note).toHaveTextContent('Showing only documents tagged house-build');
+    expect(unavailableRegion()).not.toContainElement(note);
+    expect(unavailableRegion()).toBeEmptyDOMElement();
   });
 
   it('has no duplicate test ids', async () => {
@@ -658,6 +676,9 @@ describe('the details panel', () => {
 
       expect(await screen.findByText('That document is not available')).toBeVisible();
       expect(screen.getByTestId('documents-library-unavailable')).toBeInTheDocument();
+      expect(
+        within(unavailableRegion()).getByTestId('documents-library-unavailable'),
+      ).toHaveTextContent('That document is not available');
       await waitFor(() => expect(loc()).toBe('/documents?q=roof'));
       expect(sheet()).toBeNull();
       expect(log.actions.filter((a) => a.startsWith('REPLACE'))).toContain(
@@ -671,6 +692,9 @@ describe('the details panel', () => {
         const { log } = renderPage(`/documents?doc=${value}`);
 
         expect(await screen.findByText('That document is not available')).toBeVisible();
+        expect(
+          within(unavailableRegion()).getByText('That document is not available'),
+        ).toBeVisible();
         await waitFor(() => expect(loc()).toBe('/documents'));
         expect(sheet()).toBeNull();
         expect(mockGetDocument).not.toHaveBeenCalled();
@@ -694,6 +718,7 @@ describe('the details panel', () => {
 
       await waitFor(() => expect(loc()).toBe('/documents?doc=8'));
       expect(screen.queryByText('That document is not available')).toBeNull();
+      expect(unavailableRegion()).toBeEmptyDOMElement();
       expect(await screen.findByTestId('documents-library-sheet')).toBeInTheDocument();
     });
 
@@ -703,6 +728,8 @@ describe('the details panel', () => {
 
       expect(await screen.findByText('That document is not available')).toBeVisible();
       expect(screen.getByTestId('documents-library-filter-note')).toBeInTheDocument();
+      expect(screen.getByRole('note')).toHaveTextContent('house-build');
+      expect(within(unavailableRegion()).getByText('That document is not available')).toBeVisible();
     });
   });
 

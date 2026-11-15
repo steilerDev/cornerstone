@@ -120,26 +120,20 @@ function DocumentsLibrary({ status }: DocumentsLibraryProps) {
         ? loadedTitle.title
         : (rowTitle ?? t('documentCard.fallbackTitle', { id: docId }));
 
-  const note =
-    status.filterTag || unavailable ? (
-      <>
-        {status.filterTag ? (
-          <p className={styles.note} role="note" data-testid="documents-library-filter-note">
-            {t('browser.showingOnlyTag')}{' '}
-            <span className={styles.noteStrong}>{status.filterTag}</span>
-          </p>
-        ) : null}
-        {unavailable ? (
-          <p className={styles.note} data-testid="documents-library-unavailable">
-            {t('page.unavailable')}
-          </p>
-        ) : null}
-      </>
-    ) : undefined;
+  const note = status.filterTag ? (
+    <p className={styles.note} role="note" data-testid="documents-library-filter-note">
+      {t('browser.showingOnlyTag')} <span className={styles.noteStrong}>{status.filterTag}</span>
+    </p>
+  ) : undefined;
 
   return (
     <div className={docked ? styles.layoutDocked : undefined}>
       <div className={styles.main}>
+        <p className={styles.note} role="status">
+          {unavailable ? (
+            <span data-testid="documents-library-unavailable">{t('page.unavailable')}</span>
+          ) : null}
+        </p>
         <ObjectList
           list={list}
           config={config}
