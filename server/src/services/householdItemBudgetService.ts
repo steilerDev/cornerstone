@@ -105,6 +105,13 @@ export function listHouseholdItemBudgets(
   return service.list(db, householdItemId);
 }
 
+export function listHouseholdItemBudgetsForItems(
+  db: DbType,
+  householdItemIds: readonly string[],
+): HouseholdItemBudgetLine[] {
+  return service.listForEntities(db, householdItemIds);
+}
+
 export function createHouseholdItemBudget(
   db: DbType,
   householdItemId: string,

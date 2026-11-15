@@ -368,6 +368,36 @@ describe('RelatedList: row Call button (#2244)', () => {
   });
 });
 
+describe('RelatedList: row leading decoration (#2251)', () => {
+  it('renders `leading` aria-hidden before the title link, only on rows that set it', () => {
+    renderHost({
+      initialRows: [
+        { id: 'r1', title: 'Kitchen', to: '/areas/r1', leading: <i data-testid="dot-r1" /> },
+        { id: 'r2', title: 'Bath', to: '/areas/r2' },
+      ],
+    });
+
+    const wrapper = screen.getByTestId('dot-r1').parentElement!;
+    expect(wrapper).toHaveAttribute('aria-hidden', 'true');
+    expect(wrapper).toHaveClass('leading');
+    const link = screen.getByRole('link', { name: 'Kitchen' });
+    expect(wrapper.parentElement).toBe(link.parentElement);
+    expect(wrapper.nextElementSibling).toBe(link);
+    expect(screen.getByTestId('rel-row-r2').querySelector('.leading')).toBeNull();
+  });
+
+  it('renders `leading` before a plain-text title as well', () => {
+    renderHost({
+      initialRows: [{ id: 'r1', title: 'Kitchen', leading: <i data-testid="dot-r1" /> }],
+    });
+
+    const wrapper = screen.getByTestId('dot-r1').parentElement!;
+    expect(wrapper).toHaveAttribute('aria-hidden', 'true');
+    expect(wrapper.nextElementSibling).toHaveTextContent('Kitchen');
+    expect(screen.queryByRole('link', { name: 'Kitchen' })).toBeNull();
+  });
+});
+
 describe('RelatedList: heading, loading and error', () => {
   it('renders an h3 when headingLevel is 3', () => {
     renderHost({ headingLevel: 3 });

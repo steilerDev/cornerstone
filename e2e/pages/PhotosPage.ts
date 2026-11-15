@@ -6,7 +6,7 @@
  * `<areaId|none>:<orientationId|none>` — `spot-cell-<key>` (table) / `spot-card-<key>` (grid).
  * Only one of the two layouts is in the DOM at a time, so `spotLink()` matches either.
  *
- * #2226: area row headers / h2 / root bands are links to the Areas index (`areaLink`); the 'No
+ * #2226 / #2251: area row headers / h2 / root bands are links to the Area page (`areaLink`); the 'No
  * area' group is a normal last group — band "No area", a plain "‹n› photos" row header, and a
  * quiet "Select photos" button that swaps the row/section for a grid of select tiles, a sticky
  * selection bar (Select all · Clear · Set tags) and the bulk "Set tags" dialog.
@@ -107,16 +107,26 @@ export class PhotosPage {
 
   /** Mobile area heading (h2) for a row. */
   areaHeading(areaName: string): Locator {
-    // An area heading is a link whose accessible name is "Name, open in Areas" (#2226)
+    // An area heading is a link whose accessible name is "Name, open area" (#2226, #2251)
     return this.page.getByRole('heading', {
       level: 2,
-      name: new RegExp(`^${areaName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(, open in Areas)?$`),
+      name: new RegExp(`^${areaName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(, open area)?$`),
     });
   }
 
-  /** Link from an area's row header / h2 / root band to the Areas index (by area id). */
+  /** Link from an area's row header / h2 / root band to the Area page (by area id). */
   areaLink(areaId: string): Locator {
     return this.page.getByTestId(`area-link-${areaId}`);
+  }
+
+  /**
+   * The removable area filter chip (`?areaId=`, #2251): a toggle button named "<path>, remove
+   * filter", pressed while the filter is on. Without an id, whichever chip is present.
+   */
+  areaChip(areaId?: string): Locator {
+    return areaId
+      ? this.page.getByTestId(`photos-filter-${areaId}`)
+      : this.page.locator('[data-testid^="photos-filter-"]');
   }
 
   /** The 'No area' band (table) or h2 (mobile) text. */

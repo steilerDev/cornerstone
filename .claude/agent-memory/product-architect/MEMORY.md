@@ -42,6 +42,7 @@
 - [Preview of a write path](recurring-patterns.md) — require a preview→PATCH→read agreement test; unreachable `?.` on mounted refs (PR #2348)
 - [Capmap parity vs local relabel](recurring-patterns.md) — "same chip as the list" while a page relabels a variant; relabel on null input (PR #2357)
 - [Unkeyed detail view](recurring-patterns.md) — `useParams` id to an unkeyed child: one render of the old record under the new URL; `key={id}` (PR #2349)
+- [Page story shared-prop docs](recurring-patterns.md) — new component props/frames need Architecture bullets; cross-page imports → lib/ (PR #2358)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Per-line payment attribution](per-line-payment-attribution.md) — #2237 ADR-039 §5: sub-cent reconcile; tagged payments to the tagged source's lines (option B); residual gaps vs Rail A/B

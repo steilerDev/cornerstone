@@ -35,7 +35,11 @@ import type {
   HouseholdItemPageDetail,
   MilestoneListRowsResponse,
   BudgetBreakdownResponse,
+  AreaPageSummary,
+  AreaCostLinesResponse,
+  AreaListWithCountsResponse,
 } from '@cornerstone/shared';
+import { eq } from 'drizzle-orm';
 
 const NOW = '2026-03-10T09:00:00.000Z';
 const STAMP = '2026-03-01T00:00:00.000Z';
@@ -491,6 +495,171 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
       expect(row.holdsUp).toEqual(timeline.holdsUp!.milestones[String(milestoneId)]);
       expect(row.holdsUp).toEqual({ count: 1, startingWithin14Days: 1 });
       expect(row.projectedDate).toBe(projection.milestones.get(milestoneId)!.projectedDate);
+    });
+  });
+
+  describe('the Area page (#2251)', () => {
+    const AREA_IDS = ['ar-b', 'ar-f', 'ar-r', 'ar-r2'] as const;
+
+    beforeEach(() => {
+      const area = (id: string, name: string, parentId: string | null) =>
+        app.db
+          .insert(schema.areas)
+          .values({ id, name, parentId, ...ts })
+          .run();
+      area('ar-b', 'House', null);
+      area('ar-f', 'Floor', 'ar-b');
+      area('ar-r', 'Room', 'ar-f');
+      area('ar-r2', 'Second room', 'ar-f');
+      area('ar-none', 'Without lines', null);
+      for (const [taskId, areaId] of [
+        ['wi-a', 'ar-r'],
+        ['wi-b', 'ar-f'],
+        ['wi-c', 'ar-b'],
+      ] as const) {
+        app.db
+          .update(schema.workItems)
+          .set({ areaId })
+          .where(eq(schema.workItems.id, taskId))
+          .run();
+      }
+      app.db
+        .insert(schema.householdItems)
+        .values({ id: 'hi-r2', name: 'Lamp', categoryId: 'hic-furniture', areaId: 'ar-r2', ...ts })
+        .run();
+      const taskLine = (id: string, workItemId: string, plannedAmount: number, vat: boolean) =>
+        app.db
+          .insert(schema.workItemBudgets)
+          .values({
+            id,
+            workItemId,
+            plannedAmount,
+            confidence: 'invoice',
+            includesVat: vat,
+            ...ts,
+          })
+          .run();
+      taskLine('al-a', 'wi-a', 33.33, false); // net line: gross-up leaves cents to round
+      taskLine('al-b', 'wi-b', 100, true);
+      taskLine('al-c', 'wi-c', 200, true);
+      app.db
+        .insert(schema.householdItemBudgets)
+        .values({
+          id: 'al-h',
+          householdItemId: 'hi-r2',
+          plannedAmount: 10.1,
+          confidence: 'invoice',
+          includesVat: false,
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.vendors)
+        .values({ id: 'ven-p', name: 'Company P', ...ts })
+        .run();
+      app.db
+        .insert(schema.invoices)
+        .values({
+          id: 'inv-p',
+          vendorId: 'ven-p',
+          amount: 40,
+          status: 'paid',
+          date: '2026-02-01',
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id: 'ibl-p',
+          invoiceId: 'inv-p',
+          workItemBudgetId: 'al-a',
+          itemizedAmount: 40,
+          ...ts,
+        })
+        .run();
+    });
+
+    const byAreaFigures = async () => {
+      const { breakdown } = await getJson<BudgetBreakdownResponse>('/api/budget/breakdown');
+      return new Map(breakdown.byArea.map((r) => [r.areaId as string, r.figures]));
+    };
+    const cents = (n: number) => Math.round(n * 100);
+
+    it('summary money equals the Money overview by-area expected cost and paid, per area', async () => {
+      const figures = await byAreaFigures();
+      const compared: string[] = [];
+      for (const id of AREA_IDS) {
+        const page = await getJson<AreaPageSummary>(`/api/areas/${id}/summary`);
+        const row = figures.get(id)!;
+        expect({ id, money: page.money }).toEqual({
+          id,
+          money: { expectedCost: row.expectedCost.expected, paid: row.paid },
+        });
+        compared.push(id);
+      }
+      expect(compared).toEqual([...AREA_IDS]);
+      expect((await getJson<AreaPageSummary>('/api/areas/ar-r/summary')).money.paid).toBe(40);
+      expect((await getJson<AreaPageSummary>('/api/areas/ar-b/summary')).money.expectedCost).toBe(
+        figures.get('ar-b')!.expectedCost.expected,
+      );
+    });
+
+    it('the Areas index subtree equals the by-area figure and the page summary', async () => {
+      const figures = await byAreaFigures();
+      const { areas } = await getJson<AreaListWithCountsResponse>('/api/areas?include=counts');
+
+      for (const id of AREA_IDS) {
+        const row = areas.find((a) => a.id === id)!;
+        const page = await getJson<AreaPageSummary>(`/api/areas/${id}/summary`);
+        expect({ id, subtree: row.expectedCost.subtree }).toEqual({
+          id,
+          subtree: figures.get(id)!.expectedCost.expected,
+        });
+        expect(row.expectedCost.subtree).toBe(page.money.expectedCost);
+      }
+    });
+
+    it('own + the direct children subtrees equals the subtree for every area, in cents', async () => {
+      const { areas } = await getJson<AreaListWithCountsResponse>('/api/areas?include=counts');
+
+      for (const row of areas) {
+        const children = areas.filter((a) => a.parentId === row.id);
+        const childSum = children.reduce((n, c) => n + cents(c.expectedCost.subtree), 0);
+        expect({ id: row.id, cents: cents(row.expectedCost.own) + childSum }).toEqual({
+          id: row.id,
+          cents: cents(row.expectedCost.subtree),
+        });
+      }
+      const floor = areas.find((a) => a.id === 'ar-f')!;
+      expect(floor.expectedCost.own).toBe(100);
+      expect(floor.expectedCost.subtree).toBeGreaterThan(100);
+    });
+
+    it('an area without lines gives zeros on the page and in the index', async () => {
+      const page = await getJson<AreaPageSummary>('/api/areas/ar-none/summary');
+      const { areas } = await getJson<AreaListWithCountsResponse>('/api/areas?include=counts');
+
+      expect(page.money).toEqual({ expectedCost: 0, paid: 0 });
+      expect(areas.find((a) => a.id === 'ar-none')!.expectedCost).toEqual({ own: 0, subtree: 0 });
+    });
+
+    it('the cost lines of an area are exactly the by-area lines of its subtree', async () => {
+      const { lines } = await getJson<AreaCostLinesResponse>('/api/areas/ar-f/cost-lines');
+
+      expect(lines.map((l) => l.id).sort()).toEqual(['al-a', 'al-b', 'al-h']);
+      expect(
+        (await getJson<AreaCostLinesResponse>('/api/areas/ar-b/cost-lines')).lines.map((l) => l.id),
+      ).toHaveLength(4);
+    });
+
+    it('lateness of a task on the page equals the task page detail', async () => {
+      const page = await getJson<AreaPageSummary>('/api/areas/ar-r/summary');
+      const item = page.nowAndNext.find((i) => i.id === 'wi-a')!;
+      const detail = await getJson<WorkItemPageDetail>('/api/work-items/wi-a');
+
+      expect(item.isLate).toBe(detail.isLate);
+      expect(item.isLate).toBe(true);
     });
   });
 });

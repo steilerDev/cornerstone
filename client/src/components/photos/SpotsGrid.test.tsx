@@ -199,13 +199,13 @@ describe('SpotsGrid area links and the No area section (#2226)', () => {
     };
   }
 
-  it('makes each area heading an AreaLink to the Areas index with the origin', () => {
+  it('makes each area heading an AreaLink to its area page with the origin', () => {
     renderWith();
     const link = screen.getByTestId('area-link-kitchen');
-    expect(link).toHaveAttribute('href', '/areas');
+    expect(link).toHaveAttribute('href', '/areas/kitchen');
     expect(link.closest('h2')).not.toBeNull();
     fireEvent.click(link);
-    expect(probedPath()).toBe('/areas');
+    expect(probedPath()).toBe('/areas/kitchen');
     expect(probedOrigin()?.to).toBe('/photos');
   });
 

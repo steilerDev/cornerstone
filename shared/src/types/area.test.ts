@@ -20,7 +20,12 @@ import type {
   AreaListWithCountsResponse,
   ReorderAreasRequest,
   DeleteAreaResponse,
+  AreaNowItem,
+  AreaPageSummary,
+  AreaCostLine,
+  AreaCostLinesResponse,
 } from './area.js';
+import { AREA_NOW_AND_NEXT_LIMIT } from './area.js';
 
 // ---------------------------------------------------------------------------
 // AreaSummary interface
@@ -329,10 +334,12 @@ describe('AreaCounts / AreaWithCounts / AreaListWithCountsResponse', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
       counts,
+      expectedCost: { own: 10, subtree: 25.5 },
     };
     const response: AreaListWithCountsResponse = { areas: [area] };
 
     expect(response.areas[0]!.counts.photos.latestDate).toBe('2026-05-20');
+    expect(response.areas[0]!.expectedCost).toEqual({ own: 10, subtree: 25.5 });
   });
 
   it('allows a null latestDate for an area without photos', () => {
@@ -360,6 +367,79 @@ describe('ReorderAreasRequest', () => {
     // @ts-expect-error parentId is required
     const body: ReorderAreasRequest = { ids: ['a'] };
     expect(body.ids).toEqual(['a']);
+  });
+});
+
+describe('Area page types (#2251)', () => {
+  it('limits Now & next to five items', () => {
+    expect(AREA_NOW_AND_NEXT_LIMIT).toBe(5);
+  });
+
+  it('discriminates a now-and-next item by type and keeps the date fields apart', () => {
+    const task: AreaNowItem = {
+      type: 'work_item',
+      id: 't',
+      title: 'Task',
+      status: 'in_progress',
+      isLate: true,
+      lateDays: 2,
+      companyName: null,
+      startDate: '2026-03-01',
+      endDate: null,
+    };
+    const purchase: AreaNowItem = {
+      type: 'household_item',
+      id: 'h',
+      title: 'Sofa',
+      status: 'purchased',
+      isLate: false,
+      lateDays: null,
+      companyName: 'Company One',
+      deliveryDate: '2026-03-20',
+    };
+
+    const dates = [task, purchase].map((i) =>
+      i.type === 'work_item' ? i.startDate : i.deliveryDate,
+    );
+
+    expect(dates).toEqual(['2026-03-01', '2026-03-20']);
+  });
+
+  it('shapes the summary response end to end', () => {
+    const summary: AreaPageSummary = {
+      area: {
+        id: 'a',
+        name: 'Room',
+        description: null,
+        color: null,
+        parentId: 'p',
+        ancestors: [{ id: 'p', name: 'Floor', color: null }],
+      },
+      children: [],
+      counts: {
+        workItems: { total: 2, open: 1, late: 1 },
+        householdItems: { total: 1, open: 1 },
+        photos: { total: 0, latestDate: null },
+        companies: 0,
+      },
+      nowAndNext: [],
+      ancestorContext: [
+        { areaId: 'p', name: 'Floor', depth: 0, workItemCount: 1, householdItemCount: 0 },
+      ],
+      companies: [],
+      money: { expectedCost: 0, paid: 0 },
+    };
+
+    expect(summary.counts.workItems.late).toBe(1);
+    expect(summary.ancestorContext[0]!.depth).toBe(0);
+  });
+
+  it('wraps the cost lines of the area, each tagged with its item type', () => {
+    const response: AreaCostLinesResponse = { lines: [] };
+    const types: Array<AreaCostLine['itemType']> = ['work_item', 'household_item'];
+
+    expect(response.lines).toEqual([]);
+    expect(types).toHaveLength(2);
   });
 });
 

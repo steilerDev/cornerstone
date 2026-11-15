@@ -1,0 +1,138 @@
+.panel {
+  composes: panel from '../../styles/objectPage.module.css';
+}
+
+.errorCard {
+  composes: errorCard from '../../styles/objectPage.module.css';
+}
+
+.errorActions {
+  composes: errorActions from '../../styles/objectPage.module.css';
+}
+
+.remark {
+  composes: remark from '../../styles/objectPage.module.css';
+}
+
+.muted {
+  composes: muted from '../../styles/objectPage.module.css';
+}
+
+.section {
+  scroll-margin-top: var(--spacing-16);
+}
+
+.chips {
+  margin-bottom: var(--spacing-4);
+}
+
+.feedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Link footers ---- */
+
+.moreRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-3);
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.moreLink:hover {
+  text-decoration: underline;
+}
+
+.moreLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.footerRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-3);
+}
+
+.retry {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  align-self: flex-start;
+}
+
+.loadError {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* ---- Context rows (ancestor-booked items; never counted) ---- */
+
+.contextList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: var(--spacing-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contextLink {
+  display: flex;
+  align-items: center;
+  min-height: var(--spacing-10);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.contextLink:hover {
+  text-decoration: underline;
+}
+
+.contextLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 1023px) {
+  .contextLink {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (min-width: 768px) {
+  .moreRow {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--spacing-6);
+  }
+}
+
+@media print {
+  .chips,
+  .moreRow,
+  .footerRow,
+  .retry {
+    display: none;
+  }
+}

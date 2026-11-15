@@ -7,6 +7,8 @@ export interface RelatedListRow {
   readonly id: string;
   /** User text. */
   readonly title: string;
+  /** Rendered aria-hidden before the title (e.g. a colour dot). */
+  readonly leading?: ReactNode;
   /** routeUrl(...) of the related object's page; omitted renders plain text. */
   readonly to?: string;
   /** Status Badge(s) from useStatusBadgeVariants. */

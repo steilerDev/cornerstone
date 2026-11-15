@@ -119,7 +119,7 @@ test.describe('Diary entry page (#2225)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('E2: an area chip opens the Areas page; History is collapsed and opens on click', async ({
+  test('E2: an area chip opens the area page; History is collapsed and opens on click', async ({
     page,
     testPrefix,
   }) => {
@@ -143,8 +143,8 @@ test.describe('Diary entry page (#2225)', { tag: '@responsive' }, () => {
       await expect(chip).toContainText(seed.parentAreaName);
       await expect(chip).toContainText(seed.areaName);
       await chip.click();
-      // The area page is not built yet: chips open the Areas page (interim until P5.7)
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('areas'));
+      // The chip opens the area page (#2251)
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('area', { id: seed.areaId }));
     } finally {
       await seed.cleanup();
     }

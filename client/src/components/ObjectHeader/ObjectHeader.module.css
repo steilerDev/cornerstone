@@ -17,6 +17,18 @@
   min-width: 0;
 }
 
+.titleLine {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.titleLeading {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
 .description {
   display: -webkit-box;
   -webkit-box-orient: vertical;

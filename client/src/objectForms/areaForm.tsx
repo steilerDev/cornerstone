@@ -10,7 +10,7 @@ import type {
   ObjectFormValues,
 } from '../components/ObjectForm/types.js';
 import { createArea, updateArea } from '../lib/areasApi.js';
-import { areaPath, siblingNameTaken, subtreeIds } from '../pages/AreasPage/areaTree.js';
+import { areaPath, siblingNameTaken, subtreeIds } from '../lib/areaTree.js';
 import styles from './objectForms.module.css';
 
 export const AREA_NAME_MAX_LENGTH = 200;

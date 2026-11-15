@@ -4,6 +4,7 @@
     { "path": "/", "guard": "member", "kind": "page", "element": "HomePage" },
     { "path": "/admin/users", "guard": "member", "kind": "redirect", "target": "/settings/users" },
     { "path": "/areas", "guard": "member", "kind": "page", "element": "AreasPage" },
+    { "path": "/areas/:id", "guard": "member", "kind": "page", "element": "AreaDetailPage" },
     { "path": "/budget", "guard": "member", "kind": "redirect", "target": "/budget/overview" },
     {
       "path": "/budget/categories",

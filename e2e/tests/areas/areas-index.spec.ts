@@ -17,6 +17,8 @@
  *           reload; the filter folds umlauts and disables reorder while active
  *   6. AC6  /tags and /settings/manage?tab=areas both land on /areas in a single hop
  *   7.      Loading, empty and load-error states; 320px render with long names (phone)
+ *   8. #2251 AC5  Expected cost column (subtree figure; own figure on the quiet row; "None" at 0)
+ *           and the row name link that opens the Area page
  *
  * Data: synthetic areas, tasks, purchases and diary photos created through the API per test
  * (names carry the worker `testPrefix` plus a per-test tag). The shared database also holds
@@ -38,6 +40,12 @@ import {
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
 } from '../../fixtures/apiHelpers.js';
+import {
+  createCostLine,
+  createFundingSource,
+  newCleanup,
+  runCleanup,
+} from '../../fixtures/costLineSeed.js';
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
 
@@ -882,3 +890,106 @@ async function listEntryPhotos(page: Page, entryId: string): Promise<PhotoRef[]>
   expect(response.ok(), 'GET photos of the entry').toBeTruthy();
   return ((await response.json()) as { photos: PhotoRef[] }).photos;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8: Expected cost column and the row name link (#2251, AC5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CountsRow {
+  id: string;
+  expectedCost: { own: number; subtree: number };
+}
+
+/** The server's per-area Expected cost (euros), by area id. */
+async function readExpectedCosts(page: Page): Promise<Map<string, CountsRow['expectedCost']>> {
+  const response = await page.request.get(`${API.areas}?include=counts`);
+  expect(response.ok(), `GET areas: ${response.status()}`).toBeTruthy();
+  const rows = ((await response.json()) as { areas: CountsRow[] }).areas;
+  return new Map(rows.map((row) => [row.id, row.expectedCost]));
+}
+
+const euro = (amount: number): string =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
+
+test.describe('Areas index — Expected cost and name link', { tag: '@responsive' }, () => {
+  test('The Expected cost column shows the subtree figure, the own figure on the quiet row, None at 0', async ({
+    page,
+    testPrefix,
+  }) => {
+    const seed = new Seed(page);
+    const money = newCleanup();
+    const tag = newTag(testPrefix);
+    try {
+      const tree = await seedTree(seed, tag);
+      const sourceId = await createFundingSource(page, money, `Savings ${tag}`);
+      // A cost line on a task in room 1 and one on the task booked on the floor itself
+      const roomTask = await seed.task(`Costed room task ${tag}`, tree.room1Id);
+      const floorTask = await seed.task(`Costed floor task ${tag}`, tree.floorId);
+      await createCostLine(page, {
+        kind: 'work_item',
+        hostId: roomTask,
+        budgetSourceId: sourceId,
+        description: `Room line ${tag}`,
+        plannedAmount: 1000,
+        includesVat: true,
+      });
+      await createCostLine(page, {
+        kind: 'work_item',
+        hostId: floorTask,
+        budgetSourceId: sourceId,
+        description: `Floor line ${tag}`,
+        plannedAmount: 400,
+        includesVat: true,
+      });
+
+      // The server's answer (the money service), in euros
+      const costs = await readExpectedCosts(page);
+      const room1 = costs.get(tree.room1Id)!;
+      const floor = costs.get(tree.floorId)!;
+      const building = costs.get(tree.buildingId)!;
+      expect(room1.subtree).toBeGreaterThan(0);
+      expect(floor.own).toBeGreaterThan(0);
+      // The floor adds its rooms to what is booked on it; the building has nothing of its own
+      expect(Math.round(floor.subtree * 100)).toBe(Math.round((floor.own + room1.subtree) * 100));
+      expect(building.own).toBe(0);
+      expect(building.subtree).toBe(floor.subtree);
+
+      const areas = new AreasIndexPage(page);
+      await areas.goto();
+      await expect(areas.row(tree.room1Id)).toBeVisible();
+
+      await expect(areas.expectedCostCell(tree.room1Id)).toContainText(euro(room1.subtree));
+      await expect(areas.expectedCostCell(tree.floorId)).toContainText(euro(floor.subtree));
+      await expect(areas.expectedCostCell(tree.floorId, true)).toContainText(euro(floor.own));
+      await expect(areas.expectedCostCell(tree.buildingId)).toContainText(euro(building.subtree));
+      // Nothing costed here: the muted "None"
+      await expect(areas.expectedCostCell(tree.room2Id)).toContainText('None');
+      await expect(areas.expectedCostCell(tree.emptyRoomId)).toContainText('None');
+
+      if (isWide(page)) {
+        await expect(areas.header).toContainText('Expected cost');
+      } else {
+        await expect(areas.expectedCostCell(tree.room1Id)).toContainText('Expected cost');
+      }
+    } finally {
+      await seed.cleanup();
+      await runCleanup(money);
+    }
+  });
+
+  test('A row name is a link that opens the Area page', async ({ page, testPrefix }) => {
+    const seed = new Seed(page);
+    const tag = newTag(testPrefix);
+    try {
+      const tree = await seedTree(seed, tag);
+      const areas = new AreasIndexPage(page);
+      await areas.goto();
+      await expect(areas.nameLink(tree.room1Id)).toHaveAttribute('href', `/areas/${tree.room1Id}`);
+      await areas.nameLink(tree.room1Id).click();
+      await expect(page).toHaveURL((url) => url.pathname === `/areas/${tree.room1Id}`);
+      await expect(page.getByRole('heading', { level: 1, name: tree.names.room1 })).toBeVisible();
+    } finally {
+      await seed.cleanup();
+    }
+  });
+});

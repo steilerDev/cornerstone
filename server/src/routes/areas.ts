@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as areaService from '../services/areaService.js';
 import * as areaCountsService from '../services/areaCountsService.js';
+import * as areaPageService from '../services/areaPageService.js';
 import { buildReorderSchema } from '../services/referenceListOrder.js';
 import { issueRestoreToken, undoStore } from '../services/undoService.js';
 import type {
@@ -100,7 +101,7 @@ export default async function areaRoutes(fastify: FastifyInstance) {
     const { search, include } = request.query as { search?: string; include?: 'counts' };
     const areas =
       include === 'counts'
-        ? areaCountsService.listAreasWithCounts(fastify.db, search)
+        ? areaCountsService.listAreasWithCounts(fastify.db, search, fastify.config.vatRate)
         : areaService.listAreas(fastify.db, search);
     return reply.status(200).send({ areas });
   });
@@ -157,6 +158,46 @@ export default async function areaRoutes(fastify: FastifyInstance) {
 
       const area = areaService.getAreaById(fastify.db, request.params.id);
       return reply.status(200).send({ area });
+    },
+  );
+
+  /**
+   * GET /api/areas/:id/summary
+   * Read-only aggregates behind the Area page (#2251, contract 10).
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/summary',
+    { schema: areaIdSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      return reply.status(200).send(
+        areaPageService.getAreaPageSummary(fastify.db, request.params.id, {
+          vatRate: fastify.config.vatRate,
+        }),
+      );
+    },
+  );
+
+  /**
+   * GET /api/areas/:id/cost-lines
+   * Cost lines of the tasks and purchases in the area and its sub-areas (#2251).
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/cost-lines',
+    { schema: areaIdSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      return reply
+        .status(200)
+        .send({ lines: areaPageService.listAreaCostLines(fastify.db, request.params.id) });
     },
   );
 

@@ -134,9 +134,9 @@ describe('DiaryEntryDetailPage: Areas section (#2225)', () => {
     const chips = within(section).getAllByRole('link');
     expect(chips).toHaveLength(2);
     expect(chips[0]).toHaveTextContent('Area A › Room 1');
-    expect(chips[0]).toHaveAttribute('href', '/areas');
+    expect(chips[0]).toHaveAttribute('href', '/areas/a1');
     expect(chips[1]).toHaveTextContent('Area B');
-    expect(chips[1]).toHaveAttribute('href', '/areas');
+    expect(chips[1]).toHaveAttribute('href', '/areas/a2');
   });
 
   it("adds the source task's area and drops duplicates by id", async () => {
@@ -208,7 +208,7 @@ describe('DiaryEntryDetailPage: Areas section (#2225)', () => {
     mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, photoAreas: [area('a1', 'Room 1')] });
     renderPage();
     fireEvent.click(await screen.findByTestId('diary-entry-area-a1'));
-    expect(probedPath()).toBe('/areas');
+    expect(probedPath()).toBe('/areas/a1');
     expect(probedOrigin()).toEqual({ to: '/diary/de-1', name: 'Foundation Work' });
   });
 

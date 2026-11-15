@@ -7,9 +7,11 @@
  *
  * Test ids (all `areas-tree-*` come from TreeTable, prefix `areas-tree`):
  *  - `areas-tree-row-<id>`, `-toggle-<id>`, `-handle-<id>` (>= 768px only), `-menu-<id>` (the
- *    OverflowMenu), `-cell-<tasks|purchases|photos>-<id>`, `-quiet-<parentId>` (its cells use the
+ *    OverflowMenu), `-cell-<tasks|purchases|photos|expectedCost>-<id>`, `-quiet-<parentId>` (its cells use the
  *    id `quiet:<parentId>`), `-header`; menu items `-edit-`, `-add-sub-`, `-move-up-`,
  *    `-move-down-`, `-delete-<id>`.
+ *  - row name link `area-name-link-<id>` (opens `/areas/<id>`, #2251); the Expected cost cell reads
+ *    the subtree figure, "None" at 0, and on a quiet row the figure booked on the area itself
  *  - page: `areas-page`, `areas-new`, `areas-filter`, `areas-filter-clear`, `areas-status`
  *    (polite status region), `areas-no-match`, `areas-clear-filter`, `areas-retry`,
  *    `areas-reorder-error`.
@@ -36,7 +38,7 @@ export const AREAS_URL = routeUrl('areas');
 
 const PREFIX = 'areas-tree';
 
-export type AreaCountColumn = 'tasks' | 'purchases' | 'photos';
+export type AreaCountColumn = 'tasks' | 'purchases' | 'photos' | 'expectedCost';
 export type AreaMenuItem = 'edit' | 'add-sub' | 'move-up' | 'move-down' | 'delete';
 
 export class AreasIndexPage {
@@ -147,6 +149,16 @@ export class AreasIndexPage {
   /** One count cell of an area row, or of its quiet row (`quiet: true`). */
   cell(column: AreaCountColumn, id: string, quiet = false): Locator {
     return this.page.getByTestId(`${PREFIX}-cell-${column}-${quiet ? `quiet:${id}` : id}`);
+  }
+
+  /** The Expected cost cell of an area row, or of its quiet row (`quiet: true`). */
+  expectedCostCell(id: string, quiet = false): Locator {
+    return this.cell('expectedCost', id, quiet);
+  }
+
+  /** The row name as a link to the Area page. */
+  nameLink(id: string): Locator {
+    return this.page.getByTestId(`area-name-link-${id}`);
   }
 
   /** The area names in DOM order (rows only, never quiet rows). */

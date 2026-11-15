@@ -4,6 +4,10 @@
   font-size: var(--font-size-sm);
 }
 
+.filterRow {
+  margin: 0 0 var(--spacing-4);
+}
+
 .errorBlock {
   display: flex;
   flex-direction: column;

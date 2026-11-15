@@ -467,6 +467,24 @@ export function createBudgetService<
       return rows.map((row) => config.toLine(db, row, relationsMap.get(row.id)!));
     },
 
+    /** Lines of many entities in one query (createdAt order); no existence check. [] for []. */
+    listForEntities(db: DbType, entityIds: readonly string[]): BudgetLine[] {
+      if (entityIds.length === 0) return [];
+      const rows = db
+        .select()
+        .from(config.budgetTable)
+        .where(inArray(table[config.budgetEntityIdColumn], [...entityIds]))
+        .orderBy(table.createdAt)
+        .all();
+      const relationsMap = resolveRelationsBatch(
+        db,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rows come from a dynamically-selected budget table with no shared static schema
+        rows as any,
+        config.invoiceHandler?.budgetIdColumn,
+      );
+      return rows.map((row) => config.toLine(db, row, relationsMap.get(row.id)!));
+    },
+
     create(db: DbType, entityId: string, userId: string, data: CreateRequest): BudgetLine {
       config.assertEntityExists(db, entityId);
 

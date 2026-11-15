@@ -14,7 +14,8 @@
       "name": "Bereich",
       "tasks": "Aufgaben",
       "purchases": "Anschaffungen",
-      "photos": "Fotos"
+      "photos": "Fotos",
+      "expectedCost": "Erwartete Kosten"
     },
     "count": {
       "openOfTotal": "{{open}} von {{total}} offen",
@@ -87,5 +88,59 @@
     "empty": "Noch keine Bereiche. Lege zuerst dein Gebäude an, danach die Etagen und Räume.",
     "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "position": "{{name}}, Position {{position}} von {{total}} in {{parent}}."
+  },
+  "detail": {
+    "typeLabel": "Bereich",
+    "loading": "Bereich wird geladen",
+    "notFound": "Bereich nicht gefunden",
+    "logHere": "Hier erfassen",
+    "subAreasOf": "Unterbereiche von {{area}}",
+    "strip": {
+      "tasks": "Aufgaben",
+      "cost": "Erwartete Kosten",
+      "photos": "Fotos",
+      "companies": "Firmen",
+      "open": "{{count}} offen",
+      "late": "{{count}} verspätet",
+      "paid": "Bezahlt",
+      "latest": "zuletzt {{date}}",
+      "noneYet": "Noch keine",
+      "noTasks": "Keine Aufgaben"
+    },
+    "sections": {
+      "now": "Jetzt & als Nächstes hier",
+      "site": "Neueste von der Baustelle",
+      "companies": "Firmen hier",
+      "rooms": "Räume",
+      "subAreas": "Unterbereiche",
+      "cost": "Kosten"
+    },
+    "now": {
+      "allTasks": "Alle Aufgaben hier ({{count}})",
+      "allPurchases": "Alle Anschaffungen hier ({{count}})",
+      "empty": "In {{area}} ist noch nichts geplant.",
+      "contextLabel": "Auf einem größeren Bereich eingeplant, hier nicht mitgezählt"
+    },
+    "site": {
+      "allEntries": "Alle Tagebucheinträge hier",
+      "photosOf": "Fotos von {{area}}",
+      "photoSummary_one": "{{count}} Foto · zuletzt {{date}}",
+      "photoSummary_other": "{{count}} Fotos · zuletzt {{date}}",
+      "empty": "Für {{area}} gibt es noch keine Tagebucheinträge oder Fotos.",
+      "loadError": "Die Tagebucheinträge konnten nicht geladen werden."
+    },
+    "companies": {
+      "here": "{{counts}} hier",
+      "empty": "In {{area}} ist noch keine Firma eingeplant."
+    },
+    "rooms": {
+      "noPhotos": "Keine Fotos",
+      "open": "{{count}} offen"
+    },
+    "cost": {
+      "overview": "Finanzen öffnen",
+      "empty": "In {{area}} gibt es noch keine Kostenpositionen.",
+      "loadError": "Die Kostenpositionen konnten nicht geladen werden."
+    }
   }
 }

@@ -17,6 +17,7 @@ import type {
 } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 import type { ShowUndoToastOptions } from '../../components/Toast/ToastContext.js';
@@ -125,6 +126,7 @@ function area(
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     counts: c,
+    expectedCost: { own: 0, subtree: 0 },
     ...extra,
   };
 }
@@ -403,6 +405,103 @@ describe('AreasPage', () => {
       expect(total('purchases', 'ground')).toBe(
         total('purchases', 'quiet:ground') + total('purchases', 'kitchen'),
       );
+    });
+  });
+
+  // ─── Expected cost column and name links (#2251) ─────────────────────────────
+
+  describe('Expected cost column and name links (#2251)', () => {
+    const cost = (a: AreaWithCounts, own: number, subtree: number): AreaWithCounts => ({
+      ...a,
+      expectedCost: { own, subtree },
+    });
+    const COSTED = [cost(HOUSE, 100, 1234.5), cost(GROUND, 40, 600)];
+
+    beforeEach(() => {
+      mockFetchAreasWithCounts.mockResolvedValue([
+        ...COSTED,
+        KITCHEN,
+        SINK,
+        UPPER,
+        GARAGE,
+        ARCHIVE,
+        SHED,
+      ]);
+    });
+
+    it('adds an Expected cost column header after Photos', async () => {
+      await renderReady();
+      const header = screen.getByTestId('areas-tree-header');
+      const text = header.textContent ?? '';
+      expect(text).toContain('Expected cost');
+      expect(text.indexOf('Expected cost')).toBeGreaterThan(text.indexOf('Photos'));
+    });
+
+    it('shows the subtree figure of an area as a formatted amount', async () => {
+      await renderReady();
+      expect(cell('expectedCost', 'house')).toHaveTextContent('€1,234.50');
+      expect(cell('expectedCost', 'ground')).toHaveTextContent('€600.00');
+      expect(cell('expectedCost', 'house')).not.toHaveAttribute('data-muted');
+    });
+
+    it('shows an area without cost as a muted "None"', async () => {
+      await renderReady();
+      expect(cell('expectedCost', 'garage')).toHaveTextContent('None');
+      expect(cell('expectedCost', 'garage')).toHaveAttribute('data-muted', 'true');
+    });
+
+    it('a quiet row shows its own direct figure, not the subtree', async () => {
+      await renderReady();
+      expect(cell('expectedCost', 'quiet:house')).toHaveTextContent('€100.00');
+      expect(cell('expectedCost', 'quiet:house')).not.toHaveTextContent('€1,234.50');
+      expect(cell('expectedCost', 'quiet:ground')).toHaveTextContent('€40.00');
+    });
+
+    it('a quiet row without its own cost shows "None" even when the subtree has cost', async () => {
+      mockFetchAreasWithCounts.mockResolvedValue([
+        cost(HOUSE, 0, 500),
+        GROUND,
+        KITCHEN,
+        SINK,
+        UPPER,
+        GARAGE,
+        ARCHIVE,
+        SHED,
+      ]);
+      await renderReady();
+      expect(cell('expectedCost', 'quiet:house')).toHaveTextContent('None');
+      expect(cell('expectedCost', 'quiet:house')).toHaveAttribute('data-muted', 'true');
+      expect(cell('expectedCost', 'house')).toHaveTextContent('€500.00');
+    });
+
+    it('links each area name to its page with this page as origin', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter initialEntries={['/areas']}>
+          <AreasPage />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+      const link = await screen.findByTestId('area-name-link-ground');
+      expect(link).toHaveAttribute('href', '/areas/ground');
+      expect(link).toHaveTextContent('Ground floor');
+      await user.click(link);
+      expect(probedPath()).toBe('/areas/ground');
+      expect(probedOrigin()?.to).toBe('/areas');
+    });
+
+    it('keeps the name link while filtering, with the match highlighted inside it', async () => {
+      const user = userEvent.setup();
+      await renderReady();
+      await user.type(screen.getByLabelText('Filter areas'), 'garage');
+      const link = await screen.findByTestId('area-name-link-garage');
+      expect(link).toHaveAttribute('href', '/areas/garage');
+      expect(link.querySelector('mark')).not.toBeNull();
+    });
+
+    it('has no name link on a quiet row', async () => {
+      await renderReady();
+      expect(screen.getByTestId('areas-tree-quiet-house').querySelector('a')).toBeNull();
     });
   });
 

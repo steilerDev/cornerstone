@@ -405,8 +405,7 @@ export default function DiaryEntryDetailPage() {
               {areaChips.map((area) => (
                 <li key={area.id}>
                   <NavAnchor
-                    // Interim until route `area` (P5.7) → routeUrl('area', { id: area.id })
-                    to={routeUrl('areas')}
+                    to={routeUrl('area', { id: area.id })}
                     state={originState}
                     className={styles.areaChip}
                     data-testid={`diary-entry-area-${area.id}`}

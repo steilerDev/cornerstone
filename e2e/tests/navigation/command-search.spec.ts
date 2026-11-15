@@ -12,7 +12,7 @@
  * - S3  top bar button; Escape returns to the button
  * - S4  grouped results, <mark>, Call link, German folding (gruener / grüner)
  * - S5  area path on line 2 (last level emphasised) and the status chip
- * - S5b an area result opens the Areas page (#2218)
+ * - S5b an area result opens the area page (#2218, #2251)
  * - S6  keyboard: arrows, Enter opens the company page (heading focused), Back returns
  * - S7  "Go to" destinations with the former name; replace vs push history (D12)
  * - S8  one character: hint only, no request
@@ -258,7 +258,7 @@ test.describe('Command search', () => {
     await expect(row).toContainText('Not started');
   });
 
-  test('S5b: an area result opens the Areas page (#2218)', async ({ page, testPrefix }) => {
+  test('S5b: an area result opens the area page (#2218, #2251)', async ({ page, testPrefix }) => {
     const tag = newTag(testPrefix);
     const name = `Keller ${tag}`;
     const areaId = await createAreaViaApi(page, { name });
@@ -274,9 +274,9 @@ test.describe('Command search', () => {
     await expect(row).toBeVisible();
     await row.click();
 
-    await page.waitForURL((url) => url.pathname === routeUrl('areas'));
+    await page.waitForURL((url) => url.pathname === routeUrl('area', { id: areaId }));
     await expect(search.dialog).toBeHidden();
-    await expect(page.getByRole('heading', { level: 1, name: 'Areas', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
   });
 
   test('S6: arrows move the active row, Enter opens the company, Back returns', async ({

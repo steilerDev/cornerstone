@@ -30,6 +30,8 @@ export interface FilterChipLinkOption {
   state?: unknown;
   /** Full text when the label is ellipsised. */
   title?: string;
+  /** Rendered before the label, aria-hidden (e.g. a colour dot). */
+  leading?: ReactNode;
   /** Overrides `${testIdPrefix}-${value}`. */
   testId?: string;
 }
@@ -104,6 +106,11 @@ function NavigateChipGroup({
           data-chip-value={opt.value}
           data-testid={opt.testId ?? `${testIdPrefix}-${opt.value}`}
         >
+          {opt.leading ? (
+            <span className={styles.chipLeading} aria-hidden="true">
+              {opt.leading}
+            </span>
+          ) : null}
           {opt.label}
         </NavAnchor>
       ))}

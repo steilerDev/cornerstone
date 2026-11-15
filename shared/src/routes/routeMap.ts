@@ -381,7 +381,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['area'],
+    carries: ['areaId'],
     stage: 'done',
   },
   {
@@ -600,7 +600,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: [],
-    stage: 'planned',
+    stage: 'done',
     parent: 'areas',
   },
   {

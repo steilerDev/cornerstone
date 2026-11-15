@@ -13,7 +13,10 @@ import { breadcrumbChain, isNavView, originLabelKeyForPath } from './pageIdentit
 export type ObjectNames = Readonly<Partial<Record<string, string | null | undefined>>>;
 
 /** Breadcrumb props for the current location: parents-only trail plus the origin Back link. */
-export function usePageBreadcrumbs(objectNames?: ObjectNames): BreadcrumbsProps {
+export function usePageBreadcrumbs(
+  objectNames?: ObjectNames,
+  extraParents?: readonly BreadcrumbLink[],
+): BreadcrumbsProps {
   const location = useLocation();
   const { t } = useTranslation('common');
 
@@ -34,13 +37,18 @@ export function usePageBreadcrumbs(objectNames?: ObjectNames): BreadcrumbsProps 
     else pending = true;
   }
 
+  // Pages whose parents are data (the ancestors of an area) append them after the route chain.
+  if (extraParents) parents.push(...extraParents);
+
   let origin: BreadcrumbLink | null = null;
   const raw = readOrigin(location.state);
   if (raw) {
     const originPath = pathnameOf(raw.to);
-    const nearest = chain[chain.length - 1];
+    const nearestHref = extraParents?.length
+      ? extraParents[extraParents.length - 1]!.href
+      : chain[chain.length - 1]?.href;
     const suppressed =
-      originPath === location.pathname || (nearest && originPath === pathnameOf(nearest.href));
+      originPath === location.pathname || (nearestHref && originPath === pathnameOf(nearestHref));
     if (!suppressed) {
       const key = originLabelKeyForPath(originPath);
       const label = raw.name?.trim() || (key ? t(key) : null);

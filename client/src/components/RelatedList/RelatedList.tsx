@@ -198,6 +198,11 @@ export function RelatedList({
       >
         <div className={styles.main}>
           <div className={styles.titleCell}>
+            {row.leading ? (
+              <span className={styles.leading} aria-hidden="true">
+                {row.leading}
+              </span>
+            ) : null}
             {row.to ? (
               <NavAnchor
                 to={row.to}

@@ -1,6 +1,7 @@
 import { use } from 'react';
 import { createPortal } from 'react-dom';
 import { Breadcrumbs } from '../components/Breadcrumbs/Breadcrumbs.js';
+import type { BreadcrumbLink } from '../components/Breadcrumbs/Breadcrumbs.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { BreadcrumbSlotContext, TOP_BAR_MEDIA_QUERY } from './breadcrumbSlot.js';
 import { pathnameOf } from './origin.js';
@@ -14,8 +15,15 @@ import type { ObjectNames } from './usePageBreadcrumbs.js';
  * the single compact "‹ target" link below. Outside AppShell (no slot) it renders inline.
  * Exactly one row exists at any moment.
  */
-export function PageBreadcrumbs({ objectNames }: { readonly objectNames?: ObjectNames }) {
-  const props = usePageBreadcrumbs(objectNames);
+export function PageBreadcrumbs({
+  objectNames,
+  extraParents,
+}: {
+  readonly objectNames?: ObjectNames;
+  /** Data-driven parents appended after the route chain (e.g. an area's ancestors). */
+  readonly extraParents?: readonly BreadcrumbLink[];
+}) {
+  const props = usePageBreadcrumbs(objectNames, extraParents);
   const slot = use(BreadcrumbSlotContext);
   const wide = useMediaQuery(TOP_BAR_MEDIA_QUERY);
   const getPrevious = use(PreviousPathContext);

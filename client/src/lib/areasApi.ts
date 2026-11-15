@@ -8,6 +8,9 @@ import type {
   AreaListQuery,
   AreaListWithCountsResponse,
   AreaWithCounts,
+  AreaPageSummary,
+  AreaCostLine,
+  AreaCostLinesResponse,
   DeleteAreaResponse,
   ReorderAreasRequest,
 } from '@cornerstone/shared';
@@ -72,4 +75,19 @@ export function updateArea(id: string, data: UpdateAreaRequest): Promise<AreaRes
  */
 export function deleteArea(id: string): Promise<DeleteAreaResponse> {
   return del<DeleteAreaResponse>(`/areas/${id}`);
+}
+
+/**
+ * Fetches everything the area page shows (#2251): counts, Now & next here, companies, rooms and
+ * money, all over the area and its sub-areas.
+ */
+export function fetchAreaSummary(id: string): Promise<AreaPageSummary> {
+  return get<AreaPageSummary>(`/areas/${encodeURIComponent(id)}/summary`);
+}
+
+/** Fetches the cost lines of every task and purchase in the area and its sub-areas. */
+export function fetchAreaCostLines(id: string): Promise<AreaCostLine[]> {
+  return get<AreaCostLinesResponse>(`/areas/${encodeURIComponent(id)}/cost-lines`).then(
+    (r) => r.lines,
+  );
 }

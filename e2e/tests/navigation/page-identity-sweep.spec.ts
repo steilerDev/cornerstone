@@ -361,6 +361,14 @@ const ROWS: SweepRow[] = [
     crumbs: false,
     active: HOME,
   },
+  // Area (#2251): one area's page; the h1 is the area name, the trail is Areas
+  {
+    id: 'area',
+    path: () => routeUrl('area', { id: seed.areaId }),
+    h1: NAMES.area,
+    crumbs: true,
+    active: AREAS,
+  },
   // Areas (#2218): the tree index, a main view of its own section
   {
     id: 'areas',

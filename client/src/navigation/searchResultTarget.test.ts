@@ -90,11 +90,10 @@ describe('searchResultTarget', () => {
   });
 
   describe('interim targets (routes not yet served)', () => {
-    it('area opens the Areas index while route `area` (detail) is planned', () => {
-      expect(getRouteEntry('area').stage).toBe('planned');
-      expect(getRouteEntry('areas').stage).toBe('done');
-      const href = routeUrl('areas');
-      expect(href).toBe('/areas');
+    it('area opens the area page of the hit now that route `area` is served (#2251)', () => {
+      expect(getRouteEntry('area').stage).toBe('done');
+      const href = routeUrl('area', { id: 'a-7' });
+      expect(href).toBe('/areas/a-7');
       expect(searchResultTarget('area', item({ id: 'a-7' }), NO_PAPERLESS)).toEqual({
         kind: 'app',
         href,
@@ -110,10 +109,10 @@ describe('searchResultTarget', () => {
       ).toEqual({ kind: 'external', href: 'https://paperless.example/documents/5/details' });
     });
 
-    it('INTERIM PIN: when `area` or `documents` is served, update searchResultTarget and this test', () => {
-      // Fails on purpose when the Area page / Documents page story flips the stage: the mapper must
-      // then link to routeUrl('area', { id }) / the Documents page instead of the interim target.
-      const flipped = (['area', 'documents'] as const).filter(
+    it('INTERIM PIN: when `documents` is served, update searchResultTarget and this test', () => {
+      // Fails on purpose when the Documents page story flips the stage: the mapper must then link
+      // to the Documents page instead of the interim Paperless target.
+      const flipped = (['documents'] as const).filter(
         (id) => getRouteEntry(id).stage !== 'planned',
       );
       expect(flipped).toEqual([]);

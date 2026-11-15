@@ -10,6 +10,8 @@ import { UNDO_WINDOW_MS } from '@cornerstone/shared';
 import type {
   AreaListResponse,
   AreaListWithCountsResponse,
+  AreaPageSummary,
+  AreaCostLinesResponse,
   AreaSingleResponse,
   ApiErrorResponse,
   DeleteAreaResponse,
@@ -17,7 +19,14 @@ import type {
 } from '@cornerstone/shared';
 import { eq } from 'drizzle-orm';
 import { undoStore } from '../services/undoService.js';
-import { areas, workItems, householdItems, photos, diaryEntries } from '../db/schema.js';
+import {
+  areas,
+  workItems,
+  workItemBudgets,
+  householdItems,
+  photos,
+  diaryEntries,
+} from '../db/schema.js';
 
 describe('Area Routes', () => {
   let app: FastifyInstance;
@@ -218,6 +227,44 @@ describe('Area Routes', () => {
           householdItems: { total: 0, open: 0 },
           photos: { total: 0, latestDate: null },
         });
+      });
+
+      it('adds the Expected cost split (own and subtree) from the money service (#2251)', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        const floor = createTestArea('Floor');
+        const room = createTestArea('Room', { parentId: floor.id });
+        const empty = createTestArea('Empty');
+        const now = new Date().toISOString();
+        for (const [areaId, amount] of [
+          [floor.id, 100],
+          [room.id, 40],
+        ] as const) {
+          app.db
+            .insert(workItemBudgets)
+            .values({
+              id: `wl-${areaId}`,
+              workItemId: createTestWorkItem(areaId),
+              plannedAmount: amount,
+              confidence: 'invoice',
+              includesVat: true,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .run();
+        }
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/areas?include=counts',
+          headers: { cookie },
+        });
+
+        const byId = new Map(
+          response.json<AreaListWithCountsResponse>().areas.map((a) => [a.id, a.expectedCost]),
+        );
+        expect(byId.get(floor.id)).toEqual({ own: 100, subtree: 140 });
+        expect(byId.get(room.id)).toEqual({ own: 40, subtree: 40 });
+        expect(byId.get(empty.id)).toEqual({ own: 0, subtree: 0 });
       });
 
       it('can be combined with search', async () => {
@@ -791,6 +838,174 @@ describe('Area Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  // ─── GET /api/areas/:id/summary and /cost-lines (#2251) ────────────────────
+
+  describe('GET /api/areas/:id/summary', () => {
+    it('returns 401 UNAUTHORIZED without authentication', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/areas/some-id/summary' });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 404 NOT_FOUND for an unknown area', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/areas/nope/summary',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns the page aggregates of the area and its descendants for a member', async () => {
+      const { cookie } = await createUserWithSession('member@test.com', 'Member', 'password');
+      const floor = createTestArea('Floor', { description: 'Living level' });
+      const room = createTestArea('Room', { parentId: floor.id, color: '#112233' });
+      const sibling = createTestArea('Garden');
+      const taskId = createTestWorkItem(room.id);
+      createTestWorkItem(sibling.id);
+      createTestHouseholdItem(floor.id);
+      const now = new Date().toISOString();
+      app.db
+        .insert(workItemBudgets)
+        .values({
+          id: 'wl-1',
+          workItemId: taskId,
+          plannedAmount: 250,
+          confidence: 'invoice',
+          includesVat: true,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/areas/${floor.id}/summary`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AreaPageSummary>();
+      expect(body.area).toMatchObject({
+        id: floor.id,
+        name: 'Floor',
+        description: 'Living level',
+        parentId: null,
+        ancestors: [],
+      });
+      expect(body.children).toEqual([
+        { id: room.id, name: 'Room', color: '#112233', photoCount: 0, openTaskCount: 1 },
+      ]);
+      expect(body.counts).toEqual({
+        workItems: { total: 1, open: 1, late: 0 },
+        householdItems: { total: 1, open: 1 },
+        photos: { total: 0, latestDate: null },
+        companies: 0,
+      });
+      expect(body.nowAndNext.map((i) => i.type).sort()).toEqual(['household_item', 'work_item']);
+      expect(body.ancestorContext).toEqual([]);
+      expect(body.companies).toEqual([]);
+      expect(body.money).toEqual({ expectedCost: 250, paid: 0 });
+    });
+
+    it('reports the ancestor context for a child area', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const floor = createTestArea('Floor');
+      const room = createTestArea('Room', { parentId: floor.id });
+      createTestWorkItem(floor.id);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/areas/${room.id}/summary`,
+        headers: { cookie },
+      });
+
+      expect(response.json<AreaPageSummary>().ancestorContext).toEqual([
+        { areaId: floor.id, name: 'Floor', depth: 0, workItemCount: 1, householdItemCount: 0 },
+      ]);
+    });
+  });
+
+  describe('GET /api/areas/:id/cost-lines', () => {
+    it('returns 401 UNAUTHORIZED without authentication', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/areas/some-id/cost-lines' });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 404 NOT_FOUND for an unknown area', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/areas/nope/cost-lines',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns the subtree lines wrapped in { lines } and leaves ancestors out', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const floor = createTestArea('Floor');
+      const room = createTestArea('Room', { parentId: floor.id });
+      const now = new Date().toISOString();
+      for (const [lineId, areaId, amount] of [
+        ['wl-room', room.id, 40],
+        ['wl-floor', floor.id, 100],
+      ] as const) {
+        app.db
+          .insert(workItemBudgets)
+          .values({
+            id: lineId,
+            workItemId: createTestWorkItem(areaId),
+            plannedAmount: amount,
+            confidence: 'invoice',
+            includesVat: true,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/areas/${room.id}/cost-lines`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AreaCostLinesResponse>();
+      expect(body.lines.map((l) => [l.id, l.plannedAmount, l.itemType])).toEqual([
+        ['wl-room', 40, 'work_item'],
+      ]);
+      expect(body.lines[0]!.itemArea).toMatchObject({
+        id: room.id,
+        ancestors: [{ id: floor.id, name: 'Floor' }],
+      });
+    });
+
+    it('returns an empty list for an area without cost lines', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const floor = createTestArea('Floor');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/areas/${floor.id}/cost-lines`,
+        headers: { cookie },
+      });
+
+      expect(response.json<AreaCostLinesResponse>()).toEqual({ lines: [] });
     });
   });
 

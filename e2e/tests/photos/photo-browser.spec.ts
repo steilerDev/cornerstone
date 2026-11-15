@@ -22,7 +22,7 @@
  *  16. AC4  Visible h1 "area path · orientation" and "n of N" with 1 = newest
  *  17. AC5  D-31: /photos/spot/none/none is the 'No area' group (not "Same spot over time"); every
  *           'No area' cell opens it; old none/<orientation> links still work
- *  18. AC7  Area row header / h2 links to the Areas index; Back returns to Photos
+ *  18. AC7  Area row header / h2 links to the Area page; Back returns to Photos
  *  19. AC8  Annotate dialog (Cancel closes, focus returns); signed photo -> aria-disabled + reason
  *  20. AC8  Phone only: app shell bars are not rendered; a tap on the photo hides/shows the chrome
  *  21. Dark mode smoke of the viewer chrome and the select tiles
@@ -52,7 +52,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { PhotosPage } from '../../pages/PhotosPage.js';
 import { PhotoSpotViewerPage } from '../../pages/PhotoSpotViewerPage.js';
-import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
+import { AreaPage } from '../../pages/AreaPage.js';
 import { PhotoViewerPage } from '../../pages/PhotoViewerPage.js';
 
 interface Seed {
@@ -755,35 +755,62 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 18. AC7: area names link to the Areas index
+  // 18. AC7: area names link to the Area page
   // ───────────────────────────────────────────────────────────────────────────
-  test('AC7: an area row header / heading links to the Areas index and Back returns to Photos', async ({
+  test('AC7: an area row header / heading links to the Area page and Back returns to Photos', async ({
     page,
     testPrefix,
   }, testInfo) => {
     const s = await seed(page, `${testPrefix}-${testInfo.testId}`.slice(0, 40), cleanup);
     const photos = new PhotosPage(page);
-    const areas = new AreasIndexPage(page);
+    const areaPage = new AreaPage(page);
     await photos.goto();
 
     const link = photos.areaLink(s.childId);
-    await expect(link).toHaveAccessibleName(`${s.childName}, open in Areas`);
-    await expect(link).toHaveAttribute('href', '/areas');
+    await expect(link).toHaveAccessibleName(`${s.childName}, open area`);
+    await expect(link).toHaveAttribute('href', `/areas/${s.childId}`);
     // The root band of a group links too (table only: the band is a table row)
     if (!isNarrow(page)) {
-      await expect(photos.areaLink(s.parentId)).toHaveAccessibleName(
-        `${s.parentName}, open in Areas`,
-      );
+      await expect(photos.areaLink(s.parentId)).toHaveAccessibleName(`${s.parentName}, open area`);
+      await expect(photos.areaLink(s.parentId)).toHaveAttribute('href', `/areas/${s.parentId}`);
     }
 
     await link.click();
-    await expect(page).toHaveURL((u) => u.pathname === '/areas');
-    await expect(areas.heading).toBeVisible();
+    await expect(page).toHaveURL((u) => u.pathname === `/areas/${s.childId}`);
+    await expect(areaPage.heading).toHaveText(s.childName);
 
     // Browser Back returns to Photos (the link pushed one history entry)
     await page.goBack();
     await expect(page).toHaveURL((u) => u.pathname === '/photos');
     await expect(photos.heading).toBeVisible();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 18b. #2251: the ?areaId= filter narrows the area rows to the subtree
+  // ───────────────────────────────────────────────────────────────────────────
+  test('The areaId filter keeps only the filtered area and its children; removing the chip restores the rest', async ({
+    page,
+    testPrefix,
+  }, testInfo) => {
+    const s = await seed(page, `${testPrefix}-${testInfo.testId}`.slice(0, 40), cleanup);
+    const photos = new PhotosPage(page);
+    await page.goto(`/photos?areaId=${s.parentId}`);
+    await expect(photos.areaChip(s.parentId)).toBeVisible();
+
+    await expect(photos.areaLink(s.childId)).toBeVisible();
+    if (!isNarrow(page)) {
+      await expect(photos.areaLink(s.parentId)).toBeVisible();
+    }
+    // The unrelated top-level area has no row at all (an area row renders without photos)
+    await expect(photos.areaLink(s.rootId)).toHaveCount(0);
+
+    await photos.areaChip(s.parentId).click();
+    await expect(photos.areaChip()).toHaveCount(0);
+    await expect(page).toHaveURL((u) => !u.searchParams.has('areaId'));
+    if (!isNarrow(page)) {
+      // (the phone shows one area group at a time)
+      await expect(photos.areaLink(s.rootId)).toBeVisible();
+    }
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -982,7 +1009,7 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
 
       await expect(photos.noAreaToggle).toHaveText('Fotos auswählen');
       await expect(photos.areaLink(s.childId)).toHaveAccessibleName(
-        `${s.childName}, in Bereiche öffnen`,
+        `${s.childName}, Bereich öffnen`,
       );
       await expect(p.locator('body')).not.toContainText(/Unsorted|Tidy|Select photos/);
 

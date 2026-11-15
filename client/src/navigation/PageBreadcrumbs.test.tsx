@@ -519,4 +519,80 @@ describe('PageBreadcrumbs in the top bar (>= 1024 px)', () => {
       expect(log.actions).toEqual(['GO -1']);
     });
   });
+
+  describe('extraParents: the ancestors of an area (#2251)', () => {
+    const EXTRA = [
+      { label: 'House', href: '/areas/house', dynamic: true },
+      { label: 'Ground floor', href: '/areas/ground', dynamic: true },
+    ];
+
+    function renderArea(options: { state?: unknown; extraParents?: typeof EXTRA } = {}) {
+      return render(
+        <MemoryRouter initialEntries={[{ pathname: '/areas/kitchen', state: options.state }]}>
+          <PageBreadcrumbs extraParents={options.extraParents} />
+        </MemoryRouter>,
+      );
+    }
+
+    it('appends the extra parents after the route chain, in the order given', () => {
+      renderArea({ extraParents: EXTRA });
+
+      expect(trailLabels()).toEqual(['Areas', 'House', 'Ground floor']);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getByRole('link', { name: /Ground floor/ })).toHaveAttribute(
+        'href',
+        '/areas/ground',
+      );
+    });
+
+    it('shows only the route chain for a top-level area (no extra parents) or an empty list', () => {
+      renderArea();
+      expect(trailLabels()).toEqual(['Areas']);
+      cleanup();
+      renderArea({ extraParents: [] });
+      expect(trailLabels()).toEqual(['Areas']);
+    });
+
+    it('suppresses Back when the origin is the last extra parent', () => {
+      renderArea({
+        extraParents: EXTRA,
+        state: originStateFor({ pathname: '/areas/ground', search: '', hash: '' }),
+      });
+
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('keeps Back when the origin is an earlier extra parent (not the nearest)', () => {
+      renderArea({
+        extraParents: EXTRA,
+        state: originStateFor({ pathname: '/areas/house', search: '', hash: '' }, 'House'),
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveAttribute('href', '/areas/house');
+    });
+
+    it('suppresses Back for the Areas index only when there are no extra parents', () => {
+      const origin = originStateFor({ pathname: '/areas', search: '', hash: '' });
+      renderArea({ state: origin });
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+      cleanup();
+      renderArea({ state: origin, extraParents: EXTRA });
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveAttribute('href', '/areas');
+    });
+
+    it('offers Back to an unrelated origin as usual', () => {
+      renderArea({
+        extraParents: EXTRA,
+        state: originStateFor(
+          { pathname: '/project/work-items/w-1', search: '', hash: '' },
+          'Synthetic task',
+        ),
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveAttribute(
+        'href',
+        '/project/work-items/w-1',
+      );
+    });
+  });
 });

@@ -36,3 +36,11 @@ export function isPurchaseLate(p: PurchaseLateFields, today: string): boolean {
   const due = purchasePlannedDate(p);
   return due !== null && due < today;
 }
+
+/** Whole days a late purchase is past its planned date (at least 1); 0 when it is not late. */
+export function purchaseLateDays(p: PurchaseLateFields, today: string): number {
+  if (!isPurchaseLate(p, today)) return 0;
+  const due = purchasePlannedDate(p)!;
+  const ms = Date.parse(`${today}T00:00:00Z`) - Date.parse(`${due}T00:00:00Z`);
+  return Math.max(1, Math.round(ms / 86400000));
+}

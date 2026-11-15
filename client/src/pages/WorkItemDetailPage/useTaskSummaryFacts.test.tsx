@@ -162,16 +162,16 @@ describe('useTaskSummaryFacts', () => {
   });
 
   describe('Where', () => {
-    it('with an area links to the areas page (interim) and carries the origin', () => {
+    it('with an area links to the area page and carries the origin (#2251)', () => {
       renderFacts(
         makeTaskPage({
           area: { id: 'a-1', name: 'Kitchen', color: null, ancestors: [] },
         } as Partial<WorkItemPageDetail>),
       );
       expect(fact('where')).toHaveTextContent('Kitchen');
-      expect(fact('where')).toHaveAttribute('href', '/areas');
+      expect(fact('where')).toHaveAttribute('href', '/areas/a-1');
       fireEvent.click(fact('where'));
-      expect(probedPath()).toBe('/areas');
+      expect(probedPath()).toBe('/areas/a-1');
       expect(probedOrigin()).toEqual(ORIGIN.origin);
     });
 

@@ -202,14 +202,14 @@ describe('SpotsTable area links and the No area group (#2226)', () => {
     };
   }
 
-  it('makes a row header an AreaLink to the Areas index, outside the colour dot', () => {
+  it('makes a row header an AreaLink to its area page, outside the colour dot', () => {
     renderNoArea();
     const link = screen.getByTestId('area-link-kitchen');
-    expect(link).toHaveAttribute('href', '/areas');
-    expect(link).toHaveAccessibleName('Kitchen, open in Areas');
+    expect(link).toHaveAttribute('href', '/areas/kitchen');
+    expect(link).toHaveAccessibleName('Kitchen, open area');
     expect(link.closest('th')).toHaveAttribute('scope', 'row');
     fireEvent.click(link);
-    expect(probedPath()).toBe('/areas');
+    expect(probedPath()).toBe('/areas/kitchen');
     expect(probedOrigin()?.to).toBe('/photos');
   });
 
@@ -218,7 +218,7 @@ describe('SpotsTable area links and the No area group (#2226)', () => {
     const band = container.querySelector('th[scope="rowgroup"]')!;
     expect(within(band as HTMLElement).getByTestId('area-link-house')).toHaveAttribute(
       'href',
-      '/areas',
+      '/areas/house',
     );
   });
 

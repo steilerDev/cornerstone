@@ -9,7 +9,7 @@
   --tree-dot-size: 0.75rem;
   --tree-gap: var(--spacing-2);
   --tree-col-width: 6.5rem;
-  --tree-col-width-last: 6.5rem;
+  --tree-col-width-last: 7rem;
 }
 
 .rootGroup,
