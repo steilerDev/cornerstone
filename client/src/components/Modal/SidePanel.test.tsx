@@ -7,6 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { installMatchMedia, type MatchMediaControl } from '../../test/matchMediaControl.js';
 import { SidePanel, SIDE_PANEL_DOCKED_QUERY } from './SidePanel.js';
+import type { SidePanelProps } from './SidePanel.js';
 import { markEscapeHandled } from './useFocusTrap.js';
 
 const WIDE_QUERY = '(min-width: 768px)';
@@ -396,5 +397,101 @@ describe('SidePanel --docked-panel-width (the Toast keeps clear of the docked pa
     await userEvent.click(screen.getByText('opener'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(read()).toBe('');
+  });
+});
+
+describe('SidePanel restoreFocusOnUnmount (a panel mounted only while open)', () => {
+  /** Mounts the panel only while open, like the Documents page; the opener is focused first. */
+  function Mounted({
+    extra,
+    skip,
+  }: {
+    extra?: Partial<SidePanelProps>;
+    skip?: { current: boolean };
+  }) {
+    const [open, setOpen] = useState(false);
+    const returnRef = useRef<HTMLButtonElement>(null);
+    return (
+      <main>
+        <h1>Schedule</h1>
+        <button type="button" onClick={() => setOpen(true)}>
+          opener
+        </button>
+        <button ref={returnRef} type="button">
+          fallback target
+        </button>
+        {open && (
+          <SidePanel
+            id="m"
+            open
+            title="Roof"
+            testId="mounted"
+            returnFocusRef={returnRef}
+            skipOpenerRef={skip}
+            onClose={() => setOpen(false)}
+            {...extra}
+          >
+            body
+          </SidePanel>
+        )}
+      </main>
+    );
+  }
+
+  async function openAndUnmount() {
+    const opener = screen.getByText('opener');
+    opener.focus();
+    fireEvent.click(opener);
+    await screen.findByTestId('mounted');
+    expect(screen.getByRole('heading', { name: 'Roof' })).toHaveFocus();
+    fireEvent.click(screen.getByTestId('mounted-close'));
+    expect(screen.queryByTestId('mounted')).toBeNull();
+    return opener;
+  }
+
+  describe('not docked', () => {
+    beforeEach(() => {
+      media.set(SIDE_PANEL_DOCKED_QUERY, false);
+      media.set(WIDE_QUERY, true);
+    });
+
+    it('returns focus to the opener that was focused before it opened', async () => {
+      render(<Mounted extra={{ restoreFocusOnUnmount: true }} />);
+      const opener = await openAndUnmount();
+      expect(opener).toHaveFocus();
+    });
+
+    it('skips the opener when skipOpenerRef is true and uses returnFocusRef instead', async () => {
+      render(<Mounted extra={{ restoreFocusOnUnmount: true }} skip={{ current: true }} />);
+      const opener = await openAndUnmount();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByText('fallback target')).toHaveFocus();
+    });
+
+    it('refocuses the opener when skipOpenerRef is false', async () => {
+      render(<Mounted extra={{ restoreFocusOnUnmount: true }} skip={{ current: false }} />);
+      const opener = await openAndUnmount();
+      expect(opener).toHaveFocus();
+    });
+
+    it('without the prop, unmounting does not restore focus (unchanged behaviour)', async () => {
+      render(<Mounted />);
+      const opener = await openAndUnmount();
+      expect(opener).not.toHaveFocus();
+    });
+  });
+
+  describe('docked', () => {
+    beforeEach(() => {
+      media.set(SIDE_PANEL_DOCKED_QUERY, true);
+      media.set(WIDE_QUERY, true);
+    });
+
+    it('ignores the props: the aside returns focus to returnFocusRef, not the opener', async () => {
+      render(<Mounted extra={{ restoreFocusOnUnmount: true }} skip={{ current: false }} />);
+      const opener = await openAndUnmount();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByText('fallback target')).toHaveFocus();
+    });
   });
 });

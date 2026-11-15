@@ -30,6 +30,7 @@ const CASES: GuardCase[] = [
     method: 'GET',
     url: '/api/document-links?entityType=work_item&entityId=wi-1',
   },
+  { name: 'GET / (by document)', method: 'GET', url: '/api/document-links?paperlessDocumentId=1' },
   { name: 'GET /linked-ids', method: 'GET', url: '/api/document-links/linked-ids' },
   {
     name: 'PATCH /:id',

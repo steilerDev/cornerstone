@@ -1,8 +1,7 @@
 import { routeUrl } from '@cornerstone/shared';
 import type { SearchResultItem, SearchResultType } from '@cornerstone/shared';
 
-export type SearchResultTarget =
-  { kind: 'app'; href: string } | { kind: 'external'; href: string } | null;
+export type SearchResultTarget = { kind: 'app'; href: string } | null;
 
 function app(href: string): SearchResultTarget {
   return { kind: 'app', href };
@@ -12,7 +11,6 @@ function app(href: string): SearchResultTarget {
 export function searchResultTarget(
   type: SearchResultType,
   item: SearchResultItem,
-  opts: { paperlessBaseUrl: string | null },
 ): SearchResultTarget {
   const { id } = item;
   switch (type) {
@@ -47,15 +45,8 @@ export function searchResultTarget(
         }
       }
     }
-    case 'paperless_document': {
-      // Interim while route `documents` is planned; the story that builds the Documents page flips this to an app link.
-      const base = opts.paperlessBaseUrl;
-      if (base === null) return null;
-      return {
-        kind: 'external',
-        href: `${base.replace(/\/+$/, '')}/documents/${encodeURIComponent(id)}/details`,
-      };
-    }
+    case 'paperless_document':
+      return app(routeUrl('documents', undefined, { doc: id }));
     default: {
       const exhaustive: never = type;
       void exhaustive;

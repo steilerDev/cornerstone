@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   ATTACHMENT_TYPES,
+  DOCUMENT_LINK_ENTITY_TYPES,
   TASK_TIME_WINDOWS,
   SEARCH_MATCHED_FIELDS,
   SEARCH_RESULT_TYPES,
@@ -98,8 +99,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 79 registered sets', () => {
-    expect(SETS).toHaveLength(79);
+  it('iterates all 80 registered sets', () => {
+    expect(SETS).toHaveLength(80);
   });
 });
 
@@ -154,6 +155,7 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.reportAttachmentType.members).toBe(ATTACHMENT_TYPES);
     expect(I18N_UNION_KEYS.documentAttachmentType.members).toBe(ATTACHMENT_TYPES);
     expect(I18N_UNION_KEYS.diaryAutomaticEntryType.members).toBe(AUTOMATIC_DIARY_ENTRY_TYPES);
+    expect(I18N_UNION_KEYS.documentLinkKind.members).toBe(DOCUMENT_LINK_ENTITY_TYPES);
   });
 
   it('pins namespaces and literal key shapes', () => {
@@ -172,6 +174,10 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.documentAttachmentType.key('deposit')).toBe(
       'documentCard.attachmentType.deposit',
     );
+    expect(I18N_UNION_KEYS.documentLinkKind.ns).toBe('documents');
+    expect(I18N_UNION_KEYS.documentLinkKind.key('subsidy_program')).toBe(
+      'sheet.kind.subsidy_program',
+    );
   });
 
   it('registers the sets in declaration order', () => {
@@ -182,6 +188,7 @@ describe('I18N_UNION_KEYS registry', () => {
       'reportSourceType',
       'reportAttachmentType',
       'documentAttachmentType',
+      'documentLinkKind',
       'reportUseCase',
       'reportUseCaseHelper',
       'depositEntryType',

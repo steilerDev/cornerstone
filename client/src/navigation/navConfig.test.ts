@@ -345,15 +345,23 @@ describe('navSections', () => {
     expect(shown).toEqual(expected);
   });
 
-  it('hides the planned section documents', () => {
-    expect(ids(navSections(ADMIN))).not.toContain('documents');
+  it('shows the documents section only when Paperless is configured (#2252)', () => {
+    expect(ids(navSections({ role: 'admin', paperlessConfigured: true }))).toContain('documents');
+    expect(ids(navSections({ role: 'member', paperlessConfigured: true }))).toContain('documents');
+    expect(ids(navSections({ role: 'admin', paperlessConfigured: false }))).not.toContain(
+      'documents',
+    );
+    expect(ids(navSections({ role: 'member', paperlessConfigured: false }))).not.toContain(
+      'documents',
+    );
   });
 
-  it('shows Areas and History, both served, as the quiet (secondary) sections', () => {
+  it('shows Areas, History and Documents, all served, as the quiet (secondary) sections', () => {
     const sections = navSections(ADMIN);
     expect(sections.filter((s) => s.group === 'secondary').map((s) => s.id)).toEqual([
       'areas',
       'history',
+      'documents',
     ]);
     expect(sections.find((s) => s.id === 'areas')?.route).toBe('areas');
     expect(sections.find((s) => s.id === 'history')?.route).toBe('history');
@@ -435,9 +443,15 @@ describe('paperlessStatusNeeded', () => {
     ...over,
   });
 
-  it('is false for the real navigation, whose destinations are not Paperless-gated', () => {
-    expect(paperlessStatusNeeded()).toBe(false);
-    expect(paperlessStatusNeeded(NAV_SECTIONS)).toBe(false);
+  it('is true for the real navigation, whose Documents section is Paperless-gated (#2252)', () => {
+    expect(getRouteEntry('documents').gate).toBe('paperless');
+    expect(paperlessStatusNeeded()).toBe(true);
+    expect(paperlessStatusNeeded(NAV_SECTIONS)).toBe(true);
+  });
+
+  it('is false for a navigation without any Paperless-gated destination', () => {
+    const ungated = NAV_SECTIONS.filter((s) => s.id !== 'documents');
+    expect(paperlessStatusNeeded(ungated)).toBe(false);
   });
 
   it('is true when a served section route or a served view route is Paperless-gated', () => {
@@ -450,9 +464,5 @@ describe('paperlessStatusNeeded', () => {
     expect(
       paperlessStatusNeeded([section({ views: [{ ...view, route: gatedRoute }] as never })]),
     ).toBe(true);
-  });
-
-  it('ignores a gated route that is not served yet', () => {
-    expect(paperlessStatusNeeded([section({ route: 'documents' })])).toBe(false);
   });
 });

@@ -60,6 +60,10 @@ export interface RelatedListProps {
   readonly onRemove?: (row: RelatedListRow) => Promise<UndoToken>;
   /** After a successful Undo: the host reloads. */
   readonly onRestored?: (row: RelatedListRow) => Promise<void> | void;
+  /** Row menu label of Remove (default common relatedList.remove), e.g. "Unlink". */
+  readonly removeLabel?: string;
+  /** Undo toast text after Remove (default common relatedList.removed). */
+  readonly removedMessage?: (row: RelatedListRow) => string;
   /** Origin state for row links (useOriginState()). */
   readonly linkState?: OriginState;
   /** Default 10; more rows collapse behind "Show all (n)". */

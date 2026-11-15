@@ -80,8 +80,11 @@ describe('matchLocation', () => {
     expect(matchLocation('/areas/some-id')?.params).toEqual({ id: 'some-id' });
   });
 
-  it('does not match planned, conditional or catch-all entries', () => {
-    expect(matchLocation('/documents')).toBeNull();
+  it('serves the Documents page now that it is done (#2252)', () => {
+    expect(matchLocation('/documents')?.entry.id).toBe('documents');
+  });
+
+  it('does not match conditional or catch-all entries', () => {
     expect(matchLocation('/anything-else')).toBeNull();
   });
 
@@ -279,7 +282,7 @@ describe('resolveLocation', () => {
 
   it('resolves every map entry with an id to a known resolution', () => {
     for (const entry of ROUTE_MAP) {
-      if (!('id' in entry) || entry.stage === 'planned' || entry.from === '*') continue;
+      if (!('id' in entry) || entry.from === '*') continue;
       const url = entry.from.replace(/:([A-Za-z0-9_]+)/g, 'x');
       expect(resolveLocation(url, ADMIN).kind).not.toBe('notFound');
     }

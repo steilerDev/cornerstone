@@ -43,9 +43,13 @@ beforeEach(async () => {
 });
 
 describe('paperlessStatusNeeded', () => {
-  it('is false for the real NavConfig today (no served route is Paperless-gated)', () => {
-    expect(paperlessStatusNeeded()).toBe(false);
-    expect(paperlessStatusNeeded(NAV_SECTIONS)).toBe(false);
+  it('is true for the real NavConfig: the served Documents section is Paperless-gated (#2252)', () => {
+    expect(paperlessStatusNeeded()).toBe(true);
+    expect(paperlessStatusNeeded(NAV_SECTIONS)).toBe(true);
+  });
+
+  it('is false for the real NavConfig without its Documents section', () => {
+    expect(paperlessStatusNeeded(NAV_SECTIONS.filter((s) => s.id !== 'documents'))).toBe(false);
   });
 
   it('is true when a served view route is Paperless-gated', () => {
@@ -57,33 +61,55 @@ describe('paperlessStatusNeeded', () => {
     expect(paperlessStatusNeeded([{ ...gated, views: [] }])).toBe(true);
   });
 
-  it('is false when the gated route is not served (documents is planned)', () => {
-    expect(paperlessStatusNeeded(fixture('documents'))).toBe(false);
+  it('is true for a fixture whose view is the served Documents route', () => {
+    expect(paperlessStatusNeeded(fixture('documents'))).toBe(true);
   });
 });
 
 describe('useNavContext', () => {
-  it('maps an admin user to the admin role without asking Paperless', async () => {
+  /** The real navigation without its Paperless-gated Documents section. */
+  const ungated = () => NAV_SECTIONS.filter((s) => s.id !== 'documents');
+
+  it('asks Paperless once for the real navigation and reports it configured (#2252)', async () => {
+    mockGetPaperlessStatus.mockResolvedValue({ configured: true });
     const { result } = renderHook(() => useNavContext());
+    expect(result.current).toEqual({ role: 'admin', paperlessConfigured: false });
+    await waitFor(() => expect(result.current.paperlessConfigured).toBe(true));
+    expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the real navigation unconfigured when Paperless is not configured', async () => {
+    mockGetPaperlessStatus.mockResolvedValue({ configured: false });
+    const { result } = renderHook(() => useNavContext());
+    await waitFor(() => expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1));
+    expect(result.current.paperlessConfigured).toBe(false);
+  });
+
+  it('maps an admin user to the admin role without asking Paperless', async () => {
+    const sections = ungated();
+    const { result } = renderHook(() => useNavContext(sections));
     expect(result.current).toEqual({ role: 'admin', paperlessConfigured: false });
     expect(mockGetPaperlessStatus).not.toHaveBeenCalled();
   });
 
   it('maps a member to the member role', () => {
     mockUser = { role: 'member' };
-    const { result } = renderHook(() => useNavContext());
+    const sections = ungated();
+    const { result } = renderHook(() => useNavContext(sections));
     expect(result.current.role).toBe('member');
     expect(mockGetPaperlessStatus).not.toHaveBeenCalled();
   });
 
   it('treats a missing user as a member', () => {
     mockUser = null;
-    const { result } = renderHook(() => useNavContext());
+    const sections = ungated();
+    const { result } = renderHook(() => useNavContext(sections));
     expect(result.current.role).toBe('member');
   });
 
   it('keeps the same context object across re-renders with unchanged inputs', () => {
-    const { result, rerender } = renderHook(() => useNavContext());
+    const sections = ungated();
+    const { result, rerender } = renderHook(() => useNavContext(sections));
     const first = result.current;
     rerender();
     expect(result.current).toBe(first);

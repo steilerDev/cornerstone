@@ -2,6 +2,8 @@ import { get, post, del, patch } from './apiClient.js';
 import type {
   DocumentLink,
   DocumentLinkWithMetadata,
+  DocumentLinkWithEntity,
+  DocumentLinksForDocumentResponse,
   CreateDocumentLinkRequest,
   AllLinkedDocumentIdsResponse,
   AttachmentType,
@@ -19,6 +21,18 @@ export function listDocumentLinks(
   const params = new URLSearchParams({ entityType, entityId });
   return get<{ documentLinks: DocumentLinkWithMetadata[] }>(
     `/document-links?${params.toString()}`,
+  ).then((r) => r.documentLinks);
+}
+
+/**
+ * Lists every link of one Paperless-ngx document, across all entity kinds, each with a summary of
+ * the linked record (`entity` is null when that record no longer exists). Works with Paperless off.
+ */
+export function listDocumentLinksForDocument(
+  paperlessDocumentId: number,
+): Promise<DocumentLinkWithEntity[]> {
+  return get<DocumentLinksForDocumentResponse>(
+    `/document-links?paperlessDocumentId=${paperlessDocumentId}`,
   ).then((r) => r.documentLinks);
 }
 

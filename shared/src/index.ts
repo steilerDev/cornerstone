@@ -437,6 +437,8 @@ export type {
 export type {
   PaperlessCorrespondent,
   PaperlessCorrespondentListResponse,
+  PaperlessDocumentType,
+  PaperlessDocumentTypeListResponse,
   PaperlessUploadResponse,
 } from './types/paperless.js';
 
@@ -456,6 +458,9 @@ export type {
   PaperlessStatusResponse,
   DocumentLink,
   DocumentLinkWithMetadata,
+  DocumentLinkEntitySummary,
+  DocumentLinkWithEntity,
+  DocumentLinksForDocumentResponse,
   CreateDocumentLinkRequest,
   UpdateDocumentLinkRequest,
   DocumentLinkResponse,

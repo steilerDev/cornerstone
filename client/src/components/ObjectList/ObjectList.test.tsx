@@ -233,6 +233,23 @@ afterEach(() => {
   delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
 });
 
+describe('ObjectList without a primary (#2252)', () => {
+  it('renders the list, the count and the page menu but no "New" button', async () => {
+    renderList({ primary: undefined });
+    await loaded('Tasks (3)');
+    expect(screen.queryByTestId('tasks-new')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('tasks-page-menu')).toBeInTheDocument();
+    expect(document.querySelectorAll('a[href^="/tasks/"]').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the "New task" primary when one is given', async () => {
+    renderList();
+    await loaded('Tasks (3)');
+    expect(screen.getByTestId('tasks-new')).toHaveTextContent('New task');
+  });
+});
+
 describe('ObjectList states', () => {
   it('L1 shows a skeleton before the first batch', async () => {
     let resolve: (p: ObjectListPage<Task>) => void = () => undefined;

@@ -15,6 +15,7 @@
 import type { FastifyInstance } from 'fastify';
 import { AppError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as paperlessService from '../services/paperlessService.js';
+import * as documentLinkService from '../services/documentLinkService.js';
 import { publicUrlWithoutCredentials } from '../services/publicAddress.js';
 import type { PaperlessDocumentListQuery } from '@cornerstone/shared';
 
@@ -61,6 +62,7 @@ const listDocumentsSchema = {
         enum: ['created', 'added', 'modified', 'title', 'archive_serial_number'],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      excludeLinked: { type: 'boolean' },
     },
     additionalProperties: false,
   },
@@ -153,11 +155,15 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       }
 
       const { baseUrl, token } = requirePaperless(fastify);
+      const excludeIds = request.query.excludeLinked
+        ? documentLinkService.getAllLinkedDocumentIds(fastify.db)
+        : [];
       const result = await paperlessService.listDocuments(
         baseUrl,
         token,
         request.query,
         fastify.config.paperlessFilterTag,
+        excludeIds,
       );
       return reply.status(200).send(result);
     },
@@ -316,6 +322,24 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
 
     const { baseUrl, token } = requirePaperless(fastify);
     const result = await paperlessService.listCorrespondents(baseUrl, token);
+    return reply.status(200).send(result);
+  });
+
+  /**
+   * GET /api/paperless/document-types
+   *
+   * List all document types available in Paperless-ngx (#2252). Not paginated; the configured
+   * filter tag is not applied (as for tags and correspondents).
+   *
+   * Auth required: Yes
+   */
+  fastify.get('/document-types', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+
+    const { baseUrl, token } = requirePaperless(fastify);
+    const result = await paperlessService.listDocumentTypes(baseUrl, token);
     return reply.status(200).send(result);
   });
 

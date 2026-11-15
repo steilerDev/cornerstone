@@ -45,11 +45,23 @@ describe('routePattern / getRouteEntry / isRouteServed', () => {
     expect(() => routePattern('nope' as never)).toThrow('Unknown route id');
   });
 
-  it('reports served and planned routes', () => {
+  it('reports served routes (no planned route id remains after the Documents page, #2252)', () => {
     expect(isRouteServed('workItems')).toBe(true);
     expect(isRouteServed('company')).toBe(true);
     expect(isRouteServed('area')).toBe(true);
-    expect(isRouteServed('documents')).toBe(false);
+    expect(isRouteServed('documents')).toBe(true);
+    const loose: readonly { id?: string; stage: string }[] = ROUTE_MAP;
+    const planned = loose.filter((entry) => entry.id !== undefined && entry.stage === 'planned');
+    expect(planned).toEqual([]);
+  });
+
+  it('carries the Documents page URL params (#2252)', () => {
+    expect(getRouteEntry('documents')).toMatchObject({
+      from: '/documents',
+      gate: 'paperless',
+      stage: 'done',
+      carries: ['q', 'type', 'tags', 'unlinked', 'sortBy', 'sortOrder', 'doc'],
+    });
   });
 });
 
@@ -57,7 +69,7 @@ describe('routeUrl', () => {
   it('builds a URL for every served id', () => {
     let built = 0;
     for (const entry of ROUTE_MAP) {
-      if (!('id' in entry) || entry.stage === 'planned' || entry.id === 'notFound') continue;
+      if (!('id' in entry) || entry.id === 'notFound') continue;
       const params: Record<string, string> = {};
       for (const name of entry.from.match(/:([A-Za-z0-9_]+)/g) ?? []) {
         params[name.slice(1)] = SAMPLE[name.slice(1)] ?? 'x';
@@ -131,9 +143,15 @@ describe('routeUrl', () => {
     );
   });
 
-  it('throws on a planned id', () => {
-    expect(() => looseRouteUrl('documents')).toThrow("Route 'documents' is not served");
+  it('builds the Documents page URL with and without the panel param (#2252)', () => {
+    expect(routeUrl('documents')).toBe('/documents');
+    expect(routeUrl('documents', undefined, { doc: 5 })).toBe('/documents?doc=5');
+    expect(routeUrl('documents', undefined, { q: 'roof', unlinked: 1, doc: 5 })).toBe(
+      '/documents?q=roof&unlinked=1&doc=5',
+    );
   });
+
+  // The throw on a planned id is covered in routeUrl.planned.test.ts (needs a mocked route map).
 
   it('throws on notFound', () => {
     expect(() => looseRouteUrl('notFound')).toThrow('is not served');
@@ -150,10 +168,8 @@ describe('routeUrl', () => {
 });
 
 describe('routeUrl types', () => {
-  it('rejects planned ids, notFound, missing params and extra params at compile time', () => {
+  it('rejects notFound, missing params and extra params at compile time', () => {
     const attempts = [
-      // @ts-expect-error planned ids are not linkable
-      () => routeUrl('documents'),
       // @ts-expect-error notFound is not linkable
       () => routeUrl('notFound'),
       // @ts-expect-error a dynamic route needs its params
@@ -165,7 +181,7 @@ describe('routeUrl types', () => {
       // @ts-expect-error a static route takes no params
       () => routeUrl('workItems', { id: 'a' }),
     ];
-    expect(attempts).toHaveLength(6);
+    expect(attempts).toHaveLength(5);
   });
 
   it('exports the id types', () => {

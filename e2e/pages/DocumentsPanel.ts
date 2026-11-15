@@ -47,7 +47,7 @@ export class DocumentsPanel {
   /** Footer "Link document" button (full mode, list view). */
   readonly linkDocumentButton: Locator;
 
-  /** "Browse all" footer link (hidden until the Documents page route is served). */
+  /** "Browse all" footer link to the Documents page (#2252; full mode, list view). */
   readonly browseAll: Locator;
 
   /** Picker-view back button ("‹ Documents"). */

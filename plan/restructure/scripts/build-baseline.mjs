@@ -280,6 +280,27 @@ function isTranslateSearchCall(attribute) {
   return Boolean(first && ts.isStringLiteral(first) && /search/i.test(first.text));
 }
 
+const PRIMARY_CAPABLE_TAGS = new Set(['button', 'a', 'input', 'label', 'summary']);
+const PRIMARY_CAPABLE_ROLES = new Set(['button', 'link', 'menuitem', 'tab']);
+
+/**
+ * Can this JSX element be a primary button? A primary class counts only on a component tag (not
+ * lowercase-initial, or dotted: it may render a button), a built-in interactive tag, or any other
+ * built-in tag that is made interactive (literal role button/link/menuitem/tab, or an `onClick`).
+ * A primary class on a non-interactive intrinsic element (span, div, ...) is decoration (e.g. the
+ * Filters count bubble, a filled step dot), not a primary button (#2252).
+ * @param {string} tag
+ * @param {import('typescript').JsxAttribute | undefined} roleAttr
+ * @param {import('typescript').JsxAttribute | undefined} onClickAttr
+ * @returns {boolean}
+ */
+function isPrimaryCapable(tag, roleAttr, onClickAttr) {
+  if (!/^[a-z]/.test(tag) || tag.includes('.')) return true;
+  if (PRIMARY_CAPABLE_TAGS.has(tag)) return true;
+  if (onClickAttr) return true;
+  return PRIMARY_CAPABLE_ROLES.has(literalText(roleAttr) ?? '');
+}
+
 /**
  * Analyse one source file.
  * @param {string} filePath absolute path
@@ -359,7 +380,13 @@ export function analyzeFile(filePath, text, ctx) {
       const byName = (n) => attrs.find((a) => a.name.getText() === n);
       if (routerTags.has(tag)) result.destinations++;
       const cn = byName('className');
-      if (cn?.initializer && classNameIsPrimary(cn.initializer)) result.primaryButtons++;
+      if (
+        cn?.initializer &&
+        isPrimaryCapable(tag, byName('role'), byName('onClick')) &&
+        classNameIsPrimary(cn.initializer)
+      ) {
+        result.primaryButtons++;
+      }
       if (/^[a-z]/.test(tag)) {
         if (ctx.countSearch && tag === 'input') {
           const type = literalText(byName('type'));

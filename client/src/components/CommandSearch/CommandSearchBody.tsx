@@ -240,7 +240,6 @@ export function CommandSearchResults({ model, deps }: CommandSearchResultsProps)
   const regionRef = useRef<HTMLDivElement>(null);
   const scopeId = useId();
   const callHintId = `${scopeId}-call-hint`;
-  const newTabHintId = `${scopeId}-newtab-hint`;
   const trimmedLength = liveQuery.length;
   const longEnough = trimmedLength >= SEARCH_QUERY_MIN_LENGTH;
 
@@ -262,7 +261,6 @@ export function CommandSearchResults({ model, deps }: CommandSearchResultsProps)
       deps={deps}
       originState={originState}
       callHintId={callHintId}
-      newTabHintId={newTabHintId}
       onActivate={query.setActiveId}
       onChoose={model.onChoose}
       onShowMore={query.showMore}
@@ -283,9 +281,6 @@ export function CommandSearchResults({ model, deps }: CommandSearchResultsProps)
     >
       <span id={callHintId} hidden>
         {t('commandSearch.callHint')}
-      </span>
-      <span id={newTabHintId} hidden>
-        {t('commandSearch.opensInNewTab')}
       </span>
       <div
         id={model.listboxId}

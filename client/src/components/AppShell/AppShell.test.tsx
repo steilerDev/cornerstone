@@ -83,6 +83,20 @@ jest.unstable_mockModule('../../lib/attentionApi.js', () => ({
   undoNotNow: jest.fn(),
 }));
 
+// The shell reads GET /api/paperless/status (Documents is Paperless-gated, #2252).
+const mockGetPaperlessStatus = jest.fn<() => Promise<{ configured: boolean }>>();
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: jest.fn(),
+  getPaperlessDocument: jest.fn(),
+  listPaperlessTags: jest.fn(),
+  listPaperlessCorrespondents: jest.fn(),
+  listPaperlessDocumentTypes: jest.fn(),
+  getDocumentThumbnailUrl: jest.fn(),
+  getDocumentPreviewUrl: jest.fn(),
+  uploadPaperlessDocument: jest.fn(),
+}));
+
 const PAGE_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'n', handler: () => {}, description: 'New synthetic task' },
 ];
@@ -153,6 +167,8 @@ describe('AppShell', () => {
     installMatchMedia(false);
     mockGetAttention.mockReset();
     mockGetAttention.mockResolvedValue(makeAttention([]));
+    mockGetPaperlessStatus.mockReset();
+    mockGetPaperlessStatus.mockResolvedValue({ configured: false });
   });
 
   afterEach(async () => {
@@ -280,6 +296,32 @@ describe('AppShell', () => {
       }
       expect(screen.getByRole('navigation', { name: /main navigation/i })).toBeInTheDocument();
       expect(screen.getByRole('navigation', { name: /^settings$/i })).toBeInTheDocument();
+    });
+
+    it('asks Paperless once and lists Documents in the sidebar only when it is configured (#2252)', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+      renderAt('/', <div>Test Content</div>);
+
+      expect(await screen.findByTestId('sidebar-section-documents')).toHaveAttribute(
+        'href',
+        '/documents',
+      );
+      expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not list Documents when Paperless is not configured', async () => {
+      renderAt('/', <div>Test Content</div>);
+
+      await waitFor(() => expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('sidebar-section-documents')).toBeNull();
+    });
+
+    it('does not list Documents when the status request fails (fails closed)', async () => {
+      mockGetPaperlessStatus.mockRejectedValue(new Error('network down'));
+      renderAt('/', <div>Test Content</div>);
+
+      await waitFor(() => expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('sidebar-section-documents')).toBeNull();
     });
 
     it('keeps the sidebar outside the column', () => {
@@ -755,6 +797,29 @@ describe('AppShell', () => {
       expect(screen.getByTestId('top-bar').parentElement).toHaveAttribute('inert');
       expect(screen.getByTestId('bottom-bar-more')).toHaveAttribute('aria-expanded', 'true');
       expect(document.documentElement.dataset.scrollLocked).toBe('true');
+    });
+
+    it('lists Documents in the More sheet when Paperless is configured (#2252)', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+
+      await user.click(screen.getByTestId('bottom-bar-more'));
+
+      expect(await screen.findByTestId('more-sheet-section-documents')).toHaveAttribute(
+        'href',
+        '/documents',
+      );
+    });
+
+    it('does not list Documents in the More sheet without Paperless', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+
+      await user.click(screen.getByTestId('bottom-bar-more'));
+
+      await waitFor(() => expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('more-sheet-section-documents')).toBeNull();
     });
 
     it('the plus button opens the New sheet: dialog role, shell column inert, rows in order', async () => {

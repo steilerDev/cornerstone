@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2252 Documents page tests](story-2252-documents-page-tests.md) (2026-11-15) — no planned route left, waitFor-render OOM, hasMore needs >100 rows, SidePanel/Sheet quirks
 - [Story #2251 Area page tests](story-2251-area-page-tests.md) (2026-11-13) — shell refuses heredocs/compound git, seeded trades, RelatedList ToastProvider, extraParents Back rule, Photos filter keeps rows
 - [Story #2250 milestone page tests](story-2250-milestone-page-tests.md) (2026-11-13) — strip label via accessible name, default-tab URL, delete-impact numeric id, stale-start fixtures
 - [Story #2249 purchase page tests](story-2249-purchase-page-tests.md) (2026-10-28) — fixtures, moved-file import trap, ReferenceError in list path, focus/picker quirks

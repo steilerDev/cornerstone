@@ -55,8 +55,6 @@ export type CommandOption =
       readonly title: string;
       readonly target: SearchResultTarget;
       readonly disabled: boolean;
-      /** Paperless link base not known yet: disabled for now, without the "can't open" text. */
-      readonly pending: boolean;
     }
   | {
       readonly kind: 'more';
@@ -94,8 +92,6 @@ export interface BuildInput extends ModelDeps {
   readonly ctx: NavContext;
   readonly sections: readonly NavSection[];
   readonly active: NavActive | null;
-  /** undefined: not fetched yet; null: Paperless has no link base. */
-  readonly paperlessBaseUrl: string | null | undefined;
 }
 
 /** `(id)` characters that are not valid in a DOM id token are replaced. */
@@ -196,7 +192,6 @@ export function line2Parts(
   item: SearchResultItem,
   deps: ModelDeps,
   disabled = false,
-  showCannotOpen = true,
 ): Line2Part[] {
   const { t } = deps;
   const parts: Line2Part[] = [];
@@ -212,9 +207,7 @@ export function line2Parts(
     : null;
 
   if (disabled) {
-    if (showCannotOpen) {
-      parts.push({ kind: 'text', text: t('commandSearch.cannotOpen'), highlight: false });
-    }
+    parts.push({ kind: 'text', text: t('commandSearch.cannotOpen'), highlight: false });
     if (foundPart) parts.push(foundPart);
     return parts;
   }
@@ -252,10 +245,7 @@ function itemOption(
   item: SearchResultItem,
   input: BuildInput,
 ): CommandOption {
-  const target = searchResultTarget(type, item, {
-    paperlessBaseUrl: input.paperlessBaseUrl ?? null,
-  });
-  const pending = type === 'paperless_document' && input.paperlessBaseUrl === undefined;
+  const target = searchResultTarget(type, item);
   return {
     kind: 'item',
     id: itemOptionId(type, item),
@@ -264,7 +254,6 @@ function itemOption(
     title: itemTitle(type, item, input),
     target,
     disabled: target === null,
-    pending,
   };
 }
 

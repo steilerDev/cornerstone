@@ -3,6 +3,7 @@ import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useUserText } from '../../hooks/useUserText.js';
+import shared from '../../styles/shared.module.css';
 import styles from './DocumentDetailPanel.module.css';
 
 interface DocumentDetailPanelProps {
@@ -10,8 +11,12 @@ interface DocumentDetailPanelProps {
   onClose?: () => void;
   /** Optional Paperless-ngx base URL to generate "View in Paperless" link. */
   paperlessBaseUrl?: string;
-  /** Layout variant: 'standalone' (default) or 'sidebyside' for auto-itemize page */
-  variant?: 'standalone' | 'sidebyside';
+  /**
+   * Layout variant: 'standalone' (default), 'sidebyside' for auto-itemize page, or 'sheet' for
+   * the Documents page side panel (no title row or Close, the panel is the labelled container;
+   * adds Added and Last modified, an h3 content preview and an Open in Paperless button).
+   */
+  variant?: 'standalone' | 'sidebyside' | 'sheet';
   /**
    * Rendered under a card in the Documents panel: no title row or Close (the card shows the
    * title and owns the Details toggle), no fixed element id, flat surface.
@@ -34,9 +39,12 @@ export function DocumentDetailPanel({
     ? `${paperlessBaseUrl}/documents/${document.id}/details`
     : null;
 
+  const isSheet = variant === 'sheet';
+
   const panelClassName = [
     styles.panel,
     variant === 'sidebyside' ? styles.sidebyside : undefined,
+    isSheet ? styles.sheet : undefined,
     inline ? styles.inline : undefined,
   ]
     .filter(Boolean)
@@ -44,12 +52,12 @@ export function DocumentDetailPanel({
 
   return (
     <div
-      id={inline ? undefined : 'detail-panel'}
+      id={inline || isSheet ? undefined : 'detail-panel'}
       className={panelClassName}
-      role="region"
-      aria-label={t('documentDetail.detailsLabel', { title: document.title })}
+      role={isSheet ? undefined : 'region'}
+      aria-label={isSheet ? undefined : t('documentDetail.detailsLabel', { title: document.title })}
     >
-      {!inline && (
+      {!inline && !isSheet && (
         <div className={styles.header}>
           <h3 {...userText(styles.panelTitle)}>{document.title}</h3>
           {variant !== 'sidebyside' && onClose && (
@@ -105,6 +113,18 @@ export function DocumentDetailPanel({
                 <dd className={styles.metaValue}>{document.pageCount}</dd>
               </>
             )}
+            {isSheet && document.added && (
+              <>
+                <dt className={styles.metaLabel}>{t('documentDetail.added')}</dt>
+                <dd className={styles.metaValue}>{formatDate(document.added)}</dd>
+              </>
+            )}
+            {isSheet && document.modified && (
+              <>
+                <dt className={styles.metaLabel}>{t('documentDetail.modified')}</dt>
+                <dd className={styles.metaValue}>{formatDate(document.modified)}</dd>
+              </>
+            )}
             {document.tags.length > 0 && (
               <>
                 <dt className={styles.metaLabel}>{t('documentDetail.tags')}</dt>
@@ -122,14 +142,29 @@ export function DocumentDetailPanel({
           </dl>
           {document.content && (
             <div className={styles.contentSnippet}>
-              <h4 className={styles.snippetLabel}>{t('documentDetail.contentPreview')}</h4>
+              {isSheet ? (
+                <h3 className={styles.snippetLabel}>{t('documentDetail.contentPreview')}</h3>
+              ) : (
+                <h4 className={styles.snippetLabel}>{t('documentDetail.contentPreview')}</h4>
+              )}
               <p {...userText(styles.snippetText)}>
                 {document.content.slice(0, 300)}
                 {document.content.length > 300 ? '...' : ''}
               </p>
             </div>
           )}
-          {paperlessDocUrl && (
+          {paperlessDocUrl && isSheet && (
+            <a
+              href={paperlessDocUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.openButton}
+            >
+              {t('panel.openInPaperless')}{' '}
+              <span className={shared.srOnly}>{t('panel.opensInNewTab')}</span>
+            </a>
+          )}
+          {paperlessDocUrl && !isSheet && (
             <a
               href={paperlessDocUrl}
               target="_blank"

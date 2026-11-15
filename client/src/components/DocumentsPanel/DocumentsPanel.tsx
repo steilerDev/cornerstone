@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ATTACHMENT_TYPES, isRouteServed, routePattern, routeUrl } from '@cornerstone/shared';
+import { ATTACHMENT_TYPES, routeUrl } from '@cornerstone/shared';
 import type {
   AttachmentType,
   DocumentLinkEntityType,
@@ -316,18 +316,15 @@ export function DocumentsPanel({
         >
           {t('panel.linkDocument')}
         </button>
-        {/* routeUrl() accepts served routes only; `documents` is planned until P5.8, so the pattern (no params) is used */}
-        {isRouteServed('documents') && (
-          <NavAnchor
-            to={routePattern('documents')}
-            state={originState}
-            onNavigate={handleClose}
-            className={styles.browseAll}
-            data-testid="documents-browse-all"
-          >
-            {t('panel.browseAll')}
-          </NavAnchor>
-        )}
+        <NavAnchor
+          to={routeUrl('documents')}
+          state={originState}
+          onNavigate={handleClose}
+          className={styles.browseAll}
+          data-testid="documents-browse-all"
+        >
+          {t('panel.browseAll')}
+        </NavAnchor>
       </>
     ) : undefined;
 

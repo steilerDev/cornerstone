@@ -93,6 +93,7 @@ const PaperlessInvoiceReviewPage = lazy(
 );
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage/HistoryPage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
 );
@@ -106,6 +107,9 @@ const NoAccessPage = lazy(() => import('./pages/NoAccessPage/NoAccessPage'));
 
 /** Live conditional redirects (Paperless off) of the Paperless invoice review page. */
 const PAPERLESS_REVIEW_RULES = liveConditionalRules('invoicePaperlessReview');
+
+/** Live conditional redirects (Paperless off) of the Documents page. */
+const DOCUMENTS_RULES = liveConditionalRules('documents');
 
 /**
  * The routed tree. `<Routes>` renders the display location (the page behind a dialog route);
@@ -236,6 +240,16 @@ function RoutedApp() {
                               </Suspense>
                             }
                           />
+                          <Route element={<RouteGate rules={DOCUMENTS_RULES} />}>
+                            <Route
+                              path={routePattern('documents')}
+                              element={
+                                <Suspense fallback={<div>Loading...</div>}>
+                                  <DocumentsPage />
+                                </Suspense>
+                              }
+                            />
+                          </Route>
                           <Route
                             path={routePattern('diaryEntryNew')}
                             element={

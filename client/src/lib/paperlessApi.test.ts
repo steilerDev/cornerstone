@@ -132,6 +132,26 @@ describe('paperlessApi', () => {
       expect(url).toContain('sortOrder=desc');
     });
 
+    it('appends excludeLinked=true only when the flag is set (#2252)', async () => {
+      const empty = {
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      };
+      mockGet.mockResolvedValueOnce(empty);
+      await paperlessApi.listPaperlessDocuments({ excludeLinked: true, page: 2 });
+      expect((mockGet.mock.calls[0]! as string[])[0]).toBe(
+        '/paperless/documents?page=2&excludeLinked=true',
+      );
+
+      mockGet.mockResolvedValueOnce(empty);
+      await paperlessApi.listPaperlessDocuments({ excludeLinked: false });
+      expect((mockGet.mock.calls[1]! as string[])[0]).toBe('/paperless/documents');
+
+      mockGet.mockResolvedValueOnce(empty);
+      await paperlessApi.listPaperlessDocuments({ page: 1 });
+      expect((mockGet.mock.calls[2]! as string[])[0]).not.toContain('excludeLinked');
+    });
+
     it('omits undefined values from query string', async () => {
       mockGet.mockResolvedValueOnce({
         documents: [],
@@ -210,6 +230,23 @@ describe('paperlessApi', () => {
       mockGetBaseUrl.mockReturnValue('https://example.com/api');
       const url = paperlessApi.getDocumentPreviewUrl(1);
       expect(url).toBe('https://example.com/api/paperless/documents/1/preview');
+    });
+  });
+
+  describe('listPaperlessDocumentTypes', () => {
+    it('calls GET /paperless/document-types and returns the response (#2252)', async () => {
+      const mockResponse = {
+        documentTypes: [
+          { id: 2, name: 'Contract' },
+          { id: 5, name: 'Plan' },
+        ],
+      };
+      mockGet.mockResolvedValueOnce(mockResponse);
+
+      const result = await paperlessApi.listPaperlessDocumentTypes();
+
+      expect(mockGet).toHaveBeenCalledWith('/paperless/document-types');
+      expect(result).toEqual(mockResponse);
     });
   });
 

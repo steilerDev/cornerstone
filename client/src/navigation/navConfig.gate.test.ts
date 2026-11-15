@@ -1,5 +1,6 @@
-// No served nav route is Paperless-gated today (Documents is still planned), so the gate branch of
-// navSections is exercised against a patched route lookup.
+// The gate branch of navSections is exercised against patched route lookups: today's real gated
+// route is `documents`, so the patch marks other routes with the other gate values (paperless,
+// paperless+ai). The unserved-gated-route case lives in navConfig.planned.test.ts.
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import type * as SharedTypes from '@cornerstone/shared';
 import type * as NavConfigTypes from './navConfig.js';

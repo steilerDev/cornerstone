@@ -159,8 +159,8 @@ describe('navHref', () => {
     expect(navHref('home')).toBe('/');
   });
 
-  it('throws for a planned route', () => {
-    expect(() => navHref('documents')).toThrow(/not served/);
+  it('opens the Documents page at /documents now that it is served (#2252)', () => {
+    expect(navHref('documents')).toBe('/documents');
   });
 
   it('throws for a parameterised route', () => {

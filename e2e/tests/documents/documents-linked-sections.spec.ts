@@ -25,7 +25,8 @@
  *     title on open; Escape closes; focus returns to the trigger
  * 6.  Picker: Link document opens the picker view; Escape returns to the list (sheet stays open,
  *     Link document focused); a second Escape closes the sheet
- * 7.  Browse all is absent (the Documents page route is not served yet)
+ * 7.  Browse all opens the Documents page (#2252; absent with Paperless off, where there is no
+ *     Link document footer either)
  * 8.  Phone viewport + dark mode: no horizontal overflow
  *
  * Attachment-type tagging (Story #1877, Scenarios 9+) mock a "configured" Paperless via
@@ -64,6 +65,7 @@ import {
   deleteSubsidyProgramViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API, ROUTES } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
 import {
   expectNoDocumentsButton,
@@ -71,6 +73,8 @@ import {
   mockPaperlessConfigured,
   settleDocumentsHost,
 } from '../../fixtures/paperlessMocks.js';
+
+const ROUTES_DOCUMENTS = routeUrl('documents');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: create a vendor + invoice via API and return IDs
@@ -452,19 +456,23 @@ test.describe('Documents panel — behaviour on the Task page (Scenarios 4–8)'
     }
   });
 
-  test('Browse all is absent while the Documents page route is not served', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Browse all opens the Documents page', async ({ page, testPrefix }) => {
     const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Browse All` });
     try {
       await mockPaperlessConfigured(page);
+      // The Documents page loads its list through the paginated mock
+      await mockPaginatedPaperless(page, { total: 2 });
       await new WorkItemDetailPage(page).goto(id);
       const panel = new DocumentsPanel(page);
       await panel.open();
 
       await expect(panel.linkDocumentButton).toBeVisible();
-      await expect(panel.browseAll).toHaveCount(0);
+      await expect(panel.browseAll).toBeVisible();
+      await panel.browseAll.click();
+
+      await expect(page).toHaveURL((url) => url.pathname === ROUTES_DOCUMENTS);
+      await expect(page.getByRole('heading', { level: 1, name: /^Documents/ })).toBeVisible();
+      await expect(panel.dialog).toHaveCount(0);
     } finally {
       await deleteWorkItemViaApi(page, id);
     }

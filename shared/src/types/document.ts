@@ -10,6 +10,7 @@
  * - API request/response shapes for proxy and linking endpoints
  */
 
+import type { InvoiceStatus } from './invoice.js';
 import type { PaginationMeta } from './pagination.js';
 import type { UndoToken } from './undo.js';
 
@@ -126,6 +127,8 @@ export interface PaperlessDocumentListQuery {
   sortBy?: 'created' | 'added' | 'modified' | 'title' | 'archive_serial_number';
   /** Sort direction. */
   sortOrder?: 'asc' | 'desc';
+  /** Hide documents linked to any record (system-wide, as GET /document-links/linked-ids). Paging and totalItems stay exact. */
+  excludeLinked?: boolean;
 }
 
 /**
@@ -236,4 +239,24 @@ export interface DocumentLinkListResponse {
  */
 export interface AllLinkedDocumentIdsResponse {
   paperlessDocumentIds: number[];
+}
+
+/** The record a document link points at, for the Documents page "Linked to" list (no UI words). */
+export interface DocumentLinkEntitySummary {
+  /** work_item: title; household_item, budget_source, subsidy_program: name; invoice: invoice number (may be null). */
+  title: string | null;
+  /** invoice only: the company name (else null). */
+  vendorName: string | null;
+  /** invoice only: its status (quotation = offer), for the client's invoiceDisplayTitle (else null). */
+  invoiceStatus: InvoiceStatus | null;
+}
+
+export interface DocumentLinkWithEntity extends DocumentLink {
+  /** null when the linked record no longer exists. */
+  entity: DocumentLinkEntitySummary | null;
+}
+
+/** Response for GET /api/document-links?paperlessDocumentId=… */
+export interface DocumentLinksForDocumentResponse {
+  documentLinks: DocumentLinkWithEntity[];
 }

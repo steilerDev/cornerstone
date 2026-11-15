@@ -3136,7 +3136,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card / Documents page (Paperless only) > 'Open in Paperless'",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document card / Documents page; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
+    "note": "Kept as it works today, inside Document card / Documents page; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below). #2252: also on the Documents page > document details panel > 'Open in Paperless' (new tab; hidden when Paperless has no browser URL)."
   },
   "JRN-082": {
     "name": "View a linked document's metadata and a text preview inline",
@@ -3176,7 +3176,7 @@
     "to": "Documents page (Paperless only) (/documents; Global > Sidebar secondary group 'Documents'; phone More sheet; 'Browse all' in the Documents panel; Global search)",
     "change": "promoted",
     "gate": "paperless",
-    "note": "Unreachable today; restored only when Paperless is configured. Also reached from the More sheet on phones and from search; the docs already promise this page (D5 §6.3 #3-5). #2233: 'Browse all' is rendered in the panel once route `documents` is served (P5.8)."
+    "note": "Unreachable today; restored only when Paperless is configured. Also reached from the More sheet on phones and from search; the docs already promise this page (D5 §6.3 #3-5). #2233: 'Browse all' is rendered in the panel once route `documents` is served (P5.8). #2252: built — /documents (route `documents` served, Paperless gate: with Paperless off it redirects to Home) on the object-list template without a primary; reached from Sidebar > Documents, the phone More sheet, 'Browse all' in the Documents panel (now always shown) and command-search document results (/documents?doc=<id>, which open the details panel). Rows open a details panel (?doc=<id>; docked from 1440 px, a side sheet below) with Linked to (Unlink with Undo, Link to… a task or purchase); Filters add Hide already linked."
   },
   "JRN-090": {
     "name": "Sort Paperless documents or filter them by document type (API only)",
@@ -3184,7 +3184,7 @@
     "to": "Documents page (Paperless only) > Sort and Type filter",
     "change": "promoted",
     "gate": "paperless",
-    "note": "API-only today."
+    "note": "API-only today. #2252: built — Documents page > Sort (Added, Created, Modified, Title, Archive no.) and Filters > Type (from GET /api/paperless/document-types) and Tags; both kept in the URL."
   },
   "JRN-099": {
     "name": "Let calendar and contacts apps detect changes efficiently (ETags; client edits ignored)",
@@ -3217,7 +3217,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q1",
-    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600. #2205: rendered from navSections(); quiet group shows each entry when its page is served; one active entry resolved from the route map. #2207: below 1024 px the bottom bar and the More sheet render from the same NavConfig; the sidebar is not mounted there, and More is highlighted when the active entry lives in the sheet."
+    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600. #2205: rendered from navSections(); quiet group shows each entry when its page is served; one active entry resolved from the route map. #2207: below 1024 px the bottom bar and the More sheet render from the same NavConfig; the sidebar is not mounted there, and More is highlighted when the active entry lives in the sheet. #2252: the secondary group's Documents entry now shows whenever Paperless is configured (route `documents` served)."
   },
   "PLT-002": {
     "name": "Return to the project overview by clicking the logo / app name",
@@ -3295,7 +3295,7 @@
     "gate": "none",
     "acceptance": "Bottom bar (5 slots) and More sheet list every destination of the sidebar; More opens and closes; closed sheet is inert.",
     "decision": "Q1d",
-    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert. #2212: Global › bottom bar: ＋ New is a button that opens the New sheet (no longer a link to /diary/new). #2231: built. The Home slot shows the Needs-attention count (CountBadge, 99+ cap; the slot's aria-label carries the exact count) from the shell attention state; no badge at 0, while loading or after an error."
+    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert. #2212: Global › bottom bar: ＋ New is a button that opens the New sheet (no longer a link to /diary/new). #2231: built. The Home slot shows the Needs-attention count (CountBadge, 99+ cap; the slot's aria-label carries the exact count) from the shell attention state; no badge at 0, while loading or after an error. #2252: the More sheet's Documents entry now shows whenever Paperless is configured (route `documents` served)."
   },
   "PLT-011": {
     "name": "Follow old bookmarks and legacy URLs to their new locations",

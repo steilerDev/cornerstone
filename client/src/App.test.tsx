@@ -322,6 +322,20 @@ jest.unstable_mockModule('./lib/settingsApi.js', () => ({
   updateHouseholdSettings: jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>(),
 }));
 
+// The shell and the Documents route gate read GET /api/paperless/status (#2252).
+const mockGetPaperlessStatus = jest.fn<() => Promise<unknown>>();
+jest.unstable_mockModule('./lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: jest.fn(),
+  getPaperlessDocument: jest.fn(),
+  listPaperlessTags: jest.fn(),
+  listPaperlessCorrespondents: jest.fn(),
+  listPaperlessDocumentTypes: jest.fn(),
+  getDocumentThumbnailUrl: jest.fn(),
+  getDocumentPreviewUrl: jest.fn(),
+  uploadPaperlessDocument: jest.fn(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -372,6 +386,14 @@ describe('App', () => {
     mockFetchHouseholdItemCategories.mockReset();
     mockFetchBudgetOverview.mockReset();
     mockGetAttention.mockReset();
+    mockGetPaperlessStatus.mockReset();
+    mockGetPaperlessStatus.mockResolvedValue({
+      configured: false,
+      reachable: false,
+      error: null,
+      paperlessUrl: null,
+      filterTag: null,
+    });
     mockGetHomeWeek.mockReset();
     mockGetHomePulse.mockReset();
     mockGetHomeSetup.mockReset();
@@ -1080,6 +1102,54 @@ describe('App', () => {
       await waitFor(() => expect(window.location.pathname).toBe('/login'), { timeout: 5000 });
       const next = new URLSearchParams(window.location.search).get('next');
       expect(next).toBe('/project/work-items/new?areaId=x');
+    }, 15000);
+  });
+
+  describe('Documents route (#2252)', () => {
+    function signIn() {
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'test-user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role: 'member',
+          authProvider: 'local',
+          oidcLinked: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+    }
+
+    it('redirects /documents to Home in one hop when Paperless is not configured', async () => {
+      signIn();
+      window.history.pushState({}, '', '/documents?q=roof');
+      render(<App />);
+
+      await waitFor(() => expect(window.location.pathname).toBe('/'), { timeout: 5000 });
+      // the rule carries the whole query (carries: ['*'])
+      expect(window.location.search).toBe('?q=roof');
+    }, 15000);
+
+    it('serves the Documents page (h1) when Paperless is configured', async () => {
+      signIn();
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: false,
+        error: null,
+        paperlessUrl: 'https://paperless.example.test',
+        filterTag: null,
+      });
+      window.history.pushState({}, '', '/documents');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Documents' }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/documents');
     }, 15000);
   });
 

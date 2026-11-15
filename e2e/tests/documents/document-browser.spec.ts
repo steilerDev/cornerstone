@@ -419,15 +419,15 @@ test.describe('Document Browser — not connected (Scenario 6)', { tag: '@respon
       });
 
       // The panel sees a configured Paperless (so Link document opens the picker); the browser
-      // then asks again and finds it switched off.
-      let calls = 0;
+      // then asks again and finds it switched off (flipped by the test; the app shell also calls
+      // this endpoint on mount, so call order is not reliable).
+      let off = false;
       await page.route('**/api/paperless/status', async (route: Route) => {
-        calls += 1;
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(
-            calls === 1
+            !off
               ? MOCK_STATUS_CONFIGURED
               : {
                   configured: false,
@@ -443,6 +443,7 @@ test.describe('Document Browser — not connected (Scenario 6)', { tag: '@respon
       await page.goto(`/project/work-items/${createdId}`);
       const docsPanel = new DocumentsPanel(page);
       await docsPanel.open();
+      off = true;
       await docsPanel.openPicker();
 
       const pickerModal = docsPanel.dialog;

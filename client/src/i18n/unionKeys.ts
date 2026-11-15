@@ -141,6 +141,8 @@ export const I18N_UNION_KEYS = {
   ),
   /** documents — attachment-type label for the document card / live-region announcement. */
   documentAttachmentType: unionKeySet('documents', 'documentCard.attachmentType', ATTACHMENT_TYPES),
+  /** documents — kind word of a 'Linked to' row on the Documents page (#2252). */
+  documentLinkKind: unionKeySet('documents', 'sheet.kind', DOCUMENT_LINK_ENTITY_TYPES),
   /** budget — source-report use-case title (wizard step 1, report list). */
   reportUseCase: unionKeySet('budget', 'sourceReports.useCase', SOURCE_REPORT_TYPES),
   /** budget — source-report use-case helper text (wizard step 1). */

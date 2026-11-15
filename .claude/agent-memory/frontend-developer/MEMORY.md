@@ -108,3 +108,4 @@ removing it will fail typecheck. Flag it so QA updates the import in-session.
 - [Invoice create dialog](invoice-create-dialog.md) — #2241 provider/schema/document picker wiring and baseline rules
 - [Financing shared pieces](financing-shared-pieces.md) — #2242 Phase B: EntityMultiPicker, ObjectHistorySection, GrantChips, provider, panel ref handle
 - [Tasks list adopter](tasks-list-adopter.md) — #2245 hook split, bulk selection limit, focus after bulk, time-group row refresh
+- [Documents page #2252](documents-page-2252.md) — no-primary counter, money-word trap, docked panel layout, set-state-in-effect, Bash guard

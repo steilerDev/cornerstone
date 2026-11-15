@@ -1,0 +1,120 @@
+/* ---- Row cells ---- */
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.tagChip {
+  composes: tagChip from '../../components/documents/DocumentDetailPanel.module.css';
+}
+
+.tagMore {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Paperless status blocks ---- */
+
+.infoState {
+  padding: var(--spacing-8);
+  text-align: center;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.errorState {
+  padding: var(--spacing-8);
+  text-align: center;
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+}
+
+.stateTitle {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.errorState .stateTitle,
+.errorState .stateText {
+  color: var(--color-danger-text-on-light);
+}
+
+.stateText {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-body);
+}
+
+.stateActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+}
+
+.retryButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+/* ---- Note row ---- */
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.noteStrong {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Side panel body ---- */
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.sheetError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+/* ---- Page layout: the list and the docked side panel (1440px and wider) ---- */
+
+.main {
+  min-width: 0;
+}
+
+.layoutDocked {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.panelSlot {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}

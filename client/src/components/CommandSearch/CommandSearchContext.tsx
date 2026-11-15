@@ -11,7 +11,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
-import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useCreateMenu } from '../CreateMenu/CreateMenuContext.js';
 
 export interface CommandSearchOpenOptions {
@@ -42,7 +41,6 @@ const DETACHED: CommandSearchApi = {
 };
 
 const CommandSearchContext = createContext<CommandSearchApi | null>(null);
-const PaperlessBaseUrlContext = createContext<(() => Promise<string | null>) | null>(null);
 
 function isModalOpen(): boolean {
   return document.querySelector('[aria-modal="true"]') !== null;
@@ -132,34 +130,15 @@ export function CommandSearchProvider({
   );
   useKeyboardShortcuts(shortcuts, { fallback: true });
 
-  const baseUrlRef = useRef<Promise<string | null> | null>(null);
-  const getBaseUrl = useCallback(() => {
-    baseUrlRef.current ??= getPaperlessStatus()
-      .then((status) => (status.configured ? (status.paperlessUrl ?? null) : null))
-      .catch(() => null);
-    return baseUrlRef.current;
-  }, []);
-
   const value = useMemo<CommandSearchApi>(
     () => ({ available: true, isOpen, open, close: onClose, toggle }),
     [isOpen, open, onClose, toggle],
   );
 
-  return (
-    <PaperlessBaseUrlContext value={getBaseUrl}>
-      <CommandSearchContext value={value}>{children}</CommandSearchContext>
-    </PaperlessBaseUrlContext>
-  );
+  return <CommandSearchContext value={value}>{children}</CommandSearchContext>;
 }
 
 /** The command search handle. Outside a provider every call does nothing. */
 export function useCommandSearch(): CommandSearchApi {
   return use(CommandSearchContext) ?? DETACHED;
-}
-
-const NO_BASE_URL = () => Promise.resolve<string | null>(null);
-
-/** Memoised Paperless link base (browser-facing URL), fetched lazily once; errors give null. */
-export function usePaperlessBaseUrl(): () => Promise<string | null> {
-  return use(PaperlessBaseUrlContext) ?? NO_BASE_URL;
 }

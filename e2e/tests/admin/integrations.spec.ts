@@ -269,15 +269,15 @@ test.describe('Integrations page (Story #2217)', { tag: '@responsive' }, () => {
     const integrations = new IntegrationsPage(page);
     await integrations.mockStatus();
 
-    // The first check fails; the second is held until released, then succeeds
-    let probes = 0;
+    // Checks fail until the test flips `succeed`; then the next check is held until released and
+    // succeeds (the app shell also calls this endpoint on mount, so call order is not reliable)
+    let succeed = false;
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     await page.route('**/api/paperless/status', async (route) => {
-      probes += 1;
-      if (probes === 1) {
+      if (!succeed) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -296,6 +296,7 @@ test.describe('Integrations page (Story #2217)', { tag: '@responsive' }, () => {
     await integrations.goto();
     await waitForCards(integrations);
     await expect(integrations.recheck).toBeVisible();
+    succeed = true;
 
     await integrations.recheck.focus();
     await page.keyboard.press('Enter');

@@ -26,6 +26,10 @@ export interface SidePanelProps {
   readonly testId: string;
   /** The heading takes focus when the panel opens or this changes. */
   readonly focusKey?: unknown;
+  /** Below the docked width: restore focus when the sheet unmounts. For a panel mounted only while open. */
+  readonly restoreFocusOnUnmount?: boolean;
+  /** With restoreFocusOnUnmount: when `.current` is true the opener is not refocused. */
+  readonly skipOpenerRef?: RefObject<boolean>;
 }
 
 /**
@@ -43,6 +47,8 @@ export function SidePanel({
   returnFocusRef,
   testId,
   focusKey,
+  restoreFocusOnUnmount,
+  skipOpenerRef,
 }: SidePanelProps) {
   const { t } = useTranslation('common');
   const docked = useMediaQuery(SIDE_PANEL_DOCKED_QUERY);
@@ -78,6 +84,8 @@ export function SidePanel({
         footer={footer}
         focusTitleOnOpen
         returnFocusRef={returnFocusRef}
+        restoreFocusOnUnmount={restoreFocusOnUnmount}
+        skipOpenerRef={skipOpenerRef}
         testId={testId}
       >
         {children}
