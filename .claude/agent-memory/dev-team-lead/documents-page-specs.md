@@ -18,4 +18,8 @@ Found while speccing #2252 (P5.8).
 9. **With no planned id left, `isRouteServed` guards in `navConfig.ts` become unreachable against the real map.** Keep them (future planned ids, nav must never show/fetch for an unserved route) and cover them with a patched `isRouteServed` (`navConfig.interim.test.ts` precedent) — don't let QA just drop the case.
 10. **RelatedList copy is fixed** ("Remove", "‹t› removed from ‹list›."); unlink semantics need optional `removeLabel`/`removedMessage` props. `EntityPickerDialog` closes on pick with no error slot — use RelatedList `kind: 'picker'` + inline EntityPicker + FormError when the AC wants the server refusal inline.
 
+11. **A new always-on shell fetch breaks call-index E2E mocks** (CI round 1): once AppShell fetches `/api/paperless/status` on mount, mocks that answer by call number (`calls === 1 ? configured : off`, `probes === 1 ? fail : gated success`) hand call 1 to the shell, so the page gets the wrong body or hangs. Grep `e2e/tests` for counters on the same route when a shell/global fetch is added; switch them to a flag flipped after the page has loaded.
+12. **A conditionally mounted `SidePanel` loses focus return below 1440 px**: its `Sheet` path restores focus only on an `open` true→false transition, never on unmount (docked path focuses in `dismiss`). Unit tests at jsdom width miss it; E2E tablet/mobile catch it. Use `Sheet`'s `restoreFocusOnUnmount` (+ `skipOpenerRef`) or keep the panel mounted.
+13. **ObjectList's title column is never sortable** (plain `<th>`); only `columns[]` with `sortValue` render header buttons. A "column header sort" AC/E2E must name a `sortValue` column.
+
 Related: [[area-page-specs]], [[object-list-specs]], [[route-map-staging-specs]], [[restructure-baseline-hazards]]

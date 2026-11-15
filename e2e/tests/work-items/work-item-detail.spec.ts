@@ -557,9 +557,14 @@ test.describe('Delete task (Scenario 7)', { tag: '@responsive' }, () => {
       createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Delete Key Test` });
 
       await detailPage.goto(createdId);
-      await page.keyboard.press('Delete');
+      // Retry the key: the shortcut listener may not be attached yet on the first press
+      await expect(async () => {
+        if (!(await detailPage.deleteDialog.dialog.isVisible())) {
+          await page.keyboard.press('Delete');
+        }
+        await expect(detailPage.deleteDialog.dialog).toBeVisible({ timeout: 1000 });
+      }).toPass({ timeout: 10_000 });
 
-      await detailPage.deleteDialog.waitForOpen();
       await detailPage.cancelDelete();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);

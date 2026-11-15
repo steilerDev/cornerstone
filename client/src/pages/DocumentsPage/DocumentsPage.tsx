@@ -52,6 +52,7 @@ function DocumentsLibrary({ status }: DocumentsLibraryProps) {
   const docked = useMediaQuery(SIDE_PANEL_DOCKED_QUERY);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const skipOpenerRef = useRef(false);
 
   const { list, config, labels } = useDocumentsList();
 
@@ -102,11 +103,13 @@ function DocumentsLibrary({ status }: DocumentsLibraryProps) {
 
   const closeSheet = useCallback(() => {
     // Resolved at close time: the row may only have been rendered after a deep link.
+    skipOpenerRef.current = false;
     returnFocusRef.current = docId === null ? null : findRowTitle(docId);
     removeDocParam();
   }, [docId, removeDocParam]);
 
   const handleUnavailable = useCallback(() => {
+    skipOpenerRef.current = true;
     returnFocusRef.current = null;
     setUnavailable(true);
     removeDocParam();
@@ -152,6 +155,8 @@ function DocumentsLibrary({ status }: DocumentsLibraryProps) {
             title={panelTitle}
             returnFocusRef={returnFocusRef}
             focusKey={docId}
+            restoreFocusOnUnmount
+            skipOpenerRef={skipOpenerRef}
             onClose={closeSheet}
           >
             <DocumentSheet

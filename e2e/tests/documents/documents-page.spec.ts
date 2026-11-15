@@ -343,13 +343,19 @@ test.describe('Documents page: list (AC1)', { tag: '@responsive' }, () => {
     await expect.poll(sortKeys).toBe('created:desc');
     await expect.poll(() => docs.titles()).toEqual(mock.sortedTitles('created', 'desc'));
 
-    // Column headers are sort buttons on the table surface
+    // Columns with a sort value are sort buttons on the table surface (the Title column is not a
+    // sort button in any ObjectList, so use the Document date column)
     if (await docs.olist.isTableSurface()) {
-      await docs.olist.columnHeader('Title').getByRole('button').click();
-      await expect.poll(() => mock.listRequests.at(-1)?.get('sortBy')).toBe('title');
+      await docs.olist.setSort('title', 'asc');
+      await expect.poll(sortKeys).toBe('title:asc');
+      await docs.olist
+        .columnHeader(/^Document date/)
+        .getByRole('button')
+        .click();
+      await expect.poll(() => mock.listRequests.at(-1)?.get('sortBy')).toBe('created');
       const order = requestParam(mock, 'sortOrder') === 'desc' ? 'desc' : 'asc';
-      await expect.poll(() => docs.titles()).toEqual(mock.sortedTitles('title', order));
-      await expect(page).toHaveURL((url) => url.searchParams.get('sortBy') === 'title');
+      await expect.poll(() => docs.titles()).toEqual(mock.sortedTitles('created', order));
+      await expect(page).toHaveURL((url) => url.searchParams.get('sortBy') === 'created');
     }
   });
 

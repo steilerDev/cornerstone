@@ -655,6 +655,55 @@ describe('the details panel', () => {
       expect(sheet()).toBeNull();
     });
 
+    describe('below 1440 px (the sheet unmounts instead of closing)', () => {
+      async function openFromRow(id: number) {
+        renderPage();
+        await loaded();
+        const title = screen.getByTestId(`documents-library-title-${id}`);
+        title.focus();
+        fireEvent.click(title);
+        await screen.findByTestId('documents-library-sheet');
+        await waitFor(() => expect(screen.getByRole('heading', { level: 2 })).toHaveFocus());
+        return title;
+      }
+
+      it('returns focus to the row title when the Close button is used', async () => {
+        const title = await openFromRow(8);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+
+        await waitFor(() => expect(loc()).toBe('/documents'));
+        expect(sheet()).toBeNull();
+        await waitFor(() => expect(title).toHaveFocus());
+      });
+
+      it('returns focus to the row title when Escape is pressed', async () => {
+        const title = await openFromRow(9);
+
+        fireEvent.keyDown(screen.getByTestId('documents-library-sheet'), { key: 'Escape' });
+
+        await waitFor(() => expect(loc()).toBe('/documents'));
+        expect(sheet()).toBeNull();
+        await waitFor(() => expect(title).toHaveFocus());
+      });
+
+      it('puts focus on the page heading when the opened document turns out unavailable', async () => {
+        mockGetDocument.mockRejectedValue(
+          new ApiClientError(404, { code: 'NOT_FOUND', message: 'raw' }),
+        );
+        renderPage();
+        await loaded();
+        const title = screen.getByTestId('documents-library-title-8');
+        title.focus();
+        fireEvent.click(title);
+
+        expect(await screen.findByText('That document is not available')).toBeVisible();
+        await waitFor(() => expect(sheet()).toBeNull());
+        await waitFor(() => expect(heading()).toHaveFocus());
+        expect(title).not.toHaveFocus();
+      });
+    });
+
     it('closes a deep-linked panel whose row is not on the page, without a row to focus', async () => {
       media.set('(min-width: 1440px)', true);
       renderPage('/documents?doc=4711');
