@@ -34,6 +34,7 @@ import {
   deleteVendorViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
+import { findOwnFundsId } from '../../fixtures/financingSeed.js';
 import { API } from '../../fixtures/testData.js';
 import { HouseholdItemCreatePage } from '../../pages/HouseholdItemCreatePage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
@@ -43,8 +44,8 @@ import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const TASK_URL = new RegExp(`/project/work-items/${UUID}$`);
-const PURCHASE_URL = new RegExp(`/project/household-items/${UUID}$`);
+const TASK_URL = new RegExp(`/project/work-items/${UUID}(\\?.*)?$`);
+const PURCHASE_URL = new RegExp(`/project/household-items/${UUID}(\\?.*)?$`);
 
 const COST_LINE_FAILED =
   "Task created, but its planned cost couldn't be saved. Add it on the Cost tab.";
@@ -125,7 +126,7 @@ test.describe('New task: Planned cost (Q1-Q3, AC1)', { tag: '@responsive' }, () 
       plannedAmount: 1500,
       includesVat: false,
       budgetCategoryId: null,
-      budgetSourceId: null,
+      budgetSourceId: await findOwnFundsId(page),
     });
     const task = (await (await page.request.get(`${API.workItems}/${taskId}`)).json()) as {
       assignedVendor: { id: string } | null;
@@ -188,7 +189,7 @@ test.describe('New task: Planned cost (Q1-Q3, AC1)', { tag: '@responsive' }, () 
 
     await page.waitForURL(TASK_URL);
     created.tasks.push(idFromUrl(page));
-    expect(page.url()).not.toContain('costLineFailed');
+    await expect(page).not.toHaveURL(/costLineFailed/);
     const banner = page.getByText(COST_LINE_FAILED);
     await expect(banner).toBeVisible();
     await page.getByTestId('task-cost-line-error-dismiss').click();
@@ -342,6 +343,7 @@ test.describe('Detail cards share the dialog schema (Q6, AC4)', { tag: '@respons
     await task.detailsCard.saveButton.click();
     await expect(task.detailsCard.form.getByText('Title is required')).toBeVisible();
     await task.detailsCard.cancelButton.click();
+    await task.detailsCard.discardConfirm.confirm();
     await expect(task.detailsCard.form).toBeHidden();
 
     // The dialog's label for the same field

@@ -28,6 +28,7 @@ import type * as DependenciesApiTypes from '../lib/dependenciesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../lib/workItemBudgetsApi.js';
 import type * as VendorsApiTypes from '../lib/vendorsApi.js';
 import type { UseAreasResult } from '../hooks/useAreas.js';
+import type * as BudgetSourcesApiTypes from '../lib/budgetSourcesApi.js';
 import type * as FormTypes from './taskForm.js';
 import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
 import type * as StateTypes from '../components/ObjectForm/objectFormState.js';
@@ -36,6 +37,7 @@ const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
 const mockCreateBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
@@ -65,6 +67,9 @@ jest.unstable_mockModule('../lib/workItemsApi.js', () => ({
 }));
 jest.unstable_mockModule('../lib/workItemBudgetsApi.js', () => ({
   createWorkItemBudget: mockCreateBudget,
+}));
+jest.unstable_mockModule('../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
 }));
 jest.unstable_mockModule('../lib/usersApi.js', () => ({ listUsers: mockListUsers }));
 jest.unstable_mockModule('../lib/dependenciesApi.js', () => ({
@@ -216,6 +221,13 @@ describe('taskForm (ObjectForm schema)', () => {
     mockCreateBudget.mockReset();
     mockDeleteWorkItem.mockReset();
     mockCreateBudget.mockResolvedValue({} as never);
+    mockFetchBudgetSources.mockReset();
+    mockFetchBudgetSources.mockResolvedValue({
+      budgetSources: [
+        { id: 'src-loan', isDiscretionary: false },
+        { id: 'src-disc', isDiscretionary: true },
+      ],
+    } as never);
     mockListUsers.mockReset();
     mockCreateDependency.mockReset();
     mockFetchVendors.mockReset();
@@ -736,10 +748,16 @@ describe('taskForm (ObjectForm schema)', () => {
       await user.click(save());
       await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
       expect(mockCreateBudget).toHaveBeenCalledTimes(1);
-      // toEqual: budgetCategoryId / budgetSourceId must be absent (set later in the Cost tab).
+      // API-Contract "budgetSourceId Required: Yes": the discretionary source is sent;
+      // budgetCategoryId stays absent (set later in the Cost tab).
       expect(mockCreateBudget.mock.calls[0]).toEqual([
         'work-1',
-        { description: 'Plaster wall', plannedAmount: 1200, includesVat: false },
+        {
+          description: 'Plaster wall',
+          plannedAmount: 1200,
+          includesVat: false,
+          budgetSourceId: 'src-disc',
+        },
       ]);
       expect(onCreated).toHaveBeenCalledWith({
         id: 'work-1',
@@ -761,7 +779,12 @@ describe('taskForm (ObjectForm schema)', () => {
       await waitFor(() => expect(mockCreateBudget).toHaveBeenCalledTimes(1));
       expect(mockCreateBudget.mock.calls[0]).toEqual([
         'work-1',
-        { description: 'Gross task', plannedAmount: 119.5, includesVat: true },
+        {
+          description: 'Gross task',
+          plannedAmount: 119.5,
+          includesVat: true,
+          budgetSourceId: 'src-disc', // API-Contract "budgetSourceId Required: Yes"
+        },
       ]);
     });
 
@@ -774,6 +797,7 @@ describe('taskForm (ObjectForm schema)', () => {
       await user.click(save());
       await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
       expect(mockCreateBudget).not.toHaveBeenCalled();
+      expect(mockFetchBudgetSources).not.toHaveBeenCalled();
     });
 
     it('creates a zero-estimate line for an amount of 0 (0 differs from empty)', async () => {
@@ -787,7 +811,12 @@ describe('taskForm (ObjectForm schema)', () => {
       await waitFor(() => expect(mockCreateBudget).toHaveBeenCalledTimes(1));
       expect(mockCreateBudget.mock.calls[0]).toEqual([
         'work-1',
-        { description: 'Zero cost', plannedAmount: 0, includesVat: false },
+        {
+          description: 'Zero cost',
+          plannedAmount: 0,
+          includesVat: false,
+          budgetSourceId: 'src-disc', // API-Contract "budgetSourceId Required: Yes"
+        },
       ]);
     });
 
@@ -826,6 +855,35 @@ describe('taskForm (ObjectForm schema)', () => {
       expect(onCreated.mock.calls[0]![0].href).toBe(
         '/project/work-items/work-7?tab=cost&costLineFailed=1',
       );
+    });
+
+    it.each([
+      [
+        'no discretionary source exists',
+        () =>
+          mockFetchBudgetSources.mockResolvedValue({
+            budgetSources: [{ id: 'src-loan', isDiscretionary: false }],
+          } as never),
+      ],
+      [
+        'the budget sources request fails',
+        () => mockFetchBudgetSources.mockRejectedValue(new Error('offline')),
+      ],
+    ])('keeps the task and flags the cost line when %s', async (_name, arrange) => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      arrange();
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'No source');
+      await user.type(screen.getByLabelText(/^planned cost/i), '50');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateBudget).not.toHaveBeenCalled();
+      expect(mockDeleteWorkItem).not.toHaveBeenCalled();
+      const result = onCreated.mock.calls[0]![0];
+      expect(result.href).toContain('tab=cost&costLineFailed=1');
+      expect(result.incomplete).toBe(true);
     });
 
     it('reports both failures: Timing tab with depError plus costLineFailed', async () => {

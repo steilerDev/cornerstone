@@ -21,6 +21,7 @@ import type {
 import type { KnownCompany } from '../hooks/useCompanyName.js';
 import { useAreas } from '../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
+import { fetchBudgetSources } from '../lib/budgetSourcesApi.js';
 import { createDependency } from '../lib/dependenciesApi.js';
 import { listUsers } from '../lib/usersApi.js';
 import { createWorkItemBudget } from '../lib/workItemBudgetsApi.js';
@@ -353,8 +354,13 @@ export function useTaskFormSchema(options: TaskFormOptions = {}): ObjectFormSche
       if (planned !== '') {
         try {
           // Net by default; sent explicitly because the server defaults includesVat to true.
-          // No category, no funding source: both are set later in the Cost tab.
+          // No category; the default (discretionary) funding source, which the server requires.
+          // Both can be changed later in the Cost tab.
+          const { budgetSources } = await fetchBudgetSources();
+          const discretionary = budgetSources.find((source) => source.isDiscretionary);
+          if (!discretionary) throw new Error('No discretionary funding source');
           await createWorkItemBudget(workItem.id, {
+            budgetSourceId: discretionary.id,
             description: title,
             plannedAmount: Number(planned),
             includesVat: values.plannedIncludesVat === true,

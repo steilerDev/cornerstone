@@ -18,4 +18,7 @@ Found while speccing #2254 (P5.10a). Applies to any story that reuses an `object
 9. Pre-measure baseline by importing `analyzeFile`/`resolveImport` from `build-baseline.mjs` in a job-tmp script (Write the file, then a plain `node` call; the worktree guard refuses heredoc+pipe).
 10. **CSS Modules composes must stay acyclic** — page modules compose only from shared leaves like `objectPage.module.css`; unit tests mock CSS so only the webpack build catches cycles (CI: `Cannot access '__WEBPACK_DEFAULT_EXPORT__' before initialization`).
 
+11. **"No funding source" (PO) ≠ omit `budgetSourceId`** (CI finding): budget-line create returns 400 `budgetSourceId is required` (contract + service) though shared `CreateBudgetLineRequest` types it optional. "No source" = the discretionary source (`fetchBudgetSources()` → `isDiscretionary`, like `useCostLineOptions`). Mocked unit tests pinned the wrong payload with `toEqual`; check every invented POST body against the contract's Required column.
+12. **E2E post-create URL regexes must allow a query** — failure paths land on `?tab=…` after the param-strip replace; a `$`-anchored id regex times out. Dirty SectionCard Cancel opens Discard: tests confirm via `discardConfirm`.
+
 Related: [[object-home-move-specs]], [[cost-line-specs]], [[task-page-specs]], [[purchase-page-specs]], [[milestone-page-specs]]
