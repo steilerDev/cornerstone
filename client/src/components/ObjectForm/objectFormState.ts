@@ -3,6 +3,7 @@ import type {
   ObjectFormErrors,
   ObjectFormField,
   ObjectFormSchema,
+  ObjectFormScope,
   ObjectFormValues,
 } from './types.js';
 
@@ -183,4 +184,32 @@ export function serverFieldErrors(
     }
   }
   return { fields, unmapped: unmapped || fields.length === 0 };
+}
+
+/** The fields of one scope (fields without `scope` belong to both). */
+export function fieldsForScope(
+  fields: readonly ObjectFormField[],
+  scope: ObjectFormScope,
+): readonly ObjectFormField[] {
+  return fields.filter((field) => field.scope === undefined || field.scope === scope);
+}
+
+/** The errors of the given field names only (a card validates its own fields). */
+export function pickErrors<K extends string>(
+  errors: ObjectFormErrors,
+  names: readonly K[],
+): Partial<Record<K, string>> {
+  const picked: Partial<Record<K, string>> = {};
+  for (const name of names) {
+    const message = errors[name];
+    if (message !== undefined) picked[name] = message;
+  }
+  return picked;
+}
+
+/** A field value as card-draft text: strings as they are, null/undefined as '', anything else String(). */
+export function toDraftText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  return String(value);
 }

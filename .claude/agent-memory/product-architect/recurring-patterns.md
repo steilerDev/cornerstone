@@ -2284,3 +2284,12 @@ and updated only the API Contract and Route Map. In review, grep the diff for ne
 `client/src/components/` and `client/src/navigation/` and check each against its Architecture bullet.
 Also grep `from '../[A-Za-z]*Page/'` in `client/src/pages`: a page importing a sibling page's helper
 (`AreasPage/areaTree.ts`) means the helper belongs in `client/src/lib/`.
+
+## Whole schema hooks mounted to edit a few fields (PR #2361, #2254)
+
+A card that renders a subset of an ObjectForm schema still runs the whole schema hook, and with it
+every reference-data fetch: `useAreas()`, categories, users. So editing four date fields fired
+`GET /api/areas` plus the categories request. In review, list the fetches each `use*FormSchema` makes
+and check them against the `names` each edit card renders. The same PR copied a page-private banner
+across pages through `composes: … from '../OtherPage/…module.css'`. Grep CSS for that pattern too,
+alongside the TS sibling-page check above.

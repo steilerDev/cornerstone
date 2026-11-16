@@ -92,16 +92,19 @@
       "assignedTo": "Wer",
       "unassigned": "Nicht zugewiesen",
       "durationDays": "Dauer (Tage)",
-      "durationError": "Dauer muss eine positive Zahl sein",
+      "durationError": "Dauer muss 0 oder mehr Tage betragen.",
       "startAfter": "Frühestens ab",
       "startBefore": "Spätestens ab",
       "constraintsError": "„Spätestens ab“ darf nicht vor „Frühestens ab“ liegen.",
       "tags": "Tags",
       "area": "Bereich",
-      "dependencies": "Wartet auf"
+      "dependencies": "Wartet auf",
+      "plannedCost": "Geplante Kosten",
+      "plannedCostHint": "Legt die erste Kostenposition an. Weitere fügst du auf der Aufgabenseite hinzu."
     },
     "errors": {
-      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen."
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen.",
+      "costLineFailed": "Aufgabe erstellt, aber die geplanten Kosten konnten nicht gespeichert werden. Füge sie unter „Kosten“ hinzu."
     },
     "added": "Aufgabe „{{title}}“ hinzugefügt.",
     "waitsFor": {
@@ -131,9 +134,6 @@
     "loading": "Aufgabe wird geladen…",
     "overview": {
       "details": "Details",
-      "title": "Titel",
-      "titleRequired": "Gib einen Titel ein.",
-      "description": "Beschreibung",
       "noDescription": "Noch keine Beschreibung",
       "whoWhere": "Wer und wo",
       "who": "Wer",
@@ -188,15 +188,12 @@
       "duration": "Dauer",
       "durationDays_one": "{{count}} Tag",
       "durationDays_other": "{{count}} Tage",
-      "durationLabel": "Dauer in Tagen",
-      "durationError": "Gib eine ganze Zahl von Tagen ein, 0 oder mehr.",
       "finishedBeforeStarted": "„Beendet“ kann nicht vor „Begonnen“ liegen.",
       "notScheduled": "Nicht geplant",
       "reschedule": "Neu planen…",
       "constraints": "Einschränkungen",
       "notBefore": "Frühestens ab",
       "startBy": "Spätestens ab",
-      "constraintsError": "„Spätestens ab“ darf nicht vor „Frühestens ab“ liegen.",
       "saveError": "Die Termine konnten nicht gespeichert werden.",
       "waitsFor": "Wartet auf",
       "waitsForEmpty": "Diese Aufgabe wartet auf keine andere Aufgabe.",

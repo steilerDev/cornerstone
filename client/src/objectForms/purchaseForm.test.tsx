@@ -15,13 +15,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ApiClientError } from '../lib/apiClient.js';
 import { makeSearchCompanies } from '../test/companySearchMock.js';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
+import enHouseholdItems from '../i18n/en/householdItems.json';
 import { installMatchMedia } from '../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormResult } from '../components/ObjectForm/types.js';
 import type * as HouseholdItemsApiTypes from '../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../lib/vendorsApi.js';
+import type * as HouseholdItemDepsApiTypes from '../lib/householdItemDepsApi.js';
+import type * as WorkItemsApiTypes from '../lib/workItemsApi.js';
+import type * as MilestonesApiTypes from '../lib/milestonesApi.js';
 import type * as CategoriesApiTypes from '../lib/householdItemCategoriesApi.js';
 import type { UseAreasResult } from '../hooks/useAreas.js';
 import type * as FormTypes from './purchaseForm.js';
@@ -31,6 +35,9 @@ import type * as StateTypes from '../components/ObjectForm/objectFormState.js';
 const mockCreateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
+const mockCreateDep = jest.fn<typeof HouseholdItemDepsApiTypes.createHouseholdItemDep>();
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
 
 // EntityPicker formats document dates, so it reads the locale.
 jest.unstable_mockModule('../contexts/LocaleContext.js', () => {
@@ -62,6 +69,13 @@ jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
 jest.unstable_mockModule('../hooks/useTrades.js', () => ({
   useTrades: () => ({ trades: [], isLoading: false, isInitialLoading: false, error: null }),
 }));
+jest.unstable_mockModule('../lib/householdItemDepsApi.js', () => ({
+  createHouseholdItemDep: mockCreateDep,
+}));
+jest.unstable_mockModule('../lib/workItemsApi.js', () => ({ listWorkItems: mockListWorkItems }));
+jest.unstable_mockModule('../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+}));
 jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchCategories,
 }));
@@ -69,7 +83,7 @@ jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
 const AREAS = [
   { id: 'a1', name: 'Kitchen', parentId: null, color: null, sortOrder: 0 },
 ] as unknown as UseAreasResult['areas'];
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 jest.unstable_mockModule('../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
 
 const CREATED = { id: 'hi-1' } as unknown as Awaited<
@@ -154,7 +168,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
   it('shows the essentials and keeps the delivery details under More details', async () => {
     renderForm();
     await name();
-    for (const label of [/^name/i, /^status/i, /quantity/i, /company/i]) {
+    for (const label of [/^name/i, /^status/i, /quantity/i, /company/i, /earliest/i, /latest/i]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
     // Category is an EntityPicker custom field: the first category is preselected as a chip.
@@ -164,14 +178,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
     const more = screen.getByTestId('object-form-more');
     expect(more).toHaveAttribute('aria-expanded', 'false');
     const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
-    for (const label of [
-      /description/i,
-      /product link/i,
-      /ordered on/i,
-      /earliest/i,
-      /latest/i,
-      /delivered on/i,
-    ]) {
+    for (const label of [/description/i, /product link/i, /ordered on/i, /delivered on/i]) {
       expect(hidden.querySelector(`label`)).not.toBeNull();
       expect(
         Array.from(hidden.querySelectorAll('label')).some((l) => label.test(l.textContent ?? '')),
@@ -587,6 +594,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
           id: 'hi-1',
           href: '/project/household-items/hi-1',
           label: 'Kitchen Island',
+          incomplete: false,
         }),
       );
     });
@@ -616,6 +624,379 @@ describe('purchaseForm (ObjectForm schema)', () => {
       expect(await screen.findByRole('alert')).toBeInTheDocument();
       expect(document.body.textContent).not.toContain('SQLITE_BUSY');
       expect(onCreated).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('quick create (#2254): Waits for, delivery window, scope', () => {
+    const TASKS = {
+      items: [
+        { id: 'wi-1', title: 'Roof tiles', area: null },
+        { id: 'wi-2', title: 'Wiring', area: null },
+      ],
+      pagination: { page: 1, pageSize: 15, totalItems: 2, totalPages: 1 },
+    };
+    const MILESTONES = [
+      { id: 9, title: 'Shell finished', targetDate: '2026-09-01' },
+    ] as unknown as Awaited<ReturnType<typeof MilestonesApiTypes.listMilestones>>;
+
+    const hiddenLabels = () => {
+      const more = screen.getByTestId('object-form-more');
+      const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
+      return Array.from(hidden.querySelectorAll('label')).map((l) => l.textContent ?? '');
+    };
+
+    async function pick(user: ReturnType<typeof userEvent.setup>, ...titles: RegExp[]) {
+      const multi = screen.getByTestId('purchase-form-waits-for');
+      for (const title of titles) {
+        await user.click(within(multi).getByRole('textbox'));
+        await user.click(await screen.findByRole('option', { name: title }));
+      }
+      return multi;
+    }
+
+    beforeEach(() => {
+      mockListWorkItems.mockReset();
+      mockListMilestones.mockReset();
+      mockCreateDep.mockReset();
+      mockListWorkItems.mockResolvedValue(TASKS as never);
+      mockListMilestones.mockResolvedValue(MILESTONES);
+      mockCreateDep.mockResolvedValue({} as never);
+    });
+
+    it('shows Waits for and the delivery window up front; the rest waits under More details', async () => {
+      renderForm();
+      await name();
+      expect(screen.getByTestId('purchase-form-waits-for')).toBeInTheDocument();
+      const hidden = hiddenLabels();
+      expect(hidden).toHaveLength(4);
+      for (const label of ['Description', 'Product link', 'Ordered on', 'Delivered on']) {
+        expect(hidden).toContain(label);
+      }
+      const visible = Array.from(document.querySelectorAll<HTMLElement>('[data-field]'))
+        .filter((el) => el.closest('[hidden]') === null)
+        .map((el) => el.getAttribute('data-field'));
+      expect(visible).toEqual([
+        'name',
+        'category',
+        'status',
+        'quantity',
+        'area',
+        'vendorId',
+        'waitsFor',
+        'earliestDeliveryDate',
+        'latestDeliveryDate',
+      ]);
+      expect(screen.getByLabelText('Earliest delivery')).toBeVisible();
+      expect(screen.getByLabelText('Latest delivery')).toBeVisible();
+    });
+
+    it('limits description to 5000, product link and name as documented', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await name();
+      await user.click(screen.getByTestId('object-form-more'));
+      expect(screen.getByLabelText(/^name/i)).toHaveAttribute('maxlength', '500');
+      expect(screen.getByLabelText(/description/i)).toHaveAttribute('maxlength', '5000');
+      expect(screen.getByLabelText(/product link/i)).toHaveAttribute('maxlength', '2000');
+    });
+
+    it('creates one finish-to-start dependency per choice (a task and a milestone)', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Sofa');
+      await pick(user, /Roof tiles/, /Shell finished/);
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateDep.mock.calls).toEqual([
+        ['hi-1', { predecessorType: 'work_item', predecessorId: 'wi-1' }],
+        ['hi-1', { predecessorType: 'milestone', predecessorId: '9' }],
+      ]);
+      expect(onCreated).toHaveBeenCalledWith({
+        id: 'hi-1',
+        href: '/project/household-items/hi-1',
+        label: 'Sofa',
+        incomplete: false,
+      });
+    });
+
+    it('creates no dependency when nothing was chosen', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Sofa');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateDep).not.toHaveBeenCalled();
+    });
+
+    it('keeps the purchase and names only the failed link in depError on the Timing tab', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      mockCreateDep.mockResolvedValueOnce({} as never).mockRejectedValueOnce(new Error('cycle'));
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Sofa');
+      await pick(user, /Roof tiles/, /Shell finished/);
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(onCreated).toHaveBeenCalledWith({
+        id: 'hi-1',
+        href: routeUrl(
+          'householdItem',
+          { id: 'hi-1' },
+          { tab: 'timing', depError: 'Shell finished' },
+        ),
+        label: 'Sofa',
+        incomplete: true,
+      });
+      expect(onCreated.mock.calls[0]![0].href).toBe(
+        '/project/household-items/hi-1?tab=timing&depError=Shell+finished',
+      );
+    });
+
+    it('joins several failed titles with a comma', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      mockCreateDep.mockRejectedValue(new Error('cycle'));
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Sofa');
+      await pick(user, /Roof tiles/, /Wiring/);
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(onCreated.mock.calls[0]![0]).toMatchObject({
+        incomplete: true,
+        href: routeUrl(
+          'householdItem',
+          { id: 'hi-1' },
+          { tab: 'timing', depError: 'Roof tiles, Wiring' },
+        ),
+      });
+    });
+
+    it('skips a malformed Waits for value instead of posting it', async () => {
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      const view = renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled());
+      const outcome = await view.result.current.submit({
+        name: 'Sofa',
+        category: 'c',
+        status: 'planned',
+        quantity: '1',
+        waitsFor: [{ id: 'garbage', label: 'Bad' }],
+      });
+      expect(mockCreateDep).not.toHaveBeenCalled();
+      expect(outcome.incomplete).toBe(true);
+      expect(outcome.href).toBe('/project/household-items/hi-1?tab=timing&depError=Bad');
+    });
+
+    it('treats a non-list Waits for value as no choices', async () => {
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      const view = renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled());
+      await view.result.current.submit({
+        name: 'Sofa',
+        category: 'c',
+        status: 'planned',
+        quantity: '1',
+        waitsFor: 'nope',
+      });
+      expect(mockCreateDep).not.toHaveBeenCalled();
+    });
+
+    it('renders the Waits for picker empty for a non-list value', async () => {
+      const view = renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled());
+      const field = view.result.current.fields.find((f) => f.name === 'waitsFor')!;
+      render(
+        <MemoryRouter>
+          {field.render!({
+            id: 'waitsFor',
+            value: 'nope',
+            setValue: jest.fn(),
+            busy: false,
+            invalid: false,
+            describedBy: undefined,
+            createChild: jest.fn(),
+            setValues: jest.fn(),
+            values: {},
+          })}
+        </MemoryRouter>,
+      );
+      expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull();
+    });
+
+    it('rejects a fractional quantity with the whole-number message', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Chair');
+      fireEvent.change(screen.getByLabelText(/quantity/i), { target: { value: '1.5' } });
+      await user.click(save());
+      expect(await screen.findByText('Enter a whole number, 1 or more.')).toBeInTheDocument();
+      expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
+    });
+
+    describe('scopes', () => {
+      const names = (fields: readonly { name: string }[]) => fields.map((f) => f.name);
+
+      it('create scope has every field', async () => {
+        const view = renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+        await act(async () => {});
+        expect(names(view.result.current.fields)).toEqual([
+          'name',
+          'category',
+          'status',
+          'quantity',
+          'area',
+          'vendorId',
+          'waitsFor',
+          'earliestDeliveryDate',
+          'latestDeliveryDate',
+          'description',
+          'url',
+          'orderDate',
+          'actualDeliveryDate',
+        ]);
+      });
+
+      it('edit scope drops status and waitsFor, never loads companies, still loads categories', async () => {
+        const view = renderHook(() => Form.usePurchaseFormSchema({ scope: 'edit' }), {
+          wrapper: MemoryRouter,
+        });
+        await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+        await act(async () => {});
+        const all = names(view.result.current.fields);
+        expect(all).not.toContain('status');
+        expect(all).not.toContain('waitsFor');
+        expect(all).toContain('earliestDeliveryDate');
+        expect(mockFetchVendors).not.toHaveBeenCalled();
+        const vendor = view.result.current.fields.find((f) => f.name === 'vendorId')!;
+        expect(vendor.options).toBeUndefined();
+      });
+
+      it('edit scope shows the known company name and offers no "New company"', async () => {
+        const user = userEvent.setup();
+        const view = renderHook(
+          () =>
+            Form.usePurchaseFormSchema({
+              scope: 'edit',
+              knownCompany: { id: 'v9', name: 'Known Supplies' },
+            }),
+          { wrapper: MemoryRouter },
+        );
+        await act(async () => {});
+        const vendor = view.result.current.fields.find((f) => f.name === 'vendorId')!;
+        render(
+          <MemoryRouter>
+            {vendor.render!({
+              id: 'vendorId',
+              value: 'v9',
+              setValue: jest.fn(),
+              busy: false,
+              invalid: false,
+              describedBy: undefined,
+              createChild: jest.fn(),
+              setValues: jest.fn(),
+              values: {},
+            })}
+          </MemoryRouter>,
+        );
+        expect(await screen.findByText('Known Supplies')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+        await user.type(screen.getByRole('textbox'), 'Fresh');
+        await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+        expect(screen.queryByRole('option', { name: /new company/i })).toBeNull();
+      });
+    });
+
+    describe('validatePurchaseValues', () => {
+      const messages = () => renderHook(() => Form.usePurchaseValueMessages()).result.current;
+
+      it('has the dialog copy', () => {
+        expect(messages()).toEqual({
+          name: 'Enter a name.',
+          category: 'Choose a category.',
+          quantity: 'Enter a whole number, 1 or more.',
+          deliveryDates: enHouseholdItems.create.form.deliveryDates.error,
+          deliveryWindow: "Latest delivery can't be before earliest delivery.",
+        });
+      });
+
+      it('accepts whole quantities of 1 or more only', () => {
+        const m = messages();
+        const check = (quantity: string) =>
+          Form.validatePurchaseValues({ name: 'x', category: 'c', quantity }, m).quantity;
+        expect(check('1')).toBeUndefined();
+        expect(check('12')).toBeUndefined();
+        expect(check('0')).toBe(m.quantity);
+        expect(check('-2')).toBe(m.quantity);
+        expect(check('1.5')).toBe(m.quantity);
+        expect(check('')).toBe(m.quantity);
+        expect(check('abc')).toBe(m.quantity);
+      });
+
+      it('flags a latest delivery before the earliest and a delivery before the order date', () => {
+        const m = messages();
+        const base = { name: 'x', category: 'c', quantity: '1' };
+        expect(
+          Form.validatePurchaseValues(
+            { ...base, earliestDeliveryDate: '2026-05-02', latestDeliveryDate: '2026-05-01' },
+            m,
+          ),
+        ).toEqual({ latestDeliveryDate: m.deliveryWindow });
+        expect(
+          Form.validatePurchaseValues(
+            { ...base, orderDate: '2026-05-02', actualDeliveryDate: '2026-05-01' },
+            m,
+          ),
+        ).toEqual({ actualDeliveryDate: m.deliveryDates });
+      });
+
+      it('treats a whitespace-only name and a missing category as missing', () => {
+        const m = messages();
+        expect(Form.validatePurchaseValues({ name: '  ', quantity: '1' }, m)).toEqual({
+          name: m.name,
+          category: m.category,
+        });
+      });
+    });
+  });
+
+  describe('reference-data loading (#2254)', () => {
+    it('loads categories and areas by default (the create dialog)', async () => {
+      renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+      expect(mockUseAreas).toHaveBeenCalledWith({ enabled: true });
+    });
+
+    it('requests neither categories nor areas when the card opts out of both', async () => {
+      mockUseAreas.mockClear();
+      const view = renderHook(
+        () =>
+          Form.usePurchaseFormSchema({
+            scope: 'edit',
+            load: { areas: false, categories: false },
+          }),
+        { wrapper: MemoryRouter },
+      );
+      await act(async () => {});
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
+      const category = view.result.current.fields.find((f) => f.name === 'category');
+      expect(category).toBeDefined();
+    });
+
+    it('loads only the categories when just the areas are skipped', async () => {
+      mockUseAreas.mockClear();
+      renderHook(() => Form.usePurchaseFormSchema({ scope: 'edit', load: { areas: false } }), {
+        wrapper: MemoryRouter,
+      });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
     });
   });
 
@@ -665,6 +1046,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
         id: 'hi-1',
         href: '/project/household-items/hi-1',
         label: 'Lamp',
+        incomplete: false,
       });
     });
 

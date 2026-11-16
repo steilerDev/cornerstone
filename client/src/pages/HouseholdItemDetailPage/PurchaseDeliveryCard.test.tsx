@@ -6,22 +6,33 @@
  * changed dates.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { HouseholdItemPageDetail } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makePurchasePage } from '../../test/purchasePageFixtures.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type { UseAreasResult } from '../../hooks/useAreas.js';
 import type * as CardModule from './PurchaseDeliveryCard.js';
 
 const mockUpdate = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
 const realLocalDate = await import('../../lib/localDate.js');
 
+const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: mockUpdate,
+  createHouseholdItem: jest.fn(),
 }));
+// Edit mode mounts the purchase schema hook: its reference-data requests are mocked by module.
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchCategories,
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
 jest.unstable_mockModule('../../lib/localDate.js', () => ({
   ...realLocalDate,
   todayLocalIsoDate: () => '2026-04-10',
@@ -66,6 +77,16 @@ describe('PurchaseDeliveryCard', () => {
     refresh.mockReset();
     mockUpdate.mockResolvedValue({} as never);
     refresh.mockResolvedValue(undefined);
+    mockFetchCategories.mockReset();
+    mockFetchCategories.mockResolvedValue({
+      categories: [{ id: 'hic-furniture', name: 'Furniture', translationKey: null }],
+    } as never);
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    } as unknown as UseAreasResult);
     if (!Card) Card = await import('./PurchaseDeliveryCard.js');
   });
 
@@ -100,6 +121,75 @@ describe('PurchaseDeliveryCard', () => {
     it('shows no late row for a purchase that is not late', () => {
       renderCard(makePurchasePage(DATED));
       expect(screen.queryByTestId('purchase-late-reason')).toBeNull();
+    });
+  });
+
+  describe('schema-backed fields (#2254)', () => {
+    it('makes no reference-data request while read-only or in edit mode (no categories, no areas)', async () => {
+      renderCard(makePurchasePage(DATED));
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('purchase-latest-input')).toBeNull();
+      await edit();
+      await screen.findByTestId('purchase-latest-input');
+      await act(async () => {});
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
+    });
+
+    it('shows the four dates in card order with the dialog labels and stable test ids', async () => {
+      renderCard(makePurchasePage(DATED));
+      await edit();
+      const fields = Array.from(document.querySelectorAll('[data-field]')).map((el) => ({
+        name: el.getAttribute('data-field'),
+        label: el.querySelector('label')?.textContent,
+      }));
+      expect(fields).toEqual([
+        { name: 'orderDate', label: enHouseholdItems.create.form.orderDate.label },
+        {
+          name: 'earliestDeliveryDate',
+          label: enHouseholdItems.create.form.earliestDelivery.label,
+        },
+        { name: 'latestDeliveryDate', label: enHouseholdItems.create.form.latestDelivery.label },
+        { name: 'actualDeliveryDate', label: enHouseholdItems.create.form.actualDelivery.label },
+      ]);
+      expect(screen.getByLabelText('Latest delivery')).toBe(
+        screen.getByTestId('purchase-latest-input'),
+      );
+    });
+
+    it('wires the delivery-window error to Latest delivery only, with the dialog copy', async () => {
+      renderCard(makePurchasePage(DATED));
+      const user = await edit();
+      await type(user, 'purchase-latest-input', '2026-02-20');
+      await save(user);
+      const latest = screen.getByTestId('purchase-latest-input');
+      const message = await screen.findByText(enHouseholdItems.create.form.deliveryWindow.error);
+      expect(message).toHaveAttribute('id', `${latest.id}-error`);
+      expect(latest.getAttribute('aria-describedby')).toContain(`${latest.id}-error`);
+      expect(message.closest('[data-field]')).toHaveAttribute('data-field', 'latestDeliveryDate');
+      expect(screen.getByTestId('purchase-earliest-input')).not.toHaveAttribute('aria-invalid');
+      expect(latest.id).not.toBe('latestDeliveryDate');
+    });
+
+    it('does not show name, category or quantity errors in this card (per-card validation)', async () => {
+      renderCard(makePurchasePage(DATED));
+      const user = await edit();
+      await type(user, 'purchase-latest-input', '2026-02-20');
+      await save(user);
+      await screen.findByText(enHouseholdItems.create.form.deliveryWindow.error);
+      expect(screen.queryByText(enHouseholdItems.create.form.name.error)).toBeNull();
+      expect(screen.queryByText(enHouseholdItems.create.form.category.error)).toBeNull();
+      expect(screen.queryByText(enHouseholdItems.create.form.quantity.error)).toBeNull();
+    });
+
+    it('sends only the changed date under its own PATCH key', async () => {
+      renderCard(makePurchasePage(DATED));
+      const user = await edit();
+      await type(user, 'purchase-earliest-input', '2026-03-05');
+      await save(user);
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockUpdate.mock.calls[0]).toEqual(['hi-1', { earliestDeliveryDate: '2026-03-05' }]);
     });
   });
 

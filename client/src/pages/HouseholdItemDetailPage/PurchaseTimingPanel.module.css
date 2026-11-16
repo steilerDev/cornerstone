@@ -4,19 +4,23 @@
 
 /* The last list's picker clears the phone bottom bar: FE-1's one rule, on the last child. */
 .endClearance {
-  composes: pageEndClearance from './HouseholdItemDetailPage.module.css';
+  composes: pageEndClearance from '../../styles/objectPage.module.css';
 }
 
 .facts {
   composes: details from '../../styles/objectPage.module.css';
 }
 
-.fields {
-  composes: fields from '../../styles/objectPage.module.css';
+.depError {
+  composes: depError from '../../styles/objectPage.module.css';
 }
 
-.input {
-  composes: input from '../../styles/shared.module.css';
+.depErrorMessage {
+  composes: depErrorMessage from '../../styles/objectPage.module.css';
+}
+
+.dismiss {
+  composes: dismiss from '../../styles/objectPage.module.css';
 }
 
 /* The late row is static text: the badge and the sentence, never colour alone. */

@@ -394,3 +394,61 @@ describe('ObjectFormField number attributes, function hints and ctx.setValues (#
     expect(onSetValues).not.toHaveBeenCalled();
   });
 });
+
+describe('ObjectFormField id and testId overrides (#2254)', () => {
+  it('keeps the default DOM when no override is given', () => {
+    setup({ kind: 'text', hint: 'A hint', testId: 'own-test-id' }, { error: 'Bad' });
+    const input = screen.getByLabelText('Label');
+    expect(input).toHaveAttribute('id', 'f');
+    expect(input).toHaveAttribute('data-testid', 'own-test-id');
+    expect(input).toHaveAttribute('aria-describedby', 'f-hint f-error');
+    expect(document.getElementById('f-hint')).toHaveTextContent('A hint');
+    expect(document.getElementById('f-error')).toHaveTextContent('Bad');
+  });
+
+  it('uses the id override for the control, label, hint, notice and error ids', () => {
+    setup({ kind: 'text', hint: 'A hint', notice: 'A notice' }, { id: 'card-1-f', error: 'Bad' });
+    const input = screen.getByLabelText('Label');
+    expect(input).toHaveAttribute('id', 'card-1-f');
+    expect(input).toHaveAttribute('name', 'f');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute(
+      'aria-describedby',
+      'card-1-f-hint card-1-f-notice card-1-f-error',
+    );
+    expect(document.getElementById('card-1-f-hint')).toHaveTextContent('A hint');
+    expect(document.getElementById('card-1-f-notice')).toHaveTextContent('A notice');
+    expect(document.getElementById('card-1-f-error')).toHaveTextContent('Bad');
+    expect(document.getElementById('f-error')).toBeNull();
+    expect(document.getElementById('f')).toBeNull();
+  });
+
+  it('lets the testId override win over the field test id', () => {
+    setup({ kind: 'text', testId: 'field-id' }, { testId: 'card-id' });
+    expect(screen.getByTestId('card-id')).toBe(screen.getByLabelText('Label'));
+    expect(screen.queryByTestId('field-id')).toBeNull();
+  });
+
+  it('hands the id override to a custom field renderer', () => {
+    const seen: string[] = [];
+    setup(
+      {
+        kind: 'custom',
+        render: (ctx) => {
+          seen.push(ctx.id);
+          return <input id={ctx.id} aria-label="custom" />;
+        },
+      },
+      { id: 'card-9-f' },
+    );
+    expect(seen).toEqual(['card-9-f']);
+    expect(screen.getByLabelText('Label')).toHaveAttribute('id', 'card-9-f');
+  });
+
+  it('passes the overridden id and test id to the colour field', () => {
+    setup({ kind: 'color', testId: 'own-color' }, { id: 'card-3-f', testId: 'card-color' });
+    expect(document.getElementById('card-3-f')).not.toBeNull();
+    expect(screen.getAllByTestId(/^card-color/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByTestId(/^own-color/)).toHaveLength(0);
+  });
+});

@@ -75,6 +75,35 @@ afterEach(() => {
 });
 
 describe('useAreas', () => {
+  it('makes no request and is not loading when enabled is false', async () => {
+    const { result } = renderHook(() => useAreas({ enabled: false }));
+
+    await act(async () => {});
+    expect(mockFetchAreas).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.areas).toEqual([]);
+  });
+
+  it('fetches once it is enabled after having been disabled', async () => {
+    mockFetchAreas.mockResolvedValueOnce({ areas: [makeArea('a1')] });
+    const { result, rerender } = renderHook(({ enabled }) => useAreas({ enabled }), {
+      initialProps: { enabled: false },
+    });
+    expect(mockFetchAreas).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    await waitFor(() => expect(result.current.areas).toHaveLength(1));
+    expect(mockFetchAreas).toHaveBeenCalledTimes(1);
+  });
+
+  it('still fetches by default and when enabled is true', async () => {
+    renderHook(() => useAreas());
+    renderHook(() => useAreas({ enabled: true }));
+
+    await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
+  });
+
   it('starts with isLoading=true before fetch completes', () => {
     mockFetchAreas.mockImplementationOnce(() => new Promise(() => {}));
 
@@ -143,6 +172,73 @@ describe('useAreas', () => {
 
     await waitFor(() => expect(result.current.error).toBe(enAreas.index.loadFailed));
     expect(result.current.isLoading).toBe(false);
+  });
+
+  describe('superseded requests', () => {
+    function deferred<T>() {
+      let resolve!: (v: T) => void;
+      let reject!: (e: unknown) => void;
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it('ignores a stale response and keeps loading until the newest request settles', async () => {
+      const first = deferred<unknown>();
+      const second = deferred<unknown>();
+      mockFetchAreas.mockReset();
+      mockFetchAreas.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+      const { result } = renderHook(() => useAreas());
+      await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        result.current.refetch();
+      });
+      await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        first.resolve({ areas: [makeArea('stale', 'Stale')] });
+      });
+      expect(result.current.areas).toEqual([]);
+      expect(result.current.isLoading).toBe(true);
+
+      const fresh = [makeArea('fresh', 'Fresh')];
+      await act(async () => {
+        second.resolve({ areas: fresh });
+      });
+      expect(result.current.areas).toEqual(fresh);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('ignores a stale failure so it does not surface an error for the newest request', async () => {
+      const first = deferred<unknown>();
+      const second = deferred<unknown>();
+      mockFetchAreas.mockReset();
+      mockFetchAreas.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+      const { result } = renderHook(() => useAreas());
+      await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        result.current.refetch();
+      });
+      await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        first.reject(new Error('stale failure'));
+      });
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(true);
+
+      await act(async () => {
+        second.resolve({ areas: [makeArea('ok')] });
+      });
+      expect(result.current.error).toBeNull();
+      expect(result.current.areas).toHaveLength(1);
+    });
   });
 
   describe('refetch()', () => {

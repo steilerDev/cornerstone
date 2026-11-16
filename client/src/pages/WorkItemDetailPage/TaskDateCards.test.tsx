@@ -11,13 +11,27 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makeTaskPage } from '../../test/taskPageFixtures.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as AreasApiTypes from '../../lib/areasApi.js';
+import enWorkItems from '../../i18n/en/workItems.json';
 import type * as CardsModule from './TaskDateCards.js';
 import type * as ScopeModule from '../../components/SectionCard/SectionCardScope.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
 
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
+  createWorkItem: jest.fn(),
+  listWorkItems: jest.fn(),
+}));
+const mockFetchAreas = jest.fn<typeof AreasApiTypes.fetchAreas>();
+jest.unstable_mockModule('../../lib/usersApi.js', () => ({ listUsers: mockListUsers }));
+jest.unstable_mockModule('../../lib/areasApi.js', () => ({
+  fetchAreas: mockFetchAreas,
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 
@@ -61,6 +75,10 @@ describe('TaskDateCards', () => {
   beforeEach(async () => {
     mockUpdateWorkItem.mockReset();
     mockUpdateWorkItem.mockResolvedValue({} as never);
+    mockListUsers.mockReset();
+    mockListUsers.mockResolvedValue({ users: [] });
+    mockFetchAreas.mockReset();
+    mockFetchAreas.mockResolvedValue({ areas: [] });
     refresh.mockReset();
     refresh.mockResolvedValue(undefined);
     if (!Cards) {
@@ -253,6 +271,137 @@ describe('TaskDateCards', () => {
       expect(mockUpdateWorkItem).toHaveBeenCalledTimes(1);
       // The save request itself did not fail, so no save error is shown on the card
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('schema-backed fields (#2254)', () => {
+    it('makes no reference-data request while read-only', () => {
+      renderCards(DATED);
+      expect(mockListUsers).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('task-duration-input')).toBeNull();
+    });
+
+    it('the Dates and Constraints cards in edit scope never ask for the members', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      await screen.findByTestId('task-duration-input');
+      await act(async () => {});
+      expect(mockListUsers).not.toHaveBeenCalled();
+      await user.click(screen.getByTestId('task-dates-cancel'));
+      await user.click(screen.getByTestId('task-constraints-edit'));
+      await screen.findByTestId('task-not-before-input');
+      await act(async () => {});
+      expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('the Dates and Constraints cards in edit scope never request the areas', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      await screen.findByTestId('task-duration-input');
+      await act(async () => {});
+      await user.click(screen.getByTestId('task-dates-cancel'));
+      await user.click(screen.getByTestId('task-constraints-edit'));
+      await screen.findByTestId('task-not-before-input');
+      await act(async () => {});
+      expect(mockFetchAreas).not.toHaveBeenCalled();
+    });
+
+    it('labels the duration like the dialog ("Duration (days)") and keeps the stable test ids', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      const duration = screen.getByLabelText(enWorkItems.create.fields.durationDays);
+      expect(enWorkItems.create.fields.durationDays).toBe('Duration (days)');
+      expect(duration).toBe(screen.getByTestId('task-duration-input'));
+      expect(screen.getByLabelText(enWorkItems.taskPage.timing.started)).toBe(
+        screen.getByTestId('task-started-input'),
+      );
+      expect(screen.getByLabelText(enWorkItems.taskPage.timing.finished)).toBe(
+        screen.getByTestId('task-finished-input'),
+      );
+    });
+
+    it('prefixes ids per card so the Dates and Constraints cards never share an id', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      const duration = screen.getByTestId('task-duration-input');
+      expect(duration.id).toMatch(/-dates-durationDays$/);
+      await user.click(screen.getByTestId('task-dates-cancel'));
+      await user.click(screen.getByTestId('task-constraints-edit'));
+      expect(screen.getByTestId('task-not-before-input').id).toMatch(/-constraints-startAfter$/);
+    });
+
+    it('shows the unified duration error for a fraction, a negative number and its aria wiring', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      const duration = screen.getByTestId('task-duration-input');
+      fireEvent.change(duration, { target: { value: '2.5' } });
+      await user.click(screen.getByTestId('task-dates-save'));
+      const message = screen.getByText(enWorkItems.create.fields.durationError);
+      expect(enWorkItems.create.fields.durationError).toBe('Duration must be 0 or more days.');
+      expect(message).toHaveAttribute('id', `${duration.id}-error`);
+      expect(duration.getAttribute('aria-describedby')).toContain(`${duration.id}-error`);
+      fireEvent.change(duration, { target: { value: '-3' } });
+      await user.click(screen.getByTestId('task-dates-save'));
+      expect(screen.getByText(enWorkItems.create.fields.durationError)).toBeInTheDocument();
+      expect(mockUpdateWorkItem).not.toHaveBeenCalled();
+    });
+
+    it('accepts a duration of 0 and sends it as 0 (not null)', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      fireEvent.change(screen.getByTestId('task-duration-input'), { target: { value: '0' } });
+      await user.click(screen.getByTestId('task-dates-save'));
+      await waitFor(() =>
+        expect(mockUpdateWorkItem).toHaveBeenCalledWith('wi-1', { durationDays: 0 }),
+      );
+    });
+
+    it('shows the finished-before-started message under the Finished field only', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      fireEvent.change(screen.getByTestId('task-started-input'), {
+        target: { value: '2026-03-09' },
+      });
+      fireEvent.change(screen.getByTestId('task-finished-input'), {
+        target: { value: '2026-03-02' },
+      });
+      await user.click(screen.getByTestId('task-dates-save'));
+      const message = screen.getByText(enWorkItems.taskPage.timing.finishedBeforeStarted);
+      expect(message.closest('[data-field]')).toHaveAttribute('data-field', 'actualEndDate');
+      expect(screen.getByTestId('task-started-input')).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('shows the constraints message under Start by only, with the dialog copy', async () => {
+      const user = userEvent.setup();
+      renderCards(makeTaskPage());
+      await user.click(screen.getByTestId('task-constraints-edit'));
+      fireEvent.change(screen.getByTestId('task-not-before-input'), {
+        target: { value: '2026-05-01' },
+      });
+      fireEvent.change(screen.getByTestId('task-start-by-input'), {
+        target: { value: '2026-04-01' },
+      });
+      await user.click(screen.getByTestId('task-constraints-save'));
+      const message = screen.getByText(enWorkItems.create.fields.constraintsError);
+      expect(message.closest('[data-field]')).toHaveAttribute('data-field', 'startBefore');
+      expect(screen.getByTestId('task-not-before-input')).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('a Dates error never appears in the Constraints card (per-card validation)', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      fireEvent.change(screen.getByTestId('task-duration-input'), { target: { value: '1.5' } });
+      await user.click(screen.getByTestId('task-dates-save'));
+      expect(screen.getAllByText(enWorkItems.create.fields.durationError)).toHaveLength(1);
+      expect(screen.queryByText(enWorkItems.create.fields.constraintsError)).toBeNull();
     });
   });
 

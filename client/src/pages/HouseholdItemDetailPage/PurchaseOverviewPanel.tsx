@@ -1,26 +1,63 @@
 import { useId } from 'react';
-import type { Ref, RefObject } from 'react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { HouseholdItemPageDetail } from '@cornerstone/shared';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/AreaBreadcrumb.js';
-import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { pickErrors, toDraftText } from '../../components/ObjectForm/objectFormState.js';
+import type { ObjectFormValues } from '../../components/ObjectForm/types.js';
 import { SectionCard, SectionCardScope } from '../../components/SectionCard/index.js';
 import type { SectionCardController } from '../../components/SectionCard/index.js';
-import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
+import { DetailRow } from '../../components/SectionCard/SectionCardFields.js';
 import { useCardDraft } from '../../components/SectionCard/useCardDraft.js';
-import { useAreas } from '../../hooks/useAreas.js';
+import type { KnownCompany } from '../../hooks/useCompanyName.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
+import {
+  usePurchaseFormSchema,
+  usePurchaseValueMessages,
+  validatePurchaseValues,
+} from '../../objectForms/purchaseForm.js';
 import sharedStyles from '../../styles/shared.module.css';
 import type { PurchasePanelProps } from './purchasePageTypes.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
-const NAME_MAX = 500;
-const DESCRIPTION_MAX = 5000;
-const URL_MAX = 2000;
+/** The schema fields the card shows, in order. */
+const NAMES = ['name', 'category', 'quantity', 'vendorId', 'url', 'area', 'description'] as const;
+type Name = (typeof NAMES)[number];
+const TEST_IDS = {
+  name: 'purchase-field-name',
+  quantity: 'purchase-field-quantity',
+  url: 'purchase-field-url',
+  description: 'purchase-field-description',
+};
+
+interface DetailsFieldsProps {
+  readonly values: ObjectFormValues;
+  readonly errors: Partial<Record<Name, string>>;
+  readonly onChange: (name: string, value: unknown) => void;
+  readonly idPrefix: string;
+  readonly knownCompany: KnownCompany | null;
+}
+
+/** Mounted in edit mode only: the purchase schema (same fields as the New purchase dialog). */
+function DetailsFields({ values, errors, onChange, idPrefix, knownCompany }: DetailsFieldsProps) {
+  const schema = usePurchaseFormSchema({ scope: 'edit', knownCompany });
+  return (
+    <ObjectFormFields
+      fields={schema.fields}
+      names={NAMES}
+      values={values}
+      errors={errors}
+      onChange={onChange}
+      idPrefix={idPrefix}
+      testIds={TEST_IDS}
+    />
+  );
+}
 
 export interface PurchaseOverviewPanelProps extends PurchasePanelProps {
   /** Lets the `e` shortcut and the empty strip facts open the Details card. */
@@ -67,11 +104,10 @@ interface DetailsCardProps {
 
 function DetailsCard({ purchase, originState, onSaved, controllerRef }: DetailsCardProps) {
   const { t } = useTranslation('householdItems');
-  const { t: tc } = useTranslation('common');
   const { t: tSettings } = useTranslation('settings');
   const userText = useUserText();
-  const { areas } = useAreas();
   const baseId = useId();
+  const messages = usePurchaseValueMessages();
 
   const categoryName = getCategoryDisplayName(
     tSettings,
@@ -81,35 +117,26 @@ function DetailsCard({ purchase, originState, onSaved, controllerRef }: DetailsC
   const initial = {
     name: purchase.name,
     description: purchase.description ?? '',
-    categoryId: purchase.categoryEntry.id,
+    category: purchase.categoryEntry.id,
     quantity: String(purchase.quantity),
     vendorId: purchase.vendor?.id ?? '',
     url: purchase.url ?? '',
-    areaId: purchase.area?.id ?? '',
+    area: purchase.area?.id ?? '',
   };
   const card = useCardDraft({
     initial,
-    validate: (draft) => {
-      const errors: Partial<Record<keyof typeof initial, string>> = {};
-      if (!draft.name.trim()) errors.name = t('create.form.name.error');
-      if (!draft.categoryId) errors.categoryId = t('create.form.category.error');
-      const quantity = Number(draft.quantity);
-      if (!Number.isInteger(quantity) || quantity < 1) {
-        errors.quantity = t('create.form.quantity.error');
-      }
-      return errors;
-    },
+    validate: (draft) => pickErrors(validatePurchaseValues(draft, messages), NAMES),
     save: (draft) =>
       updateHouseholdItem(purchase.id, {
         ...(draft.name !== initial.name ? { name: draft.name.trim() } : {}),
         ...(draft.description !== initial.description
           ? { description: draft.description.trim() || null }
           : {}),
-        ...(draft.categoryId !== initial.categoryId ? { category: draft.categoryId } : {}),
+        ...(draft.category !== initial.category ? { category: draft.category } : {}),
         ...(draft.quantity !== initial.quantity ? { quantity: Number(draft.quantity) } : {}),
         ...(draft.vendorId !== initial.vendorId ? { vendorId: draft.vendorId || null } : {}),
         ...(draft.url !== initial.url ? { url: draft.url.trim() || null } : {}),
-        ...(draft.areaId !== initial.areaId ? { areaId: draft.areaId || null } : {}),
+        ...(draft.area !== initial.area ? { areaId: draft.area || null } : {}),
       }),
     saveError: t('purchasePage.overview.saveError'),
     onSaved,
@@ -136,123 +163,14 @@ function DetailsCard({ purchase, originState, onSaved, controllerRef }: DetailsC
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <FieldShell
-              id={`${baseId}-name`}
-              label={t('create.form.name.label')}
-              required
-              error={card.errors.name}
-            >
-              {(aria) => (
-                <input
-                  id={`${baseId}-name`}
-                  ref={firstFieldRef as RefObject<HTMLInputElement | null>}
-                  className={sharedStyles.input}
-                  value={card.draft.name}
-                  maxLength={NAME_MAX}
-                  onChange={(e) => card.set('name', e.target.value)}
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="purchase-field-name"
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-description`} label={t('create.form.description.label')}>
-              {() => (
-                <textarea
-                  id={`${baseId}-description`}
-                  className={sharedStyles.textarea}
-                  rows={4}
-                  value={card.draft.description}
-                  maxLength={DESCRIPTION_MAX}
-                  onChange={(e) => card.set('description', e.target.value)}
-                  data-testid="purchase-field-description"
-                />
-              )}
-            </FieldShell>
-            <FieldShell
-              id={`${baseId}-category`}
-              label={t('create.form.category.label')}
-              required
-              error={card.errors.categoryId}
-            >
-              {(aria) => (
-                <EntityPicker
-                  kind="category"
-                  id={`${baseId}-category`}
-                  value={card.draft.categoryId}
-                  selectedLabel={categoryName}
-                  onChange={(next) => card.set('categoryId', next)}
-                  placeholder={t('create.form.category.placeholder')}
-                  inputAriaProps={{
-                    'aria-required': true,
-                    'aria-invalid': aria.invalid,
-                    'aria-describedby': aria.describedBy,
-                  }}
-                />
-              )}
-            </FieldShell>
-            <FieldShell
-              id={`${baseId}-quantity`}
-              label={t('create.form.quantity.label')}
-              required
-              error={card.errors.quantity}
-            >
-              {(aria) => (
-                <input
-                  id={`${baseId}-quantity`}
-                  type="number"
-                  min={1}
-                  step={1}
-                  className={sharedStyles.input}
-                  value={card.draft.quantity}
-                  onChange={(e) => card.set('quantity', e.target.value)}
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="purchase-field-quantity"
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-company`} label={t('create.form.vendor.label')}>
-              {() => (
-                <EntityPicker
-                  kind="company"
-                  id={`${baseId}-company`}
-                  value={card.draft.vendorId}
-                  knownCompany={purchase.vendor}
-                  placeholder={t('create.form.vendor.placeholder')}
-                  onChange={(next) => card.set('vendorId', next)}
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-url`} label={t('create.form.url.label')}>
-              {() => (
-                <input
-                  id={`${baseId}-url`}
-                  type="url"
-                  className={sharedStyles.input}
-                  value={card.draft.url}
-                  maxLength={URL_MAX}
-                  placeholder={t('create.form.url.placeholder')}
-                  onChange={(e) => card.set('url', e.target.value)}
-                  data-testid="purchase-field-url"
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-area`} label={t('create.form.area.label')}>
-              {() => (
-                <EntityPicker
-                  kind="area"
-                  id={`${baseId}-area`}
-                  areas={areas}
-                  noneLabel={tc('aria.noArea')}
-                  value={card.draft.areaId}
-                  onChange={(next) => card.set('areaId', next)}
-                />
-              )}
-            </FieldShell>
-          </div>
+        renderFields: () => (
+          <DetailsFields
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) => card.set(name as Name, toDraftText(value))}
+            idPrefix={`${baseId}-`}
+            knownCompany={purchase.vendor}
+          />
         ),
       }}
     >

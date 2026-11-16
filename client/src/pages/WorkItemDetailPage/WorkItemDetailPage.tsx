@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { WorkItemPageDetail, WorkItemStatus } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { ObjectDiaryPanel } from '../../components/FeedRow/ObjectDiaryPanel.js';
@@ -168,6 +169,10 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
     return isTimingIntent(hash) ? hash : null;
   });
   const [depError, setDepError] = useState<string | null>(() => searchParams.get('depError'));
+  // Set by a New task save whose first cost line failed; shown on every tab until dismissed.
+  const [costLineFailed, setCostLineFailed] = useState(
+    () => searchParams.get('costLineFailed') === '1',
+  );
 
   // New › Invoice / Purchase / Log start from this task's area and company.
   useCreateContext({ areaId: task.area?.id, companyId: task.assignedVendor?.id });
@@ -192,15 +197,17 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
   useEffect(() => {
     if (intentHandledRef.current) return;
     intentHandledRef.current = true;
-    if (intent === null && depError === null) return;
+    if (intent === null && depError === null && !costLineFailed) return;
     const next = new URLSearchParams(searchParams);
-    next.set('tab', 'timing');
+    // A cost-line failure alone keeps the tab the form chose (Cost).
+    if (intent !== null || depError !== null) next.set('tab', 'timing');
     next.delete('depError');
+    next.delete('costLineFailed');
     void navigate(
       { pathname: location.pathname, search: `?${next.toString()}`, hash: '' },
       { replace: true, state: location.state },
     );
-  }, [intent, depError, searchParams, location.pathname, location.state, navigate]);
+  }, [intent, depError, costLineFailed, searchParams, location.pathname, location.state, navigate]);
 
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -334,6 +341,21 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
   return (
     <PageLayout header={header}>
       <SummaryStrip typeLabel={t('taskPage.typeLabel')} facts={facts} testId="task-summary" />
+      {costLineFailed && (
+        <div className={styles.createError}>
+          <div className={styles.createErrorMessage}>
+            <FormError message={t('create.errors.costLineFailed')} />
+          </div>
+          <button
+            type="button"
+            className={styles.dismiss}
+            onClick={() => setCostLineFailed(false)}
+            data-testid="task-cost-line-error-dismiss"
+          >
+            {tc('button.close')}
+          </button>
+        </div>
+      )}
       <TaskTabs
         id={id}
         panelProps={panelProps}

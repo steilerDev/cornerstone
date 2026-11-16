@@ -1,21 +1,24 @@
 import { useId } from 'react';
-import type { CSSProperties, Ref, RefObject } from 'react';
+import type { CSSProperties, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MilestoneDetail } from '@cornerstone/shared';
-import { ColorField } from '../../components/ObjectForm/ColorField.js';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { pickErrors, toDraftText } from '../../components/ObjectForm/objectFormState.js';
+import type { ObjectFormValues } from '../../components/ObjectForm/types.js';
 import { SectionCard, SectionCardScope } from '../../components/SectionCard/index.js';
 import type { SectionCardController } from '../../components/SectionCard/index.js';
-import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
+import { DetailRow } from '../../components/SectionCard/SectionCardFields.js';
 import { useCardDraft } from '../../components/SectionCard/useCardDraft.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { updateMilestone } from '../../lib/milestonesApi.js';
-import sharedStyles from '../../styles/shared.module.css';
+import {
+  useMilestoneFormSchema,
+  useMilestoneValueMessages,
+  validateMilestoneValues,
+} from '../../objectForms/milestoneForm.js';
 import type { MilestonePanelProps } from './milestonePageTypes.js';
 import styles from './MilestoneDetailPage.module.css';
-
-const TITLE_MAX = 200;
-const DESCRIPTION_MAX = 2000;
 
 export interface MilestoneOverviewPanelProps extends MilestonePanelProps {
   /** Lets the `e` shortcut and Change target open the Details card. */
@@ -54,11 +57,52 @@ interface DetailsCardProps {
 
 type Draft = Record<'title' | 'targetDate' | 'description' | 'color', string>;
 
+/** The schema fields the card shows, in order. */
+const NAMES = ['title', 'targetDate', 'description', 'color'] as const;
+const TEST_IDS = {
+  title: 'milestone-field-title',
+  targetDate: 'milestone-field-target-date',
+  description: 'milestone-field-description',
+  color: 'milestone-field',
+};
+
+interface DetailsFieldsProps {
+  readonly values: ObjectFormValues;
+  readonly errors: Partial<Record<keyof Draft, string>>;
+  readonly onChange: (name: string, value: unknown) => void;
+  readonly idPrefix: string;
+  readonly targetDateInputId: string;
+}
+
+/** Mounted in edit mode only: the milestone schema (same fields as the New milestone dialog). */
+function DetailsFields({
+  values,
+  errors,
+  onChange,
+  idPrefix,
+  targetDateInputId,
+}: DetailsFieldsProps) {
+  const schema = useMilestoneFormSchema({ scope: 'edit' });
+  return (
+    <ObjectFormFields
+      fields={schema.fields}
+      names={NAMES}
+      values={values}
+      errors={errors}
+      onChange={onChange}
+      idPrefix={idPrefix}
+      ids={{ targetDate: targetDateInputId }}
+      testIds={TEST_IDS}
+    />
+  );
+}
+
 function DetailsCard({ milestone, onSaved, controllerRef, targetDateInputId }: DetailsCardProps) {
   const { t } = useTranslation('schedule');
   const { formatDate } = useFormatters();
   const userText = useUserText();
   const baseId = useId();
+  const messages = useMilestoneValueMessages();
 
   // The colour draft is a string ('' = No color) so it fits the card draft like every field.
   const initial: Draft = {
@@ -69,12 +113,7 @@ function DetailsCard({ milestone, onSaved, controllerRef, targetDateInputId }: D
   };
   const card = useCardDraft<keyof Draft>({
     initial,
-    validate: (draft) => {
-      const errors: Partial<Record<keyof Draft, string>> = {};
-      if (!draft.title.trim()) errors.title = t('milestones.create.form.title.error');
-      if (!draft.targetDate) errors.targetDate = t('milestones.create.form.targetDate.error');
-      return errors;
-    },
+    validate: (draft) => pickErrors(validateMilestoneValues(draft, messages), NAMES),
     save: (draft) =>
       updateMilestone(milestone.id, {
         ...(draft.title !== initial.title ? { title: draft.title.trim() } : {}),
@@ -102,76 +141,14 @@ function DetailsCard({ milestone, onSaved, controllerRef, targetDateInputId }: D
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <FieldShell
-              id={`${baseId}-title`}
-              label={t('milestones.create.form.title.label')}
-              required
-              error={card.errors.title}
-            >
-              {(aria) => (
-                <input
-                  id={`${baseId}-title`}
-                  ref={firstFieldRef as RefObject<HTMLInputElement | null>}
-                  className={sharedStyles.input}
-                  value={card.draft.title}
-                  maxLength={TITLE_MAX}
-                  onChange={(e) => card.set('title', e.target.value)}
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="milestone-field-title"
-                />
-              )}
-            </FieldShell>
-            <FieldShell
-              id={targetDateInputId}
-              label={t('milestones.create.form.targetDate.label')}
-              required
-              error={card.errors.targetDate}
-            >
-              {(aria) => (
-                <input
-                  id={targetDateInputId}
-                  type="date"
-                  className={sharedStyles.input}
-                  value={card.draft.targetDate}
-                  onChange={(e) => card.set('targetDate', e.target.value)}
-                  aria-required="true"
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="milestone-field-target-date"
-                />
-              )}
-            </FieldShell>
-            <FieldShell
-              id={`${baseId}-description`}
-              label={t('milestones.create.form.description.label')}
-            >
-              {() => (
-                <textarea
-                  id={`${baseId}-description`}
-                  className={sharedStyles.textarea}
-                  rows={4}
-                  value={card.draft.description}
-                  maxLength={DESCRIPTION_MAX}
-                  onChange={(e) => card.set('description', e.target.value)}
-                  data-testid="milestone-field-description"
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-color`} label={t('milestones.detail.overview.color')}>
-              {() => (
-                <ColorField
-                  id={`${baseId}-color`}
-                  value={card.draft.color === '' ? null : card.draft.color}
-                  onChange={(next) => card.set('color', next ?? '')}
-                  noColorLabel={t('milestones.detail.overview.noColor')}
-                  testIdPrefix="milestone-field"
-                />
-              )}
-            </FieldShell>
-          </div>
+        renderFields: () => (
+          <DetailsFields
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) => card.set(name as keyof Draft, toDraftText(value))}
+            idPrefix={`${baseId}-`}
+            targetDateInputId={targetDateInputId}
+          />
         ),
       }}
     >

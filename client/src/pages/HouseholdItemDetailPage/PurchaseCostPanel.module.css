@@ -1,5 +1,5 @@
 .panel {
-  composes: panel from './PurchaseTimingPanel.module.css';
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
 .costCard {
@@ -7,5 +7,5 @@
 }
 
 .endClearance {
-  composes: endClearance from './PurchaseTimingPanel.module.css';
+  composes: pageEndClearance from '../../styles/objectPage.module.css';
 }

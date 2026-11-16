@@ -104,6 +104,10 @@
         "label": "Company",
         "placeholder": "No company"
       },
+      "waitsFor": {
+        "label": "Waits for",
+        "hint": "Optional. Tasks or milestones that must finish first."
+      },
       "url": {
         "label": "Product link",
         "placeholder": "https://example.com"
@@ -167,6 +171,7 @@
       "lateTarget": "The target delivery date ({{date}}) has passed and nothing has arrived.",
       "lateGeneric": "Late: the delivery is now expected after its planned window.",
       "waitsFor": "Waits for",
+      "depError": "Couldn't add these dependencies: {{titles}}",
       "waitsForEmpty": "This purchase doesn't wait for a task or milestone.",
       "add": "Add",
       "addError": "Couldn't add it. Try again.",

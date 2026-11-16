@@ -42,10 +42,12 @@ jest.unstable_mockModule('../../lib/subtasksApi.js', () => ({
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: jest.fn(),
   listWorkItems: jest.fn(),
+  createWorkItem: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
   fetchVendor: jest.fn(),
+  createVendor: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({
   searchEverywhere: jest.fn<() => Promise<unknown>>().mockResolvedValue({ query: '', groups: [] }),

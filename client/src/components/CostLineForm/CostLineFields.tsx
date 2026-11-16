@@ -89,6 +89,7 @@ export function CostLineAmountField({ ctx, values }: CostLineAmountFieldProps) {
       id={ctx.id}
       name={ctx.id}
       type="number"
+      inputMode="decimal"
       className={`${styles.input} ${ctx.invalid ? styles.inputError : ''}`}
       value={text}
       min={0}

@@ -1,21 +1,17 @@
 .panel {
-  composes: panel from './WorkItemDetailPage.module.css';
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
 .depError {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-2);
+  composes: depError from '../../styles/objectPage.module.css';
 }
 
 .depErrorMessage {
-  flex: 1 1 auto;
-  min-width: 0;
+  composes: depErrorMessage from '../../styles/objectPage.module.css';
 }
 
 .dismiss {
-  composes: btnSecondaryCompact from '../../styles/shared.module.css';
-  flex: 0 0 auto;
+  composes: dismiss from '../../styles/objectPage.module.css';
 }
 
 /* ---- Date cards ---- */
@@ -41,16 +37,6 @@
 
 .rescheduleButton {
   composes: btnSecondaryCompact from '../../styles/shared.module.css';
-}
-
-.fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-3);
-}
-
-.input {
-  composes: input from '../../styles/shared.module.css';
 }
 
 /* ---- Reschedule ---- */
@@ -84,12 +70,6 @@
 
 .retry {
   composes: btnSecondaryCompact from '../../styles/shared.module.css';
-}
-
-@media (min-width: 768px) {
-  .fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 1023px) {

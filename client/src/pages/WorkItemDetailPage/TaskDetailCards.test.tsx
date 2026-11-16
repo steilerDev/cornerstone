@@ -16,6 +16,8 @@ import type { SectionCardController } from '../../components/SectionCard/Section
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as SearchApiTypes from '../../lib/searchApi.js';
+import type * as UsersApiTypes from '../../lib/usersApi.js';
+import enWorkItems from '../../i18n/en/workItems.json';
 import type * as CardsModule from './TaskDetailCards.js';
 import type * as ScopeModule from '../../components/SectionCard/SectionCardScope.js';
 
@@ -23,16 +25,20 @@ const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockSearchCompanies = jest.fn<typeof VendorsApiTypes.searchCompanies>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockSearchEverywhere = jest.fn<typeof SearchApiTypes.searchEverywhere>();
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
   listWorkItems: jest.fn(),
+  createWorkItem: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
   fetchVendor: mockFetchVendor,
+  createVendor: jest.fn(),
 }));
+jest.unstable_mockModule('../../lib/usersApi.js', () => ({ listUsers: mockListUsers }));
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({
   searchEverywhere: mockSearchEverywhere,
 }));
@@ -90,6 +96,7 @@ describe('TaskDetailCards', () => {
       mockSearchCompanies,
       mockFetchVendor,
       mockSearchEverywhere,
+      mockListUsers,
       onSaved,
       onRetryUsers,
     ]) {
@@ -99,6 +106,7 @@ describe('TaskDetailCards', () => {
     mockSearchCompanies.mockResolvedValue([] as never);
     mockFetchVendor.mockResolvedValue({ id: 'v-1', name: 'Acme Roofing' } as never);
     mockSearchEverywhere.mockResolvedValue({ query: '', groups: [] });
+    mockListUsers.mockResolvedValue({ users: [] });
     mockUseAreas.mockReturnValue({
       areas: [
         { id: 'a-1', name: 'Kitchen', parentId: null, sortOrder: 0 },
@@ -180,7 +188,7 @@ describe('TaskDetailCards', () => {
       const user = await edit('section-task-details');
       await user.clear(screen.getByTestId('task-field-title'));
       await user.click(screen.getByTestId('section-task-details-save'));
-      expect(await screen.findByText('Enter a title.')).toBeInTheDocument();
+      expect(await screen.findByText('Title is required')).toBeInTheDocument();
       expect(screen.getByTestId('task-field-title')).toHaveAttribute('aria-invalid', 'true');
       expect(mockUpdateWorkItem).not.toHaveBeenCalled();
     });
@@ -219,6 +227,105 @@ describe('TaskDetailCards', () => {
       await user.click(screen.getByTestId('section-task-details-edit'));
       expect(screen.getByTestId('task-field-title')).toHaveValue('Pour slab');
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('schema-backed fields (#2254)', () => {
+    it('makes no reference-data request while the cards are read-only', () => {
+      renderCards(TASK);
+      expect(mockListUsers).not.toHaveBeenCalled();
+      expect(mockSearchCompanies).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('task-field-title')).toBeNull();
+    });
+
+    it('the Details card in edit scope never asks for the members', async () => {
+      renderCards(TASK);
+      await edit('section-task-details');
+      await screen.findByTestId('task-field-title');
+      await act(async () => {});
+      expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('the Details card in edit scope loads no areas', async () => {
+      renderCards(TASK);
+      await edit('section-task-details');
+      await screen.findByTestId('task-field-title');
+      await act(async () => {});
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
+    });
+
+    it('the Who and where card still loads the areas it renders', async () => {
+      renderCards(TASK);
+      await edit('section-task-who-where');
+      await screen.findByLabelText('Who');
+      expect(mockUseAreas).toHaveBeenLastCalledWith({ enabled: true });
+    });
+
+    it('the Who and where card uses the page members and never asks for them again', async () => {
+      renderCards(TASK);
+      const user = await edit('section-task-who-where');
+      await user.click(screen.getByLabelText('Who'));
+      expect(await screen.findByRole('option', { name: /Pat Sample/ })).toBeInTheDocument();
+      expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('prefixes the field ids per card (useId) so cards never share an id', async () => {
+      const { unmount } = renderCards(TASK);
+      const user = await edit('section-task-details');
+      const title = screen.getByTestId('task-field-title');
+      expect(title.id).toMatch(/^.+-title$/);
+      expect(title.id).not.toBe('title');
+      const detailsPrefix = title.id.slice(0, -'title'.length);
+      await user.click(screen.getByTestId('section-task-details-cancel'));
+      await user.click(screen.getByTestId('section-task-who-where-edit'));
+      const who = screen.getByLabelText('Who');
+      expect(who.id).toMatch(/^.+-assignment$/);
+      expect(who.id.slice(0, -'assignment'.length)).not.toBe(detailsPrefix);
+      unmount();
+    });
+
+    it('labels the title like the dialog and keeps the stable test ids', async () => {
+      renderCards(TASK);
+      await edit('section-task-details');
+      const title = screen.getByTestId('task-field-title');
+      expect(screen.getByLabelText(/^Title/)).toBe(title);
+      expect(screen.getByLabelText(/^Description/)).toBe(
+        screen.getByTestId('task-field-description'),
+      );
+      expect(title).toHaveAttribute('maxlength', '500');
+      expect(screen.getByTestId('task-field-description')).toHaveAttribute('maxlength', '10000');
+    });
+
+    it('shows the dialog copy for an empty title, wired to the field', async () => {
+      renderCards(TASK);
+      const user = await edit('section-task-details');
+      await user.clear(screen.getByTestId('task-field-title'));
+      await user.click(screen.getByTestId('section-task-details-save'));
+      const title = screen.getByTestId('task-field-title');
+      const message = await screen.findByText(enWorkItems.create.fields.titleRequiredError);
+      expect(enWorkItems.create.fields.titleRequiredError).toBe('Title is required');
+      expect(message).toHaveAttribute('id', `${title.id}-error`);
+      expect(title.getAttribute('aria-describedby')).toContain(`${title.id}-error`);
+    });
+
+    it('treats a whitespace-only title as missing and sends nothing', async () => {
+      renderCards(TASK);
+      const user = await edit('section-task-details');
+      await user.clear(screen.getByTestId('task-field-title'));
+      await user.type(screen.getByTestId('task-field-title'), '   ');
+      await user.click(screen.getByTestId('section-task-details-save'));
+      expect(await screen.findByText('Title is required')).toBeInTheDocument();
+      expect(mockUpdateWorkItem).not.toHaveBeenCalled();
+    });
+
+    it('omits unchanged fields from the patch (only the edited title is sent)', async () => {
+      renderCards(TASK);
+      const user = await edit('section-task-details');
+      await user.type(screen.getByTestId('task-field-title'), '!');
+      await user.click(screen.getByTestId('section-task-details-save'));
+      await waitFor(() => expect(mockUpdateWorkItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateWorkItem.mock.calls[0]).toEqual(['wi-1', { title: 'Pour slab!' }]);
     });
   });
 

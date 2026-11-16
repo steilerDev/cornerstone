@@ -6,7 +6,9 @@
  * full-screen Sheet; both are role="dialog" named "New task" (see ObjectFormDialog).
  *
  * Fields (ids kept from the page):
- * - Essentials: #title (required), area picker (label for="area"), #assignment, #durationDays
+ * - Essentials: #title (required), area picker (label for="area"), #assignment (Who),
+ *   Planned cost (#plannedAmount + the Entered as Net/Gross radios, #2254: creates the task's first
+ *   cost line, Net by default, no category, no funding source), #durationDays
  * - Behind "More details": #description, #status, #startAfter ("Not before"), #startBefore
  *   ("Start by"), and "Waits for" (#dependencies: an EntityMultiPicker of tasks, test id
  *   `task-form-waits-for`; each chosen task becomes a finish-to-start dependency, lag 0)
@@ -36,6 +38,8 @@ export interface WorkItemFormData {
   startDate?: string;
   endDate?: string;
   durationDays?: string;
+  /** Planned cost amount (the first cost line). */
+  plannedCost?: string;
   startAfter?: string;
   startBefore?: string;
 }
@@ -61,6 +65,12 @@ export class WorkItemCreatePage {
   readonly durationInput: Locator;
   readonly startAfterInput: Locator;
   readonly startBeforeInput: Locator;
+  /** Planned cost amount (#plannedAmount): empty creates no cost line, 0 a zero line. */
+  readonly plannedCostInput: Locator;
+  /** Entered as: Net (default) / Gross radios and the computed result line. */
+  readonly enteredAsNet: Locator;
+  readonly enteredAsGross: Locator;
+  readonly costResult: Locator;
   /** The "Waits for" task chooser (#dependencies, behind More details). */
   readonly waitsForPicker: EntityPickerControl;
   /** The wrapper of the picker and its chips. */
@@ -98,6 +108,11 @@ export class WorkItemCreatePage {
     this.durationInput = this.form.field('durationDays');
     this.startAfterInput = this.form.field('startAfter');
     this.startBeforeInput = this.form.field('startBefore');
+
+    this.plannedCostInput = this.form.field('plannedAmount');
+    this.enteredAsNet = this.dialog.getByTestId('cost-line-entered-net');
+    this.enteredAsGross = this.dialog.getByTestId('cost-line-entered-gross');
+    this.costResult = this.dialog.getByTestId('cost-line-result');
 
     this.waitsFor = this.dialog.getByTestId('task-form-waits-for');
     this.waitsForPicker = new EntityPickerControl(page, 'dependencies', this.dialog);
@@ -158,6 +173,7 @@ export class WorkItemCreatePage {
     if (data.startDate !== undefined) await this.startDateInput.fill(data.startDate);
     if (data.endDate !== undefined) await this.endDateInput.fill(data.endDate);
     if (data.durationDays !== undefined) await this.durationInput.fill(data.durationDays);
+    if (data.plannedCost !== undefined) await this.plannedCostInput.fill(data.plannedCost);
     if (data.startAfter !== undefined) await this.startAfterInput.fill(data.startAfter);
     if (data.startBefore !== undefined) await this.startBeforeInput.fill(data.startBefore);
   }

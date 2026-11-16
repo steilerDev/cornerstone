@@ -135,11 +135,11 @@
   "WRK-018": {
     "name": "Create a work item with title, description and initial status",
     "from": "/project/work-items/new > form (Title*, Description, Status) > \"Create Work Item\"",
-    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > essential fields first: Title*, Area, Who (company or household member), Start / Duration, Planned cost; 'More details': Description, Status, Not before / Start by, Waits for, Milestone; footer: 'Add another after saving' checkbox, Cancel, Save",
+    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > essential fields first: Title*, Area, Who (company or household member), Planned cost (amount, Net / Gross), Duration (days); 'More details': Description, Status, Not before / Start by, Waits for; footer: 'Add another after saving' checkbox, Cancel, Save",
     "change": "merged",
     "gate": "none",
     "acceptance": "New task dialog: Title, Description (More details) and Status (More details) fields; Save creates the task.",
-    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2254: one schema per object; the dialog shows essentials Title*, Area, Who, Planned cost (amount + Net/Gross; creates the first cost line, Net by default, no category, no funding source; 0 creates a zero estimate, empty creates none), Duration (days); More details: Description, Status, Not before / Start by, Waits for. The task page cards render the same fields through ObjectFormFields (Planned cost and Waits for stay create-only); the milestone is linked on the task page."
   },
   "WRK-019": {
     "name": "Choose the work item's area at creation with a live breadcrumb preview",
@@ -147,7 +147,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Area picker (area path shown; inline 'New area')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New task dialog's Area field is EntityPicker kind 'area' (area path rows, inline 'New area' through TagCreateProvider); AreaPicker retired."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2236: the New task dialog's Area field is EntityPicker kind 'area' (area path rows, inline 'New area' through TagCreateProvider); AreaPicker retired. #2254: labels and validation shared with the page cards (one schema)."
   },
   "WRK-020": {
     "name": "Assign the new work item to a household member or a vendor",
@@ -155,15 +155,15 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Who (one picker: companies first, then household members; inline 'New company')",
     "change": "same",
     "gate": "none",
-    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New task dialog's Who field is EntityPicker kind 'who' (companies first, then household members; value company:<id> / member:<id>, the kind as muted text after the selection; 'New company' opens the ObjectForm child step); AssignmentPicker retired."
+    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2236: the New task dialog's Who field is EntityPicker kind 'who' (companies first, then household members; value company:<id> / member:<id>, the kind as muted text after the selection; 'New company' opens the ObjectForm child step); AssignmentPicker retired. #2254: labels and validation shared with the page cards (one schema)."
   },
   "WRK-021": {
     "name": "Set duration and start-after / start-before constraints at creation",
     "from": "/project/work-items/new > Duration (days), Start After, Start Before inputs",
-    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > More details > Timing > Duration, Not before, Start by",
+    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Duration (essential); More details > Timing > Not before, Start by",
     "change": "same",
     "gate": "none",
-    "note": "Start After/Start Before relabelled in plain words. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Start After/Start Before relabelled in plain words. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2254: labels and validation shared with the page cards (one schema); Duration is now an essential field (as WRK-018), the constraints stay under More details."
   },
   "WRK-022": {
     "name": "Define dependencies on other work items before the new item exists",
@@ -171,7 +171,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > 'Waits for' picker",
     "change": "same",
     "gate": "none",
-    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2248: the sentence builder is retired; the New task form's 'Waits for' field is an EntityMultiPicker (kind 'task') that creates finish-to-start dependencies with no lag; type and lag are edited afterwards on the task page (Timing tab). A dependency error redirects to the task page with ?tab=timing&depError=. Labels renamed: Who, Not before, Start by, Waits for."
+    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2248: the sentence builder is retired; the New task form's 'Waits for' field is an EntityMultiPicker (kind 'task') that creates finish-to-start dependencies with no lag; type and lag are edited afterwards on the task page (Timing tab). A dependency error redirects to the task page with ?tab=timing&depError=. Labels renamed: Who, Not before, Start by, Waits for. #2254: labels and validation shared with the page cards (one schema)."
   },
   "WRK-023": {
     "name": "Open a work item's full detail page",
@@ -532,11 +532,11 @@
   "WRK-080": {
     "name": "Create a milestone with title, target date and description",
     "from": "/project/milestones/new > form (Title*, Target Date*, Description) > \"Create Milestone\"",
-    "to": "Tasks > New milestone dialog (ObjectForm; /project/milestones/new opens it over the list) > Title*, Target date*, Description",
+    "to": "Tasks > New milestone dialog (ObjectForm; /project/milestones/new opens it over the list) > Title*, Target date*; More details: Description",
     "change": "merged",
     "gate": "none",
-    "acceptance": "New milestone dialog: Title*, Target date*, Description; Save.",
-    "note": "Create page (h1 'Project') retired; same form as edit. #2212: Tasks › New milestone dialog (ObjectForm; /project/milestones/new opens it over the page you came from, or over the Milestones list on a deep link). The create page is retired."
+    "acceptance": "New milestone dialog: Title*, Target date*; Description under More details; Save.",
+    "note": "Create page (h1 'Project') retired; same form as edit. #2212: Tasks › New milestone dialog (ObjectForm; /project/milestones/new opens it over the page you came from, or over the Milestones list on a deep link). The create page is retired. #2254: Description moved under More details; Colour is set on the milestone page."
   },
   "WRK-081": {
     "name": "View a milestone (status, target date, description, completion date)",
@@ -2134,11 +2134,11 @@
   "HHI-032": {
     "name": "Create a household item with a name and description",
     "from": "/project/household-items/new > form > \"Name *\" and \"Description\" > \"Create Item\"",
-    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Name*, Description",
+    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Name*; More details: Description",
     "change": "merged",
     "gate": "none",
-    "acceptance": "New purchase dialog: Name*, Description; Save.",
-    "note": "Create page and separate edit page become one form. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "acceptance": "New purchase dialog: Name*; Description under More details; Save.",
+    "note": "Create page and separate edit page become one form. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: essentials Name*, Category*, Status, Quantity, Area, Company, Waits for, Earliest / Latest delivery; More details: Description, Product link, Ordered on, Delivered on."
   },
   "HHI-033": {
     "name": "Choose a category when creating a household item",
@@ -2147,7 +2147,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Category* with inline 'New category'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: Category is EntityPicker kind 'category' (translated names matched on the client; inline 'New purchase category' through TagCreateProvider)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2236: Category is EntityPicker kind 'category' (translated names matched on the client; inline 'New purchase category' through TagCreateProvider). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-034": {
     "name": "Set the initial purchase status when creating",
@@ -2156,7 +2156,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Status (Planned default).",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-035": {
     "name": "Set the quantity of a household item",
@@ -2165,7 +2165,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Quantity.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-036": {
     "name": "Assign an area (room/location) to a household item",
@@ -2174,7 +2174,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Area picker.",
-    "note": "Area editable in one place only (P44). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: Area is EntityPicker kind 'area' in the New purchase dialog and on the purchase edit page (AreaPicker retired)."
+    "note": "Area editable in one place only (P44). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2236: Area is EntityPicker kind 'area' in the New purchase dialog and on the purchase edit page (AreaPicker retired). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-037": {
     "name": "Assign a vendor (retailer/supplier) to a household item",
@@ -2183,7 +2183,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Company picker with inline 'New company'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New purchase dialog's Company field is EntityPicker kind 'company' (inline 'New company' through the ObjectForm child step), as on the purchase edit page; the hand-built company SearchPicker is retired."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2236: the New purchase dialog's Company field is EntityPicker kind 'company' (inline 'New company' through the ObjectForm child step), as on the purchase edit page; the hand-built company SearchPicker is retired. #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-038": {
     "name": "Store a product URL for a household item",
@@ -2192,23 +2192,23 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Product link.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-039": {
     "name": "Enter the order date when creating a household item",
     "from": "/project/household-items/new > \"Order Date\" input",
-    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Ordered on",
+    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > More details > Ordered on",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-040": {
     "name": "Define an expected delivery window (earliest/latest delivery) when creating",
     "from": "/project/household-items/new > \"Earliest Delivery\" + \"Latest Delivery\" inputs",
-    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Delivery window (earliest / latest)",
+    "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Earliest delivery / Latest delivery (essential)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema); the delivery window is an essential field."
   },
   "HHI-041": {
     "name": "Record an actual delivery date when creating (already delivered items)",
@@ -2218,7 +2218,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "New purchase dialog > 'More details' (1) > Delivered on field",
-    "note": "Rare at creation. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Rare at creation. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema)."
   },
   "HHI-042": {
     "name": "View a household item summary header (name, category, status)",
@@ -2327,7 +2327,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Timing tab > Delivery card Edit > Earliest delivery (set or clear); Save.",
-    "note": "Out of the 'Dependencies' card (JRN-15). #2249: Timing › Delivery card Edit > Earliest delivery (Latest must not be before it, field error). Deviation: no separate \"Planned: window\" line, the Earliest and Latest rows are the plan."
+    "note": "Out of the 'Dependencies' card (JRN-15). #2249: Timing › Delivery card Edit > Earliest delivery (Latest must not be before it, field error). Deviation: no separate \"Planned: window\" line, the Earliest and Latest rows are the plan. #2254: the Delivery card renders the dialog's fields (ObjectFormFields)."
   },
   "HHI-055": {
     "name": "Edit the latest delivery date (delivery window end) inline",
@@ -2336,7 +2336,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Timing tab > Delivery card Edit > Latest delivery (set or clear); Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Timing › Delivery card Edit > Latest delivery (set or clear)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2249: Timing › Delivery card Edit > Latest delivery (set or clear). #2254: the Delivery card renders the dialog's fields (ObjectFormFields)."
   },
   "HHI-056": {
     "name": "See that a household item delivery is late",
@@ -2378,7 +2378,7 @@
     "to": "Purchases > Purchase page > Timing tab > Waits for > Add (task or milestone)",
     "change": "same",
     "gate": "none",
-    "note": "Server-search picker (no 100-item cap, PAT-05). #2249: Waits for › Add opens one picker (EntityPicker kind 'taskOrMilestone') listing tasks and milestones."
+    "note": "Server-search picker (no 100-item cap, PAT-05). #2249: Waits for › Add opens one picker (EntityPicker kind 'taskOrMilestone') listing tasks and milestones. #2254: also offered at creation: New purchase dialog > Waits for (task or milestone; finish-to-start; a failed link keeps the purchase and shows a banner on its Timing tab)."
   },
   "HHI-061": {
     "name": "Make a delivery wait for a milestone (add milestone dependency)",
@@ -2386,7 +2386,7 @@
     "to": "Purchases > Purchase page > Timing tab > Waits for > Add (task or milestone)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2249: kept (PO ruling on #2249): a purchase waits for tasks or milestones only, not for other purchases (household_item_deps predecessors are work items or milestones); milestones come from the same Add picker as tasks."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2249: kept (PO ruling on #2249): a purchase waits for tasks or milestones only, not for other purchases (household_item_deps predecessors are work items or milestones); milestones come from the same Add picker as tasks. #2254: also offered at creation: New purchase dialog > Waits for (task or milestone; finish-to-start; a failed link keeps the purchase and shows a banner on its Timing tab)."
   },
   "HHI-062": {
     "name": "Remove a dependency with inline confirmation",

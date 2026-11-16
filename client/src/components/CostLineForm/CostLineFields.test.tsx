@@ -125,6 +125,8 @@ describe('CostLineFields', () => {
       const input = screen.getByTestId('cost-line-amount') as HTMLInputElement;
       expect(input).toHaveValue(12);
       expect(input).not.toHaveAttribute('placeholder');
+      expect(input).toHaveAttribute('inputmode', 'decimal');
+      expect(input).toHaveAttribute('type', 'number');
       fireEvent.change(input, { target: { value: '15' } });
       expect(setValue).toHaveBeenCalledWith('15');
       input.focus();

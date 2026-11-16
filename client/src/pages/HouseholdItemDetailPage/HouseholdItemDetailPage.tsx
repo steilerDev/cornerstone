@@ -153,6 +153,8 @@ function PurchaseLoaded({
   // `?edit=` (the old edit URLs) is read once: it opens the Details card in edit mode.
   const [editIntent] = useState(() => searchParams.has('edit'));
   const pendingEditRef = useRef(editIntent);
+  // `?depError=` comes from a New purchase save whose Waits for link failed; read once.
+  const [depError, setDepError] = useState<string | null>(() => searchParams.get('depError'));
   const intentHandledRef = useRef(false);
 
   // New › Invoice / Log start from this purchase's area and company.
@@ -172,20 +174,32 @@ function PurchaseLoaded({
   );
   const tabs = useObjectTabs(['overview', 'timing', 'cost', 'diary', 'history']);
 
-  // The one replace: no `edit`, no `tab`; the origin state survives.
+  // The one replace: no `edit`, no `depError`; `tab` goes with `edit` only (a dependency
+  // failure keeps the Timing tab the form chose); the origin state survives.
   useEffect(() => {
     if (intentHandledRef.current) return;
     intentHandledRef.current = true;
-    if (!editIntent) return;
+    if (!editIntent && depError === null) return;
     const next = new URLSearchParams(searchParams);
-    next.delete('edit');
-    next.delete('tab');
+    next.delete('depError');
+    if (editIntent) {
+      next.delete('edit');
+      next.delete('tab');
+    }
     const search = next.toString();
     void navigate(
       { pathname: location.pathname, search: search ? `?${search}` : '', hash: location.hash },
       { replace: true, state: location.state },
     );
-  }, [editIntent, searchParams, location.pathname, location.hash, location.state, navigate]);
+  }, [
+    editIntent,
+    depError,
+    searchParams,
+    location.pathname,
+    location.hash,
+    location.state,
+    navigate,
+  ]);
 
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -321,7 +335,13 @@ function PurchaseLoaded({
         counts={{ cost: purchase.budgets.length, diary: diary.count }}
         panels={{
           overview: () => <PurchaseOverviewPanel {...panelProps} detailsCardRef={detailsCardRef} />,
-          timing: () => <PurchaseTimingPanel {...panelProps} />,
+          timing: () => (
+            <PurchaseTimingPanel
+              {...panelProps}
+              depError={depError}
+              onDepErrorDismiss={() => setDepError(null)}
+            />
+          ),
           cost: () => <PurchaseCostPanel {...panelProps} />,
           diary: () => (
             <ObjectDiaryPanel

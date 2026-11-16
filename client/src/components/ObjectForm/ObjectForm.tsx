@@ -365,7 +365,7 @@ export function ObjectForm({
     }
 
     notifyObjectCreated(current.id);
-    if (addAnother && current.addAnother) {
+    if (addAnother && current.addAnother && !result.incomplete) {
       const values = resetValues(current, step.prefill, step.values);
       const expanded = step.expanded && !moreIsEmpty(current, values);
       setSteps([

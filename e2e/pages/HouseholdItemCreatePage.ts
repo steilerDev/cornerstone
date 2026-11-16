@@ -8,9 +8,10 @@
  * Fields (ids kept from the page):
  * - Essentials: #name (required), #category (required, select), #status, #quantity, the area
  *   picker (label for="area"), #vendorId (a company SearchPicker with the
- *   inline "New company ‹text›" row since #2213; its create flow is a child step of this dialog)
- * - Behind "More details": #description, #url, #orderDate, #earliestDeliveryDate,
- *   #latestDeliveryDate, #actualDeliveryDate
+ *   inline "New company ‹text›" row since #2213; its create flow is a child step of this dialog),
+ *   "Waits for" (`purchase-form-waits-for`, tasks and milestones) and the delivery window
+ *   #earliestDeliveryDate / #latestDeliveryDate (#2254)
+ * - Behind "More details": #description, #url, #orderDate, #actualDeliveryDate
  *
  * Behaviour:
  * - Category defaults to the first category once the options load.
@@ -66,6 +67,9 @@ export class HouseholdItemCreatePage {
   /** The picker's selected-company chip (replaces the input once a company is chosen). */
   readonly vendorSelectedDisplay: Locator;
   readonly urlInput: Locator;
+  /** The "Waits for" wrapper (picker and chips) and its task/milestone chooser. */
+  readonly waitsFor: Locator;
+  readonly waitsForPicker: EntityPickerControl;
   /** AreaPicker select (aria-label="Select an area") */
   readonly areaSelect: Locator;
   readonly orderDateInput: Locator;
@@ -100,6 +104,8 @@ export class HouseholdItemCreatePage {
       .locator('xpath=..')
       .locator('[class*="selectedDisplay"]');
     this.urlInput = this.form.field('url');
+    this.waitsFor = this.dialog.getByTestId('purchase-form-waits-for');
+    this.waitsForPicker = new EntityPickerControl(page, 'waitsFor', this.dialog);
     this.areaSelect = this.dialog.getByLabel('Select an area');
     this.orderDateInput = this.form.field('orderDate');
     this.earliestDeliveryDateInput = this.form.field('earliestDeliveryDate');
@@ -148,8 +154,6 @@ export class HouseholdItemCreatePage {
       data.description !== undefined ||
       data.url !== undefined ||
       data.orderDate !== undefined ||
-      data.earliestDeliveryDate !== undefined ||
-      data.latestDeliveryDate !== undefined ||
       data.actualDeliveryDate !== undefined;
     if (needsMore) await this.expandMoreDetails();
 

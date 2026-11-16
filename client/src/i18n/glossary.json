@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-11-13",
+    "lastUpdated": "2026-11-16",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -1466,6 +1466,19 @@
       },
       "deSource": "approved",
       "definition": "A purchase that is not ordered yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Planned cost": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Planned cost"
+      },
+      "de": {
+        "singular": "Geplante Kosten"
+      },
+      "deSource": "approved",
+      "definition": "The amount you enter on a new task for its first cost line, as an estimate. Not a total: totals are Expected cost.",
       "doNotUse": [],
       "formerly": []
     },

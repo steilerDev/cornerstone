@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { MilestoneSummary } from '@cornerstone/shared';
@@ -82,13 +82,13 @@ describe('milestoneForm (ObjectForm schema)', () => {
   const dateInput = () => screen.getByTestId('milestone-target-date-input') as HTMLInputElement;
   const save = () => screen.getByTestId('object-form-save');
 
-  it('titles the dialog "New milestone" and shows all three fields up front (none under More details)', () => {
+  it('titles the dialog "New milestone" and renders the three fields', () => {
     renderForm();
     expect(screen.getByRole('dialog', { name: 'New milestone' })).toBeInTheDocument();
     expect(titleInput()).toBeInTheDocument();
     expect(dateInput()).toBeInTheDocument();
     expect(screen.getByTestId('milestone-description-input')).toBeInTheDocument();
-    expect(screen.queryByTestId('object-form-more')).toBeNull();
+    expect(screen.getByTestId('object-form-more')).toBeInTheDocument();
   });
 
   it('starts with empty fields and the title focused', () => {
@@ -111,6 +111,105 @@ describe('milestoneForm (ObjectForm schema)', () => {
   it('pre-fills the target date from the visible date', () => {
     renderForm('2026-03-01');
     expect(dateInput().value).toBe('2026-03-01');
+  });
+
+  describe('quick create (#2254): essentials and scope', () => {
+    it('shows Title and Target date up front, Description behind More details, and no colour', () => {
+      renderForm();
+      const more = screen.getByTestId('object-form-more');
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
+      expect(hidden).toHaveAttribute('hidden');
+      expect(hidden.contains(screen.getByTestId('milestone-description-input'))).toBe(true);
+      expect(hidden.contains(titleInput())).toBe(false);
+      expect(hidden.contains(dateInput())).toBe(false);
+      const visible = Array.from(document.querySelectorAll<HTMLElement>('[data-field]'))
+        .filter((el) => el.closest('[hidden]') === null)
+        .map((el) => el.getAttribute('data-field'));
+      expect(visible).toEqual(['title', 'targetDate']);
+      expect(document.querySelector('[data-field="color"]')).toBeNull();
+    });
+
+    it('reveals the description when More details is opened', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await user.click(screen.getByTestId('object-form-more'));
+      expect(screen.getByTestId('milestone-description-input')).toBeVisible();
+    });
+
+    it('limits title to 200 and description to 2000 characters', () => {
+      renderForm();
+      expect(titleInput()).toHaveAttribute('maxlength', '200');
+      expect(screen.getByTestId('milestone-description-input')).toHaveAttribute(
+        'maxlength',
+        '2000',
+      );
+    });
+
+    it('create scope has no colour field; edit scope adds it last', () => {
+      const names = (scope?: 'edit') =>
+        renderHook(() => Form.useMilestoneFormSchema(scope ? { scope } : {}), {
+          wrapper: MemoryRouter,
+        }).result.current.fields.map((f) => f.name);
+      expect(names()).toEqual(['title', 'targetDate', 'description']);
+      expect(names('edit')).toEqual(['title', 'targetDate', 'description', 'color']);
+    });
+
+    it('keeps the stable test ids of the title, date and description controls', () => {
+      const { result } = renderHook(() => Form.useMilestoneFormSchema({ scope: 'edit' }), {
+        wrapper: MemoryRouter,
+      });
+      expect(result.current.fields.map((f) => f.testId)).toEqual([
+        'milestone-title-input',
+        'milestone-target-date-input',
+        'milestone-description-input',
+        undefined,
+      ]);
+    });
+
+    it('submits a description typed under More details', async () => {
+      const user = userEvent.setup();
+      mockCreateMilestone.mockResolvedValue(createdMilestone);
+      renderForm();
+      await user.type(titleInput(), 'Roof Complete');
+      fireEvent.change(dateInput(), { target: { value: '2026-06-15' } });
+      await user.click(screen.getByTestId('object-form-more'));
+      await user.type(screen.getByTestId('milestone-description-input'), 'Tiles done');
+      await user.click(save());
+      await waitFor(() =>
+        expect(mockCreateMilestone).toHaveBeenCalledWith({
+          title: 'Roof Complete',
+          targetDate: '2026-06-15',
+          description: 'Tiles done',
+        }),
+      );
+    });
+
+    describe('validateMilestoneValues', () => {
+      const messages = () => renderHook(() => Form.useMilestoneValueMessages()).result.current;
+
+      it('has the unified copy', () => {
+        expect(messages()).toEqual({
+          title: 'Title is required.',
+          targetDate: 'Target date is required.',
+        });
+      });
+
+      it('requires a non-blank title and a target date; missing keys read as empty', () => {
+        const m = messages();
+        expect(Form.validateMilestoneValues({}, m)).toEqual({
+          title: m.title,
+          targetDate: m.targetDate,
+        });
+        expect(Form.validateMilestoneValues({ title: '  ', targetDate: ' ' }, m)).toEqual({
+          title: m.title,
+          targetDate: m.targetDate,
+        });
+        expect(Form.validateMilestoneValues({ title: 'A', targetDate: '2026-06-15' }, m)).toEqual(
+          {},
+        );
+      });
+    });
   });
 
   describe('validation', () => {
@@ -180,6 +279,7 @@ describe('milestoneForm (ObjectForm schema)', () => {
       renderForm();
       await user.type(titleInput(), 'Roof Complete');
       fireEvent.change(dateInput(), { target: { value: '2026-06-15' } });
+      await user.click(screen.getByTestId('object-form-more'));
       await user.type(screen.getByTestId('milestone-description-input'), 'Roof is on');
       await user.click(save());
       await waitFor(() =>

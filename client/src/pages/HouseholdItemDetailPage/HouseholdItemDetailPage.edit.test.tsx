@@ -33,6 +33,7 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   ...realVendorsApi,
   searchCompanies: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
   fetchVendor: jest.fn(),
+  createVendor: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({
   ...realSearchApi,

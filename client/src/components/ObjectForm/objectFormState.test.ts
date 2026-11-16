@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   adjustForOptions,
   clearResolvedError,
+  fieldsForScope,
   firstErrorField,
   hasValue,
   initialFocusName,
@@ -9,10 +10,12 @@ import {
   isMoreField,
   mapPrefill,
   moreIsEmpty,
+  pickErrors,
   resetValues,
   serverFieldErrors,
   startsExpanded,
   startValues,
+  toDraftText,
 } from './objectFormState.js';
 import type { ObjectFormField, ObjectFormSchema } from './types.js';
 
@@ -276,5 +279,56 @@ describe('serverFieldErrors', () => {
   it('never exposes the server message', () => {
     const r = serverFieldErrors({ fields: [{ path: '/title', message: 'server text' }] }, names);
     expect(JSON.stringify(r)).not.toContain('server text');
+  });
+});
+
+describe('fieldsForScope (#2254)', () => {
+  const fields = [
+    f({ name: 'both' }),
+    f({ name: 'dialog', scope: 'create' }),
+    f({ name: 'card', scope: 'edit' }),
+  ];
+
+  it('keeps unscoped fields and the requested scope, in schema order', () => {
+    expect(fieldsForScope(fields, 'create').map((x) => x.name)).toEqual(['both', 'dialog']);
+    expect(fieldsForScope(fields, 'edit').map((x) => x.name)).toEqual(['both', 'card']);
+  });
+
+  it('returns the same field objects, not copies', () => {
+    expect(fieldsForScope(fields, 'create')[0]).toBe(fields[0]);
+  });
+
+  it('returns nothing for no fields', () => {
+    expect(fieldsForScope([], 'edit')).toEqual([]);
+  });
+});
+
+describe('pickErrors (#2254)', () => {
+  it('keeps only the named fields that have an error', () => {
+    expect(pickErrors({ a: 'A bad', b: 'B bad', c: 'C bad' }, ['a', 'c', 'zzz'])).toEqual({
+      a: 'A bad',
+      c: 'C bad',
+    });
+  });
+
+  it('is empty when none of the named fields has an error', () => {
+    expect(pickErrors({ b: 'B bad' }, ['a'])).toEqual({});
+    expect(pickErrors({}, ['a'])).toEqual({});
+  });
+
+  it('keeps an empty-string message out only when the key is absent (present keys pass through)', () => {
+    expect(pickErrors({ a: '' }, ['a'])).toEqual({ a: '' });
+  });
+});
+
+describe('toDraftText (#2254)', () => {
+  it('keeps strings, maps null and undefined to empty, stringifies the rest', () => {
+    expect(toDraftText('abc')).toBe('abc');
+    expect(toDraftText('')).toBe('');
+    expect(toDraftText(null)).toBe('');
+    expect(toDraftText(undefined)).toBe('');
+    expect(toDraftText(0)).toBe('0');
+    expect(toDraftText(12.5)).toBe('12.5');
+    expect(toDraftText(false)).toBe('false');
   });
 });

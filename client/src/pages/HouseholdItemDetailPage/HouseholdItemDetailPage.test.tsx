@@ -120,7 +120,11 @@ jest.unstable_mockModule('./PurchaseOverviewPanel.js', () => ({
   },
 }));
 jest.unstable_mockModule('./PurchaseTimingPanel.js', () => ({
-  PurchaseTimingPanel: () => <div data-testid="stub-timing" />,
+  PurchaseTimingPanel: (props: { depError?: string | null; onDepErrorDismiss?: () => void }) => (
+    <div data-testid="stub-timing" data-deperror={props.depError ?? ''}>
+      <button type="button" data-testid="stub-dismiss" onClick={props.onDepErrorDismiss} />
+    </div>
+  ),
 }));
 jest.unstable_mockModule('./PurchaseCostPanel.js', () => ({
   PurchaseCostPanel: () => <div data-testid="stub-cost" />,
@@ -689,6 +693,66 @@ describe('HouseholdItemDetailPage', () => {
       act(() => Events.notifyObjectCreated('invoice'));
       await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(2));
       expect(startEditDetails).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('depError (a New purchase whose Waits for link failed; read once, one replace)', () => {
+    it('opens the Timing tab with the titles in the panel and removes only depError, replacing once', async () => {
+      const state = { origin: { to: '/project/household-items', name: 'Purchases' } };
+      await loaded({
+        pathname: '/project/household-items/hi-1',
+        search: '?tab=timing&depError=Alpha%2C%20Beta&foo=bar',
+        hash: '#x',
+        state,
+      });
+      expect(await screen.findByTestId('stub-timing')).toHaveAttribute(
+        'data-deperror',
+        'Alpha, Beta',
+      );
+      expect(seen.type).toBe('REPLACE');
+      expect(seen.keys).toHaveLength(2);
+      expect(seen.state).toEqual(state);
+      expect(seen.hash).toBe('#x');
+      const params = new URLSearchParams(seen.search);
+      expect(params.has('depError')).toBe(false);
+      expect(params.get('tab')).toBe('timing');
+      expect(params.get('foo')).toBe('bar');
+      expect(startEditDetails).not.toHaveBeenCalled();
+    });
+
+    it('keeps tab=timing and leaves the URL clean when depError was the only other parameter', async () => {
+      await loaded('/project/household-items/hi-1?tab=timing&depError=Alpha');
+      await screen.findByTestId('stub-timing');
+      expect(seen.search).toBe('?tab=timing');
+    });
+
+    it('Close clears the titles in the panel and a later refresh does not bring them back', async () => {
+      await loaded('/project/household-items/hi-1?tab=timing&depError=Alpha');
+      const timing = await screen.findByTestId('stub-timing');
+      fireEvent.click(screen.getByTestId('stub-dismiss'));
+      expect(timing).toHaveAttribute('data-deperror', '');
+      act(() => Events.notifyObjectCreated('invoice'));
+      await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(2));
+      expect(screen.getByTestId('stub-timing')).toHaveAttribute('data-deperror', '');
+      expect(seen.keys).toHaveLength(2);
+    });
+
+    it('does not navigate without a depError (the Timing tab alone stays a plain visit)', async () => {
+      await loaded('/project/household-items/hi-1?tab=timing');
+      await screen.findByTestId('stub-timing');
+      expect(seen.keys).toHaveLength(1);
+      expect(seen.type).toBe('POP');
+      expect(screen.getByTestId('stub-timing')).toHaveAttribute('data-deperror', '');
+    });
+
+    it('?edit= still drops edit and tab, and depError alongside it is removed too', async () => {
+      await loaded('/project/household-items/hi-1?edit=overview&tab=timing&depError=Alpha');
+      await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
+      const params = new URLSearchParams(seen.search);
+      expect(params.has('edit')).toBe(false);
+      expect(params.has('tab')).toBe(false);
+      expect(params.has('depError')).toBe(false);
+      expect(seen.keys).toHaveLength(2);
     });
   });
 

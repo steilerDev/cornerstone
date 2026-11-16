@@ -35,6 +35,7 @@ jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: jest.fn(),
   listWorkItems: jest.fn(),
+  createWorkItem: jest.fn(),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 // The shared panel has its own tests; here only the wiring around it matters.
