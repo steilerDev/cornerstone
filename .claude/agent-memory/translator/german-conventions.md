@@ -48,3 +48,9 @@ metadata:
 **Abschlag.** Short form recorded in glossary.json; see [Abschlag short form](abschlag-glossary-shortform.md).
 
 **Diary type names.** See [diary type names canon](diary-type-names-canon.md).
+
+## Keyboard shortcut vocabulary (#2253)
+
+- "Tastaturkürzel" is the canonical term for keyboard shortcuts (overlay title, user-menu row, show-help). "Tastenkürzel" was retired with the per-page help keys.
+- Key caps: display text uses German keyboard labels ("Entf" for Delete, "Esc"); spoken names stay descriptive ("Befehlstaste K", "Fragezeichen", "Schrägstrich").
+- Overlay group headings are nouns ("Navigation", "Auf dieser Seite", "Überall"); "dann" joins key sequences.

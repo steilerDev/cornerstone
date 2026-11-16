@@ -36,18 +36,22 @@ function Probe() {
 function ShortcutList() {
   const registry = useShortcutRegistry();
   const [text, setText] = useState('');
+  const [groups, setGroups] = useState('');
   return (
     <div>
       <button
         type="button"
         data-testid="read-shortcuts"
-        onClick={() =>
-          setText((registry?.snapshot() ?? []).map((s) => `${s.key}:${s.description}`).join('|'))
-        }
+        onClick={() => {
+          const rows = registry?.snapshot() ?? [];
+          setText(rows.map((s) => `${s.key}:${s.description}`).join('|'));
+          setGroups(rows.map((s) => `${s.key}:${s.group}`).join('|'));
+        }}
       >
         read
       </button>
       <output data-testid="shortcuts">{text}</output>
+      <output data-testid="shortcut-groups">{groups}</output>
     </div>
   );
 }
@@ -232,6 +236,12 @@ describe('the shell n shortcut', () => {
     expect(readShortcuts()).toBe('n:Open the New menu');
   });
 
+  it('is registered in the global group', () => {
+    setup();
+    fireEvent.click(screen.getByTestId('read-shortcuts'));
+    expect(screen.getByTestId('shortcut-groups')).toHaveTextContent('n:global');
+  });
+
   it('opens the sheet on n below the wide breakpoint', () => {
     const { onSheetOpenChange } = setup({ wide: false });
     press('n');
@@ -249,6 +259,7 @@ describe('the shell n shortcut', () => {
     expect(pageHandler).toHaveBeenCalledTimes(1);
     expect(onSheetOpenChange).not.toHaveBeenCalled();
     expect(readShortcuts()).toBe('n:page n');
+    expect(screen.getByTestId('shortcut-groups')).toHaveTextContent('n:page');
   });
 
   it('does not fire while a modal is open', () => {

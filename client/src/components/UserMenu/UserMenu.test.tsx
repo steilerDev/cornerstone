@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { OriginProbe } from '../../test/originProbe.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
+import { ShortcutsHelpProvider } from '../KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 import { GITHUB_URL, HELP_URL } from '../../lib/externalLinks.js';
@@ -62,7 +63,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 }));
 
 const PAGE_SHORTCUTS: KeyboardShortcut[] = [
-  { key: 'n', handler: () => {}, description: 'New synthetic task' },
+  { key: 'e', handler: () => {}, description: 'Edit synthetic task' },
 ];
 
 function PageWithShortcuts() {
@@ -109,10 +110,12 @@ describe('UserMenu', () => {
     const utils = render(
       <RecordingRouter entries={[options.path ?? '/project/overview']} log={log}>
         <ShortcutRegistryProvider>
-          {options.withPage && <PageWithShortcuts />}
-          <UserMenuModule.UserMenu />
-          <GoTo to="/schedule/gantt" />
-          <OriginProbe />
+          <ShortcutsHelpProvider navContext={{ role: 'member', paperlessConfigured: false }}>
+            {options.withPage && <PageWithShortcuts />}
+            <UserMenuModule.UserMenu />
+            <GoTo to="/schedule/gantt" />
+            <OriginProbe />
+          </ShortcutsHelpProvider>
         </ShortcutRegistryProvider>
       </RecordingRouter>,
     );
@@ -124,10 +127,13 @@ describe('UserMenu', () => {
     await user.click(trigger());
     return screen.getByRole('menu');
   };
+  // Accessible names: the aria-hidden `?` key hint of the shortcuts row is not part of the name.
   const itemNames = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('[role^="menuitem"]')).map((el) =>
-      (el.textContent ?? '').replace(/^✓\s*/, '').replace(/↗.*$/, ''),
-    );
+    Array.from(document.querySelectorAll<HTMLElement>('[role^="menuitem"]')).map((el) => {
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('kbd[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+      return (clone.textContent ?? '').replace(/^✓\s*/, '').replace(/↗.*$/, '');
+    });
 
   describe('trigger', () => {
     it.each([
@@ -391,15 +397,17 @@ describe('UserMenu', () => {
   });
 
   describe('keyboard shortcuts dialog', () => {
-    it('lists the shortcuts the current page registered', async () => {
+    it('opens the shell dialog with the page shortcuts under On this page', async () => {
       const user = userEvent.setup();
       renderMenu({ withPage: true });
       await openMenu(user);
       await user.click(screen.getByTestId('user-menu-shortcuts'));
-      const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByText('n')).toBeInTheDocument();
-      expect(within(dialog).getByText('New synthetic task')).toBeInTheDocument();
+      const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+      const [pageTable] = within(dialog).getAllByRole('table');
+      expect(within(pageTable!).getByText('Edit synthetic task')).toBeInTheDocument();
+      expect(within(dialog).getAllByTestId('keyboard-shortcut-row')).toHaveLength(1 + 4 + 8);
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
     });
 
     it('shows the empty message when the page registered nothing', async () => {
@@ -411,11 +419,11 @@ describe('UserMenu', () => {
       expect(
         within(dialog).getByText('This page has no shortcuts of its own.'),
       ).toBeInTheDocument();
-      // Only the "Everywhere" table remains.
-      expect(within(dialog).getAllByRole('table')).toHaveLength(1);
+      // Everywhere and Go to remain.
+      expect(within(dialog).getAllByRole('table')).toHaveLength(2);
     });
 
-    it('shows the empty message when rendered without a registry provider', async () => {
+    it('opens nothing when rendered outside the shell providers', async () => {
       const user = userEvent.setup();
       render(
         <RecordingRouter entries={['/project/overview']} log={createRouterLog()}>
@@ -424,7 +432,7 @@ describe('UserMenu', () => {
       );
       await openMenu(user);
       await user.click(screen.getByTestId('user-menu-shortcuts'));
-      expect(screen.getByText('This page has no shortcuts of its own.')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('returns focus to the avatar when the dialog closes', async () => {
@@ -437,6 +445,30 @@ describe('UserMenu', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(trigger()).toHaveFocus();
     });
+
+    it('shows an aria-hidden ? hint on the row while single-key shortcuts are on', async () => {
+      const user = userEvent.setup();
+      renderMenu();
+      await openMenu(user);
+      const row = screen.getByTestId('user-menu-shortcuts');
+      const hint = row.querySelector('kbd')!;
+      expect(hint).toHaveTextContent('?');
+      expect(hint).toHaveAttribute('aria-hidden', 'true');
+      expect(row).toHaveAccessibleName('Keyboard shortcuts');
+    });
+
+    it('drops the ? hint while off but the row still opens the dialog (AC6)', async () => {
+      localStorage.setItem('singleKeyShortcuts', 'off');
+      const user = userEvent.setup();
+      renderMenu();
+      await openMenu(user);
+      const row = screen.getByTestId('user-menu-shortcuts');
+      expect(row.querySelector('kbd')).toBeNull();
+      await user.click(row);
+      expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    });
+
+    afterEach(() => localStorage.clear());
   });
 
   describe('log out', () => {

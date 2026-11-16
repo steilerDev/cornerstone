@@ -5,258 +5,245 @@ import { jest, describe, it, expect, afterEach } from '@jest/globals';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp.js';
-import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
+import type { KeyboardShortcutsHelpProps } from './KeyboardShortcutsHelp.js';
+import type { RegisteredShortcut, ShortcutGroup } from '../../hooks/shortcutRegistry.js';
 
-// KeyboardShortcutsHelp now renders via the shared Modal component, which uses
-// createPortal into document.body — dialog role, aria-modal, backdrop, Escape,
-// and focus trap are all inherited from Modal (covered generically by Modal.test.tsx).
-// These tests verify KeyboardShortcutsHelp's own rendering (table/rows) plus that
-// it correctly wires into Modal (onClose plumbing, dialog semantics).
+// The overlay renders through the shared Modal (dialog role, aria-modal, backdrop, Escape and the
+// focus trap are covered by Modal.test.tsx). These tests cover the groups, rows, key caps, the
+// "turned off" marking and the footer switch (#2253).
 
-/** The page's own shortcut table (the first one); the "Everywhere" table follows it. */
-function pageTable(): HTMLElement {
-  return screen.getAllByRole('table')[0]!;
+const row = (key: string, description: string, group: ShortcutGroup): RegisteredShortcut => ({
+  key,
+  description,
+  group,
+  handler: () => {},
+});
+
+const PAGE = [row('e', 'Edit this task', 'page'), row('Delete', 'Delete this task', 'page')];
+const GLOBAL = [
+  row('Mod+z', 'Undo the last change', 'global'),
+  row('?', 'Show keyboard shortcuts', 'global'),
+  row('n', 'Open the New menu', 'global'),
+  row('/', 'Search this list', 'global'),
+  row('Escape', 'Close the open dialog, menu or search', 'global'),
+  row('Mod+k', 'Search everywhere', 'global'),
+];
+const GO_TO = [row('g s', 'Go to Schedule', 'goTo'), row('g h', 'Go to Home', 'goTo')];
+const ALL = [...PAGE, ...GLOBAL, ...GO_TO];
+
+function renderHelp(overrides: Partial<KeyboardShortcutsHelpProps> = {}) {
+  const props: KeyboardShortcutsHelpProps = {
+    shortcuts: ALL,
+    singleKeyEnabled: true,
+    onSingleKeyEnabledChange: () => {},
+    onClose: () => {},
+    ...overrides,
+  };
+  return render(<KeyboardShortcutsHelp {...props} />);
 }
 
+const rowKeys = (table: HTMLElement) =>
+  within(table)
+    .getAllByTestId('keyboard-shortcut-row')
+    .map((r) => r.getAttribute('data-key'));
+
 describe('KeyboardShortcutsHelp', () => {
-  const mockShortcuts: KeyboardShortcut[] = [
-    { key: 'n', handler: () => {}, description: 'New work item' },
-    { key: 'Escape', handler: () => {}, description: 'Close dialog' },
-    { key: '?', handler: () => {}, description: 'Show keyboard shortcuts' },
-  ];
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-  it('renders inside a Modal with dialog role, aria-modal, and portal to document.body', () => {
-    const onClose = jest.fn<() => void>();
-    const { baseElement } = render(
-      <KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />,
-    );
-
-    const dialog = screen.getByRole('dialog');
-    expect(dialog).toBeInTheDocument();
+  it('renders inside a Modal titled "Keyboard shortcuts" with dialog semantics, portalled to body', () => {
+    const { baseElement } = renderHelp();
+    const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    // baseElement is document.body — portal content should live there
     expect(baseElement.querySelector('[role="dialog"]')).toBe(dialog);
   });
 
-  it('should render modal with title and shortcuts list', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    expect(screen.getByRole('heading', { name: 'Keyboard Shortcuts' })).toBeInTheDocument();
-
-    // Check that all shortcuts are displayed
-    expect(screen.getByText('n')).toBeInTheDocument();
-    expect(screen.getByText('New work item')).toBeInTheDocument();
-    expect(screen.getByText('Escape')).toBeInTheDocument();
-    expect(screen.getByText('Close dialog')).toBeInTheDocument();
-    expect(screen.getByText('?')).toBeInTheDocument();
-    expect(screen.getByText('Show keyboard shortcuts')).toBeInTheDocument();
+  it('shows three group headings in the order On this page, Everywhere, Go to', () => {
+    renderHelp();
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'On this page',
+      'Everywhere',
+      'Go to',
+    ]);
   });
 
-  it('should display key and description for each shortcut', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    const rows = within(pageTable()).getAllByRole('row');
-    // Header row + 3 data rows
-    expect(rows).toHaveLength(4);
-
-    // Verify table has correct headings
-    expect(screen.getByText('Key')).toBeInTheDocument();
-    expect(screen.getByText('Action')).toBeInTheDocument();
+  it('labels each table with its heading and renders no table header', () => {
+    renderHelp();
+    const tables = screen.getAllByRole('table');
+    expect(tables).toHaveLength(3);
+    expect(tables[0]).toHaveAccessibleName('On this page');
+    expect(tables[1]).toHaveAccessibleName('Everywhere');
+    expect(tables[2]).toHaveAccessibleName('Go to');
+    for (const table of tables) {
+      expect(table.querySelector('thead')).toBeNull();
+      expect(within(table).queryAllByRole('columnheader')).toHaveLength(0);
+    }
   });
 
-  it('should call onClose when backdrop is clicked', async () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    // Modal portals into document.body, so the backdrop isn't inside the
-    // render() container — query the whole document instead.
-    const backdrop = document.querySelector('[class*="modalBackdrop"]');
-    expect(backdrop).toBeInTheDocument();
-
-    await userEvent.click(backdrop!);
-
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it('lists each group rows in its own table', () => {
+    renderHelp();
+    const [page, everywhere, goTo] = screen.getAllByRole('table');
+    expect(rowKeys(page!)).toEqual(['e', 'Delete']);
+    expect(rowKeys(everywhere!)).toHaveLength(6);
+    expect(rowKeys(goTo!)).toEqual(['g s', 'g h']);
+    expect(within(page!).getByText('Edit this task')).toBeInTheDocument();
+    expect(within(goTo!).getByText('Go to Schedule')).toBeInTheDocument();
   });
 
-  it('should call onClose when close button is clicked', async () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    const closeButton = screen.getByRole('button', { name: /close/i });
-    await userEvent.click(closeButton);
-
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it('orders Everywhere as search, slash, n, ?, Esc, undo even when registered differently', () => {
+    renderHelp();
+    expect(rowKeys(screen.getAllByRole('table')[1]!)).toEqual([
+      'Mod+k',
+      '/',
+      'n',
+      '?',
+      'Escape',
+      'Mod+z',
+    ]);
   });
 
-  it('close button aria-label resolves via common:aria.closeDialog (not the removed keyboardShortcuts.closeAriaLabel key)', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    // "Close dialog" is the en value of common:aria.closeDialog — the same key
-    // Modal uses for every consumer. KeyboardShortcutsHelp no longer defines its
-    // own close-button aria-label.
-    expect(screen.getByRole('button', { name: 'Close dialog' })).toBeInTheDocument();
+  it('shows the empty state under the On this page heading when the page registered nothing', () => {
+    renderHelp({ shortcuts: [...GLOBAL, ...GO_TO] });
+    expect(screen.getByRole('heading', { name: 'On this page' })).toBeInTheDocument();
+    expect(screen.getByText('This page has no shortcuts of its own.')).toBeInTheDocument();
+    expect(screen.getAllByRole('table')).toHaveLength(2);
   });
 
-  it('Escape key closes the dialog (inherited from Modal, not KeyboardShortcutsHelp logic)', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    // Fire directly against document, matching Modal's own Escape-key effect
-    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-    document.dispatchEvent(event);
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('should render all shortcuts with kbd elements', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    // Modal portals into document.body, so query document instead of the
-    // render() container.
-    const kbdElements = pageTable().querySelectorAll('kbd');
-    expect(kbdElements).toHaveLength(3);
-
-    expect(kbdElements[0]!).toHaveTextContent('n');
-    expect(kbdElements[1]!).toHaveTextContent('Escape');
-    expect(kbdElements[2]!).toHaveTextContent('?');
-  });
-
-  it('should have correct ARIA attributes', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
-
-    const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveAttribute('aria-modal', 'true');
-  });
-
-  it('should handle empty shortcuts array', () => {
-    const onClose = jest.fn<() => void>();
-    render(<KeyboardShortcutsHelp shortcuts={[]} onClose={onClose} />);
-
-    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
-    const rows = within(pageTable()).getAllByRole('row');
-    // Only header row, no data rows
-    expect(rows).toHaveLength(1);
-  });
-
-  it('filters out shortcuts with no description', () => {
-    const onClose = jest.fn<() => void>();
-    const shortcutsWithBlank: KeyboardShortcut[] = [
-      ...mockShortcuts,
-      { key: 'x', handler: () => {}, description: '' },
-    ];
-    render(<KeyboardShortcutsHelp shortcuts={shortcutsWithBlank} onClose={onClose} />);
-
-    const rows = within(pageTable()).getAllByRole('row');
-    // Header row + 3 data rows (the blank-description shortcut is filtered out)
-    expect(rows).toHaveLength(4);
-    expect(screen.queryByText('x')).not.toBeInTheDocument();
-  });
-
-  describe('emptyMessage', () => {
-    it('shows the empty state instead of the table when nothing is listed', () => {
-      render(
-        <KeyboardShortcutsHelp
-          shortcuts={[]}
-          emptyMessage="This page has no shortcuts of its own."
-          onClose={() => {}}
-        />,
-      );
-      expect(screen.getByText('This page has no shortcuts of its own.')).toBeInTheDocument();
-      expect(screen.getAllByRole('table')).toHaveLength(1);
-      expect(screen.queryByText('Key')).not.toBeInTheDocument();
+  it('treats page shortcuts without a description as empty and hides blank rows', () => {
+    renderHelp({
+      shortcuts: [...PAGE, row('Backspace', '', 'page')],
     });
-
-    it('treats shortcuts without a description as empty', () => {
-      render(
-        <KeyboardShortcutsHelp
-          shortcuts={[{ key: 'x', handler: () => {}, description: '' }]}
-          emptyMessage="Nothing here"
-          onClose={() => {}}
-        />,
-      );
-      expect(screen.getByText('Nothing here')).toBeInTheDocument();
-      expect(screen.getAllByRole('table')).toHaveLength(1);
-      expect(screen.queryByText('Key')).not.toBeInTheDocument();
-    });
-
-    it('keeps the table when shortcuts exist, ignoring emptyMessage', () => {
-      render(
-        <KeyboardShortcutsHelp
-          shortcuts={mockShortcuts}
-          emptyMessage="Nothing here"
-          onClose={() => {}}
-        />,
-      );
-      expect(screen.getAllByRole('table')).toHaveLength(2);
-      expect(screen.getByText('Show keyboard shortcuts')).toBeInTheDocument();
-      expect(screen.queryByText('Nothing here')).not.toBeInTheDocument();
-    });
-
-    it('keeps the empty table when no emptyMessage is given (existing callers)', () => {
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      expect(screen.getAllByRole('table')).toHaveLength(2);
-      expect(screen.getByText('Key')).toBeInTheDocument();
-    });
+    expect(rowKeys(screen.getAllByRole('table')[0]!)).toEqual(['e', 'Delete']);
+    renderHelp({ shortcuts: [row('x', '', 'page')] });
+    expect(screen.getAllByText('This page has no shortcuts of its own.')).toHaveLength(1);
   });
 
-  describe('Everywhere table', () => {
+  it('omits the Everywhere and Go to groups when they have no rows', () => {
+    renderHelp({ shortcuts: PAGE });
+    expect(screen.queryByRole('heading', { name: 'Everywhere' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Go to' })).toBeNull();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+  });
+
+  it('renders a sequence as two kbd caps with a "then" span between them', () => {
+    renderHelp();
+    const sequence = screen
+      .getAllByTestId('keyboard-shortcut-row')
+      .find((r) => r.dataset.key === 'g s')!;
+    const keyCell = sequence.querySelector('td')!;
+    const kbds = keyCell.querySelectorAll('kbd');
+    expect(kbds).toHaveLength(2);
+    expect(kbds[0]).toHaveTextContent('g');
+    expect(kbds[1]).toHaveTextContent('s');
+    const then = keyCell.querySelector('span:not([aria-hidden])')!;
+    expect(then).toHaveTextContent('then');
+    expect(kbds[0]!.nextElementSibling).toBe(then);
+    expect(then.nextElementSibling).toBe(kbds[1]);
+  });
+
+  it('gives symbol caps screen-reader names', () => {
+    renderHelp();
+    const everywhere = screen.getAllByRole('table')[1]!;
+    const cell = (key: string) =>
+      within(everywhere)
+        .getAllByTestId('keyboard-shortcut-row')
+        .find((r) => r.dataset.key === key)!
+        .querySelector('td')!;
+    expect(cell('?')).toHaveTextContent('Question mark');
+    expect(cell('/')).toHaveTextContent('Slash');
+    expect(cell('Escape')).toHaveTextContent('Escape');
+    expect(cell('Escape').querySelector('[aria-hidden="true"]')).toHaveTextContent('Esc');
+    expect(cell('n').querySelector('[aria-hidden]')).toBeNull();
+  });
+
+  describe('platform key caps', () => {
     const platformSpy = () => jest.spyOn(navigator, 'platform', 'get');
 
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('lists the undo shortcut under an "Everywhere" heading, even with an empty page list', () => {
-      render(<KeyboardShortcutsHelp shortcuts={[]} emptyMessage="Nothing" onClose={() => {}} />);
-      expect(screen.getByRole('heading', { name: 'Everywhere' })).toBeInTheDocument();
-      const table = screen.getAllByRole('table').at(-1)!;
-      expect(within(table).getByText('Undo the last change')).toBeInTheDocument();
-    });
-
-    it('shows Ctrl Z on non-Apple platforms', () => {
+    it('shows Ctrl K and Ctrl Z without spoken names on non-Apple platforms', () => {
       platformSpy().mockReturnValue('Win32');
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      expect(screen.getByText('Ctrl Z')).toBeInTheDocument();
-      expect(screen.queryByText('⌘Z')).toBeNull();
+      renderHelp();
+      const everywhere = screen.getAllByRole('table')[1]!;
+      expect(within(everywhere).getByText('Ctrl K')).toBeInTheDocument();
+      expect(within(everywhere).getByText('Ctrl Z')).toBeInTheDocument();
+      expect(within(everywhere).queryByText('⌘K')).toBeNull();
+      expect(within(everywhere).queryByText('Command K')).toBeNull();
     });
 
-    it('shows ⌘Z on Apple platforms', () => {
+    it('shows ⌘K and ⌘Z with spoken names on Apple platforms', () => {
       platformSpy().mockReturnValue('MacIntel');
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      expect(screen.getByText('⌘Z')).toBeInTheDocument();
-      expect(screen.queryByText('Ctrl Z')).toBeNull();
+      renderHelp();
+      const everywhere = screen.getAllByRole('table')[1]!;
+      expect(within(everywhere).getByText('⌘K')).toBeInTheDocument();
+      expect(within(everywhere).getByText('⌘Z')).toBeInTheDocument();
+      expect(within(everywhere).getByText('Command K')).toBeInTheDocument();
+      expect(within(everywhere).getByText('Command Z')).toBeInTheDocument();
+      expect(within(everywhere).queryByText('Ctrl K')).toBeNull();
+    });
+  });
+
+  describe('single-key switch', () => {
+    it('renders a labelled switch in the footer, checked while on', () => {
+      renderHelp();
+      const toggle = screen.getByRole('switch', { name: 'Single-key shortcuts' });
+      expect(toggle).toBeChecked();
     });
 
-    it('lists "Search everywhere" first, with Ctrl K on non-Apple platforms (#2211)', () => {
-      platformSpy().mockReturnValue('Win32');
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      const table = screen.getAllByRole('table').at(-1)!;
-      const rows = within(table).getAllByRole('row');
-      expect(within(rows[0]!).getByText('Ctrl K')).toBeInTheDocument();
-      expect(within(rows[0]!).getByText('Search everywhere')).toBeInTheDocument();
-      expect(within(table).queryByText('⌘K')).toBeNull();
+    it('is unchecked while off', () => {
+      renderHelp({ singleKeyEnabled: false });
+      expect(screen.getByRole('switch', { name: 'Single-key shortcuts' })).not.toBeChecked();
     });
 
-    it('shows ⌘K on Apple platforms (#2211)', () => {
-      platformSpy().mockReturnValue('MacIntel');
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      const table = screen.getAllByRole('table').at(-1)!;
-      const first = within(table).getAllByRole('row')[0]!;
-      expect(within(first).getByText('⌘K')).toBeInTheDocument();
-      expect(within(first).getByText('Search everywhere')).toBeInTheDocument();
-      expect(within(table).queryByText('Ctrl K')).toBeNull();
+    it('reports the new value on click and on the keyboard (Space)', async () => {
+      const onChange = jest.fn<(enabled: boolean) => void>();
+      renderHelp({ onSingleKeyEnabledChange: onChange });
+      const toggle = screen.getByRole('switch', { name: 'Single-key shortcuts' });
+      await userEvent.click(toggle);
+      expect(onChange).toHaveBeenLastCalledWith(false);
+      toggle.focus();
+      await userEvent.keyboard(' ');
+      expect(onChange).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps the undo row after the search row (#2211)', () => {
-      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      const table = screen.getAllByRole('table').at(-1)!;
-      expect(within(table).getAllByRole('row')).toHaveLength(2);
-      expect(within(table).getByText('Undo the last change')).toBeInTheDocument();
+    it('reports true when turning a switched-off preference back on', async () => {
+      const onChange = jest.fn<(enabled: boolean) => void>();
+      renderHelp({ singleKeyEnabled: false, onSingleKeyEnabledChange: onChange });
+      await userEvent.click(screen.getByRole('switch', { name: 'Single-key shortcuts' }));
+      expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it('marks no row as turned off while on', () => {
+      renderHelp();
+      expect(screen.queryAllByTestId('keyboard-shortcut-off')).toHaveLength(0);
+      expect(document.querySelectorAll('[data-off]')).toHaveLength(0);
+    });
+
+    it('marks the single-key rows (/, n, ?, e, g s, g h) turned off and keeps Delete, Esc, chords on', () => {
+      renderHelp({ singleKeyEnabled: false });
+      const rows = screen.getAllByTestId('keyboard-shortcut-row');
+      const off = rows.filter((r) => r.hasAttribute('data-off')).map((r) => r.dataset.key);
+      expect(off.sort()).toEqual(['/', '?', 'e', 'g h', 'g s', 'n']);
+      const on = rows.filter((r) => !r.hasAttribute('data-off')).map((r) => r.dataset.key);
+      expect(on.sort()).toEqual(['Delete', 'Escape', 'Mod+k', 'Mod+z']);
+      const badges = screen.getAllByTestId('keyboard-shortcut-off');
+      expect(badges).toHaveLength(6);
+      for (const badge of badges) expect(badge).toHaveTextContent('Turned off');
+      for (const r of rows.filter((x) => !x.hasAttribute('data-off'))) {
+        expect(within(r).queryByTestId('keyboard-shortcut-off')).toBeNull();
+      }
+    });
+  });
+
+  describe('Modal wiring', () => {
+    it('calls onClose for Escape, the close button and the backdrop', async () => {
+      const onClose = jest.fn<() => void>();
+      renderHelp({ onClose });
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      await userEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+      expect(onClose).toHaveBeenCalledTimes(2);
+      await userEvent.click(document.querySelector('[class*="modalBackdrop"]')!);
+      expect(onClose).toHaveBeenCalledTimes(3);
     });
   });
 });

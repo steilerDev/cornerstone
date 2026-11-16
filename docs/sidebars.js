@@ -14,6 +14,7 @@ const sidebars = {
         'getting-started/configuration',
       ],
     },
+    'guides/keyboard-shortcuts',
     {
       type: 'category',
       label: 'Tasks',
@@ -23,7 +24,6 @@ const sidebars = {
         'guides/work-items/areas-and-trades',
         'guides/work-items/notes-and-subtasks',
         'guides/work-items/dependencies',
-        'guides/work-items/keyboard-shortcuts',
       ],
     },
     {

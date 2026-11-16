@@ -64,6 +64,7 @@ function ShortcutList() {
       onClick={() => {
         const rows = registry?.snapshot() ?? [];
         document.body.dataset.shortcuts = rows.map((s) => `${s.key}:${s.description}`).join('|');
+        document.body.dataset.shortcutGroups = rows.map((s) => `${s.key}:${s.group}`).join('|');
       }}
     >
       read
@@ -351,12 +352,28 @@ describe('the shell "/" shortcut', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it('yields to a page that registers its own "/"', () => {
+  it('registers / in the global group (without it the registry would drop /)', () => {
+    setup();
+    act(() => {
+      screen.getByTestId('read-shortcuts').click();
+    });
+    expect(document.body.dataset.shortcutGroups?.split('|')).toContain('/:global');
+  });
+
+  it('a page that registers its own "/" is dropped: the shell search still opens', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const pageHandler = jest.fn();
     const { onOpen } = setup(false, <PageSlash handler={pageHandler} />);
     press(document.body, '/');
-    expect(pageHandler).toHaveBeenCalledTimes(1);
-    expect(onOpen).not.toHaveBeenCalled();
+    expect(pageHandler).not.toHaveBeenCalled();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/reserved/));
+    act(() => {
+      screen.getByTestId('read-shortcuts').click();
+    });
+    expect(document.body.dataset.shortcutGroups?.split('|')).toContain('/:global');
+    expect(document.body.dataset.shortcutGroups).not.toContain('/:page');
+    errorSpy.mockRestore();
   });
 });
 

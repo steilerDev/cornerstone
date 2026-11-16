@@ -372,6 +372,142 @@ describe('AppShell', () => {
       expect(within(dialog).queryByText('Open the New menu')).toBeNull();
     });
 
+    describe('keyboard registry and help dialog (#2253)', () => {
+      const ALL_KEYS = [
+        'e',
+        'Delete',
+        'Mod+k',
+        '/',
+        'n',
+        '?',
+        'Escape',
+        'Mod+z',
+        'g h',
+        'g t',
+        'g s',
+        'g p',
+        'g d',
+        'g f',
+        'g c',
+        'g m',
+      ];
+
+      function PageWithEditDelete() {
+        useKeyboardShortcuts([
+          { key: 'e', handler: () => {}, description: 'Edit the synthetic page' },
+          { key: 'Delete', handler: () => {}, description: 'Delete the synthetic page' },
+          { key: 'Backspace', handler: () => {}, description: '' },
+        ]);
+        const location = useLocation();
+        return <output data-testid="loc">{location.pathname}</output>;
+      }
+
+      function LocationPage() {
+        const location = useLocation();
+        return <output data-testid="loc">{location.pathname}</output>;
+      }
+
+      const rowKeys = () =>
+        within(screen.getByRole('dialog', { name: 'Keyboard shortcuts' }))
+          .getAllByTestId('keyboard-shortcut-row')
+          .map((row) => row.getAttribute('data-key'));
+
+      it('lists every shortcut of AC1 exactly once in the shell dialog', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <PageWithEditDelete />);
+        await user.click(screen.getByTestId('user-menu-trigger'));
+        await user.click(screen.getByTestId('user-menu-shortcuts'));
+
+        const keys = rowKeys();
+        expect(keys).toHaveLength(16);
+        expect([...keys].sort()).toEqual([...ALL_KEYS].sort());
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      });
+
+      it('groups the rows into On this page, Everywhere and Go to', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <PageWithEditDelete />);
+        await user.click(screen.getByTestId('user-menu-trigger'));
+        await user.click(screen.getByTestId('user-menu-shortcuts'));
+
+        const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+        const [page, everywhere, goTo] = within(dialog).getAllByRole('table');
+        const keysOf = (table: HTMLElement) =>
+          within(table)
+            .getAllByTestId('keyboard-shortcut-row')
+            .map((row) => row.getAttribute('data-key'));
+        expect(keysOf(page!)).toEqual(['e', 'Delete']);
+        expect(keysOf(everywhere!)).toEqual(['Mod+k', '/', 'n', '?', 'Escape', 'Mod+z']);
+        expect(keysOf(goTo!)).toEqual(['g h', 'g t', 'g s', 'g p', 'g d', 'g f', 'g c', 'g m']);
+      });
+
+      it('shows the page-group empty state on a page that registered nothing', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <div>Test Content</div>);
+        await user.click(screen.getByTestId('user-menu-trigger'));
+        await user.click(screen.getByTestId('user-menu-shortcuts'));
+
+        const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+        expect(
+          within(dialog).getByText('This page has no shortcuts of its own.'),
+        ).toBeInTheDocument();
+        expect(rowKeys()).toHaveLength(14);
+        expect(rowKeys()).toContain('n');
+      });
+
+      it('lists a page-owned n once, on the page group', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <PageWithShortcuts />);
+        await user.click(screen.getByTestId('user-menu-trigger'));
+        await user.click(screen.getByTestId('user-menu-shortcuts'));
+
+        const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+        expect(rowKeys().filter((key) => key === 'n')).toHaveLength(1);
+        const [page] = within(dialog).getAllByRole('table');
+        expect(within(page!).getByText('New synthetic task')).toBeInTheDocument();
+      });
+
+      it('? opens the one dialog from anywhere and Esc closes it', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <div>Test Content</div>);
+        screen.getByTestId('top-bar-search').focus();
+        await user.keyboard('?');
+        expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+
+      it('g s opens the Schedule Gantt', async () => {
+        const user = userEvent.setup();
+        renderAt('/', <LocationPage />);
+        screen.getByTestId('top-bar-search').blur();
+        await user.keyboard('gs');
+        expect(screen.getByTestId('loc')).toHaveTextContent('/schedule/gantt');
+      });
+
+      it('with the switch off ?, n and g s do nothing but the avatar row still opens the dialog', async () => {
+        localStorage.setItem('singleKeyShortcuts', 'off');
+        const user = userEvent.setup();
+        renderAt('/', <LocationPage />);
+        await user.keyboard('?');
+        await user.keyboard('n');
+        await user.keyboard('gs');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('menu')).toBeNull();
+        expect(screen.getByTestId('loc')).toHaveTextContent('/');
+        expect(screen.getByTestId('loc')).not.toHaveTextContent('schedule');
+
+        await user.click(screen.getByTestId('user-menu-trigger'));
+        await user.click(screen.getByTestId('user-menu-shortcuts'));
+        expect(screen.getByRole('switch', { name: 'Single-key shortcuts' })).not.toBeChecked();
+        expect(
+          document.querySelectorAll('[data-testid="keyboard-shortcut-row"][data-off]'),
+        ).toHaveLength(11); // /, n, ?, and the eight g sequences (no page rows here)
+      });
+
+      afterEach(() => localStorage.clear());
+    });
+
     it('n opens the New menu with focus on the first row; Escape returns focus', async () => {
       const user = userEvent.setup();
       renderAt('/', <div>Test Content</div>);

@@ -415,11 +415,23 @@
   },
   "keyboardShortcuts": {
     "title": "Tastaturkürzel",
-    "closeAriaLabel": "Schließen",
-    "keyColumn": "Taste",
-    "actionColumn": "Aktion",
     "noPageShortcuts": "Diese Seite hat keine eigenen Tastaturkürzel.",
-    "everywhere": "Überall"
+    "everywhere": "Überall",
+    "groupPage": "Auf dieser Seite",
+    "groupGoTo": "Navigation",
+    "then": "dann",
+    "showHelp": "Tastaturkürzel anzeigen",
+    "closeOpen": "Offenen Dialog, Menü oder Suche schließen",
+    "goTo": "Gehe zu {{destination}}",
+    "singleKeySwitch": "Einzeltasten-Kürzel",
+    "turnedOff": "Ausgeschaltet",
+    "keyCapEscape": "Esc",
+    "keyCapDelete": "Entf",
+    "keyNameCommandK": "Befehlstaste K",
+    "keyNameCommandZ": "Befehlstaste Z",
+    "keyNameQuestionMark": "Fragezeichen",
+    "keyNameSlash": "Schrägstrich",
+    "keyNameEscape": "Escape"
   },
   "toast": {
     "dismissAriaLabel": "Benachrichtigung schließen"

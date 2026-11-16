@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
+import { ShortcutsHelpProvider } from '../KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { GITHUB_URL, HELP_URL } from '../../lib/externalLinks.js';
 import { resolveNavActive } from '../../navigation/navActive.js';
@@ -62,7 +63,7 @@ const ADMIN: NavContext = { role: 'admin', paperlessConfigured: true };
 const MEMBER: NavContext = { role: 'member', paperlessConfigured: false };
 
 function PageWithShortcuts() {
-  useKeyboardShortcuts([{ key: 'n', handler: () => {}, description: 'New synthetic task' }]);
+  useKeyboardShortcuts([{ key: 'e', handler: () => {}, description: 'Edit synthetic task' }]);
   return null;
 }
 
@@ -96,22 +97,24 @@ describe('MoreSheet', () => {
     const moreRef = useRef<HTMLButtonElement>(null);
     return (
       <ShortcutRegistryProvider>
-        {withPage && <PageWithShortcuts />}
-        <button ref={moreRef} type="button" data-testid="more-opener">
-          More opener
-        </button>
-        <MoreSheetModule.MoreSheet
-          id="more"
-          open={open}
-          onClose={() => {
-            onCloseSpy?.();
-            setOpen(false);
-          }}
-          sections={sections}
-          active={resolveNavActive(path, sections)}
-          returnFocusRef={moreRef}
-        />
-        <span data-testid="open-state">{open ? 'open' : 'closed'}</span>
+        <ShortcutsHelpProvider navContext={ctx}>
+          {withPage && <PageWithShortcuts />}
+          <button ref={moreRef} type="button" data-testid="more-opener">
+            More opener
+          </button>
+          <MoreSheetModule.MoreSheet
+            id="more"
+            open={open}
+            onClose={() => {
+              onCloseSpy?.();
+              setOpen(false);
+            }}
+            sections={sections}
+            active={resolveNavActive(path, sections)}
+            returnFocusRef={moreRef}
+          />
+          <span data-testid="open-state">{open ? 'open' : 'closed'}</span>
+        </ShortcutsHelpProvider>
       </ShortcutRegistryProvider>
     );
   }
@@ -406,8 +409,9 @@ describe('MoreSheet', () => {
         await userEvent.click(screen.getByTestId('more-sheet-shortcuts'));
         expect(spy).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId('open-state')).toHaveTextContent('closed');
-        const dialog = screen.getByRole('dialog');
-        expect(within(dialog).getByText('New synthetic task')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(within(dialog).getByText('Edit synthetic task')).toBeInTheDocument();
 
         await userEvent.keyboard('{Escape}');
         expect(screen.queryByRole('dialog')).toBeNull();
@@ -421,6 +425,22 @@ describe('MoreSheet', () => {
         expect(
           within(screen.getByRole('dialog')).getByText('This page has no shortcuts of its own.'),
         ).toBeInTheDocument();
+      });
+
+      it('still opens the dialog while single-key shortcuts are off (AC6)', async () => {
+        localStorage.setItem('singleKeyShortcuts', 'off');
+        mockHardwareKeyboard = true;
+        renderSheet();
+        await userEvent.click(screen.getByTestId('more-sheet-shortcuts'));
+        expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Single-key shortcuts' })).not.toBeChecked();
+        localStorage.clear();
+      });
+
+      it('carries no key hint in the sheet row', () => {
+        mockHardwareKeyboard = true;
+        renderSheet();
+        expect(screen.getByTestId('more-sheet-shortcuts').querySelector('kbd')).toBeNull();
       });
     });
   });

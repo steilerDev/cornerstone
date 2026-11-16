@@ -1,11 +1,13 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { createRef } from 'react';
 import type React from 'react';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { GITHUB_URL, HELP_URL } from '../lib/externalLinks.js';
+import { ShortcutsHelpProvider } from '../components/KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { ShortcutRegistryProvider } from './shortcutRegistry.js';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts.js';
 import type * as ModelTypes from './useUserMenuModel.js';
@@ -128,29 +130,67 @@ describe('useUserMenuModel', () => {
     expect(result.current.loggingOut).toBe(true);
   });
 
-  describe('shortcutsSnapshot', () => {
-    it('is empty without a registry', () => {
-      expect(setup(false).result.current.shortcutsSnapshot()).toEqual([]);
+  describe('openShortcuts and singleKeyShortcutsOn (#2253)', () => {
+    const navContext = { role: 'member', paperlessConfigured: false } as const;
+    const shellWrapper = ({ children }: { children: React.ReactNode }) => (
+      <MemoryRouter>
+        <ShortcutRegistryProvider>
+          <ShortcutsHelpProvider navContext={navContext}>{children}</ShortcutsHelpProvider>
+        </ShortcutRegistryProvider>
+      </MemoryRouter>
+    );
+
+    afterEach(() => localStorage.clear());
+
+    it('does nothing outside the shell providers and reports the switch as on', () => {
+      const { result } = setup(false);
+      expect(result.current.singleKeyShortcutsOn).toBe(true);
+      act(() => result.current.openShortcuts(createRef<HTMLElement>()));
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('lists what the current page registered', () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <MemoryRouter>
-          <ShortcutRegistryProvider>{children}</ShortcutRegistryProvider>
-        </MemoryRouter>
-      );
+    it('opens the shell dialog with what the current page registered', () => {
       const { result } = renderHook(
         () => {
-          useKeyboardShortcuts([
-            { key: 'n', handler: () => {}, description: 'New synthetic task' },
-          ]);
+          useKeyboardShortcuts([{ key: 'e', handler: () => {}, description: 'Edit synthetic' }]);
           return mod.useUserMenuModel();
         },
-        { wrapper },
+        { wrapper: shellWrapper },
       );
-      expect(result.current.shortcutsSnapshot().map((s) => s.description)).toEqual([
-        'New synthetic task',
-      ]);
+      act(() => result.current.openShortcuts(createRef<HTMLElement>()));
+      expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+      expect(screen.getByText('Edit synthetic')).toBeInTheDocument();
+    });
+
+    it('focuses the given element when the dialog closes', () => {
+      const opener = document.createElement('button');
+      document.body.appendChild(opener);
+      const ref = { current: opener };
+      const { result } = renderHook(() => mod.useUserMenuModel(), { wrapper: shellWrapper });
+      act(() => result.current.openShortcuts(ref));
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(opener).toHaveFocus();
+      opener.remove();
+    });
+
+    it('follows the single-key switch', () => {
+      localStorage.setItem('singleKeyShortcuts', 'off');
+      expect(
+        renderHook(() => mod.useUserMenuModel(), { wrapper: shellWrapper }).result.current
+          .singleKeyShortcutsOn,
+      ).toBe(false);
+      localStorage.clear();
+      expect(
+        renderHook(() => mod.useUserMenuModel(), { wrapper: shellWrapper }).result.current
+          .singleKeyShortcutsOn,
+      ).toBe(true);
+    });
+
+    it('no longer exposes a shortcuts snapshot', () => {
+      expect('shortcutsSnapshot' in setup().result.current).toBe(false);
     });
   });
 });

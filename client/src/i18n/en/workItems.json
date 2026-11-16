@@ -267,8 +267,7 @@
     "deleteError": "Couldn't delete the task.",
     "shortcuts": {
       "edit": "Edit the task details",
-      "delete": "Delete the task",
-      "help": "Show keyboard shortcuts"
+      "delete": "Delete the task"
     }
   }
 }

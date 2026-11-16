@@ -1,7 +1,11 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createElement, type ReactNode } from 'react';
 import { renderHook, act } from '@testing-library/react';
-import { useKeyboardShortcuts } from './useKeyboardShortcuts.js';
+import {
+  isShortcutSuppressed,
+  isSingleKeyShortcut,
+  useKeyboardShortcuts,
+} from './useKeyboardShortcuts.js';
 import { ShortcutRegistryProvider, useShortcutRegistry } from './shortcutRegistry.js';
 import type { KeyboardShortcut } from './useKeyboardShortcuts.js';
 
@@ -176,7 +180,7 @@ describe('useKeyboardShortcuts registry integration', () => {
       },
       { wrapper },
     );
-    expect(result.current?.snapshot()).toEqual(list);
+    expect(result.current?.snapshot()).toEqual([{ ...list[0], group: 'page' }]);
   });
 
   it('removes its entries from the registry when the page unmounts', () => {
@@ -200,7 +204,7 @@ describe('useKeyboardShortcuts registry integration', () => {
       { wrapper: Provider },
     );
     const own = holder.registry;
-    expect(own?.snapshot()).toEqual(list);
+    expect(own?.snapshot()).toEqual([{ ...list[0], group: 'page' }]);
     page.unmount();
     expect(own?.snapshot()).toEqual([]);
     reader.unmount();
@@ -309,4 +313,180 @@ describe('useKeyboardShortcuts (#2212 fallback and modal guard)', () => {
     press('n');
     expect(handler).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('useKeyboardShortcuts group and reserved keys (#2253)', () => {
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(ShortcutRegistryProvider, null, children);
+  const press = (key: string, init: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', { key, cancelable: true, ...init });
+    act(() => {
+      document.dispatchEvent(event);
+    });
+    return event;
+  };
+  afterEach(() => {
+    document.body.innerHTML = '';
+    localStorage.clear();
+    jest.restoreAllMocks();
+  });
+
+  it('passes the group to the registry', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts([{ key: 'n', handler: () => {}, description: 'n' }], {
+          group: 'global',
+        });
+        return useShortcutRegistry();
+      },
+      { wrapper },
+    );
+    expect(result.current?.snapshot().map((s) => s.group)).toEqual(['global']);
+  });
+
+  it('does not throw for a page ?, never calls its handler and lists no page ?', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const handler = jest.fn<() => void>();
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts([{ key: '?', handler, description: 'help' }]);
+        return useShortcutRegistry();
+      },
+      { wrapper },
+    );
+    const event = press('?');
+    expect(handler).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current?.snapshot().filter((s) => s.group === 'page')).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/reserved/));
+  });
+
+  it('lets the global group own ?', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(
+      () => useKeyboardShortcuts([{ key: '?', handler, description: 'help' }], { group: 'global' }),
+      { wrapper },
+    );
+    press('?');
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('with the switch off, character keys do not fire or preventDefault; Delete and Backspace do', () => {
+    localStorage.setItem('singleKeyShortcuts', 'off');
+    const handlers = {
+      n: jest.fn<() => void>(),
+      e: jest.fn<() => void>(),
+      help: jest.fn<() => void>(),
+      slash: jest.fn<() => void>(),
+      del: jest.fn<() => void>(),
+      back: jest.fn<() => void>(),
+    };
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts(
+          [
+            { key: 'n', handler: handlers.n, description: 'n' },
+            { key: 'e', handler: handlers.e, description: 'e' },
+            { key: 'Delete', handler: handlers.del, description: 'del' },
+            { key: 'Backspace', handler: handlers.back, description: '' },
+          ],
+          {},
+        );
+        useKeyboardShortcuts(
+          [
+            { key: '?', handler: handlers.help, description: '?' },
+            { key: '/', handler: handlers.slash, description: '/' },
+          ],
+          { group: 'global' },
+        );
+        return useShortcutRegistry();
+      },
+      { wrapper },
+    );
+    for (const key of ['n', 'e', '?', '/']) {
+      expect(press(key).defaultPrevented).toBe(false);
+    }
+    expect(handlers.n).not.toHaveBeenCalled();
+    expect(handlers.e).not.toHaveBeenCalled();
+    expect(handlers.help).not.toHaveBeenCalled();
+    expect(handlers.slash).not.toHaveBeenCalled();
+    expect(press('Delete').defaultPrevented).toBe(true);
+    press('Backspace');
+    expect(handlers.del).toHaveBeenCalledTimes(1);
+    expect(handlers.back).toHaveBeenCalledTimes(1);
+
+    result.current?.setSingleKeyEnabled(true);
+    press('n');
+    press('?');
+    expect(handlers.n).toHaveBeenCalledTimes(1);
+    expect(handlers.help).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires with focus on a button or link but not in text fields (AC3)', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(() => useKeyboardShortcuts([{ key: 'e', handler, description: 'e' }]), { wrapper });
+    const button = document.createElement('button');
+    const link = document.createElement('a');
+    link.href = '#x';
+    document.body.append(button, link);
+    for (const el of [button, link]) {
+      act(() => {
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true }));
+      });
+    }
+    expect(handler).toHaveBeenCalledTimes(2);
+    const input = document.createElement('input');
+    document.body.append(input);
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true }));
+    });
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('isShortcutSuppressed (#2253)', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+  const eventOn = (target: EventTarget, init: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', { key: 'x', bubbles: true, ...init });
+    Object.defineProperty(event, 'target', { value: target });
+    return event;
+  };
+
+  it('is false for a document-level event (target is not an element)', () => {
+    expect(isShortcutSuppressed(eventOn(document))).toBe(false);
+  });
+
+  it('is true for a modifier, an open modal and each text-field kind', () => {
+    expect(isShortcutSuppressed(eventOn(document, { ctrlKey: true }))).toBe(true);
+    expect(isShortcutSuppressed(eventOn(document, { altKey: true }))).toBe(true);
+    expect(isShortcutSuppressed(eventOn(document, { metaKey: true }))).toBe(true);
+    for (const tag of ['input', 'textarea', 'select']) {
+      expect(isShortcutSuppressed(eventOn(document.createElement(tag)))).toBe(true);
+    }
+    const editable = document.createElement('div');
+    Object.defineProperty(editable, 'isContentEditable', { value: true });
+    expect(isShortcutSuppressed(eventOn(editable))).toBe(true);
+    const modal = document.createElement('div');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.appendChild(modal);
+    expect(isShortcutSuppressed(eventOn(document))).toBe(true);
+  });
+
+  it('is false for a plain button', () => {
+    expect(isShortcutSuppressed(eventOn(document.createElement('button')))).toBeFalsy();
+  });
+});
+
+describe('isSingleKeyShortcut (#2253)', () => {
+  it.each(['n', '?', '/', 'g s'])('is true for %s', (key) => {
+    expect(isSingleKeyShortcut(key)).toBe(true);
+  });
+  it.each(['Delete', 'Backspace', 'Escape', 'Mod+k', 'Mod+z', 'g Delete'])(
+    'is false for %s',
+    (key) => {
+      expect(isSingleKeyShortcut(key)).toBe(false);
+    },
+  );
 });

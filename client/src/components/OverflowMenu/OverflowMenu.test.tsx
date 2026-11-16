@@ -1662,3 +1662,43 @@ describe('OverflowMenu toggle items (#2247)', () => {
     expect(screen.getByRole('button', { name: 'Show' })).toHaveFocus();
   });
 });
+
+describe('OverflowMenu shortcutHint (#2253)', () => {
+  function openWith(items: OverflowMenuItem[]) {
+    render(<OverflowMenu items={items} triggerAriaLabel="Open menu" />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Open menu' }), { key: 'ArrowDown' });
+  }
+
+  it('renders the hint as an aria-hidden kbd at the end of the row', () => {
+    openWith([
+      { id: 'a', label: 'Keyboard shortcuts', onClick: jest.fn<() => void>(), shortcutHint: '?' },
+    ]);
+    const row = screen.getByRole('menuitem', { name: 'Keyboard shortcuts' });
+    const hint = row.querySelector('kbd')!;
+    expect(hint).toHaveTextContent('?');
+    expect(hint).toHaveAttribute('aria-hidden', 'true');
+    expect(hint).toHaveClass('shortcutHint');
+    expect(row.lastElementChild).toBe(hint);
+  });
+
+  it('keeps the hint out of the accessible name', () => {
+    openWith([{ id: 'a', label: 'Shortcuts', onClick: jest.fn<() => void>(), shortcutHint: '?' }]);
+    expect(screen.getByRole('menuitem')).toHaveAccessibleName('Shortcuts');
+    expect(screen.queryByRole('menuitem', { name: 'Shortcuts ?' })).toBeNull();
+  });
+
+  it('renders no kbd when the item has no hint or an empty hint', () => {
+    openWith([
+      { id: 'a', label: 'Plain', onClick: jest.fn<() => void>() },
+      { id: 'b', label: 'Empty', onClick: jest.fn<() => void>(), shortcutHint: '' },
+    ]);
+    expect(document.querySelectorAll('[role="menuitem"] kbd')).toHaveLength(0);
+  });
+
+  it('still activates the row when the hint is clicked', async () => {
+    const onClick = jest.fn<() => void>();
+    openWith([{ id: 'a', label: 'Shortcuts', onClick, shortcutHint: '?' }]);
+    await userEvent.click(document.querySelector('kbd')!);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});

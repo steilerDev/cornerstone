@@ -267,8 +267,7 @@
     "deleteError": "Die Aufgabe konnte nicht gelöscht werden.",
     "shortcuts": {
       "edit": "Aufgabendetails bearbeiten",
-      "delete": "Aufgabe löschen",
-      "help": "Tastenkürzel anzeigen"
+      "delete": "Aufgabe löschen"
     }
   }
 }

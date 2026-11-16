@@ -9,7 +9,6 @@ import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { ObjectDiaryPanel } from '../../components/FeedRow/ObjectDiaryPanel.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
-import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import {
   ObjectHeader,
   forwardActionTo,
@@ -204,7 +203,6 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
   }, [intent, depError, searchParams, location.pathname, location.state, navigate]);
 
   const [showDelete, setShowDelete] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
@@ -275,11 +273,6 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
       { key: 'Delete', handler: openDelete, description: t('taskPage.shortcuts.delete') },
       // Same action; the empty description keeps it out of the help overlay.
       { key: 'Backspace', handler: openDelete, description: '' },
-      {
-        key: '?',
-        handler: () => setShowShortcuts(true),
-        description: t('taskPage.shortcuts.help'),
-      },
     ],
     [t, openOverviewEdit, openDelete],
   );
@@ -370,9 +363,6 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
           returnFocusRef={headingRef}
           testIdPrefix="work-item-delete"
         />
-      )}
-      {showShortcuts && (
-        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcuts(false)} />
       )}
     </PageLayout>
   );

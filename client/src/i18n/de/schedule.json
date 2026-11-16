@@ -238,8 +238,7 @@
       },
       "shortcuts": {
         "edit": "Details des Meilensteins bearbeiten",
-        "delete": "Meilenstein löschen",
-        "help": "Tastenkürzel anzeigen"
+        "delete": "Meilenstein löschen"
       }
     }
   },

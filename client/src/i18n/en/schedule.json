@@ -238,8 +238,7 @@
       },
       "shortcuts": {
         "edit": "Edit the milestone details",
-        "delete": "Delete the milestone",
-        "help": "Show keyboard shortcuts"
+        "delete": "Delete the milestone"
       }
     }
   },
