@@ -12,6 +12,7 @@ import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makeTaskPage } from '../../test/taskPageFixtures.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as AreasApiTypes from '../../lib/areasApi.js';
 import enWorkItems from '../../i18n/en/workItems.json';
 import type * as CardsModule from './TaskDateCards.js';
 import type * as ScopeModule from '../../components/SectionCard/SectionCardScope.js';
@@ -24,7 +25,14 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   createWorkItem: jest.fn(),
   listWorkItems: jest.fn(),
 }));
+const mockFetchAreas = jest.fn<typeof AreasApiTypes.fetchAreas>();
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({ listUsers: mockListUsers }));
+jest.unstable_mockModule('../../lib/areasApi.js', () => ({
+  fetchAreas: mockFetchAreas,
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 
 let Cards: typeof CardsModule;
@@ -69,6 +77,8 @@ describe('TaskDateCards', () => {
     mockUpdateWorkItem.mockResolvedValue({} as never);
     mockListUsers.mockReset();
     mockListUsers.mockResolvedValue({ users: [] });
+    mockFetchAreas.mockReset();
+    mockFetchAreas.mockResolvedValue({ areas: [] });
     refresh.mockReset();
     refresh.mockResolvedValue(undefined);
     if (!Cards) {
@@ -283,6 +293,19 @@ describe('TaskDateCards', () => {
       await screen.findByTestId('task-not-before-input');
       await act(async () => {});
       expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('the Dates and Constraints cards in edit scope never request the areas', async () => {
+      const user = userEvent.setup();
+      renderCards(DATED);
+      await user.click(screen.getByTestId('task-dates-edit'));
+      await screen.findByTestId('task-duration-input');
+      await act(async () => {});
+      await user.click(screen.getByTestId('task-dates-cancel'));
+      await user.click(screen.getByTestId('task-constraints-edit'));
+      await screen.findByTestId('task-not-before-input');
+      await act(async () => {});
+      expect(mockFetchAreas).not.toHaveBeenCalled();
     });
 
     it('labels the duration like the dialog ("Duration (days)") and keeps the stable test ids', async () => {

@@ -53,6 +53,11 @@ export interface TaskFormOptions {
   readonly users?: readonly UserResponse[];
   /** The company currently set on the task (edit): its name shows in the Who picker. */
   readonly knownCompany?: KnownCompany | null;
+  /**
+   * Reference data to load (default: all). A card passes only what its fields render; the
+   * create dialog keeps the default.
+   */
+  readonly load?: { readonly areas?: boolean };
 }
 
 export interface TaskValueMessages {
@@ -104,14 +109,14 @@ export function validateTaskValues(
  * page cards. Planned cost (amount + Net/Gross) creates the task's first cost line after the task.
  */
 export function useTaskFormSchema(options: TaskFormOptions = {}): ObjectFormSchema {
-  const { scope = 'create', users: hostUsers } = options;
+  const { scope = 'create', users: hostUsers, load } = options;
   const { t } = useTranslation('workItems');
   const { t: tc } = useTranslation('common');
   const { t: tCost } = useTranslation('costLines');
   const messages = useTaskValueMessages();
   const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
-  const { areas, isLoading: areasLoading } = useAreas();
+  const { areas, isLoading: areasLoading } = useAreas({ enabled: load?.areas ?? true });
 
   const [loadedUsers, setLoadedUsers] = useState<UserResponse[]>([]);
   const [createdCompany, setCreatedCompany] = useState<CompanyOption | null>(null);

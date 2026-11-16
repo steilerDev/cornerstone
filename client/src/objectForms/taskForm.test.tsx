@@ -86,7 +86,7 @@ type AreaRow = {
   parentId: string | null;
   color: string | null;
 };
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 jest.unstable_mockModule('../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
 
 // The area field is replaced by a plain select (the Ghost option models an id the area list
@@ -1085,6 +1085,24 @@ describe('taskForm (ObjectForm schema)', () => {
         const m = messages();
         expect(Form.validateTaskValues({ title: '   ' }, m)).toEqual({ title: m.titleRequired });
       });
+    });
+  });
+
+  describe('reference-data loading (#2254)', () => {
+    it('loads the areas by default (the create dialog)', async () => {
+      renderHook(() => Form.useTaskFormSchema(), { wrapper: MemoryRouter });
+      await act(async () => {});
+      expect(mockUseAreas).toHaveBeenCalledWith({ enabled: true });
+    });
+
+    it('skips the areas when the card opts out', async () => {
+      mockUseAreas.mockClear();
+      renderHook(() => Form.useTaskFormSchema({ scope: 'edit', load: { areas: false } }), {
+        wrapper: MemoryRouter,
+      });
+      await act(async () => {});
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
     });
   });
 

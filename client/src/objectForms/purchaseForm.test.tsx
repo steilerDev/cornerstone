@@ -83,7 +83,7 @@ jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
 const AREAS = [
   { id: 'a1', name: 'Kitchen', parentId: null, color: null, sortOrder: 0 },
 ] as unknown as UseAreasResult['areas'];
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 jest.unstable_mockModule('../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
 
 const CREATED = { id: 'hi-1' } as unknown as Awaited<
@@ -789,7 +789,8 @@ describe('purchaseForm (ObjectForm schema)', () => {
         waitsFor: [{ id: 'garbage', label: 'Bad' }],
       });
       expect(mockCreateDep).not.toHaveBeenCalled();
-      expect(outcome.incomplete).toBe(false);
+      expect(outcome.incomplete).toBe(true);
+      expect(outcome.href).toBe('/project/household-items/hi-1?tab=timing&depError=Bad');
     });
 
     it('treats a non-list Waits for value as no choices', async () => {
@@ -962,6 +963,40 @@ describe('purchaseForm (ObjectForm schema)', () => {
           category: m.category,
         });
       });
+    });
+  });
+
+  describe('reference-data loading (#2254)', () => {
+    it('loads categories and areas by default (the create dialog)', async () => {
+      renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+      expect(mockUseAreas).toHaveBeenCalledWith({ enabled: true });
+    });
+
+    it('requests neither categories nor areas when the card opts out of both', async () => {
+      mockUseAreas.mockClear();
+      const view = renderHook(
+        () =>
+          Form.usePurchaseFormSchema({
+            scope: 'edit',
+            load: { areas: false, categories: false },
+          }),
+        { wrapper: MemoryRouter },
+      );
+      await act(async () => {});
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
+      const category = view.result.current.fields.find((f) => f.name === 'category');
+      expect(category).toBeDefined();
+    });
+
+    it('loads only the categories when just the areas are skipped', async () => {
+      mockUseAreas.mockClear();
+      renderHook(() => Form.usePurchaseFormSchema({ scope: 'edit', load: { areas: false } }), {
+        wrapper: MemoryRouter,
+      });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
     });
   });
 

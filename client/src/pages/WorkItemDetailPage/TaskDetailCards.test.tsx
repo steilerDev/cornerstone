@@ -26,7 +26,7 @@ const mockSearchCompanies = jest.fn<typeof VendorsApiTypes.searchCompanies>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockSearchEverywhere = jest.fn<typeof SearchApiTypes.searchEverywhere>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
@@ -244,6 +244,22 @@ describe('TaskDetailCards', () => {
       await screen.findByTestId('task-field-title');
       await act(async () => {});
       expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('the Details card in edit scope loads no areas', async () => {
+      renderCards(TASK);
+      await edit('section-task-details');
+      await screen.findByTestId('task-field-title');
+      await act(async () => {});
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
+    });
+
+    it('the Who and where card still loads the areas it renders', async () => {
+      renderCards(TASK);
+      await edit('section-task-who-where');
+      await screen.findByLabelText('Who');
+      expect(mockUseAreas).toHaveBeenLastCalledWith({ enabled: true });
     });
 
     it('the Who and where card uses the page members and never asks for them again', async () => {

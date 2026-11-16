@@ -6,7 +6,7 @@
  * changed dates.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { HouseholdItemPageDetail } from '@cornerstone/shared';
@@ -23,7 +23,7 @@ const mockUpdate = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
 const realLocalDate = await import('../../lib/localDate.js');
 
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: mockUpdate,
   createHouseholdItem: jest.fn(),
@@ -125,12 +125,16 @@ describe('PurchaseDeliveryCard', () => {
   });
 
   describe('schema-backed fields (#2254)', () => {
-    it('makes no reference-data request while read-only and loads categories in edit mode', async () => {
+    it('makes no reference-data request while read-only or in edit mode (no categories, no areas)', async () => {
       renderCard(makePurchasePage(DATED));
       expect(mockFetchCategories).not.toHaveBeenCalled();
       expect(screen.queryByTestId('purchase-latest-input')).toBeNull();
       await edit();
-      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+      await screen.findByTestId('purchase-latest-input');
+      await act(async () => {});
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseAreas.mock.calls.every(([options]) => options?.enabled === false)).toBe(true);
     });
 
     it('shows the four dates in card order with the dialog labels and stable test ids', async () => {

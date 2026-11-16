@@ -160,10 +160,10 @@
   "WRK-021": {
     "name": "Set duration and start-after / start-before constraints at creation",
     "from": "/project/work-items/new > Duration (days), Start After, Start Before inputs",
-    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > More details > Timing > Duration, Not before, Start by",
+    "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Duration (essential); More details > Timing > Not before, Start by",
     "change": "same",
     "gate": "none",
-    "note": "Start After/Start Before relabelled in plain words. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2254: labels and validation shared with the page cards (one schema)."
+    "note": "Start After/Start Before relabelled in plain words. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). #2254: labels and validation shared with the page cards (one schema); Duration is now an essential field (as WRK-018), the constraints stay under More details."
   },
   "WRK-022": {
     "name": "Define dependencies on other work items before the new item exists",
@@ -2208,7 +2208,7 @@
     "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Earliest delivery / Latest delivery (essential)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema). #2254: the delivery window is an essential field."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). #2254: labels and validation shared with the page cards (one schema); the delivery window is an essential field."
   },
   "HHI-041": {
     "name": "Record an actual delivery date when creating (already delivered items)",

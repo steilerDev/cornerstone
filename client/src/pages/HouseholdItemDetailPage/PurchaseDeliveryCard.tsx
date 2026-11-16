@@ -41,7 +41,10 @@ const TEST_IDS = {
 
 /** Mounted in edit mode only: the purchase schema (same fields as the New purchase dialog). */
 function DeliveryFields(props: Omit<Parameters<typeof ObjectFormFields>[0], 'fields' | 'names'>) {
-  const schema = usePurchaseFormSchema({ scope: 'edit' });
+  const schema = usePurchaseFormSchema({
+    scope: 'edit',
+    load: { areas: false, categories: false },
+  });
   return <ObjectFormFields fields={schema.fields} names={NAMES} {...props} />;
 }
 

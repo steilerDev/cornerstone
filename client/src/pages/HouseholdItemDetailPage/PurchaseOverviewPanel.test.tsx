@@ -27,7 +27,7 @@ const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItem
 const mockSearchCompanies = jest.fn<typeof VendorsApiTypes.searchCompanies>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockSearchEverywhere = jest.fn<typeof SearchApiTypes.searchEverywhere>();
-const mockUseAreas = jest.fn<() => UseAreasResult>();
+const mockUseAreas = jest.fn<(options?: { enabled?: boolean }) => UseAreasResult>();
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: mockUpdate,
@@ -245,6 +245,13 @@ describe('PurchaseOverviewPanel', () => {
       expect(mockFetchCategories).not.toHaveBeenCalled();
       await edit();
       await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+    });
+
+    it('still loads the areas in edit mode (the Overview card renders Area)', async () => {
+      renderPanel(makePurchasePage(FULL));
+      await edit();
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled());
+      expect(mockUseAreas).toHaveBeenCalledWith({ enabled: true });
     });
 
     it('renders the schema fields in card order, with the dialog labels', async () => {

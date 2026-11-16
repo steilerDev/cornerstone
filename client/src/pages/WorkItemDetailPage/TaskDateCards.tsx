@@ -56,7 +56,7 @@ interface CardFieldsProps {
 
 /** Mounted in edit mode only: the task schema (same fields as the New task dialog). */
 function CardFields(props: CardFieldsProps) {
-  const schema = useTaskFormSchema({ scope: 'edit' });
+  const schema = useTaskFormSchema({ scope: 'edit', load: { areas: false } });
   return <ObjectFormFields fields={schema.fields} {...props} />;
 }
 

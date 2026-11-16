@@ -45,7 +45,13 @@ interface TaskFieldsProps {
 
 /** Mounted in edit mode only: the task schema (same fields as the New task dialog). */
 function TaskFields({ users, knownCompany, ...rest }: TaskFieldsProps) {
-  const schema = useTaskFormSchema({ scope: 'edit', users, knownCompany });
+  // Areas are fetched only for a card that renders the Area field.
+  const schema = useTaskFormSchema({
+    scope: 'edit',
+    users,
+    knownCompany,
+    load: { areas: rest.names.includes('area') },
+  });
   return <ObjectFormFields fields={schema.fields} {...rest} />;
 }
 

@@ -25,16 +25,18 @@ export interface UseAreasResult {
  * Returns loading, error, and data states following the project's hook conventions.
  * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
-export function useAreas(): UseAreasResult {
+export function useAreas(options: { enabled?: boolean } = {}): UseAreasResult {
+  const { enabled = true } = options;
   const { t } = useTranslation('areas');
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
   const [areas, setAreas] = useState<AreaResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     async function fetchData() {
@@ -68,7 +70,7 @@ export function useAreas(): UseAreasResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors, tCommon]);
+  }, [enabled, fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);
@@ -94,7 +96,7 @@ export function useAreas(): UseAreasResult {
 
   return {
     areas,
-    isLoading,
+    isLoading: enabled && isLoading,
     error,
     refetch,
     createArea: handleCreate,

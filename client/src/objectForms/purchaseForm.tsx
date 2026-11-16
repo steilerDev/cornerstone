@@ -42,6 +42,11 @@ export interface PurchaseFormOptions {
   readonly scope?: ObjectFormScope;
   /** The purchase's current company (edit): its name shows in the Company picker. */
   readonly knownCompany?: KnownCompany | null;
+  /**
+   * Reference data to load (default: all). A card passes only what its fields render; the
+   * create dialog keeps the default.
+   */
+  readonly load?: { readonly areas?: boolean; readonly categories?: boolean };
 }
 
 export interface PurchaseValueMessages {
@@ -89,7 +94,8 @@ export function validatePurchaseValues(
  * the purchase page cards. Waits for creates finish-to-start dependencies after the purchase.
  */
 export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): ObjectFormSchema {
-  const { scope = 'create' } = options;
+  const { scope = 'create', load } = options;
+  const loadCategories = load?.categories ?? true;
   const { t } = useTranslation('householdItems');
   const { t: tw } = useTranslation('workItems');
   const messages = usePurchaseValueMessages();
@@ -97,7 +103,7 @@ export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): Object
   const { t: tSettings } = useTranslation('settings');
   const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
-  const { areas, isLoading: areasLoading } = useAreas();
+  const { areas, isLoading: areasLoading } = useAreas({ enabled: load?.areas ?? true });
   // The pre-filled company, read once from the real location (the dialog route's own URL).
   const realLocation = useRealLocation();
   const [prefilledId] = useState(
@@ -118,7 +124,7 @@ export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): Object
         // The page cards need the categories only (the company picker searches on its own).
         const [vendorsResponse, categoriesResponse] = await Promise.all([
           scope === 'create' ? fetchVendors({ pageSize: 100 }) : Promise.resolve(null),
-          fetchHouseholdItemCategories(),
+          loadCategories ? fetchHouseholdItemCategories() : Promise.resolve(null),
         ]);
         if (cancelled) return;
         let loaded: CompanyOption[] = vendorsResponse?.vendors ?? [];
@@ -136,7 +142,7 @@ export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): Object
         }
         if (cancelled) return;
         setVendors(loaded);
-        setCategories(categoriesResponse.categories);
+        setCategories(categoriesResponse?.categories ?? []);
       } catch (err) {
         console.error('Failed to load data:', err);
         if (!cancelled) setLoadFailed(true);
@@ -148,7 +154,7 @@ export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): Object
     return () => {
       cancelled = true;
     };
-  }, [prefilledId, scope]);
+  }, [prefilledId, scope, loadCategories]);
 
   return {
     id: 'purchase',
@@ -377,7 +383,10 @@ export function usePurchaseFormSchema(options: PurchaseFormOptions = {}): Object
       const failed: string[] = [];
       for (const option of chosenOptions(values.waitsFor)) {
         const target = parsePredecessorValue(option.id);
-        if (target === null) continue;
+        if (target === null) {
+          failed.push(option.label);
+          continue;
+        }
         try {
           await createHouseholdItemDep(item.id, {
             predecessorType: target.type,
