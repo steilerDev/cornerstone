@@ -11,6 +11,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook } from '@testing-library/react';
 import type { BudgetSource, CreateBudgetSourceRequest } from '@cornerstone/shared';
+import enBudget from '../i18n/en/budget.json';
 import type * as FormTypes from './fundingSourceForm.js';
 
 const mockCreateBudgetSource =
@@ -67,6 +68,95 @@ describe('fundingSourceForm', () => {
       'status',
     ]);
     expect(fields.find((f) => f.name === 'name')).toMatchObject({ required: true, maxLength: 200 });
+  });
+
+  describe('scopes (#2255)', () => {
+    const fieldNames = (opts?: Parameters<typeof Form.useFundingSourceFormSchema>[0]) =>
+      renderHook(() => Form.useFundingSourceFormSchema(opts)).result.current.fields.map(
+        (f) => f.name,
+      );
+
+    it('caps the interest rate at 100 in create and edit scope', () => {
+      for (const opts of [undefined, { scope: 'edit' as const }]) {
+        const f = renderHook(() => Form.useFundingSourceFormSchema(opts)).result.current.fields;
+        expect(f.find((x) => x.name === 'interestRate')?.max).toBe(100);
+      }
+    });
+
+    it('create scope has Status; edit scope does not', () => {
+      expect(fieldNames()).toContain('status');
+      expect(fieldNames({ scope: 'edit' })).not.toContain('status');
+    });
+
+    it('edit scope keeps the Type unless the source is Own funds', () => {
+      expect(fieldNames({ scope: 'edit' })).toContain('sourceType');
+      expect(fieldNames({ scope: 'edit', isDiscretionary: true })).not.toContain('sourceType');
+    });
+
+    it('create scope ignores isDiscretionary (Type stays)', () => {
+      expect(fieldNames({ isDiscretionary: true })).toContain('sourceType');
+    });
+
+    it('create scope validates the amount as above 0 even when isDiscretionary is passed', () => {
+      const s = renderHook(() => Form.useFundingSourceFormSchema({ isDiscretionary: true })).result
+        .current;
+      expect(s.validate({ ...s.initialValues, name: 'x', totalAmount: '0' })).toEqual({
+        totalAmount: enBudget.financing.errors.amountInvalid,
+      });
+    });
+
+    it('edit scope for Own funds accepts 0 through its schema validator', () => {
+      const s = renderHook(() =>
+        Form.useFundingSourceFormSchema({ scope: 'edit', isDiscretionary: true }),
+      ).result.current;
+      expect(s.validate({ name: 'Own funds', totalAmount: '0' })).toEqual({});
+      expect(s.validate({ name: 'Own funds', totalAmount: '-1' })).toEqual({
+        totalAmount: enBudget.financing.errors.amountNotNegative,
+      });
+    });
+  });
+
+  describe('validateFundingSourceValues (AC2a)', () => {
+    const messages = {
+      nameRequired: 'N',
+      amountInvalid: 'POSITIVE',
+      amountNotNegative: 'NONNEG',
+      interestInvalid: 'RATE',
+    };
+    const run = (totalAmount: unknown, isDiscretionary?: boolean) =>
+      Form.validateFundingSourceValues({ name: 'x', totalAmount }, messages, { isDiscretionary })
+        .totalAmount;
+
+    it('amount 0: error by default, none for Own funds', () => {
+      expect(run('0')).toBe('POSITIVE');
+      expect(run('0', true)).toBeUndefined();
+    });
+
+    it('amount -1: amountNotNegative for Own funds, amountInvalid otherwise', () => {
+      expect(run('-1', true)).toBe('NONNEG');
+      expect(run('-1')).toBe('POSITIVE');
+    });
+
+    it('blank amount is an error in both modes, with each mode message', () => {
+      expect(run('')).toBe('POSITIVE');
+      expect(run('', true)).toBe('NONNEG');
+    });
+
+    it('interest 101 is interestInvalid', () => {
+      expect(
+        Form.validateFundingSourceValues(
+          { name: 'x', totalAmount: '1', interestRate: '101' },
+          messages,
+        ).interestRate,
+      ).toBe('RATE');
+    });
+
+    it('works with no options and missing keys', () => {
+      expect(Form.validateFundingSourceValues({}, messages)).toEqual({
+        name: 'N',
+        totalAmount: 'POSITIVE',
+      });
+    });
   });
 
   describe('validate', () => {

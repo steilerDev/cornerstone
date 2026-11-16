@@ -20,6 +20,8 @@ export interface ObjectFormFieldProps {
   readonly id?: string;
   /** Overrides `field.testId` (a card keeps its existing test ids). */
   readonly testId?: string;
+  /** Id of another field's error element (`errorFrom`); marks this field invalid when it has no error of its own. */
+  readonly linkedErrorId?: string;
 }
 
 const NO_VALUES: ObjectFormValues = {};
@@ -40,6 +42,7 @@ export function ObjectFormField({
   createChild,
   id: idProp,
   testId,
+  linkedErrorId,
 }: ObjectFormFieldProps) {
   const { t } = useTranslation('common');
   const { name, label, kind, required } = field;
@@ -49,8 +52,9 @@ export function ObjectFormField({
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const noticeId = field.notice ? `${id}-notice` : undefined;
-  const describedBy = [hintId, noticeId, errorId].filter(Boolean).join(' ') || undefined;
-  const invalid = error !== undefined;
+  const linkedId = error === undefined ? linkedErrorId : undefined;
+  const describedBy = [hintId, noticeId, errorId, linkedId].filter(Boolean).join(' ') || undefined;
+  const invalid = error !== undefined || linkedId !== undefined;
   const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 
   const common = {
@@ -75,6 +79,7 @@ export function ObjectFormField({
       busy,
       invalid,
       describedBy,
+      testId: testIdValue,
       createChild,
       values,
       setValues: (next, announcement) => {
@@ -132,6 +137,7 @@ export function ObjectFormField({
         className={cx(styles.input, invalid && styles.inputError)}
         value={text}
         min={kind === 'number' ? field.min : undefined}
+        max={kind === 'number' ? field.max : undefined}
         step={kind === 'number' ? field.step : undefined}
         inputMode={kind === 'number' ? field.inputMode : undefined}
         maxLength={field.maxLength}

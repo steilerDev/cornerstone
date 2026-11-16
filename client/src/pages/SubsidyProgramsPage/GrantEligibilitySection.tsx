@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SubsidyProgram, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
-import { EntityMultiPicker } from '../../components/EntityPicker/EntityMultiPicker.js';
 import type { EntityOption } from '../../components/EntityPicker/types.js';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { toDraftText } from '../../components/ObjectForm/objectFormState.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { updateSubsidyProgram } from '../../lib/subsidyProgramsApi.js';
-import { NO_CATEGORY_OPTION_ID } from '../../objectForms/grantForm.js';
+import { NO_CATEGORY_OPTION_ID, useGrantFormSchema } from '../../objectForms/grantForm.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './GrantPage.module.css';
 
@@ -19,6 +20,34 @@ export interface GrantEligibilitySectionProps {
   readonly onSaved: () => Promise<unknown>;
 }
 
+interface EligibilityFieldsProps {
+  readonly categories: readonly EntityOption[];
+  readonly eligibility: string;
+  readonly onChange: (name: string, value: unknown) => void;
+  readonly idPrefix: string;
+}
+
+/** Mounted in edit mode only: the grant schema's Cost categories and Eligibility fields. */
+function EligibilityFields({
+  categories,
+  eligibility,
+  onChange,
+  idPrefix,
+}: EligibilityFieldsProps) {
+  const schema = useGrantFormSchema({ scope: 'edit' });
+  return (
+    <ObjectFormFields
+      fields={schema.fields}
+      names={['categories', 'eligibility']}
+      values={{ categories, eligibility }}
+      errors={{}}
+      onChange={onChange}
+      idPrefix={idPrefix}
+      testIds={{ categories: 'grant-field-categories', eligibility: 'grant-field-eligibility' }}
+    />
+  );
+}
+
 /** The Eligibility card of a grant: which cost categories count, and the eligibility text. */
 export function GrantEligibilitySection({ grant, onSaved }: GrantEligibilitySectionProps) {
   const { t } = useTranslation('budget');
@@ -26,6 +55,7 @@ export function GrantEligibilitySection({ grant, onSaved }: GrantEligibilitySect
   const { t: tSettings } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
   const userText = useUserText();
+  const baseId = useId();
   const noCategoryLabel = t('financing.fields.noCategory');
 
   const optionsOf = (): EntityOption[] => [
@@ -94,37 +124,16 @@ export function GrantEligibilitySection({ grant, onSaved }: GrantEligibilitySect
         onDiscard: discard,
         error: bannerError,
         renderFields: () => (
-          <div className={styles.fields}>
-            <div className={styles.field}>
-              <span className={styles.label}>{t('financing.fields.categories')}</span>
-              <EntityMultiPicker
-                value={categories}
-                onChange={setCategories}
-                picker={{
-                  kind: 'category',
-                  create: 'off',
-                  specialOptions: [{ id: NO_CATEGORY_OPTION_ID, label: noCategoryLabel }],
-                }}
-                removeLabel={(option) => t('financing.work.removeChip', { name: option.label })}
-                countLabel={(count) => t('financing.work.selected', { count })}
-                testId="grant-field-categories"
-              />
-              <p className={styles.hint}>{t('financing.hints.categories')}</p>
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="grant-eligibility-text" className={styles.label}>
-                {t('financing.fields.eligibility')}
-              </label>
-              <textarea
-                id="grant-eligibility-text"
-                className={sharedStyles.textarea}
-                rows={3}
-                value={eligibility}
-                onChange={(e) => setEligibility(e.target.value)}
-                data-testid="grant-field-eligibility"
-              />
-            </div>
-          </div>
+          <EligibilityFields
+            categories={categories}
+            eligibility={eligibility}
+            onChange={(name, value) =>
+              name === 'categories'
+                ? setCategories(value as EntityOption[])
+                : setEligibility(toDraftText(value))
+            }
+            idPrefix={`${baseId}-`}
+          />
         ),
       }}
     >

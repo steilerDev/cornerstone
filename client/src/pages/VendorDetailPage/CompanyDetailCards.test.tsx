@@ -10,12 +10,16 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
+import enBudget from '../../i18n/en/budget.json';
+import enCommon from '../../i18n/en/common.json';
+import { TagCreateContext } from '../../objectForms/tagCreateContext.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as CardsTypes from './CompanyDetailCards.js';
 
 const mockUpdateVendor = jest.fn<typeof VendorsApiTypes.updateVendor>();
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   updateVendor: mockUpdateVendor,
+  createVendor: jest.fn(),
   searchCompanies: jest.fn(),
   fetchVendor: jest.fn(),
 }));
@@ -45,8 +49,14 @@ const trade = (id: string, name: string, translationKey: string | null = null): 
   vendorCount: 0,
 });
 const TRADES = [trade('t-roof', 'Roofing'), trade('t-tile', 'Tiling')];
+const mockUseTrades = jest.fn((_options?: { enabled?: boolean }) => ({
+  trades: TRADES,
+  isLoading: false,
+  isInitialLoading: false,
+  error: null,
+}));
 jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
-  useTrades: () => ({ trades: TRADES, isLoading: false, isInitialLoading: false, error: null }),
+  useTrades: (options?: { enabled?: boolean }) => mockUseTrades(options),
 }));
 
 jest.unstable_mockModule('../../lib/tradesApi.js', () => ({
@@ -88,6 +98,7 @@ const detail = (id: string) => screen.getByTestId(id);
 
 beforeEach(async () => {
   mockUpdateVendor.mockReset();
+  mockUseTrades.mockClear();
   mockUpdateVendor.mockResolvedValue({} as VendorDetail);
   onSaved.mockReset();
   onSaved.mockResolvedValue(undefined);
@@ -385,5 +396,98 @@ describe('About card', () => {
     await open(user);
 
     expect(screen.getByLabelText('Trade')).toHaveValue('');
+  });
+});
+
+describe('per-card trades load (#2255)', () => {
+  const calls = () => mockUseTrades.mock.calls.map(([options]) => options?.enabled);
+
+  it('read mode mounts no schema, so it asks for no trades', () => {
+    renderCards(FULL);
+    expect(mockUseTrades).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['company-phone-email-edit', 'company-field-phone'],
+    ['company-address-edit', 'company-field-address'],
+  ])('editing %s does not request trades', async (editId, fieldId) => {
+    const user = userEvent.setup();
+    renderCards(FULL);
+
+    await user.click(screen.getByTestId(editId));
+
+    expect(screen.getByTestId(fieldId)).toBeInTheDocument();
+    expect(mockUseTrades).toHaveBeenCalled();
+    expect(calls().every((enabled) => enabled === false)).toBe(true);
+  });
+
+  it('editing About requests trades', async () => {
+    const user = userEvent.setup();
+    renderCards(FULL);
+
+    await user.click(screen.getByTestId('company-about-edit'));
+
+    expect(calls()).toContain(true);
+  });
+});
+
+describe('card fields come from the company schema (#2255)', () => {
+  it('uses the en field labels and per-card id prefixes, with no duplicate ids across open cards', async () => {
+    const user = userEvent.setup();
+    renderCards(FULL);
+    await user.click(screen.getByTestId('company-phone-email-edit'));
+    await user.click(screen.getByTestId('company-address-edit'));
+    await user.click(screen.getByTestId('company-about-edit'));
+
+    const named: Array<[string, string]> = [
+      ['company-field-phone', enBudget.companies.form.phone],
+      ['company-field-email', enBudget.companies.form.email],
+      ['company-field-address', enBudget.companies.form.address],
+      ['company-field-notes', enBudget.companies.form.notes],
+    ];
+    for (const [testId, label] of named) {
+      expect(screen.getByTestId(testId)).toHaveAccessibleName(label);
+    }
+    const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const phone = screen.getByTestId('company-field-phone');
+    const address = screen.getByTestId('company-field-address');
+    expect(phone.id).toMatch(/-phone$/);
+    expect(phone.id.replace(/phone$/, '')).not.toBe(address.id.replace(/address$/, ''));
+  });
+
+  it('keeps the schema max lengths on the card inputs', async () => {
+    const user = userEvent.setup();
+    renderCards(FULL);
+    await user.click(screen.getByTestId('company-phone-email-edit'));
+    await user.click(screen.getByTestId('company-address-edit'));
+    await user.click(screen.getByTestId('company-about-edit'));
+
+    expect(screen.getByTestId('company-field-phone')).toHaveAttribute('maxlength', '50');
+    expect(screen.getByTestId('company-field-address')).toHaveAttribute('maxlength', '500');
+    expect(screen.getByTestId('company-field-notes')).toHaveAttribute('maxlength', '10000');
+    expect(screen.getByTestId('company-field-name')).toHaveAttribute('maxlength', '200');
+  });
+
+  it('About keeps "New trade <text>" in the Trade picker when a TagCreateContext exists (D1)', async () => {
+    const user = userEvent.setup();
+    render(
+      <TagCreateContext value={jest.fn(async () => null)}>
+        <Cards.CompanyDetailCards
+          vendor={EMPTY}
+          onSaved={onSaved}
+          phoneCardRef={createRef<SectionCardController>()}
+        />
+      </TagCreateContext>,
+    );
+    await user.click(screen.getByTestId('company-about-edit'));
+
+    await user.type(screen.getByLabelText('Trade'), 'Glazing');
+
+    expect(
+      await screen.findByRole('option', {
+        name: enCommon.entityPicker.new.trade.replace('{{name}}', 'Glazing'),
+      }),
+    ).toBeInTheDocument();
   });
 });

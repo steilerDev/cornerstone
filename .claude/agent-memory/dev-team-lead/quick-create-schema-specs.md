@@ -1,6 +1,6 @@
 ---
 name: quick-create-schema-specs
-description: Hazards found speccing EPIC-21 #2254 (one ObjectForm schema for create dialog and detail-page edit cards) — schema hooks fetch on mount, field name = DOM id, card vs schema keys/names, server includesVat default, Add another drops follow-up errors, UX card maps vs real cards
+description: Hazards found speccing EPIC-21 #2254/#2255 (one ObjectForm schema for create dialog and detail-page edit cards) — schema hooks fetch on mount, field name = DOM id, card vs schema keys, server defaults, Add another drops errors, provider nesting hides inline create, provider create stays in cards
 metadata:
   type: feedback
 ---
@@ -20,5 +20,10 @@ Found while speccing #2254 (P5.10a). Applies to any story that reuses an `object
 
 11. **"No funding source" (PO) ≠ omit `budgetSourceId`** (CI finding): budget-line create returns 400 `budgetSourceId is required` (contract + service) though shared `CreateBudgetLineRequest` types it optional. "No source" = the discretionary source (`fetchBudgetSources()` → `isDiscretionary`, like `useCostLineOptions`). Mocked unit tests pinned the wrong payload with `toEqual`; check every invented POST body against the contract's Required column.
 12. **E2E post-create URL regexes must allow a query** — failure paths land on `?tab=…` after the param-strip replace; a `$`-anchored id regex times out. Dirty SectionCard Cancel opens Discard: tests confirm via `discardConfirm`.
+
+13. **App-root providers render their dialog as a sibling of `children`** (#2255): a dialog from `CompanyCreateProvider` / `InvoiceCreateProvider` / `FinancingCreateProvider` sits outside every provider nested _inside_ it (`TagCreateProvider` was), so its pickers silently lose "New trade". Check App.tsx nesting whenever an AC says "inline create" inside a provider-hosted dialog.
+14. **"Create off in cards" applies only to the ObjectForm child-step `create` function.** Provider-based create (CompanyCreate/TagCreate) stays in cards (task Who card precedent, capmap trades row); reject UX specs that turn it off without a capmap/PO ruling.
+15. **Shared hooks without `enabled`** (`useTrades`) break the "card loads only what it renders" rule; spec an `enabled` option like `useAreas`. Custom-field test ids need `ObjectFormRenderContext.testId` to honour card `testIds`.
+16. **Moving a hand-built card input onto `ObjectFormField` drops every attribute the field model lacks** (#2255 review: native `max=100` on rate/interest). Diff each old `<input>`'s attributes against `ObjectFormField`'s props in the spec and extend the field model; don't list the loss as an "accepted visible change" (fix-in-session under the reviewer policy).
 
 Related: [[object-home-move-specs]], [[cost-line-specs]], [[task-page-specs]], [[purchase-page-specs]], [[milestone-page-specs]]

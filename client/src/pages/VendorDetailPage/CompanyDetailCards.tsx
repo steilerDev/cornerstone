@@ -1,26 +1,24 @@
 import { useId } from 'react';
-import type { Ref, RefObject } from 'react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UpdateVendorRequest, VendorDetail } from '@cornerstone/shared';
-import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import type { TradeSummary, UpdateVendorRequest, VendorDetail } from '@cornerstone/shared';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { pickErrors, toDraftText } from '../../components/ObjectForm/objectFormState.js';
+import type { ObjectFormValues } from '../../components/ObjectForm/types.js';
 import { useCardDraft } from '../../components/SectionCard/useCardDraft.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
-import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
+import { DetailRow } from '../../components/SectionCard/SectionCardFields.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
 import { telHref } from '../../components/CallButton/telHref.js';
-import { useTrades } from '../../hooks/useTrades.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { isEmailAddress } from '../../lib/emailAddress.js';
 import { updateVendor } from '../../lib/vendorsApi.js';
-import sharedStyles from '../../styles/shared.module.css';
+import {
+  useCompanyFormSchema,
+  useCompanyValueMessages,
+  validateCompanyValues,
+} from '../../objectForms/companyForm.js';
 import styles from './VendorDetailPage.module.css';
-
-const NAME_MAX = 200;
-const PHONE_MAX = 50;
-const EMAIL_MAX = 255;
-const ADDRESS_MAX = 500;
-const NOTES_MAX = 10000;
 
 type Draft = Readonly<Record<string, string>>;
 
@@ -82,6 +80,42 @@ interface CardProps {
   readonly onSaved: () => Promise<unknown>;
 }
 
+interface CompanyFieldsProps {
+  readonly names: readonly string[];
+  readonly load: { readonly trades: boolean };
+  readonly knownTrade: TradeSummary | null;
+  readonly values: ObjectFormValues;
+  readonly errors: Readonly<Record<string, string | undefined>>;
+  readonly onChange: (name: string, value: unknown) => void;
+  readonly idPrefix: string;
+  readonly testIds: Readonly<Partial<Record<string, string>>>;
+}
+
+/** Mounted in edit mode only: the company schema (the New company dialog's fields), per-card load. */
+function CompanyFields({
+  names,
+  load,
+  knownTrade,
+  values,
+  errors,
+  onChange,
+  idPrefix,
+  testIds,
+}: CompanyFieldsProps) {
+  const schema = useCompanyFormSchema({ scope: 'edit', load, knownTrade });
+  return (
+    <ObjectFormFields
+      fields={schema.fields}
+      names={names}
+      values={values}
+      errors={errors}
+      onChange={onChange}
+      idPrefix={idPrefix}
+      testIds={testIds}
+    />
+  );
+}
+
 function changed(draft: Draft, initial: Draft, field: string): boolean {
   return draft[field] !== initial[field];
 }
@@ -92,16 +126,12 @@ function PhoneEmailCard({
   controllerRef,
 }: CardProps & { readonly controllerRef: Ref<SectionCardController> }) {
   const { t } = useTranslation('budget');
+  const messages = useCompanyValueMessages();
   const baseId = useId();
   const card = useVendorCardDraft({
     vendorId: vendor.id,
     initial: { phone: vendor.phone ?? '', email: vendor.email ?? '' },
-    validate: (draft) => {
-      const found: { email?: string } = {};
-      const email = draft.email.trim();
-      if (email && !isEmailAddress(email)) found.email = t('companies.form.emailInvalid');
-      return found;
-    },
+    validate: (draft) => pickErrors(validateCompanyValues(draft, messages), ['phone', 'email']),
     toBody: (draft, initial) => ({
       ...(changed(draft, initial, 'phone') ? { phone: draft.phone.trim() || null } : {}),
       ...(changed(draft, initial, 'email') ? { email: draft.email.trim() || null } : {}),
@@ -121,44 +151,17 @@ function PhoneEmailCard({
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <FieldShell id={`${baseId}-phone`} label={t('companies.form.phone')} error={undefined}>
-              {() => (
-                <input
-                  id={`${baseId}-phone`}
-                  ref={firstFieldRef as RefObject<HTMLInputElement | null>}
-                  type="tel"
-                  autoComplete="tel"
-                  className={sharedStyles.input}
-                  value={card.draft.phone}
-                  maxLength={PHONE_MAX}
-                  onChange={(e) => card.set('phone', e.target.value)}
-                  data-testid="company-field-phone"
-                />
-              )}
-            </FieldShell>
-            <FieldShell
-              id={`${baseId}-email`}
-              label={t('companies.form.email')}
-              error={card.errors.email}
-            >
-              {(aria) => (
-                <input
-                  id={`${baseId}-email`}
-                  type="email"
-                  autoComplete="email"
-                  className={sharedStyles.input}
-                  value={card.draft.email}
-                  maxLength={EMAIL_MAX}
-                  onChange={(e) => card.set('email', e.target.value)}
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="company-field-email"
-                />
-              )}
-            </FieldShell>
-          </div>
+        renderFields: () => (
+          <CompanyFields
+            names={['phone', 'email']}
+            load={{ trades: false }}
+            knownTrade={vendor.trade}
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) => card.set(name as 'phone' | 'email', toDraftText(value))}
+            idPrefix={`${baseId}-`}
+            testIds={{ phone: 'company-field-phone', email: 'company-field-email' }}
+          />
         ),
       }}
     >
@@ -205,27 +208,17 @@ function AddressCard({ vendor, onSaved }: CardProps) {
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <FieldShell
-              id={`${baseId}-address`}
-              label={t('companies.form.address')}
-              error={undefined}
-            >
-              {() => (
-                <textarea
-                  id={`${baseId}-address`}
-                  ref={firstFieldRef as RefObject<HTMLTextAreaElement | null>}
-                  className={sharedStyles.textarea}
-                  rows={3}
-                  value={card.draft.address}
-                  maxLength={ADDRESS_MAX}
-                  onChange={(e) => card.set('address', e.target.value)}
-                  data-testid="company-field-address"
-                />
-              )}
-            </FieldShell>
-          </div>
+        renderFields: () => (
+          <CompanyFields
+            names={['address']}
+            load={{ trades: false }}
+            knownTrade={vendor.trade}
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) => card.set(name as 'address', toDraftText(value))}
+            idPrefix={`${baseId}-`}
+            testIds={{ address: 'company-field-address' }}
+          />
         ),
       }}
     >
@@ -242,7 +235,7 @@ function AboutCard({ vendor, onSaved }: CardProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
   const userText = useUserText();
-  const { trades } = useTrades();
+  const messages = useCompanyValueMessages();
   const baseId = useId();
   const card = useVendorCardDraft({
     vendorId: vendor.id,
@@ -251,13 +244,8 @@ function AboutCard({ vendor, onSaved }: CardProps) {
       tradeId: vendor.trade?.id ?? '',
       notes: vendor.notes ?? '',
     },
-    validate: (draft) => {
-      const found: { name?: string } = {};
-      const name = draft.name.trim();
-      if (!name) found.name = t('companies.form.nameRequired');
-      else if (name.length > NAME_MAX) found.name = t('companies.form.nameTooLong');
-      return found;
-    },
+    validate: (draft) =>
+      pickErrors(validateCompanyValues(draft, messages), ['name', 'tradeId', 'notes']),
     toBody: (draft, initial) => ({
       ...(changed(draft, initial, 'name') ? { name: draft.name.trim() } : {}),
       ...(changed(draft, initial, 'tradeId') ? { tradeId: draft.tradeId || null } : {}),
@@ -268,8 +256,6 @@ function AboutCard({ vendor, onSaved }: CardProps) {
 
   const tradeLabel = (trade: { name: string; translationKey: string | null }) =>
     getCategoryDisplayName(tSettings, trade.name, trade.translationKey);
-  const pickedTrade =
-    trades.find((candidate) => candidate.id === card.draft.tradeId) ?? vendor.trade;
 
   return (
     <SectionCard
@@ -282,56 +268,19 @@ function AboutCard({ vendor, onSaved }: CardProps) {
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <FieldShell
-              id={`${baseId}-name`}
-              label={t('companies.form.name')}
-              required
-              error={card.errors.name}
-            >
-              {(aria) => (
-                <input
-                  id={`${baseId}-name`}
-                  ref={firstFieldRef as RefObject<HTMLInputElement | null>}
-                  className={sharedStyles.input}
-                  value={card.draft.name}
-                  maxLength={NAME_MAX}
-                  onChange={(e) => card.set('name', e.target.value)}
-                  aria-invalid={aria.invalid}
-                  aria-describedby={aria.describedBy}
-                  data-testid="company-field-name"
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-trade`} label={t('companies.form.trade')} error={undefined}>
-              {() => (
-                <EntityPicker
-                  kind="trade"
-                  id={`${baseId}-trade`}
-                  value={card.draft.tradeId}
-                  selectedLabel={
-                    card.draft.tradeId && pickedTrade ? tradeLabel(pickedTrade) : undefined
-                  }
-                  onChange={(next) => card.set('tradeId', next)}
-                  placeholder={t('companies.form.tradePlaceholder')}
-                />
-              )}
-            </FieldShell>
-            <FieldShell id={`${baseId}-notes`} label={t('companies.form.notes')} error={undefined}>
-              {() => (
-                <textarea
-                  id={`${baseId}-notes`}
-                  className={sharedStyles.textarea}
-                  rows={4}
-                  value={card.draft.notes}
-                  maxLength={NOTES_MAX}
-                  onChange={(e) => card.set('notes', e.target.value)}
-                  data-testid="company-field-notes"
-                />
-              )}
-            </FieldShell>
-          </div>
+        renderFields: () => (
+          <CompanyFields
+            names={['name', 'tradeId', 'notes']}
+            load={{ trades: true }}
+            knownTrade={vendor.trade}
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) =>
+              card.set(name as 'name' | 'tradeId' | 'notes', toDraftText(value))
+            }
+            idPrefix={`${baseId}-`}
+            testIds={{ name: 'company-field-name', notes: 'company-field-notes' }}
+          />
         ),
       }}
     >

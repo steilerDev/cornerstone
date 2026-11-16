@@ -1236,7 +1236,8 @@
     },
     "hints": {
       "rate": "Share of the covered costs the grant pays",
-      "categories": "Only costs in these categories count"
+      "categories": "Only costs in these categories count",
+      "cap": "Only costs up to this amount count. Leave empty for no limit."
     },
     "errors": {
       "itemsRequired": "Choose at least one task or purchase",

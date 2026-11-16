@@ -11,6 +11,10 @@
  * F9b                         Details edit (explicit Save, validation, persistence), the cap and the
  *                             explanation sentence, the Eligibility text, Delete (blocked while tasks are
  *                             linked), an unknown id shows the not-found alert
+ * E5  (#2255 AC4, AC3b)       the Details card carries the New grant dialog's fields, labels and hints
+ *                             (no type control, no Status); the Eligibility card reaches Cost categories
+ *                             by label; an existing fixed-amount grant shows "Fixed reduction" and
+ *                             stays editable
  *
  * Ported from subsidy-programs / subsidy-max-amount (the old page). Real data through the API.
  */
@@ -238,6 +242,94 @@ test.describe('Grant page: Work tab', { tag: '@responsive' }, () => {
         0,
       );
       await expect(grant.linkSubmit).toHaveAttribute('aria-disabled', 'true');
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+});
+
+test.describe('Grant page: quick-create schema parity (#2255)', { tag: '@responsive' }, () => {
+  test('E5: Details edit carries the dialog labels and hints; no type control, no Status', async ({
+    page,
+    testPrefix,
+  }) => {
+    const cleanup = newCleanup();
+    try {
+      const grant = new GrantPage(page);
+      const grantId = await createGrant(page, cleanup, {
+        name: `${testPrefix} E5 Parity`,
+        reductionValue: 20,
+        maximumAmount: 900,
+        applicationStatus: 'applied',
+        applicationDeadline: '2031-07-01',
+      });
+      await grant.goto(grantId);
+      await grant.detailsEdit.click();
+
+      // The New grant dialog's labels, in the card
+      await expect(grant.detailsCard.getByLabel(/^Name/)).toBeVisible();
+      await expect(grant.detailsCard.getByLabel(/^Rate \(%\)/)).toBeVisible();
+      await expect(grant.detailsCard.getByLabel('Eligible costs up to')).toBeVisible();
+      await expect(grant.detailsCard.getByLabel('Deadline')).toBeVisible();
+      await expect(grant.detailsCard.getByLabel('Description')).toBeVisible();
+      await expect(grant.detailsCard.getByLabel('Notes')).toBeVisible();
+
+      // The hints of the dialog
+      await expect(grant.rateHint).toBeVisible();
+      await expect(grant.capHint).toBeVisible();
+
+      // The header StatusMenu owns Status; the type is not editable
+      await expect(grant.detailsCard.getByLabel('Status')).toHaveCount(0);
+      await expect(grant.typeControls).toHaveCount(0);
+      await expect(grant.detailsCard.getByLabel('Fixed reduction')).toHaveCount(0);
+
+      // Cost categories sit in the Eligibility card and are reached by label
+      await grant.detailsCancel.click();
+      await grant.eligibilityEdit.click();
+      await expect(grant.categoriesInput).toBeVisible();
+      await expect(grant.eligibilityCard.getByLabel(/^Eligibility/)).toBeVisible();
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+
+  test('E5b: an existing fixed-amount grant shows "Fixed reduction", no type control, and stays editable', async ({
+    page,
+    testPrefix,
+  }) => {
+    const cleanup = newCleanup();
+    try {
+      const grant = new GrantPage(page);
+      const grantId = await createGrant(page, cleanup, {
+        name: `${testPrefix} E5b Fixed`,
+        reductionType: 'fixed',
+        reductionValue: 750,
+      });
+      await grant.goto(grantId);
+      await grant.detailsEdit.click();
+
+      const fixedField = grant.detailsCard.getByLabel('Fixed reduction');
+      await expect(fixedField).toBeVisible();
+      await expect(fixedField).toHaveValue('750');
+      await expect(grant.detailsCard.getByLabel(/^Rate/)).toHaveCount(0);
+      await expect(grant.rateHint).toHaveCount(0);
+      await expect(grant.typeControls).toHaveCount(0);
+
+      // The amount must stay above 0, but has no 100 ceiling
+      await fixedField.fill('0');
+      await grant.detailsSave.click();
+      await expect(grant.detailsCard.getByText('Enter an amount greater than 0.')).toBeVisible();
+
+      await fixedField.fill('1500');
+      await grant.detailsSave.click();
+      await expect(grant.detailsEdit).toBeVisible();
+      const stored = await page.request.get(`${API.subsidyPrograms}/${grantId}`);
+      const record = (
+        (await stored.json()) as {
+          subsidyProgram: { reductionType: string; reductionValue: number };
+        }
+      ).subsidyProgram;
+      expect(record).toMatchObject({ reductionType: 'fixed', reductionValue: 1500 });
     } finally {
       await runCleanup(cleanup);
     }

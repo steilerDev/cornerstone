@@ -2,7 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { renderHook } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { installMatchMedia } from '../test/matchMediaControl.js';
+import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
+import enBudget from '../i18n/en/budget.json';
 import { MemoryRouter } from 'react-router-dom';
 import type { VendorContact } from '@cornerstone/shared';
 import type * as ApiTypes from '../lib/vendorContactsApi.js';
@@ -102,6 +106,54 @@ describe('contactPersonForm', () => {
         kind: 'email',
         autoComplete: 'email',
       });
+    });
+  });
+
+  describe('first-or-last-name rule (#2255)', () => {
+    it('puts both names on half width and links Last name to the First name error', () => {
+      const fields = schemaOf({ mode: 'create' }).fields;
+      const first = fields.find((f) => f.name === 'firstName');
+      const last = fields.find((f) => f.name === 'lastName');
+      expect(first?.width).toBe('half');
+      expect(last?.width).toBe('half');
+      expect(last?.errorFrom).toBe('firstName');
+      expect(first?.errorFrom).toBeUndefined();
+    });
+
+    it('shows the message once under First name and marks Last name invalid', async () => {
+      const media = installMatchMedia({ '(min-width: 768px)': true });
+      const { ObjectForm } =
+        (await import('../components/ObjectForm/ObjectForm.js')) as typeof ObjectFormTypes;
+      const user = userEvent.setup();
+      function Host() {
+        const schema = Form.useContactPersonFormSchema({
+          mode: 'create',
+          vendorId: 'v1',
+          onSaved,
+        });
+        return <ObjectForm schema={schema} onCreated={() => {}} onCancel={() => {}} />;
+      }
+      render(
+        <MemoryRouter>
+          <Host />
+        </MemoryRouter>,
+      );
+      await user.click(screen.getByTestId('object-form-save'));
+
+      const message = enBudget.companyPage.contactPersons.nameRequired;
+      expect(screen.getAllByText(message)).toHaveLength(1);
+      const last = screen.getByTestId('contact-person-last-name');
+      const first = screen.getByTestId('contact-person-first-name');
+      expect(last).toHaveAttribute('aria-invalid', 'true');
+      expect(first).toHaveAttribute('aria-invalid', 'true');
+      expect(last.getAttribute('aria-describedby')).toContain('firstName-error');
+      expect(mockCreate).not.toHaveBeenCalled();
+      media.restore();
+    });
+
+    it('a last name alone is accepted and sent', async () => {
+      await schemaOf({ mode: 'create' }).submit({ lastName: 'Example' });
+      expect(mockCreate.mock.calls[0]![1]).toMatchObject({ firstName: null, lastName: 'Example' });
     });
   });
 
