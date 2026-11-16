@@ -21,6 +21,7 @@ import { CommandSearchProvider } from '../CommandSearch/CommandSearchContext.js'
 import type { CommandSearchOpenOptions } from '../CommandSearch/CommandSearchContext.js';
 import { CreateMenuProvider } from '../CreateMenu/CreateMenuContext.js';
 import { CreateSheet } from '../CreateMenu/CreateSheet.js';
+import { ShortcutsHelpProvider } from '../KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { MoreSheet } from '../MoreSheet/MoreSheet.js';
 import { Sidebar } from '../Sidebar/Sidebar.js';
 import { TopBar } from '../TopBar/TopBar.js';
@@ -106,80 +107,84 @@ function AppShellFrame() {
 
   return (
     <ShortcutRegistryProvider>
-      <CreateMenuProvider
-        moneyPage={active?.sectionId === 'money'}
-        wide={wide}
-        sheetOpen={createOpen}
-        onSheetOpenChange={onCreateSheetOpenChange}
-      >
-        <CommandSearchProvider isOpen={searchOpen} onOpen={openSearch} onClose={closeSearch}>
-          <BreadcrumbSlotContext value={slotEl}>
-            <PreviousPathContext value={getPreviousPath}>
-              <ViewMenuContext value={viewMenu}>
-                <ImmersiveShellContext value={immersive}>
-                  <div
-                    className={
-                      wide
-                        ? styles.appShell
-                        : `${styles.appShell} ${styles.compact}${hideBars ? ` ${styles.immersive}` : ''}`
-                    }
-                    inert={searchOpen || undefined}
-                  >
-                    {wide && <Sidebar sections={sections} active={active} />}
-                    <div className={styles.shellColumn} inert={moreOpen || createOpen}>
-                      {!hideBars && (
-                        <TopBar
-                          breadcrumbSlotRef={setSlotEl}
-                          variant={wide ? 'desktop' : 'compact'}
-                        />
-                      )}
-                      {!wide && !hideBars && (
-                        <BottomBar
-                          active={active}
-                          moreOpen={moreOpen}
-                          moreControlsId={sheetId}
-                          moreButtonRef={moreButtonRef}
-                          onMoreClick={() => setMoreOpenKey(location.key)}
-                          homeBadge={attentionData?.count}
-                        />
-                      )}
-                      <div className={styles.mainContent}>
-                        <main className={styles.pageContent}>
-                          <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
-                            <Outlet />
-                          </Suspense>
-                        </main>
+      <ShortcutsHelpProvider navContext={ctx}>
+        <CreateMenuProvider
+          moneyPage={active?.sectionId === 'money'}
+          wide={wide}
+          sheetOpen={createOpen}
+          onSheetOpenChange={onCreateSheetOpenChange}
+        >
+          <CommandSearchProvider isOpen={searchOpen} onOpen={openSearch} onClose={closeSearch}>
+            <BreadcrumbSlotContext value={slotEl}>
+              <PreviousPathContext value={getPreviousPath}>
+                <ViewMenuContext value={viewMenu}>
+                  <ImmersiveShellContext value={immersive}>
+                    <div
+                      className={
+                        wide
+                          ? styles.appShell
+                          : `${styles.appShell} ${styles.compact}${hideBars ? ` ${styles.immersive}` : ''}`
+                      }
+                      inert={searchOpen || undefined}
+                    >
+                      {wide && <Sidebar sections={sections} active={active} />}
+                      <div className={styles.shellColumn} inert={moreOpen || createOpen}>
+                        {!hideBars && (
+                          <TopBar
+                            breadcrumbSlotRef={setSlotEl}
+                            variant={wide ? 'desktop' : 'compact'}
+                          />
+                        )}
+                        {!wide && !hideBars && (
+                          <BottomBar
+                            active={active}
+                            moreOpen={moreOpen}
+                            moreControlsId={sheetId}
+                            moreButtonRef={moreButtonRef}
+                            onMoreClick={() => setMoreOpenKey(location.key)}
+                            homeBadge={attentionData?.count}
+                          />
+                        )}
+                        <div className={styles.mainContent}>
+                          <main className={styles.pageContent}>
+                            <Suspense
+                              fallback={<div className={styles.loading}>{t('loading')}</div>}
+                            >
+                              <Outlet />
+                            </Suspense>
+                          </main>
+                        </div>
                       </div>
+                      {!wide && <CreateSheet />}
+                      {!wide && (
+                        <MoreSheet
+                          id={sheetId}
+                          open={moreOpen}
+                          onClose={() => setMoreOpenKey(null)}
+                          sections={sections}
+                          active={active}
+                          returnFocusRef={moreButtonRef}
+                        />
+                      )}
                     </div>
-                    {!wide && <CreateSheet />}
-                    {!wide && (
-                      <MoreSheet
-                        id={sheetId}
-                        open={moreOpen}
-                        onClose={() => setMoreOpenKey(null)}
-                        sections={sections}
-                        active={active}
-                        returnFocusRef={moreButtonRef}
-                      />
-                    )}
-                  </div>
-                </ImmersiveShellContext>
-                {searchOpen && (
-                  <CommandSearch
-                    wide={wide}
-                    initialQuery={searchRequest.query}
-                    returnFocusRef={searchRequest.returnFocusRef}
-                    onClose={closeSearch}
-                    navContext={ctx}
-                    sections={sections}
-                    active={active}
-                  />
-                )}
-              </ViewMenuContext>
-            </PreviousPathContext>
-          </BreadcrumbSlotContext>
-        </CommandSearchProvider>
-      </CreateMenuProvider>
+                  </ImmersiveShellContext>
+                  {searchOpen && (
+                    <CommandSearch
+                      wide={wide}
+                      initialQuery={searchRequest.query}
+                      returnFocusRef={searchRequest.returnFocusRef}
+                      onClose={closeSearch}
+                      navContext={ctx}
+                      sections={sections}
+                      active={active}
+                    />
+                  )}
+                </ViewMenuContext>
+              </PreviousPathContext>
+            </BreadcrumbSlotContext>
+          </CommandSearchProvider>
+        </CreateMenuProvider>
+      </ShortcutsHelpProvider>
     </ShortcutRegistryProvider>
   );
 }

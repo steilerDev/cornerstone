@@ -186,7 +186,7 @@ The **History** tab shows when the task was created, who created it, and when it
 
 ### Keyboard Shortcuts on the Task Page
 
-Press `e` to edit the task details, `Delete` to delete the task, and `?` to see all shortcuts. See [Keyboard Shortcuts](keyboard-shortcuts#task-detail).
+Press `e` to edit the task details and `Delete` to delete the task. Press `?` on any page to see all shortcuts, or read [Keyboard Shortcuts](../keyboard-shortcuts).
 
 ## Next Steps
 
@@ -194,4 +194,4 @@ Press `e` to edit the task details, `Delete` to delete the task, and `?` to see 
 - [Areas & Trades](areas-and-trades) -- Organize by location and specialty
 - [Notes & Checklists](notes-and-subtasks) -- Add comments and checklist items
 - [Dependencies](dependencies) -- Link tasks together
-- [Keyboard Shortcuts](keyboard-shortcuts) -- Navigate faster with keyboard shortcuts
+- [Keyboard Shortcuts](../keyboard-shortcuts) -- Navigate faster with keyboard shortcuts

@@ -202,8 +202,7 @@
     },
     "shortcuts": {
       "edit": "Edit the purchase details",
-      "delete": "Delete the purchase",
-      "help": "Show keyboard shortcuts"
+      "delete": "Delete the purchase"
     }
   }
 }

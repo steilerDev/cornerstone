@@ -10,7 +10,7 @@
  * - E3.1 header (name, role) and the order of the entries
  * - E3.2 Theme: Dark applies at once, the menu stays open, the choice persists to a fresh page
  * - E3.3 Language: Deutsch re-renders the open menu in German, English switches back
- * - E3.4 Keyboard shortcuts lists the current page's keys; Home has none; Escape refocuses
+ * - E3.4 Keyboard shortcuts lists the current page's keys; Home shows the empty state; Escape refocuses
  * - E3.5 Help and GitHub are new-tab links (never followed); the version line
  * - E3.6 Account opens Settings > Account and closes the menu; on that page it replaces
  *
@@ -144,7 +144,9 @@ test.describe('User menu', () => {
     await expect(dialog).toContainText('New task');
     await expect(dialog).not.toContainText('Open the New menu');
     // #2209: a fixed "Everywhere" section lists the global undo shortcut
+    await expect(dialog.getByRole('heading', { name: 'On this page' })).toBeVisible();
     await expect(dialog.getByRole('heading', { name: 'Everywhere' })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Go to' })).toBeVisible();
     await expect(dialog).toContainText('Undo the last change');
     // #2211: the command search rows live in the same section
     await expect(dialog).toContainText('Search everywhere');
@@ -155,15 +157,19 @@ test.describe('User menu', () => {
     await expect(dialog).toBeHidden();
     await expect(appShell.userMenuTrigger).toBeFocused();
 
-    // Home registers no shortcuts of its own; the shell's `n` fallback ("Open the New menu")
-    // is the only row (#2212)
+    // Home registers no shortcuts of its own: "On this page" shows the empty state and the
+    // shell's `n` fallback ("Open the New menu") moves to Everywhere (#2253)
     await page.goto(ROUTES.home);
     await expect(appShell.userMenuTrigger).toBeVisible();
     await appShell.openUserMenu();
     await page.getByTestId('user-menu-shortcuts').click();
-    await expect(page.getByRole('dialog')).toContainText('Open the New menu');
-    await expect(page.getByRole('dialog')).not.toContainText(
-      'This page has no shortcuts of its own.',
+    const home = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await expect(home.getByRole('heading', { name: 'On this page' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Everywhere' })).toBeVisible();
+    await expect(home.getByRole('heading', { name: 'Go to' })).toBeVisible();
+    await expect(home).toContainText('This page has no shortcuts of its own.');
+    await expect(home.locator('[data-testid="keyboard-shortcut-row"][data-key="n"]')).toContainText(
+      'Open the New menu',
     );
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();

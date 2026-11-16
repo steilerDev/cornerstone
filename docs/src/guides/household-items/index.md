@@ -133,7 +133,7 @@ The **History** tab shows when the purchase was created, who created it, and whe
 
 ### Keyboard Shortcuts on the Purchase Page
 
-Press `e` to edit the purchase details, `Delete` to delete the purchase, and `?` to see all shortcuts.
+Press `e` to edit the purchase details and `Delete` to delete the purchase. Press `?` on any page to see all shortcuts, or read [Keyboard Shortcuts](../keyboard-shortcuts).
 
 ## Next Steps
 

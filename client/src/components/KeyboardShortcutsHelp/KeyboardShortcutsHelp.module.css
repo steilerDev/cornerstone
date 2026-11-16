@@ -4,23 +4,6 @@
   overflow-y: auto;
 }
 
-.shortcutsTable thead {
-  background-color: var(--color-bg-secondary);
-  position: sticky;
-  top: 0;
-}
-
-.shortcutsTable th {
-  padding: var(--spacing-3) var(--spacing-6);
-  text-align: left;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--color-border);
-}
-
 .keyColumn {
   width: 30%;
 }
@@ -67,7 +50,6 @@
 }
 
 @media (max-width: 767px) {
-  .shortcutsTable th,
   .shortcutsTable td {
     padding: var(--spacing-3) var(--spacing-4);
   }
@@ -78,4 +60,34 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
+}
+
+.then {
+  margin: 0 var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.rowOff .keyCell,
+.rowOff .descriptionCell {
+  color: var(--color-text-muted);
+}
+
+.offBadge {
+  margin-inline-start: var(--spacing-2);
+}
+
+.switchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.switchInput:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }

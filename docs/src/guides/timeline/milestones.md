@@ -68,7 +68,7 @@ The **History** tab shows when the milestone was created, who created it, and wh
 
 ### Keyboard Shortcuts on the Milestone Page
 
-Press `e` to edit the milestone details, `Delete` to delete the milestone, and `?` to see all shortcuts.
+Press `e` to edit the milestone details and `Delete` to delete the milestone. Press `?` on any page to see all shortcuts, or read [Keyboard Shortcuts](../keyboard-shortcuts).
 
 ## Deleting a Milestone
 

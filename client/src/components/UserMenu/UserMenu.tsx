@@ -1,9 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { useUserMenuModel } from '../../hooks/useUserMenuModel.js';
-import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
-import { KeyboardShortcutsHelp } from '../KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { OverflowMenu } from '../OverflowMenu/OverflowMenu.js';
 import type { OverflowMenuEntry } from '../OverflowMenu/OverflowMenu.js';
 import styles from './UserMenu.module.css';
@@ -14,7 +12,6 @@ export function UserMenu() {
   const model = useUserMenuModel();
   const location = useLocation();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [shortcuts, setShortcuts] = useState<KeyboardShortcut[] | null>(null);
 
   const { user } = model;
   if (!user) return null;
@@ -57,8 +54,9 @@ export function UserMenu() {
     {
       id: 'shortcuts',
       label: t('userMenu.shortcuts'),
-      onClick: () => setShortcuts(model.shortcutsSnapshot()),
+      onClick: () => model.openShortcuts(triggerRef),
       testId: 'user-menu-shortcuts',
+      ...(model.singleKeyShortcutsOn ? { shortcutHint: '?' } : {}),
     },
     {
       kind: 'link',
@@ -98,35 +96,23 @@ export function UserMenu() {
   ];
 
   return (
-    <>
-      <OverflowMenu
-        items={entries}
-        triggerAriaLabel={t('topBar.accountMenu', { name: user.name })}
-        triggerIcon={<span aria-hidden="true">{user.initials}</span>}
-        triggerClassName={styles.avatar}
-        menuClassName={styles.panel}
-        header={
-          <>
-            <p className={styles.name}>{user.name}</p>
-            <p className={styles.role}>{user.roleLabel}</p>
-          </>
-        }
-        closeSignal={location.key}
-        triggerRef={triggerRef}
-        data-testid="user-menu-trigger"
-        menuTestId="user-menu"
-      />
-      {shortcuts && (
-        <KeyboardShortcutsHelp
-          shortcuts={shortcuts}
-          emptyMessage={t('keyboardShortcuts.noPageShortcuts')}
-          onClose={() => {
-            setShortcuts(null);
-            triggerRef.current?.focus();
-          }}
-        />
-      )}
-    </>
+    <OverflowMenu
+      items={entries}
+      triggerAriaLabel={t('topBar.accountMenu', { name: user.name })}
+      triggerIcon={<span aria-hidden="true">{user.initials}</span>}
+      triggerClassName={styles.avatar}
+      menuClassName={styles.panel}
+      header={
+        <>
+          <p className={styles.name}>{user.name}</p>
+          <p className={styles.role}>{user.roleLabel}</p>
+        </>
+      }
+      closeSignal={location.key}
+      triggerRef={triggerRef}
+      data-testid="user-menu-trigger"
+      menuTestId="user-menu"
+    />
   );
 }
 

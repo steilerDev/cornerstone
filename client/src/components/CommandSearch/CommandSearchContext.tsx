@@ -128,7 +128,7 @@ export function CommandSearchProvider({
     ],
     [t],
   );
-  useKeyboardShortcuts(shortcuts, { fallback: true });
+  useKeyboardShortcuts(shortcuts, { fallback: true, group: 'global' });
 
   const value = useMemo<CommandSearchApi>(
     () => ({ available: true, isOpen, open, close: onClose, toggle }),

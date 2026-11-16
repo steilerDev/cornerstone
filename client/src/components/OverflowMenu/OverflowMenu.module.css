@@ -234,3 +234,8 @@
     min-height: var(--touch-target-min);
   }
 }
+
+.shortcutHint {
+  composes: kbd from '../KeyboardShortcutsHelp/KeyboardShortcutsHelp.module.css';
+  margin-inline-start: auto;
+}

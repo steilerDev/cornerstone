@@ -808,16 +808,15 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() => expect(startEditDetails).toHaveBeenCalledTimes(1));
     });
 
-    it('? opens the shortcut help with the page shortcuts, without the Backspace twin', async () => {
+    it('? opens no dialog on the page: the shell owns the one help dialog (#2253)', async () => {
       await loaded();
-      fireEvent.keyDown(document.body, { key: '?' });
-      const dialog = await screen.findByRole('dialog');
-      expect(dialog).toHaveTextContent('Edit the purchase details');
-      expect(dialog).toHaveTextContent('Delete the purchase');
-      expect(dialog).toHaveTextContent('Show keyboard shortcuts');
-      expect(within(dialog).queryByText('Backspace')).toBeNull();
-      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      const event = new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true });
+      act(() => {
+        document.body.dispatchEvent(event);
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByText('Show keyboard shortcuts')).toBeNull();
+      expect(event.defaultPrevented).toBe(false);
     });
   });
 });

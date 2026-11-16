@@ -35,6 +35,8 @@ export interface OverflowMenuItem {
   keepOpen?: boolean;
   /** Unavailable but still focusable (aria-disabled="true"); activation is a no-op. */
   ariaDisabled?: boolean;
+  /** Decorative key hint at the row end (aria-hidden), e.g. "?". */
+  shortcutHint?: string;
 }
 
 export interface OverflowMenuLinkItem {
@@ -488,6 +490,11 @@ export function OverflowMenu({
           </span>
         )}
         {item.label}
+        {item.shortcutHint && (
+          <kbd aria-hidden="true" className={styles.shortcutHint}>
+            {item.shortcutHint}
+          </kbd>
+        )}
       </button>
     );
   };

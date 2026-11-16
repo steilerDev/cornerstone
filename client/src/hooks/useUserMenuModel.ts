@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, RefObject } from 'react';
 import { routeUrl } from '@cornerstone/shared';
 import { useHref, useLinkClickHandler } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -8,10 +8,9 @@ import { RESOLVED_LOCALES, useLocale } from '../contexts/LocaleContext.js';
 import { useTheme } from '../contexts/ThemeContext.js';
 import type { ResolvedLocale } from '../contexts/LocaleContext.js';
 import type { ThemePreference } from '../contexts/ThemeContext.js';
+import { useShortcutsHelp } from '../components/KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { GITHUB_URL, HELP_URL } from '../lib/externalLinks.js';
 import { initialsOf } from '../lib/initials.js';
-import { useShortcutRegistry } from './shortcutRegistry.js';
-import type { KeyboardShortcut } from './useKeyboardShortcuts.js';
 
 const LOCALE_LABELS: Record<ResolvedLocale, string> = { en: 'English', de: 'Deutsch' };
 const THEME_ORDER: readonly ThemePreference[] = ['light', 'dark', 'system'];
@@ -47,7 +46,9 @@ export interface UserMenuModel {
   readonly versionLabel: string;
   readonly loggingOut: boolean;
   readonly logOut: () => void;
-  readonly shortcutsSnapshot: () => KeyboardShortcut[];
+  /** Opens the shell's shortcut help; focus returns to `returnFocusRef` on close. */
+  readonly openShortcuts: (returnFocusRef: RefObject<HTMLElement | null>) => void;
+  readonly singleKeyShortcutsOn: boolean;
 }
 
 /**
@@ -59,7 +60,7 @@ export function useUserMenuModel(): UserMenuModel {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const { resolvedLocale, setLocale } = useLocale();
-  const registry = useShortcutRegistry();
+  const help = useShortcutsHelp();
   const [pending, setPending] = useState(false);
   const accountUrl = routeUrl('settingsProfile');
   const accountHref = useHref(accountUrl);
@@ -112,6 +113,7 @@ export function useUserMenuModel(): UserMenuModel {
       setPending(true);
       void logout();
     },
-    shortcutsSnapshot: () => registry?.snapshot() ?? [],
+    openShortcuts: (returnFocusRef) => help.open(returnFocusRef),
+    singleKeyShortcutsOn: help.singleKeyEnabled,
   };
 }

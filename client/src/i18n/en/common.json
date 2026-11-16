@@ -414,12 +414,24 @@
     "removeAriaLabel": "Remove tag {{name}}"
   },
   "keyboardShortcuts": {
-    "title": "Keyboard Shortcuts",
-    "closeAriaLabel": "Close",
-    "keyColumn": "Key",
-    "actionColumn": "Action",
+    "title": "Keyboard shortcuts",
     "noPageShortcuts": "This page has no shortcuts of its own.",
-    "everywhere": "Everywhere"
+    "everywhere": "Everywhere",
+    "groupPage": "On this page",
+    "groupGoTo": "Go to",
+    "then": "then",
+    "showHelp": "Show keyboard shortcuts",
+    "closeOpen": "Close the open dialog, menu or search",
+    "goTo": "Go to {{destination}}",
+    "singleKeySwitch": "Single-key shortcuts",
+    "turnedOff": "Turned off",
+    "keyCapEscape": "Esc",
+    "keyCapDelete": "Delete",
+    "keyNameCommandK": "Command K",
+    "keyNameCommandZ": "Command Z",
+    "keyNameQuestionMark": "Question mark",
+    "keyNameSlash": "Slash",
+    "keyNameEscape": "Escape"
   },
   "toast": {
     "dismissAriaLabel": "Dismiss notification"

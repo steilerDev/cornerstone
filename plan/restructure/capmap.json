@@ -444,18 +444,18 @@
   "WRK-069": {
     "name": "Use keyboard shortcuts on list pages and open the shortcut help overlay",
     "from": "/project/work-items > n (new), / (search), ? (help), Esc | /project/milestones > n (new), ? (help), Esc",
-    "to": "Global > keyboard shortcuts on every page: ⌘K / Ctrl K (search everywhere), / (this list's search, else search everywhere), n (the list's own create, else the New menu), ?, g+section; Global > User menu > Keyboard shortcuts",
+    "to": "Global > keyboard shortcuts on every page: ⌘K / Ctrl K (search everywhere), / (this list's search, else search everywhere), n (the list's own create, else the New menu), ? (shortcut help), g then h/t/s/p/d/f/c/m (go to Home, Tasks, Schedule, Purchases, Site diary, Photos, Companies, Money), Esc; Global > User menu > Keyboard shortcuts; Global > More sheet > Keyboard shortcuts (hardware keyboard only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell). #2207: below 1024 px Global > More sheet > user block > Keyboard shortcuts, shown only with a hardware keyboard; it closes the sheet before the dialog opens; ? works everywhere. #2211: ⌘K / Ctrl K opens the command search from anywhere (also from text fields); / and n are one shell fallback each, a list page's own create wins for n (Tasks, Milestones, Purchases, Companies, Invoices, Site diary); the help lists ⌘K under Everywhere. #2245: on Tasks, n opens New task (listed in the shortcut help); the old page-level ? and Esc handlers are gone (handled globally)."
+    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell). #2207: below 1024 px Global > More sheet > user block > Keyboard shortcuts, shown only with a hardware keyboard; it closes the sheet before the dialog opens; ? works everywhere. #2211: ⌘K / Ctrl K opens the command search from anywhere (also from text fields); / and n are one shell fallback each, a list page's own create wins for n (Tasks, Milestones, Purchases, Companies, Invoices, Site diary); the help lists ⌘K under Everywhere. #2245: on Tasks, n opens New task (listed in the shortcut help); the old page-level ? and Esc handlers are gone (handled globally). #2253: one shortcut registry in AppShell holds every shortcut with a group (On this page / Everywhere / Go to); the shell renders the only help dialog, opened by ?, the user menu row (with a ? hint) and the More-sheet row; g sequences (1.5 s window, g s = Schedule) skip routes the user cannot open; pages may not register g, ? or / (the registry drops them with a console error); a per-browser \"Single-key shortcuts\" switch in the dialog footer (localStorage) turns off /, n, ?, e and g sequences, while ⌘K / Ctrl K, Ctrl Z, Esc and Delete stay on (WCAG 2.1.4)."
   },
   "WRK-070": {
     "name": "Use keyboard shortcuts on the work-item detail page",
     "from": "/project/work-items/:id > e (edit title), Delete/Backspace (delete), Esc (cancel/close), ? (help)",
-    "to": "Tasks > Task page > shortcuts e (edit), Del (delete), ? (help) via global registry",
+    "to": "Tasks > Task page > shortcuts e (edit), Del (delete) registered by the page and listed under \"On this page\" in the global shortcut help (?)",
     "change": "same",
     "gate": "none",
-    "note": "Help texts translated. #2248: e (Details edit), Delete / Backspace (delete), ? (help) through the global shortcut registry, with translated descriptions."
+    "note": "Help texts translated. #2248: e (Details edit), Delete / Backspace (delete), ? (help) through the global shortcut registry, with translated descriptions. #2253: the page no longer owns ? or its own help dialog (the same applies to the purchase and milestone pages); ? opens the one shell dialog, where e and Delete are listed under \"On this page\" and follow the single-key switch (e) / stay on (Delete)."
   },
   "WRK-071": {
     "name": "Browse all milestones in a table",
