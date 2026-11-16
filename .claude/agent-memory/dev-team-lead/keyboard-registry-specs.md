@@ -14,8 +14,9 @@ Found speccing #2253 (P5.9). The issue said S. The PO's off switch plus consolid
 5. **Derive "single-key" (WCAG 2.1.4) from the key string**, i.e. every space-separated part is one character, instead of a hand list. That keeps Delete/Escape/chords on automatically.
 6. **`aria-label` on `<kbd>` (role-less) is not reliably announced.** Spec `aria-hidden` symbol + srOnly name instead and flag it to UX.
 7. **Keep the existing explicit focus-return in menu openers** (focus trigger in onClose) when moving an overlay into a provider. E2E already proves that path; Modal's restore alone is unproven for menu openers whose item unmounts.
-9. **Runtime guards in shared registries: drop + `console.error`, never throw.** The architect overruled my "throw on reserved key" spec: a throw in a render/effect path sends the whole page to the error boundary for one bad key. Spec the drop-and-log form up front for any registry/allow-list guard.
-10. **User docs re-derive grouping by intuition.** docs-writer listed `/` under "On this page" for list pages although pages may no longer register `/` (it is a shell global). Check docs tables of "where X appears" against the group each key is actually registered under.
-8. **Capmap notes can already claim the story's behaviour** (WRK-069 "? works everywhere" before any global `?` existed). Treat capmap notes as claims to verify, not as state.
+8. **Runtime guards in shared registries: drop + `console.error`, never throw.** The architect overruled my "throw on reserved key" spec: a throw in a render/effect path sends the whole page to the error boundary for one bad key. Spec the drop-and-log form up front for any registry/allow-list guard.
+9. **User docs re-derive grouping by intuition.** docs-writer listed `/` under "On this page" for list pages although pages may no longer register `/` (it is a shell global). Check docs tables of "where X appears" against the group each key is actually registered under.
+10. **Capmap notes can already claim the story's behaviour** (WRK-069 "? works everywhere" before any global `?` existed). Treat capmap notes as claims to verify, not as state.
+11. **prettier --write your own memory files after every edit, before commit** — CI's format:check covers .claude/.
 
 Related: [[nav-shell-specs]], [[shell-popover-specs]], [[restructure-baseline-hazards]], [[ux-visual-spec-verification]]
