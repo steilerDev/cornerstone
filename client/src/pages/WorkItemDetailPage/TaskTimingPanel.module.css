@@ -2,6 +2,18 @@
   composes: panel from '../../styles/objectPage.module.css';
 }
 
+.depError {
+  composes: depError from '../../styles/objectPage.module.css';
+}
+
+.depErrorMessage {
+  composes: depErrorMessage from '../../styles/objectPage.module.css';
+}
+
+.dismiss {
+  composes: dismiss from '../../styles/objectPage.module.css';
+}
+
 /* ---- Date cards ---- */
 
 .facts {

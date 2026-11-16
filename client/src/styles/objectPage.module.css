@@ -107,6 +107,6 @@
 }
 
 .dismiss {
-  composes: btnSecondaryCompact from './shared.module.css';
+  composes: compactButton;
   flex: 0 0 auto;
 }
