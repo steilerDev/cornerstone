@@ -43,16 +43,6 @@
   composes: btnSecondaryCompact from '../../styles/shared.module.css';
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-3);
-}
-
-.input {
-  composes: input from '../../styles/shared.module.css';
-}
-
 /* ---- Reschedule ---- */
 
 .reschedule {
@@ -84,12 +74,6 @@
 
 .retry {
   composes: btnSecondaryCompact from '../../styles/shared.module.css';
-}
-
-@media (min-width: 768px) {
-  .fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 1023px) {

@@ -11,8 +11,9 @@ Milestones represent major checkpoints in your construction project -- moments l
 
 1. Open **Milestones** under **Tasks** in the sidebar
 2. Select **New milestone** (or press **n**)
-3. Enter a **title** and **target date**
-4. Save the milestone
+3. Enter a **Title** (required) and a **Target Date** (required)
+4. Select **More details** to add a **Description**. It is optional
+5. Select **Save** to create the milestone
 
 The milestone will appear as a diamond marker on both the [schedule chart](gantt-chart) and [calendar](calendar-view) at its target date.
 

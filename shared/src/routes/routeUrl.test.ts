@@ -143,6 +143,18 @@ describe('routeUrl', () => {
     );
   });
 
+  it('builds the task URL a failed first cost line opens (#2254)', () => {
+    expect(routeUrl('workItem', { id: 'x' }, { tab: 'cost', costLineFailed: '1' })).toBe(
+      '/project/work-items/x?tab=cost&costLineFailed=1',
+    );
+    expect(
+      routeUrl('workItem', { id: 'x' }, { tab: 'timing', depError: 'A, B', costLineFailed: '1' }),
+    ).toBe('/project/work-items/x?tab=timing&depError=A%2C+B&costLineFailed=1');
+    expect(routeUrl('householdItem', { id: 'h' }, { tab: 'timing', depError: 'Roof' })).toBe(
+      '/project/household-items/h?tab=timing&depError=Roof',
+    );
+  });
+
   it('builds the Documents page URL with and without the panel param (#2252)', () => {
     expect(routeUrl('documents')).toBe('/documents');
     expect(routeUrl('documents', undefined, { doc: 5 })).toBe('/documents?doc=5');

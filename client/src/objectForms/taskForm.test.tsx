@@ -13,9 +13,11 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type { UserResponse } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
+import enWorkItems from '../i18n/en/workItems.json';
+import enCostLines from '../i18n/en/costLines.json';
 import { installMatchMedia } from '../test/matchMediaControl.js';
 import { makeSearchCompanies } from '../test/companySearchMock.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
@@ -23,6 +25,7 @@ import type { ObjectFormResult } from '../components/ObjectForm/types.js';
 import type * as WorkItemsApiTypes from '../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../lib/dependenciesApi.js';
+import type * as WorkItemBudgetsApiTypes from '../lib/workItemBudgetsApi.js';
 import type * as VendorsApiTypes from '../lib/vendorsApi.js';
 import type { UseAreasResult } from '../hooks/useAreas.js';
 import type * as FormTypes from './taskForm.js';
@@ -31,6 +34,8 @@ import type * as StateTypes from '../components/ObjectForm/objectFormState.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
+const mockCreateBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
@@ -56,6 +61,10 @@ jest.unstable_mockModule('../contexts/LocaleContext.js', () => {
 jest.unstable_mockModule('../lib/workItemsApi.js', () => ({
   createWorkItem: mockCreateWorkItem,
   listWorkItems: mockListWorkItems,
+  deleteWorkItem: mockDeleteWorkItem,
+}));
+jest.unstable_mockModule('../lib/workItemBudgetsApi.js', () => ({
+  createWorkItemBudget: mockCreateBudget,
 }));
 jest.unstable_mockModule('../lib/usersApi.js', () => ({ listUsers: mockListUsers }));
 jest.unstable_mockModule('../lib/dependenciesApi.js', () => ({
@@ -204,6 +213,9 @@ describe('taskForm (ObjectForm schema)', () => {
   beforeEach(async () => {
     mockCreateWorkItem.mockReset();
     mockListWorkItems.mockReset();
+    mockCreateBudget.mockReset();
+    mockDeleteWorkItem.mockReset();
+    mockCreateBudget.mockResolvedValue({} as never);
     mockListUsers.mockReset();
     mockCreateDependency.mockReset();
     mockFetchVendors.mockReset();
@@ -445,7 +457,8 @@ describe('taskForm (ObjectForm schema)', () => {
       await user.type(screen.getByLabelText(/^title/i), 'Test Work Item');
       fireEvent.change(screen.getByLabelText(/duration/i), { target: { value: '-5' } });
       await user.click(save());
-      expect(await screen.findByText('Duration must be a positive number')).toBeInTheDocument();
+      expect(await screen.findByText(enWorkItems.create.fields.durationError)).toBeInTheDocument();
+      expect(enWorkItems.create.fields.durationError).toBe('Duration must be 0 or more days.');
       expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
   });
@@ -476,6 +489,7 @@ describe('taskForm (ObjectForm schema)', () => {
           id: 'work-1',
           href: '/project/work-items/work-1',
           label: 'Pour slab',
+          incomplete: false,
         }),
       );
     });
@@ -651,6 +665,429 @@ describe('taskForm (ObjectForm schema)', () => {
     });
   });
 
+  describe('quick create (#2254): essentials, planned cost and scope', () => {
+    const fieldsIn = (hidden: boolean) =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-field]'))
+        .filter((el) => (el.closest('[hidden]') !== null) === hidden)
+        .map((el) => ({
+          name: el.getAttribute('data-field'),
+          label: (el.querySelector('label, legend')?.textContent ?? '').trim(),
+        }));
+
+    it('shows Title, Area, Who, Planned cost, Entered as, Duration up front, in that order', async () => {
+      renderForm();
+      await ready();
+      const visible = fieldsIn(false);
+      expect(visible.map((f) => f.name)).toEqual([
+        'title',
+        'area',
+        'assignment',
+        'plannedAmount',
+        'plannedIncludesVat',
+        'durationDays',
+      ]);
+      expect(visible[0]!.label.startsWith(enWorkItems.create.fields.title)).toBe(true);
+      expect(visible.slice(1).map((f) => f.label)).toEqual([
+        enWorkItems.create.fields.area,
+        'Who',
+        'Planned cost',
+        enCostLines.form.enteredAs,
+        'Duration (days)',
+      ]);
+    });
+
+    it('keeps Description, Status, Not before, Start by and Waits for under More details', async () => {
+      renderForm();
+      await ready();
+      expect(fieldsIn(true).map((f) => f.name)).toEqual([
+        'description',
+        'status',
+        'startAfter',
+        'startBefore',
+        'dependencies',
+      ]);
+    });
+
+    it('describes the planned cost with its hint and adds no category or funding source field', async () => {
+      renderForm();
+      await ready();
+      expect(screen.getByText(enWorkItems.create.fields.plannedCostHint)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^planned cost/i)).toHaveAttribute('inputmode', 'decimal');
+      expect(screen.queryByLabelText(/categor/i)).toBeNull();
+      expect(screen.queryByLabelText(/funding source|budget source/i)).toBeNull();
+    });
+
+    it('shows the result line only once an amount was typed', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await ready();
+      expect(screen.getByTestId('cost-line-result')).toHaveTextContent('');
+      await user.type(screen.getByLabelText(/^planned cost/i), '100');
+      expect(screen.getByTestId('cost-line-result').textContent).not.toBe('');
+    });
+
+    it('creates one cost line with the trimmed title, the amount and includesVat false (Net default)', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), '  Plaster wall  ');
+      await user.type(screen.getByLabelText(/^planned cost/i), '1200');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateBudget).toHaveBeenCalledTimes(1);
+      // toEqual: budgetCategoryId / budgetSourceId must be absent (set later in the Cost tab).
+      expect(mockCreateBudget.mock.calls[0]).toEqual([
+        'work-1',
+        { description: 'Plaster wall', plannedAmount: 1200, includesVat: false },
+      ]);
+      expect(onCreated).toHaveBeenCalledWith({
+        id: 'work-1',
+        href: '/project/work-items/work-1',
+        label: 'Plaster wall',
+        incomplete: false,
+      });
+    });
+
+    it('sends includesVat true when Gross is chosen', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Gross task');
+      await user.type(screen.getByLabelText(/^planned cost/i), '119.5');
+      await user.click(screen.getByTestId('cost-line-entered-gross'));
+      await user.click(save());
+      await waitFor(() => expect(mockCreateBudget).toHaveBeenCalledTimes(1));
+      expect(mockCreateBudget.mock.calls[0]).toEqual([
+        'work-1',
+        { description: 'Gross task', plannedAmount: 119.5, includesVat: true },
+      ]);
+    });
+
+    it('creates no cost line for an empty amount', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'No cost');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateBudget).not.toHaveBeenCalled();
+    });
+
+    it('creates a zero-estimate line for an amount of 0 (0 differs from empty)', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Zero cost');
+      await user.type(screen.getByLabelText(/^planned cost/i), '0');
+      await user.click(save());
+      await waitFor(() => expect(mockCreateBudget).toHaveBeenCalledTimes(1));
+      expect(mockCreateBudget.mock.calls[0]).toEqual([
+        'work-1',
+        { description: 'Zero cost', plannedAmount: 0, includesVat: false },
+      ]);
+    });
+
+    it('rejects a negative amount under the field and sends no request', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Negative');
+      await user.type(screen.getByLabelText(/^planned cost/i), '-5');
+      await user.click(save());
+      const message = await screen.findByText('Enter an amount of 0 or more.');
+      expect(message.closest('[data-field]')).toHaveAttribute('data-field', 'plannedAmount');
+      expect(screen.getByLabelText(/^planned cost/i)).toHaveAttribute('aria-invalid', 'true');
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
+      expect(mockCreateBudget).not.toHaveBeenCalled();
+    });
+
+    it('keeps the task and links to the Cost tab when the cost line fails', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-7' } as never);
+      mockCreateBudget.mockRejectedValue(new Error('boom'));
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Fails cost');
+      await user.type(screen.getByLabelText(/^planned cost/i), '50');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateWorkItem).toHaveBeenCalledTimes(1);
+      expect(mockDeleteWorkItem).not.toHaveBeenCalled();
+      expect(onCreated).toHaveBeenCalledWith({
+        id: 'work-7',
+        href: routeUrl('workItem', { id: 'work-7' }, { tab: 'cost', costLineFailed: '1' }),
+        label: 'Fails cost',
+        incomplete: true,
+      });
+      expect(onCreated.mock.calls[0]![0].href).toBe(
+        '/project/work-items/work-7?tab=cost&costLineFailed=1',
+      );
+    });
+
+    it('reports both failures: Timing tab with depError plus costLineFailed', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-8' } as never);
+      mockCreateBudget.mockRejectedValue(new Error('boom'));
+      mockCreateDependency.mockRejectedValue(new Error('cycle'));
+      mockListWorkItems.mockResolvedValue({
+        items: [FOUNDATION, { ...FOUNDATION, id: 'wi-2', title: 'Roof' }],
+        pagination: { page: 1, pageSize: 15, totalItems: 2, totalPages: 1 },
+      } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Both fail');
+      await user.type(screen.getByLabelText(/^planned cost/i), '50');
+      await openMore(user);
+      const multi = screen.getByTestId('task-form-waits-for');
+      for (const title of ['Foundation', 'Roof']) {
+        await user.click(within(multi).getByRole('textbox'));
+        await user.click(await screen.findByRole('option', { name: new RegExp(title) }));
+      }
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      const result = onCreated.mock.calls[0]![0];
+      expect(result.href).toBe(
+        routeUrl(
+          'workItem',
+          { id: 'work-8' },
+          { tab: 'timing', depError: 'Foundation, Roof', costLineFailed: '1' },
+        ),
+      );
+      expect(result.incomplete).toBe(true);
+      expect(mockCreateDependency).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens the new task even when "Add another" is ticked after a failed cost line', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      mockCreateBudget.mockRejectedValue(new Error('boom'));
+      renderForm();
+      await ready();
+      await user.click(screen.getByTestId('object-form-add-another'));
+      await user.type(screen.getByLabelText(/^title/i), 'Keep going');
+      await user.type(screen.getByLabelText(/^planned cost/i), '9');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(onCreated.mock.calls[0]![0]).toMatchObject({ id: 'work-9', incomplete: true });
+    });
+
+    it('still resets for the next task when "Add another" is ticked and nothing failed', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      renderForm();
+      await ready();
+      await user.click(screen.getByTestId('object-form-add-another'));
+      await user.type(screen.getByLabelText(/^title/i), 'Next');
+      await user.type(screen.getByLabelText(/^planned cost/i), '9');
+      await user.click(save());
+      await waitFor(() =>
+        expect(screen.getByTestId('object-form-added')).not.toBeEmptyDOMElement(),
+      );
+      expect(onCreated).not.toHaveBeenCalled();
+      expect((screen.getByLabelText(/^planned cost/i) as HTMLInputElement).value).toBe('');
+    });
+
+    it('limits the title to 500 and the description to 10000 characters', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await ready();
+      await openMore(user);
+      expect(screen.getByLabelText(/^title/i)).toHaveAttribute('maxlength', '500');
+      expect(screen.getByLabelText(/description/i)).toHaveAttribute('maxlength', '10000');
+    });
+
+    it('accepts a whole-number duration and rejects a fractional one', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'w1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Duration');
+      fireEvent.change(screen.getByLabelText(/duration/i), { target: { value: '1.5' } });
+      await user.click(save());
+      expect(await screen.findByText('Duration must be 0 or more days.')).toBeInTheDocument();
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText(/duration/i), { target: { value: '3' } });
+      await user.click(save());
+      await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText('Duration must be 0 or more days.')).toBeNull();
+    });
+
+    it('accepts a duration of 0', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'w1' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Zero days');
+      fireEvent.change(screen.getByLabelText(/duration/i), { target: { value: '0' } });
+      await user.click(save());
+      await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
+      expect(mockCreateWorkItem.mock.calls[0]![0]).toMatchObject({ durationDays: 0 });
+    });
+  });
+
+  describe('scope and pure validation (#2254)', () => {
+    const names = (fields: readonly { name: string }[]) => fields.map((f) => f.name);
+    const renderCtx = {
+      id: 'who',
+      setValue: jest.fn(),
+      busy: false,
+      invalid: false,
+      describedBy: undefined,
+      createChild: jest.fn(),
+      setValues: jest.fn(),
+      values: {},
+    };
+
+    it('create scope has the dialog fields and no actual start/finish dates', async () => {
+      const { result } = renderHook(() => Form.useTaskFormSchema(), { wrapper: MemoryRouter });
+      await act(async () => {});
+      const all = names(result.current.fields);
+      expect(all).toEqual([
+        'title',
+        'area',
+        'assignment',
+        'plannedAmount',
+        'plannedIncludesVat',
+        'durationDays',
+        'description',
+        'status',
+        'startAfter',
+        'startBefore',
+        'dependencies',
+      ]);
+      expect(all).not.toContain('actualStartDate');
+      expect(all).not.toContain('actualEndDate');
+    });
+
+    it('edit scope drops planned cost, status and dependencies and adds actual dates', () => {
+      const { result } = renderHook(() => Form.useTaskFormSchema({ scope: 'edit', users }), {
+        wrapper: MemoryRouter,
+      });
+      const all = names(result.current.fields);
+      for (const dropped of ['plannedAmount', 'plannedIncludesVat', 'status', 'dependencies']) {
+        expect(all).not.toContain(dropped);
+      }
+      expect(all).toEqual([
+        'title',
+        'area',
+        'assignment',
+        'durationDays',
+        'description',
+        'startAfter',
+        'startBefore',
+        'actualStartDate',
+        'actualEndDate',
+      ]);
+    });
+
+    it('edit scope with host users makes no listUsers request and offers no "New company"', async () => {
+      const user = userEvent.setup();
+      const { result } = renderHook(() => Form.useTaskFormSchema({ scope: 'edit', users }), {
+        wrapper: MemoryRouter,
+      });
+      await act(async () => {});
+      expect(mockListUsers).not.toHaveBeenCalled();
+      const who = result.current.fields.find((f) => f.name === 'assignment')!;
+      render(<MemoryRouter>{who.render!({ ...renderCtx, value: '' })}</MemoryRouter>);
+      await user.type(screen.getByRole('textbox'), 'Fresh Co');
+      await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+      expect(screen.queryByRole('option', { name: /new company/i })).toBeNull();
+    });
+
+    it('edit scope without host users makes no listUsers request and is not loading', async () => {
+      const { result } = renderHook(() => Form.useTaskFormSchema({ scope: 'edit' }), {
+        wrapper: MemoryRouter,
+      });
+      await act(async () => {});
+      expect(mockListUsers).not.toHaveBeenCalled();
+      const who = result.current.fields.find((f) => f.name === 'assignment')!;
+      expect(who.optionsLoading).toBe(false);
+    });
+
+    it('shows the known company name in the Who picker (edit)', async () => {
+      const { result } = renderHook(
+        () =>
+          Form.useTaskFormSchema({
+            scope: 'edit',
+            users,
+            knownCompany: { id: 'v-1', name: 'Acme Roofing' },
+          }),
+        { wrapper: MemoryRouter },
+      );
+      const who = result.current.fields.find((f) => f.name === 'assignment')!;
+      render(<MemoryRouter>{who.render!({ ...renderCtx, value: 'company:v-1' })}</MemoryRouter>);
+      expect(await screen.findByText('Acme Roofing')).toBeInTheDocument();
+    });
+
+    describe('validateTaskValues', () => {
+      const messages = () => renderHook(() => Form.useTaskValueMessages()).result.current;
+
+      it('has the unified copy', () => {
+        expect(messages()).toEqual({
+          titleRequired: 'Title is required',
+          duration: 'Duration must be 0 or more days.',
+          constraints: enWorkItems.create.fields.constraintsError,
+          finishedBeforeStarted: enWorkItems.taskPage.timing.finishedBeforeStarted,
+          amount: 'Enter an amount of 0 or more.',
+        });
+      });
+
+      it('accepts an empty duration, 0 and whole numbers; rejects fractions, negatives, text', () => {
+        const m = messages();
+        const check = (durationDays: string) =>
+          Form.validateTaskValues({ title: 'x', durationDays }, m).durationDays;
+        expect(check('')).toBeUndefined();
+        expect(check('0')).toBeUndefined();
+        expect(check('12')).toBeUndefined();
+        expect(check('1.5')).toBe(m.duration);
+        expect(check('-1')).toBe(m.duration);
+        expect(check('abc')).toBe(m.duration);
+      });
+
+      it('flags planned amounts that are not numbers of 0 or more', () => {
+        const m = messages();
+        const check = (plannedAmount: string) =>
+          Form.validateTaskValues({ title: 'x', plannedAmount }, m).plannedAmount;
+        expect(check('')).toBeUndefined();
+        expect(check('0')).toBeUndefined();
+        expect(check('12.5')).toBeUndefined();
+        expect(check('abc')).toBe(m.amount);
+        expect(check('-0.01')).toBe(m.amount);
+      });
+
+      it('flags finished before started and start-by before not-before; equal dates pass', () => {
+        const m = messages();
+        expect(
+          Form.validateTaskValues(
+            { title: 'x', actualStartDate: '2024-05-02', actualEndDate: '2024-05-01' },
+            m,
+          ),
+        ).toEqual({ actualEndDate: m.finishedBeforeStarted });
+        expect(
+          Form.validateTaskValues(
+            { title: 'x', actualStartDate: '2024-05-02', actualEndDate: '2024-05-02' },
+            m,
+          ),
+        ).toEqual({});
+        expect(
+          Form.validateTaskValues(
+            { title: 'x', startAfter: '2024-05-02', startBefore: '2024-05-01' },
+            m,
+          ),
+        ).toEqual({ startBefore: m.constraints });
+      });
+
+      it('reads a whitespace-only title as missing', () => {
+        const m = messages();
+        expect(Form.validateTaskValues({ title: '   ' }, m)).toEqual({ title: m.titleRequired });
+      });
+    });
+  });
+
   describe('schema (called directly)', () => {
     const schema = async () => {
       const view = renderHook(() => Form.useTaskFormSchema(), { wrapper: MemoryRouter });
@@ -703,6 +1140,7 @@ describe('taskForm (ObjectForm schema)', () => {
         id: 'work-3',
         href: '/project/work-items/work-3',
         label: 'Plaster',
+        incomplete: false,
       });
       expect(mockCreateDependency).not.toHaveBeenCalled();
     });

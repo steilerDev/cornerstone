@@ -16,3 +16,5 @@ metadata:
 **Section navigation (#1887).** See the aria-label pattern in [German conventions](german-conventions.md). `DashboardPage.tsx` and `VendorsPage.tsx` hard-code their labels, so there is no de counterpart for them.
 
 **Budget "allocated" vocabulary (#1887).** zugeordnet / Zuordnung. `splitFootnote` uses "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
+
+**Planned cost and quick-create copy (#2254).** Glossary "Planned cost" = "Geplante Kosten" (supportingNoun, PO-approved, deSource approved; "Planned cost range" stays a formerly of "Expected cost" and glossary.test.ts passes). The cost-line failure message names the Cost tab as "Kosten" (`common` objectTabs.tab.cost). The purchase `depError` mirrors the task `depError` wording key for key. Duration error copy is "Dauer muss 0 oder mehr Tage betragen." (the form accepts 0). Remember: du register for the new hint text.

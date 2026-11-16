@@ -717,6 +717,38 @@ describe('Add another', () => {
     expect(screen.getByTestId('object-form-added')).toBeEmptyDOMElement();
   });
 
+  it('opens the new object (no reset) when the result is incomplete, even with Add another ticked', async () => {
+    const user = userEvent.setup();
+    const incomplete: ObjectFormResult = {
+      ...RESULT,
+      href: '/things/n1?depError=X',
+      incomplete: true,
+    };
+    const { onCreated } = setup({
+      schema: addSchema(() => Promise.resolve(incomplete)),
+    });
+    await user.click(screen.getByTestId('object-form-add-another'));
+    await user.type(title(), 'First');
+    await user.click(save());
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(onCreated).toHaveBeenCalledWith(incomplete);
+    expect(screen.getByTestId('object-form-added')).toBeEmptyDOMElement();
+    expect(title().value).toBe('First');
+  });
+
+  it('still resets when the result says incomplete is false', async () => {
+    const user = userEvent.setup();
+    const { onCreated } = setup({
+      schema: addSchema(() => Promise.resolve({ ...RESULT, incomplete: false })),
+    });
+    await user.click(screen.getByTestId('object-form-add-another'));
+    await user.type(title(), 'First');
+    await user.click(save());
+    await waitFor(() => expect(screen.getByTestId('object-form-added')).not.toBeEmptyDOMElement());
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(title().value).toBe('');
+  });
+
   it('closes through onCreated when Add another is off', async () => {
     const user = userEvent.setup();
     const { onCreated } = setup({ schema: addSchema() });

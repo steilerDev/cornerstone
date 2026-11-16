@@ -95,9 +95,16 @@ test.describe('Form fields visible (Scenario 3)', { tag: '@responsive' }, () => 
     await expect(createPage.statusSelect).toBeVisible();
     await expect(createPage.quantityInput).toBeVisible();
     await expect(createPage.vendorSelect).toBeVisible();
+    // #2254: Waits for and the delivery window are essential
+    await expect(createPage.waitsForPicker.input).toBeVisible();
+    await expect(createPage.earliestDeliveryDateInput).toBeVisible();
+    await expect(createPage.latestDeliveryDateInput).toBeVisible();
     await expect(createPage.submitButton).toBeVisible();
 
+    await expect(createPage.descriptionInput).toBeHidden();
     await expect(createPage.urlInput).toBeHidden();
+    await expect(createPage.orderDateInput).toBeHidden();
+    await expect(createPage.actualDeliveryDateInput).toBeHidden();
     await createPage.expandMoreDetails();
     await expect(createPage.descriptionInput).toBeVisible();
     await expect(createPage.urlInput).toBeVisible();

@@ -19,6 +19,7 @@ import {
 } from 'react-router-dom';
 import type { WorkItemPageDetail } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enWorkItems from '../../i18n/en/workItems.json';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makeTaskPage } from '../../test/taskPageFixtures.js';
@@ -668,6 +669,70 @@ describe('WorkItemDetailPage', () => {
       expect(new URLSearchParams(seen.search).get('tab')).toBe('timing');
       expect(new URLSearchParams(seen.search).has('depError')).toBe(false);
       expect(seen.hash).toBe('');
+    });
+
+    describe('?costLineFailed=1 (the New task cost line failed)', () => {
+      const MESSAGE =
+        "Task created, but its planned cost couldn't be saved. Add it on the Cost tab.";
+
+      it('shows the banner on the Cost tab, keeps the tab and replaces the URL once without the param', async () => {
+        const state = { origin: { to: '/schedule', name: 'Schedule' } };
+        await loaded({
+          pathname: '/project/work-items/wi-1',
+          search: '?tab=cost&costLineFailed=1',
+          state,
+        });
+        expect(await screen.findByTestId('stub-cost')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(MESSAGE);
+        expect(enWorkItems.create.errors.costLineFailed).toBe(MESSAGE);
+        expect(seen.search).toBe('?tab=cost');
+        expect(seen.type).toBe('REPLACE');
+        expect(seen.state).toEqual(state);
+        expect(seen.keys).toHaveLength(2);
+      });
+
+      it('is visible on any tab, not only Cost', async () => {
+        await loaded('/project/work-items/wi-1?costLineFailed=1');
+        expect(await screen.findByTestId('stub-overview')).toBeInTheDocument();
+        expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+        // No Timing detour for a cost-line failure alone.
+        expect(screen.queryByTestId('stub-timing')).toBeNull();
+        expect(new URLSearchParams(seen.search).has('tab')).toBe(false);
+        expect(new URLSearchParams(seen.search).has('costLineFailed')).toBe(false);
+      });
+
+      it('Close hides the banner', async () => {
+        await loaded('/project/work-items/wi-1?tab=cost&costLineFailed=1');
+        fireEvent.click(await screen.findByTestId('task-cost-line-error-dismiss'));
+        expect(screen.queryByText(MESSAGE)).toBeNull();
+        expect(screen.queryByTestId('task-cost-line-error-dismiss')).toBeNull();
+      });
+
+      it('shows no banner for other values of the parameter', async () => {
+        await loaded('/project/work-items/wi-1?tab=cost&costLineFailed=0');
+        await screen.findByTestId('stub-cost');
+        expect(screen.queryByText(MESSAGE)).toBeNull();
+        expect(seen.keys).toHaveLength(1);
+      });
+
+      it('shows both messages with depError: the Timing panel gets the titles, the page the cost banner', async () => {
+        await loaded('/project/work-items/wi-1?tab=timing&depError=Alpha&costLineFailed=1');
+        expect(await screen.findByTestId('stub-timing')).toHaveAttribute('data-deperror', 'Alpha');
+        expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+        expect(seen.search).toBe('?tab=timing');
+        expect(seen.type).toBe('REPLACE');
+        expect(seen.keys).toHaveLength(2);
+      });
+
+      it('dismissing the dependency error leaves the cost banner and vice versa', async () => {
+        await loaded('/project/work-items/wi-1?tab=timing&depError=Alpha&costLineFailed=1');
+        const timing = await screen.findByTestId('stub-timing');
+        fireEvent.click(screen.getByTestId('stub-dismiss'));
+        expect(timing).toHaveAttribute('data-deperror', '');
+        expect(screen.getByText(MESSAGE)).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('task-cost-line-error-dismiss'));
+        expect(screen.queryByText(MESSAGE)).toBeNull();
+      });
     });
 
     it('the panel consumes the intent and dismisses the dependency error', async () => {

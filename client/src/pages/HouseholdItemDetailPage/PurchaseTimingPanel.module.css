@@ -11,12 +11,16 @@
   composes: details from '../../styles/objectPage.module.css';
 }
 
-.fields {
-  composes: fields from '../../styles/objectPage.module.css';
+.depError {
+  composes: depError from '../WorkItemDetailPage/TaskTimingPanel.module.css';
 }
 
-.input {
-  composes: input from '../../styles/shared.module.css';
+.depErrorMessage {
+  composes: depErrorMessage from '../WorkItemDetailPage/TaskTimingPanel.module.css';
+}
+
+.dismiss {
+  composes: dismiss from '../WorkItemDetailPage/TaskTimingPanel.module.css';
 }
 
 /* The late row is static text: the badge and the sentence, never colour alone. */

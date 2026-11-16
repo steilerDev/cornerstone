@@ -1,61 +1,56 @@
 import { useId } from 'react';
-import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HouseholdItemSummary, UpdateHouseholdItemRequest } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { pickErrors, toDraftText } from '../../components/ObjectForm/objectFormState.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
-import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
+import { DetailRow } from '../../components/SectionCard/SectionCardFields.js';
 import { useCardDraft } from '../../components/SectionCard/useCardDraft.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { todayLocalIsoDate } from '../../lib/localDate.js';
 import { purchaseLateDays } from '../../lib/scheduleDates.js';
+import {
+  usePurchaseFormSchema,
+  usePurchaseValueMessages,
+  validatePurchaseValues,
+} from '../../objectForms/purchaseForm.js';
 import { purchaseLateExplanation } from './purchaseDates.js';
 import type { PurchasePanelProps } from './purchasePageTypes.js';
 import styles from './PurchaseTimingPanel.module.css';
 
 type PurchaseDeliveryCardProps = Pick<PurchasePanelProps, 'purchase' | 'refresh'>;
 
-interface DateFieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly error?: string;
-  readonly inputRef?: RefObject<HTMLInputElement | null>;
-  readonly testId: string;
-}
+/** The schema fields the card shows, in order. */
+const NAMES = [
+  'orderDate',
+  'earliestDeliveryDate',
+  'latestDeliveryDate',
+  'actualDeliveryDate',
+] as const;
+type DeliveryKey = (typeof NAMES)[number];
+const TEST_IDS = {
+  orderDate: 'purchase-ordered-input',
+  earliestDeliveryDate: 'purchase-earliest-input',
+  latestDeliveryDate: 'purchase-latest-input',
+  actualDeliveryDate: 'purchase-delivered-input',
+};
 
-function DateField({ id, label, value, onChange, error, inputRef, testId }: DateFieldProps) {
-  return (
-    <FieldShell id={id} label={label} error={error}>
-      {({ invalid, describedBy }) => (
-        <input
-          ref={inputRef}
-          id={id}
-          type="date"
-          className={styles.input}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          aria-invalid={invalid}
-          aria-describedby={describedBy}
-          data-testid={testId}
-        />
-      )}
-    </FieldShell>
-  );
+/** Mounted in edit mode only: the purchase schema (same fields as the New purchase dialog). */
+function DeliveryFields(props: Omit<Parameters<typeof ObjectFormFields>[0], 'fields' | 'names'>) {
+  const schema = usePurchaseFormSchema({ scope: 'edit' });
+  return <ObjectFormFields fields={schema.fields} names={NAMES} {...props} />;
 }
-
-type DeliveryKey = 'ordered' | 'earliest' | 'latest' | 'delivered';
 
 function seedOf(purchase: HouseholdItemSummary): Record<DeliveryKey, string> {
   return {
-    ordered: purchase.orderDate ?? '',
-    earliest: purchase.earliestDeliveryDate ?? '',
-    latest: purchase.latestDeliveryDate ?? '',
-    delivered: purchase.actualDeliveryDate ?? '',
+    orderDate: purchase.orderDate ?? '',
+    earliestDeliveryDate: purchase.earliestDeliveryDate ?? '',
+    latestDeliveryDate: purchase.latestDeliveryDate ?? '',
+    actualDeliveryDate: purchase.actualDeliveryDate ?? '',
   };
 }
 
@@ -68,27 +63,25 @@ export function PurchaseDeliveryCard({ purchase, refresh }: PurchaseDeliveryCard
   const { formatDate } = useFormatters();
   const statusVariants = useStatusBadgeVariants();
   const baseId = useId();
+  const messages = usePurchaseValueMessages();
   const today = todayLocalIsoDate();
 
   const initial = seedOf(purchase);
   const card = useCardDraft<DeliveryKey>({
     initial,
-    validate: (draft) => {
-      const errors: Partial<Record<DeliveryKey, string>> = {};
-      if (draft.earliest !== '' && draft.latest !== '' && draft.latest < draft.earliest) {
-        errors.latest = t('create.form.deliveryWindow.error');
-      }
-      if (draft.ordered !== '' && draft.delivered !== '' && draft.delivered < draft.ordered) {
-        errors.delivered = t('create.form.deliveryDates.error');
-      }
-      return errors;
-    },
+    validate: (draft) => pickErrors(validatePurchaseValues(draft, messages), NAMES),
     save: (draft) => {
       const body: UpdateHouseholdItemRequest = {};
-      if (draft.ordered !== initial.ordered) body.orderDate = draft.ordered || null;
-      if (draft.earliest !== initial.earliest) body.earliestDeliveryDate = draft.earliest || null;
-      if (draft.latest !== initial.latest) body.latestDeliveryDate = draft.latest || null;
-      if (draft.delivered !== initial.delivered) body.actualDeliveryDate = draft.delivered || null;
+      if (draft.orderDate !== initial.orderDate) body.orderDate = draft.orderDate || null;
+      if (draft.earliestDeliveryDate !== initial.earliestDeliveryDate) {
+        body.earliestDeliveryDate = draft.earliestDeliveryDate || null;
+      }
+      if (draft.latestDeliveryDate !== initial.latestDeliveryDate) {
+        body.latestDeliveryDate = draft.latestDeliveryDate || null;
+      }
+      if (draft.actualDeliveryDate !== initial.actualDeliveryDate) {
+        body.actualDeliveryDate = draft.actualDeliveryDate || null;
+      }
       return updateHouseholdItem(purchase.id, body);
     },
     saveError: t('purchasePage.timing.saveError'),
@@ -122,40 +115,14 @@ export function PurchaseDeliveryCard({ purchase, refresh }: PurchaseDeliveryCard
         onSave: card.save,
         onDiscard: card.discard,
         error: card.banner,
-        renderFields: ({ firstFieldRef }) => (
-          <div className={styles.fields}>
-            <DateField
-              id={`${baseId}-ordered`}
-              label={t('create.form.orderDate.label')}
-              value={card.draft.ordered}
-              onChange={(value) => card.set('ordered', value)}
-              inputRef={firstFieldRef as RefObject<HTMLInputElement | null>}
-              testId="purchase-ordered-input"
-            />
-            <DateField
-              id={`${baseId}-earliest`}
-              label={t('create.form.earliestDelivery.label')}
-              value={card.draft.earliest}
-              onChange={(value) => card.set('earliest', value)}
-              testId="purchase-earliest-input"
-            />
-            <DateField
-              id={`${baseId}-latest`}
-              label={t('create.form.latestDelivery.label')}
-              value={card.draft.latest}
-              onChange={(value) => card.set('latest', value)}
-              error={card.errors.latest}
-              testId="purchase-latest-input"
-            />
-            <DateField
-              id={`${baseId}-delivered`}
-              label={t('create.form.actualDelivery.label')}
-              value={card.draft.delivered}
-              onChange={(value) => card.set('delivered', value)}
-              error={card.errors.delivered}
-              testId="purchase-delivered-input"
-            />
-          </div>
+        renderFields: () => (
+          <DeliveryFields
+            values={card.draft}
+            errors={card.errors}
+            onChange={(name, value) => card.set(name as DeliveryKey, toDraftText(value))}
+            idPrefix={`${baseId}-`}
+            testIds={TEST_IDS}
+          />
         ),
       }}
     >

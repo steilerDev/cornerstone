@@ -104,6 +104,10 @@
         "label": "Firma",
         "placeholder": "Keine Firma"
       },
+      "waitsFor": {
+        "label": "Wartet auf",
+        "hint": "Optional. Aufgaben oder Meilensteine, die zuerst abgeschlossen sein müssen."
+      },
       "area": {
         "label": "Bereich"
       },
@@ -167,6 +171,7 @@
       "lateTarget": "Das Ziellieferdatum ({{date}}) ist vorbei, und es ist noch nichts angekommen.",
       "lateGeneric": "Verspätet: Die Lieferung wird jetzt nach dem geplanten Zeitfenster erwartet.",
       "waitsFor": "Wartet auf",
+      "depError": "Diese Abhängigkeiten konnten nicht hinzugefügt werden: {{titles}}",
       "waitsForEmpty": "Diese Anschaffung wartet auf keine Aufgabe und keinen Meilenstein.",
       "add": "Hinzufügen",
       "addError": "Hinzufügen nicht möglich. Versuche es erneut.",

@@ -13,6 +13,7 @@ import type { HouseholdItemPageDetail } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makePurchasePage } from '../../test/purchasePageFixtures.js';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import type { UseAreasResult } from '../../hooks/useAreas.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -30,6 +31,7 @@ const mockUseAreas = jest.fn<() => UseAreasResult>();
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: mockUpdate,
+  createHouseholdItem: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchCategories,
@@ -37,6 +39,8 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
   fetchVendor: mockFetchVendor,
+  fetchVendors: jest.fn(),
+  createVendor: jest.fn(),
 }));
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({
   searchEverywhere: mockSearchEverywhere,
@@ -232,6 +236,87 @@ describe('PurchaseOverviewPanel', () => {
         }),
       );
       expect(screen.getByTestId('purchase-detail-category')).toHaveTextContent(/.+/);
+    });
+  });
+
+  describe('schema-backed fields (#2254)', () => {
+    it('makes no reference-data request while read-only and loads categories once in edit mode', async () => {
+      renderPanel(makePurchasePage(FULL));
+      expect(mockFetchCategories).not.toHaveBeenCalled();
+      await edit();
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalledTimes(1));
+    });
+
+    it('renders the schema fields in card order, with the dialog labels', async () => {
+      renderPanel(makePurchasePage(FULL));
+      await edit();
+      const names = Array.from(document.querySelectorAll('[data-field]')).map((el) =>
+        el.getAttribute('data-field'),
+      );
+      expect(names).toEqual([
+        'name',
+        'category',
+        'quantity',
+        'vendorId',
+        'url',
+        'area',
+        'description',
+      ]);
+      const label = (name: string) =>
+        document.querySelector(`[data-field="${name}"] label`)?.textContent ?? '';
+      expect(label('name').startsWith(enHouseholdItems.create.form.name.label)).toBe(true);
+      expect(label('category').startsWith(enHouseholdItems.create.form.category.label)).toBe(true);
+      expect(label('quantity')).toBe(enHouseholdItems.create.form.quantity.label);
+      expect(label('vendorId')).toBe(enHouseholdItems.create.form.vendor.label);
+      expect(label('url')).toBe(enHouseholdItems.create.form.url.label);
+      expect(label('area')).toBe(enHouseholdItems.create.form.area.label);
+      expect(label('description')).toBe(enHouseholdItems.create.form.description.label);
+    });
+
+    it('offers no status or Waits for field on the card (the header menu and Timing tab own them)', async () => {
+      renderPanel(makePurchasePage(FULL));
+      await edit();
+      expect(document.querySelector('[data-field="status"]')).toBeNull();
+      expect(document.querySelector('[data-field="waitsFor"]')).toBeNull();
+    });
+
+    it('carries the schema max lengths and prefixes ids per card', async () => {
+      renderPanel(makePurchasePage(FULL));
+      await edit();
+      const name = screen.getByTestId('purchase-field-name');
+      expect(name).toHaveAttribute('maxlength', '500');
+      expect(screen.getByTestId('purchase-field-url')).toHaveAttribute('maxlength', '2000');
+      expect(screen.getByTestId('purchase-field-description')).toHaveAttribute('maxlength', '5000');
+      expect(name.id).toMatch(/^.+-name$/);
+      expect(name.id).not.toBe('name');
+    });
+
+    it('wires the unified name error to the field through aria-describedby', async () => {
+      renderPanel();
+      const user = await edit();
+      await user.clear(screen.getByTestId('purchase-field-name'));
+      await save(user);
+      const name = screen.getByTestId('purchase-field-name');
+      const message = await screen.findByText(enHouseholdItems.create.form.name.error);
+      expect(message).toHaveAttribute('id', `${name.id}-error`);
+      expect(name.getAttribute('aria-describedby')).toContain(`${name.id}-error`);
+    });
+
+    it('shows the company the purchase already has in the Company picker', async () => {
+      renderPanel(makePurchasePage(FULL));
+      await edit();
+      const field = document.querySelector('[data-field="vendorId"]')!;
+      expect(field).toHaveTextContent('Company One');
+    });
+
+    it('sends only the changed key: a quantity change never carries the other fields', async () => {
+      renderPanel(makePurchasePage(FULL));
+      const user = await edit();
+      await user.clear(screen.getByTestId('purchase-field-quantity'));
+      await user.type(screen.getByTestId('purchase-field-quantity'), '3');
+      await save(user);
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockUpdate.mock.calls[0]).toEqual(['hi-1', { quantity: 3 }]);
     });
   });
 

@@ -93,15 +93,18 @@
       "unassigned": "Unassigned",
       "area": "Area",
       "durationDays": "Duration (days)",
-      "durationError": "Duration must be a positive number",
+      "durationError": "Duration must be 0 or more days.",
       "startAfter": "Not before",
       "startBefore": "Start by",
       "constraintsError": "Start by can't be before Not before.",
       "tags": "Tags",
-      "dependencies": "Waits for"
+      "dependencies": "Waits for",
+      "plannedCost": "Planned cost",
+      "plannedCostHint": "Creates the first cost line. Add more on the task page."
     },
     "errors": {
-      "loadFailed": "Failed to load form data. Please try again."
+      "loadFailed": "Failed to load form data. Please try again.",
+      "costLineFailed": "Task created, but its planned cost couldn't be saved. Add it on the Cost tab."
     },
     "added": "Task ‘{{title}}’ added.",
     "waitsFor": {
@@ -131,9 +134,6 @@
     "loading": "Loading the task…",
     "overview": {
       "details": "Details",
-      "title": "Title",
-      "titleRequired": "Enter a title.",
-      "description": "Description",
       "noDescription": "No description yet",
       "whoWhere": "Who and where",
       "who": "Who",
@@ -188,15 +188,12 @@
       "duration": "Duration",
       "durationDays_one": "{{count}} day",
       "durationDays_other": "{{count}} days",
-      "durationLabel": "Duration in days",
-      "durationError": "Enter a whole number of days, 0 or more.",
       "finishedBeforeStarted": "Finished can't be before Started.",
       "notScheduled": "Not scheduled",
       "reschedule": "Reschedule…",
       "constraints": "Constraints",
       "notBefore": "Not before",
       "startBy": "Start by",
-      "constraintsError": "Start by can't be before Not before.",
       "saveError": "Couldn't save the dates.",
       "waitsFor": "Waits for",
       "waitsForEmpty": "This task doesn't wait for another task.",

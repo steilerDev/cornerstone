@@ -463,7 +463,7 @@ test.describe('Details card (Scenario 6)', { tag: '@responsive' }, () => {
       await detailPage.detailsCard.startEdit();
       await detailPage.titleInput.fill('');
       await detailPage.detailsCard.saveButton.click();
-      await expect(page.getByText('Enter a title.')).toBeVisible();
+      await expect(page.getByText('Title is required')).toBeVisible();
       await expect(detailPage.detailsCard.form).toBeVisible();
 
       await detailPage.titleInput.fill(renamed);

@@ -146,7 +146,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 68,
+      "count": 69,
       "values": [
         "(refund)",
         "add refund",
@@ -199,6 +199,7 @@
         "paid",
         "paid date",
         "paid date is required.",
+        "planned cost",
         "pro estimate",
         "professional estimate",
         "project budget overview",

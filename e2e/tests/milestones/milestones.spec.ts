@@ -203,7 +203,7 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     }
   });
 
-  test('Dialog is titled "New milestone" over the Milestones list and all fields are visible', async ({
+  test('Dialog is titled "New milestone" over the Milestones list and title and target date are visible, the description is behind More details', async ({
     page,
   }) => {
     const createPage = new MilestoneCreatePage(page);
@@ -218,6 +218,9 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     ).toBeVisible();
     await expect(createPage.titleInput).toBeVisible();
     await expect(createPage.targetDateInput).toBeVisible();
+    // #2254: the dialog asks for title and target date; the description is behind More details
+    await expect(createPage.descriptionInput).toBeHidden();
+    await createPage.expandMoreDetails();
     await expect(createPage.descriptionInput).toBeVisible();
     await expect(createPage.submitButton).toBeVisible();
   });

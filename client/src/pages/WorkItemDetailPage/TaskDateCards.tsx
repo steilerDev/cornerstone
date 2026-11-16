@@ -1,16 +1,23 @@
 import { useCallback, useId, useState } from 'react';
-import type { ReactNode, Ref, RefObject } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UpdateWorkItemRequest } from '@cornerstone/shared';
+import { ObjectFormFields } from '../../components/ObjectForm/ObjectFormFields.js';
+import { pickErrors } from '../../components/ObjectForm/objectFormState.js';
 import { SectionCard } from '../../components/SectionCard/SectionCard.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
-import { DetailRow, FieldShell } from '../../components/SectionCard/SectionCardFields.js';
+import { DetailRow } from '../../components/SectionCard/SectionCardFields.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { fetchFailureMessage, toFetchFailure } from '../../lib/fetchFailure.js';
 import type { FetchFailure } from '../../lib/fetchFailure.js';
 import { toBcp47Locale, useFormatters } from '../../lib/formatters.js';
 import { barDates, plannedRangeText, showsPlannedRow } from '../../lib/scheduleDates.js';
 import { updateWorkItem } from '../../lib/workItemsApi.js';
+import {
+  useTaskFormSchema,
+  useTaskValueMessages,
+  validateTaskValues,
+} from '../../objectForms/taskForm.js';
 import type { TaskPanelProps } from './taskPageTypes.js';
 import styles from './TaskTimingPanel.module.css';
 
@@ -21,7 +28,37 @@ export interface TaskDateCardsProps extends Pick<TaskPanelProps, 'task' | 'refre
   readonly rescheduleButton: ReactNode;
 }
 
-const WHOLE_NUMBER = /^\d+$/;
+const DATES_NAMES = ['durationDays', 'actualStartDate', 'actualEndDate'] as const;
+const CONSTRAINT_NAMES = ['startAfter', 'startBefore'] as const;
+type DatesName = (typeof DATES_NAMES)[number];
+type ConstraintName = (typeof CONSTRAINT_NAMES)[number];
+type DatesDraft = Readonly<Record<DatesName, string>>;
+type ConstraintsDraft = Readonly<Record<ConstraintName, string>>;
+
+const DATES_TEST_IDS = {
+  durationDays: 'task-duration-input',
+  actualStartDate: 'task-started-input',
+  actualEndDate: 'task-finished-input',
+};
+const CONSTRAINT_TEST_IDS = {
+  startAfter: 'task-not-before-input',
+  startBefore: 'task-start-by-input',
+};
+
+interface CardFieldsProps {
+  readonly names: readonly string[];
+  readonly values: Readonly<Record<string, string>>;
+  readonly errors: Readonly<Record<string, string | undefined>>;
+  readonly onChange: (name: string, value: unknown) => void;
+  readonly idPrefix: string;
+  readonly testIds: Readonly<Record<string, string>>;
+}
+
+/** Mounted in edit mode only: the task schema (same fields as the New task dialog). */
+function CardFields(props: CardFieldsProps) {
+  const schema = useTaskFormSchema({ scope: 'edit' });
+  return <ObjectFormFields fields={schema.fields} {...props} />;
+}
 
 /** A card's PATCH: saves, then refreshes the page. A failure is kept as data. */
 function useTaskPatch(taskId: string, refresh: () => Promise<void>) {
@@ -44,62 +81,16 @@ function useTaskPatch(taskId: string, refresh: () => Promise<void>) {
   return { failure, save, clear };
 }
 
-interface DateFieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly type: 'date' | 'number';
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly error?: string;
-  readonly inputRef?: RefObject<HTMLInputElement | null>;
-  readonly testId: string;
-}
-
-function DateField({ id, label, type, value, onChange, error, inputRef, testId }: DateFieldProps) {
-  const numeric = type === 'number';
-  return (
-    <FieldShell id={id} label={label} error={error}>
-      {({ invalid, describedBy }) => (
-        <input
-          ref={inputRef}
-          id={id}
-          type={type}
-          className={styles.input}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          min={numeric ? 0 : undefined}
-          step={numeric ? 1 : undefined}
-          inputMode={numeric ? 'numeric' : undefined}
-          aria-invalid={invalid}
-          aria-describedby={describedBy}
-          data-testid={testId}
-        />
-      )}
-    </FieldShell>
-  );
-}
-
-interface DatesDraft {
-  readonly duration: string;
-  readonly started: string;
-  readonly finished: string;
-}
-
 function datesSeed(task: TaskDateCardsProps['task']): DatesDraft {
   return {
-    duration: task.durationDays === null ? '' : String(task.durationDays),
-    started: task.actualStartDate ?? '',
-    finished: task.actualEndDate ?? '',
+    durationDays: task.durationDays === null ? '' : String(task.durationDays),
+    actualStartDate: task.actualStartDate ?? '',
+    actualEndDate: task.actualEndDate ?? '',
   };
 }
 
-interface ConstraintsDraft {
-  readonly notBefore: string;
-  readonly startBy: string;
-}
-
 function constraintsSeed(task: TaskDateCardsProps['task']): ConstraintsDraft {
-  return { notBefore: task.startAfter ?? '', startBy: task.startBefore ?? '' };
+  return { startAfter: task.startAfter ?? '', startBefore: task.startBefore ?? '' };
 }
 
 /** The Dates and Constraints cards of the Timing tab (decision D9). */
@@ -114,15 +105,17 @@ export function TaskDateCards({
   const { resolvedLocale } = useLocale();
   const { formatDate } = useFormatters();
   const baseId = useId();
+  const messages = useTaskValueMessages();
 
   const datesPatch = useTaskPatch(task.id, refresh);
   const constraintsPatch = useTaskPatch(task.id, refresh);
 
   const [dates, setDates] = useState<DatesDraft>(() => datesSeed(task));
-  const [durationInvalid, setDurationInvalid] = useState(false);
-  const [finishedInvalid, setFinishedInvalid] = useState(false);
+  const [datesErrors, setDatesErrors] = useState<Partial<Record<DatesName, string>>>({});
   const [constraints, setConstraints] = useState<ConstraintsDraft>(() => constraintsSeed(task));
-  const [constraintsInvalid, setConstraintsInvalid] = useState(false);
+  const [constraintsErrors, setConstraintsErrors] = useState<
+    Partial<Record<ConstraintName, string>>
+  >({});
 
   const shown = barDates(task);
   const datesBase = datesSeed(task);
@@ -131,46 +124,43 @@ export function TaskDateCards({
 
   const resetDates = () => {
     setDates(datesSeed(task));
-    setDurationInvalid(false);
-    setFinishedInvalid(false);
+    setDatesErrors({});
     datesPatch.clear();
   };
 
   const resetConstraints = () => {
     setConstraints(constraintsSeed(task));
-    setConstraintsInvalid(false);
+    setConstraintsErrors({});
     constraintsPatch.clear();
   };
 
   const saveDates = async (): Promise<boolean> => {
-    const badDuration = dates.duration !== '' && !WHOLE_NUMBER.test(dates.duration);
-    const badFinished =
-      dates.started !== '' && dates.finished !== '' && dates.finished < dates.started;
-    setDurationInvalid(badDuration);
-    setFinishedInvalid(badFinished);
-    if (badDuration || badFinished) return false;
+    const found = pickErrors(validateTaskValues(dates, messages), DATES_NAMES);
+    setDatesErrors(found);
+    if (Object.keys(found).length > 0) return false;
     const body: UpdateWorkItemRequest = {};
-    if (dates.duration !== datesBase.duration) {
-      body.durationDays = dates.duration === '' ? null : Number(dates.duration);
+    if (dates.durationDays !== datesBase.durationDays) {
+      body.durationDays = dates.durationDays === '' ? null : Number(dates.durationDays);
     }
-    if (dates.started !== datesBase.started) body.actualStartDate = dates.started || null;
-    if (dates.finished !== datesBase.finished) body.actualEndDate = dates.finished || null;
+    if (dates.actualStartDate !== datesBase.actualStartDate) {
+      body.actualStartDate = dates.actualStartDate || null;
+    }
+    if (dates.actualEndDate !== datesBase.actualEndDate) {
+      body.actualEndDate = dates.actualEndDate || null;
+    }
     return datesPatch.save(body);
   };
 
   const saveConstraints = async (): Promise<boolean> => {
-    const bad =
-      constraints.notBefore !== '' &&
-      constraints.startBy !== '' &&
-      constraints.startBy < constraints.notBefore;
-    setConstraintsInvalid(bad);
-    if (bad) return false;
+    const found = pickErrors(validateTaskValues(constraints, messages), CONSTRAINT_NAMES);
+    setConstraintsErrors(found);
+    if (Object.keys(found).length > 0) return false;
     const body: UpdateWorkItemRequest = {};
-    if (constraints.notBefore !== constraintsBase.notBefore) {
-      body.startAfter = constraints.notBefore || null;
+    if (constraints.startAfter !== constraintsBase.startAfter) {
+      body.startAfter = constraints.startAfter || null;
     }
-    if (constraints.startBy !== constraintsBase.startBy) {
-      body.startBefore = constraints.startBy || null;
+    if (constraints.startBefore !== constraintsBase.startBefore) {
+      body.startBefore = constraints.startBefore || null;
     }
     return constraintsPatch.save(body);
   };
@@ -192,44 +182,20 @@ export function TaskDateCards({
         title={t('taskPage.timing.dates')}
         testId="task-dates"
         edit={{
-          dirty:
-            dates.duration !== datesBase.duration ||
-            dates.started !== datesBase.started ||
-            dates.finished !== datesBase.finished,
+          dirty: DATES_NAMES.some((name) => dates[name] !== datesBase[name]),
           onStart: resetDates,
           onSave: saveDates,
           onDiscard: resetDates,
           error: failureMessage(datesPatch.failure),
-          renderFields: ({ firstFieldRef }) => (
-            <div className={styles.fields}>
-              <DateField
-                id={`${baseId}-duration`}
-                label={t('taskPage.timing.durationLabel')}
-                type="number"
-                value={dates.duration}
-                onChange={(duration) => setDates({ ...dates, duration })}
-                error={durationInvalid ? t('taskPage.timing.durationError') : undefined}
-                inputRef={firstFieldRef as RefObject<HTMLInputElement | null>}
-                testId="task-duration-input"
-              />
-              <DateField
-                id={`${baseId}-started`}
-                label={t('taskPage.timing.started')}
-                type="date"
-                value={dates.started}
-                onChange={(started) => setDates({ ...dates, started })}
-                testId="task-started-input"
-              />
-              <DateField
-                id={`${baseId}-finished`}
-                label={t('taskPage.timing.finished')}
-                type="date"
-                value={dates.finished}
-                onChange={(finished) => setDates({ ...dates, finished })}
-                error={finishedInvalid ? t('taskPage.timing.finishedBeforeStarted') : undefined}
-                testId="task-finished-input"
-              />
-            </div>
+          renderFields: () => (
+            <CardFields
+              names={DATES_NAMES}
+              values={dates}
+              errors={datesErrors}
+              onChange={(name, value) => setDates({ ...dates, [name]: String(value ?? '') })}
+              idPrefix={`${baseId}-dates-`}
+              testIds={DATES_TEST_IDS}
+            />
           ),
         }}
       >
@@ -272,34 +238,22 @@ export function TaskDateCards({
         testId="task-constraints"
         controllerRef={constraintsRef}
         edit={{
-          dirty:
-            constraints.notBefore !== constraintsBase.notBefore ||
-            constraints.startBy !== constraintsBase.startBy,
+          dirty: CONSTRAINT_NAMES.some((name) => constraints[name] !== constraintsBase[name]),
           onStart: resetConstraints,
           onSave: saveConstraints,
           onDiscard: resetConstraints,
           error: failureMessage(constraintsPatch.failure),
-          renderFields: ({ firstFieldRef }) => (
-            <div className={styles.fields}>
-              <DateField
-                id={`${baseId}-not-before`}
-                label={t('taskPage.timing.notBefore')}
-                type="date"
-                value={constraints.notBefore}
-                onChange={(notBefore) => setConstraints({ ...constraints, notBefore })}
-                inputRef={firstFieldRef as RefObject<HTMLInputElement | null>}
-                testId="task-not-before-input"
-              />
-              <DateField
-                id={`${baseId}-start-by`}
-                label={t('taskPage.timing.startBy')}
-                type="date"
-                value={constraints.startBy}
-                onChange={(startBy) => setConstraints({ ...constraints, startBy })}
-                error={constraintsInvalid ? t('taskPage.timing.constraintsError') : undefined}
-                testId="task-start-by-input"
-              />
-            </div>
+          renderFields: () => (
+            <CardFields
+              names={CONSTRAINT_NAMES}
+              values={constraints}
+              errors={constraintsErrors}
+              onChange={(name, value) =>
+                setConstraints({ ...constraints, [name]: String(value ?? '') })
+              }
+              idPrefix={`${baseId}-constraints-`}
+              testIds={CONSTRAINT_TEST_IDS}
+            />
           ),
         }}
       >

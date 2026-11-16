@@ -9,12 +9,20 @@ export interface ObjectFormOption {
   readonly label: string;
 }
 
+/** Where a schema field is shown: the create dialog, the page's edit cards, or both (omitted). */
+export type ObjectFormScope = 'create' | 'edit';
+
 export interface ObjectFormResult {
   readonly id: string;
   /** In-app URL of the created object (from routeUrl). */
   readonly href: string;
   /** Display name, used by the Add-another confirmation. */
   readonly label: string;
+  /**
+   * A follow-up request after the create failed (a dependency, the first cost line). `href` carries the
+   * error for the new page, so ObjectForm opens it even when "Add another" is ticked.
+   */
+  readonly incomplete?: boolean;
 }
 
 export interface ObjectFormChild {
@@ -56,6 +64,8 @@ export interface ObjectFormField {
     | 'select'
     | 'color'
     | 'custom';
+  /** Omitted: both. 'create' = only the dialog (e.g. Planned cost); 'edit' = only the page cards (e.g. Colour). */
+  readonly scope?: ObjectFormScope;
   /** Shown before "More details". */
   readonly essential?: boolean;
   readonly required?: boolean;

@@ -10,6 +10,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { MilestoneDetail } from '@cornerstone/shared';
+import enSchedule from '../../i18n/en/schedule.json';
 import { makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 import { makeMilestoneDetail } from '../../test/milestonePageFixtures.js';
 import type { SectionCardController } from '../../components/SectionCard/SectionCard.js';
@@ -18,7 +19,10 @@ import type * as PanelModule from './MilestoneOverviewPanel.js';
 
 const mockUpdate = jest.fn<typeof MilestonesApiTypes.updateMilestone>();
 
-jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({ updateMilestone: mockUpdate }));
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  updateMilestone: mockUpdate,
+  createMilestone: jest.fn(),
+}));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 
 let Panel: typeof PanelModule;
@@ -212,6 +216,72 @@ describe('MilestoneOverviewPanel', () => {
       await waitFor(() =>
         expect(mockUpdate).toHaveBeenCalledWith(1, { title: 'Sample milestone!' }),
       );
+    });
+  });
+
+  describe('schema-backed fields (#2254)', () => {
+    it('shows title, target date, description and the colour in card order, all visible', async () => {
+      renderPanel(makeMilestoneDetail({ color: '#3B82F6' }));
+      await edit();
+      const names = Array.from(document.querySelectorAll('[data-field]')).map((el) =>
+        el.getAttribute('data-field'),
+      );
+      expect(names).toEqual(['title', 'targetDate', 'description', 'color']);
+      // The card has no "More details" fold: the description is up front here.
+      expect(screen.queryByTestId('object-form-more')).toBeNull();
+      expect(screen.getByTestId('milestone-field-description')).toBeVisible();
+    });
+
+    it('labels the fields like the dialog', async () => {
+      renderPanel();
+      await edit();
+      const label = (name: string) =>
+        document.querySelector(`[data-field="${name}"] label`)?.textContent ?? '';
+      expect(label('title').startsWith(enSchedule.milestones.create.form.title.label)).toBe(true);
+      expect(
+        label('targetDate').startsWith(enSchedule.milestones.create.form.targetDate.label),
+      ).toBe(true);
+      expect(label('description')).toBe(enSchedule.milestones.create.form.description.label);
+    });
+
+    it('prefixes the title and description ids per card; the target date keeps the page id', async () => {
+      renderPanel();
+      await edit();
+      expect(screen.getByTestId('milestone-field-title').id).toMatch(/^.+-title$/);
+      expect(screen.getByTestId('milestone-field-title').id).not.toBe('title');
+      expect(screen.getByTestId('milestone-field-description').id).toMatch(/^.+-description$/);
+      expect(screen.getByTestId('milestone-field-target-date')).toHaveAttribute('id', TARGET_ID);
+    });
+
+    it('carries the schema max lengths', async () => {
+      renderPanel();
+      await edit();
+      expect(screen.getByTestId('milestone-field-title')).toHaveAttribute('maxlength', '200');
+      expect(screen.getByTestId('milestone-field-description')).toHaveAttribute(
+        'maxlength',
+        '2000',
+      );
+    });
+
+    it('wires the unified target date error to the page id through aria-describedby', async () => {
+      renderPanel();
+      const user = await edit();
+      const input = screen.getByTestId('milestone-field-target-date');
+      fireEvent.change(input, { target: { value: '' } });
+      await save(user);
+      const message = await screen.findByText('Target date is required.');
+      expect(enSchedule.milestones.create.form.targetDate.error).toBe('Target date is required.');
+      expect(message).toHaveAttribute('id', `${TARGET_ID}-error`);
+      expect(input.getAttribute('aria-describedby')).toContain(`${TARGET_ID}-error`);
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('exposes the colour as an edit-only field with the stable test id prefix', async () => {
+      renderPanel(makeMilestoneDetail({ color: null }));
+      await edit();
+      expect(screen.getByTestId('milestone-field-color')).toBeInTheDocument();
+      expect(screen.getByTestId('milestone-field-no-color')).toBeInTheDocument();
     });
   });
 

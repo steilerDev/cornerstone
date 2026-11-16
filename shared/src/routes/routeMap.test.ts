@@ -141,6 +141,32 @@ describe('ROUTE_MAP invariants', () => {
   });
 });
 
+describe('detail page carries (#2254)', () => {
+  const carriesOf = (id: string) => {
+    const entry = ENTRIES.find((e) => e.id === id);
+    expect(entry).toBeDefined();
+    return entry?.carries;
+  };
+
+  it('lets the task page carry tab, depError, costLineFailed and edit', () => {
+    expect(carriesOf('workItem')).toEqual(['tab', 'depError', 'costLineFailed', 'edit']);
+  });
+
+  it('lets the purchase page carry tab, depError and edit', () => {
+    expect(carriesOf('householdItem')).toEqual(['tab', 'depError', 'edit']);
+  });
+
+  it('keeps the milestone page carry list free of the two failure params', () => {
+    const milestone = carriesOf('milestone') ?? [];
+    expect(milestone).not.toContain('depError');
+    expect(milestone).not.toContain('costLineFailed');
+  });
+
+  it('keeps costLineFailed off the purchase page, which has no cost line step', () => {
+    expect(carriesOf('householdItem')).not.toContain('costLineFailed');
+  });
+});
+
 describe('legacy URLs stay one hop and permanent', () => {
   it('resolves every live redirect in exactly one hop to a page', () => {
     expect(LIVE_REDIRECT_ROUTES.length).toBeGreaterThan(0);

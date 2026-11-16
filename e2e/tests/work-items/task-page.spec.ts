@@ -801,6 +801,12 @@ test.describe('Dates, Constraints and Reschedule (T9, AC5)', { tag: '@responsive
 
     await task.datesCard.startEdit();
     await expect(task.input('task-duration-input')).toHaveValue('3');
+    // #2254: the card validates with the dialog's wording (Duration (days); 0 is valid)
+    await expect(task.datesCard.form.getByLabel('Duration (days)')).toBeVisible();
+    await task.input('task-duration-input').fill('1.5');
+    await task.datesCard.saveButton.click();
+    await expect(page.getByText('Duration must be 0 or more days.')).toBeVisible();
+    await expect(task.datesCard.form).toBeVisible();
     await task.input('task-duration-input').fill('7');
     await task.datesCard.save();
     await expect(page.getByTestId('task-duration')).toContainText('7 days');

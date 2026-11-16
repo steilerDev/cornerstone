@@ -16,6 +16,10 @@ export interface ObjectFormFieldProps {
   readonly onChange: (value: unknown) => void;
   readonly onSetValues: (values: ObjectFormValues, announcement?: string) => void;
   readonly createChild: (child: ObjectFormChild) => void;
+  /** DOM id of the control (default: the field name). Hint/notice/error ids derive from it. */
+  readonly id?: string;
+  /** Overrides `field.testId` (a card keeps its existing test ids). */
+  readonly testId?: string;
 }
 
 const NO_VALUES: ObjectFormValues = {};
@@ -34,24 +38,28 @@ export function ObjectFormField({
   onChange,
   onSetValues,
   createChild,
+  id: idProp,
+  testId,
 }: ObjectFormFieldProps) {
   const { t } = useTranslation('common');
   const { name, label, kind, required } = field;
+  const id = idProp ?? name;
+  const testIdValue = testId ?? field.testId;
   const hint = typeof field.hint === 'function' ? field.hint(values) : field.hint;
-  const hintId = hint ? `${name}-hint` : undefined;
-  const errorId = error ? `${name}-error` : undefined;
-  const noticeId = field.notice ? `${name}-notice` : undefined;
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const noticeId = field.notice ? `${id}-notice` : undefined;
   const describedBy = [hintId, noticeId, errorId].filter(Boolean).join(' ') || undefined;
   const invalid = error !== undefined;
   const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 
   const common = {
-    id: name,
+    id,
     name,
     'aria-required': required || undefined,
     'aria-invalid': invalid || undefined,
     'aria-describedby': describedBy,
-    'data-testid': field.testId,
+    'data-testid': testIdValue,
   } as const;
 
   let control: ReactNode;
@@ -59,7 +67,7 @@ export function ObjectFormField({
     control = <Skeleton lines={1} />;
   } else if (kind === 'custom') {
     control = field.render?.({
-      id: name,
+      id,
       value,
       setValue: (next) => {
         if (!busy) onChange(next);
@@ -76,12 +84,12 @@ export function ObjectFormField({
   } else if (kind === 'color') {
     control = (
       <ColorField
-        id={name}
+        id={id}
         value={typeof value === 'string' && value !== '' ? value : null}
         onChange={(next) => onChange(next)}
         disabled={busy}
         noColorLabel={t('referenceList.noColor')}
-        testIdPrefix={field.testId}
+        testIdPrefix={testIdValue}
         describedBy={describedBy}
       />
     );
@@ -158,7 +166,7 @@ export function ObjectFormField({
       {asGroup ? (
         <legend className={styles.label}>{labelContent}</legend>
       ) : (
-        <label htmlFor={name} className={styles.label}>
+        <label htmlFor={id} className={styles.label}>
           {labelContent}
         </label>
       )}

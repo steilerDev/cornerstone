@@ -151,3 +151,16 @@
 .historyLine {
   composes: historyLine from '../../styles/objectPage.module.css';
 }
+
+/* Banner for a follow-up failure of the New task dialog (first cost line); same look as the Timing tab banner. */
+.createError {
+  composes: depError from './TaskTimingPanel.module.css';
+}
+
+.createErrorMessage {
+  composes: depErrorMessage from './TaskTimingPanel.module.css';
+}
+
+.dismiss {
+  composes: dismiss from './TaskTimingPanel.module.css';
+}

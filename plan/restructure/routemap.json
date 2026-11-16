@@ -69,8 +69,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": true,
-    "carries": ["tab", "depError", "edit"],
-    "note": "Task page. ?tab=overview|timing|cost|diary|history (replace). ?depError= opens the Timing tab. Stored in iCal events (calendarIcal.ts), so permanent."
+    "carries": ["tab", "depError", "costLineFailed", "edit"],
+    "note": "Task page. ?tab=overview|timing|cost|diary|history (replace). ?depError= opens the Timing tab. Stored in iCal events (calendarIcal.ts), so permanent. #2254: ?costLineFailed=1 (task) / ?depError=<titles> (purchase) are read once by the page after a New task / New purchase dialog save whose follow-up request failed; the page shows the banner and removes the param with a replace."
   },
   {
     "from": "/project/household-items",
@@ -121,8 +121,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": true,
-    "carries": ["tab", "edit"],
-    "note": "Purchase page; ?tab=overview|timing|cost|diary|history. Stored in iCal events (delivery dates), so permanent."
+    "carries": ["tab", "depError", "edit"],
+    "note": "Purchase page; ?tab=overview|timing|cost|diary|history. Stored in iCal events (delivery dates), so permanent. #2254: ?costLineFailed=1 (task) / ?depError=<titles> (purchase) are read once by the page after a New task / New purchase dialog save whose follow-up request failed; the page shows the banner and removes the param with a replace."
   },
   {
     "from": "/project/milestones",

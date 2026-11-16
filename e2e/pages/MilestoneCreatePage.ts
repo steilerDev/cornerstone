@@ -6,10 +6,11 @@
  * Milestones list behind it). From 768px it is a Modal, below a full-screen Sheet; both are
  * role="dialog" named "New milestone".
  *
- * Fields (all essential, no "More details"):
- * - #title (text, required)           data-testid="milestone-title-input"
- * - #targetDate (date, required)      data-testid="milestone-target-date-input"
- * - #description (textarea)           data-testid="milestone-description-input"
+ * Fields (#2254):
+ * - Essentials: #title (text, required) `milestone-title-input`, #targetDate (date, required)
+ *   `milestone-target-date-input`
+ * - Behind "More details": #description (textarea) `milestone-description-input`
+ * - No colour control: the colour is set on the milestone page
  *
  * Behaviour:
  * - Save is `object-form-save`; Cancel is a button (`object-form-cancel`), no longer a link.
@@ -42,11 +43,13 @@ export class MilestoneCreatePage {
   // Form fields
   readonly titleInput: Locator;
   readonly targetDateInput: Locator;
+  /** Behind More details. */
   readonly descriptionInput: Locator;
 
   // Form actions
   readonly submitButton: Locator;
   readonly cancelButton: Locator;
+  readonly moreDetailsToggle: Locator;
 
   // Error display
   readonly titleErrorText: Locator;
@@ -66,6 +69,7 @@ export class MilestoneCreatePage {
 
     this.submitButton = this.form.saveButton;
     this.cancelButton = this.form.cancelButton;
+    this.moreDetailsToggle = this.form.moreToggle;
 
     this.titleErrorText = this.form.fieldError('title');
     this.targetDateErrorText = this.form.fieldError('targetDate');
@@ -78,13 +82,19 @@ export class MilestoneCreatePage {
     await this.form.waitForOpen();
   }
 
+  /** Open the "More details" disclosure. */
+  async expandMoreDetails(): Promise<void> {
+    await this.form.expandMoreDetails();
+  }
+
   /** Fill only the title field. */
   async fillTitle(title: string): Promise<void> {
     await this.titleInput.fill(title);
   }
 
-  /** Fill multiple form fields at once. Only provided fields are filled. */
+  /** Fill multiple form fields at once; "More details" opens first when a description is given. */
   async fillForm(data: MilestoneFormData): Promise<void> {
+    if (data.description !== undefined) await this.expandMoreDetails();
     if (data.title !== undefined) await this.titleInput.fill(data.title);
     if (data.targetDate !== undefined) await this.targetDateInput.fill(data.targetDate);
     if (data.description !== undefined) await this.descriptionInput.fill(data.description);
