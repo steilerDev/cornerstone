@@ -4,7 +4,7 @@
 
 /* The last list's picker clears the phone bottom bar: FE-1's one rule, on the last child. */
 .endClearance {
-  composes: pageEndClearance from './HouseholdItemDetailPage.module.css';
+  composes: pageEndClearance from '../../styles/objectPage.module.css';
 }
 
 .facts {
@@ -12,15 +12,15 @@
 }
 
 .depError {
-  composes: depError from '../WorkItemDetailPage/TaskTimingPanel.module.css';
+  composes: depError from '../../styles/objectPage.module.css';
 }
 
 .depErrorMessage {
-  composes: depErrorMessage from '../WorkItemDetailPage/TaskTimingPanel.module.css';
+  composes: depErrorMessage from '../../styles/objectPage.module.css';
 }
 
 .dismiss {
-  composes: dismiss from '../WorkItemDetailPage/TaskTimingPanel.module.css';
+  composes: dismiss from '../../styles/objectPage.module.css';
 }
 
 /* The late row is static text: the badge and the sentence, never colour alone. */

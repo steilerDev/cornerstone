@@ -16,5 +16,6 @@ Found while speccing #2254 (P5.10a). Applies to any story that reuses an `object
 7. **Edit-scope hooks still load data for fields the card does not render** (review finding): a Title-only card mounting the task schema fired `GET /api/users` (+ trades, areas). Spec host-owned data (users) as never self-loaded in edit scope, and list which reference loads a card accepts.
 8. **Copy that names a tab must quote the tab label** ("Add it under Costs." vs tab "Cost"); check `common:objectTabs.tab.*` when approving UX copy.
 9. Pre-measure baseline by importing `analyzeFile`/`resolveImport` from `build-baseline.mjs` in a job-tmp script (Write the file, then a plain `node` call; the worktree guard refuses heredoc+pipe).
+10. **CSS Modules composes must stay acyclic** — page modules compose only from shared leaves like `objectPage.module.css`; unit tests mock CSS so only the webpack build catches cycles (CI: `Cannot access '__WEBPACK_DEFAULT_EXPORT__' before initialization`).
 
 Related: [[object-home-move-specs]], [[cost-line-specs]], [[task-page-specs]], [[purchase-page-specs]], [[milestone-page-specs]]

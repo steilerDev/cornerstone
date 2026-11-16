@@ -92,3 +92,21 @@
 :root[data-shell-bar='shown'] .pageEndClearance:last-child {
   padding-bottom: calc(var(--shell-bottom-height) + var(--spacing-16));
 }
+
+/* ---- Inline error banner with a dismiss button (leaf: no page module composes from another) ---- */
+
+.depError {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.depErrorMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dismiss {
+  composes: btnSecondaryCompact from './shared.module.css';
+  flex: 0 0 auto;
+}

@@ -1,21 +1,5 @@
 .panel {
-  composes: panel from './WorkItemDetailPage.module.css';
-}
-
-.depError {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-2);
-}
-
-.depErrorMessage {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.dismiss {
-  composes: btnSecondaryCompact from '../../styles/shared.module.css';
-  flex: 0 0 auto;
+  composes: panel from '../../styles/objectPage.module.css';
 }
 
 /* ---- Date cards ---- */
