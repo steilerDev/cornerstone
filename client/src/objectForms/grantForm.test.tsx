@@ -9,8 +9,13 @@
  * Save allowed without an item; a rate above 100 or 0; a cap of 0; "No category" sent as a
  * category id instead of includesNoCategoryItems.
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, renderHook, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import budgetEn from '../i18n/en/budget.json';
+import { installMatchMedia } from '../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../test/matchMediaControl.js';
+import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
 import type { CreateSubsidyProgramRequest, SubsidyProgram } from '@cornerstone/shared';
 import type { EntityOption } from '../components/EntityPicker/types.js';
 import type { ObjectFormField } from '../components/ObjectForm/types.js';
@@ -104,10 +109,152 @@ describe('grantForm', () => {
     });
     expect(s.fields.filter((f) => f.essential).map((f) => f.name)).toEqual([
       'name',
+      'applicationStatus',
       'reductionValue',
       'maximumAmount',
+      'applicationDeadline',
       'items',
     ]);
+  });
+
+  it('lists the create fields in the spec order', () => {
+    expect(schema().fields.map((f) => f.name)).toEqual([
+      'name',
+      'applicationStatus',
+      'reductionValue',
+      'maximumAmount',
+      'applicationDeadline',
+      'items',
+      'categories',
+      'description',
+      'eligibility',
+      'notes',
+    ]);
+  });
+
+  it('caps the percentage at 100 in create and edit scope, but not for a fixed grant', () => {
+    const rv = (o?: Parameters<typeof Form.useGrantFormSchema>[0]) =>
+      renderHook(() => Form.useGrantFormSchema(o)).result.current.fields.find(
+        (f) => f.name === 'reductionValue',
+      )!;
+    expect(rv().max).toBe(100);
+    expect(rv({ scope: 'edit' }).max).toBe(100);
+    expect(rv({ scope: 'edit', fixed: true }).max).toBeUndefined();
+  });
+
+  it('edit scope drops Status and Items, and no scope has a type or provider field', () => {
+    const edit = renderHook(() => Form.useGrantFormSchema({ scope: 'edit' })).result.current;
+    const names = edit.fields.map((f) => f.name);
+    expect(names).not.toContain('applicationStatus');
+    expect(names).not.toContain('items');
+    expect(names).toContain('reductionValue');
+    for (const list of [names, schema().fields.map((f) => f.name)]) {
+      expect(list).not.toContain('reductionType');
+      expect(list).not.toContain('provider');
+    }
+  });
+
+  describe('rate and cap labels', () => {
+    const rateField = (opts?: Parameters<typeof Form.useGrantFormSchema>[0]) =>
+      renderHook(() => Form.useGrantFormSchema(opts)).result.current.fields.find(
+        (f) => f.name === 'reductionValue',
+      )!;
+
+    it('percentage: the rate label with its hint; the cap carries its own hint', () => {
+      const field = rateField({ scope: 'edit' });
+      expect(field.label).toBe(budgetEn.financing.fields.rate);
+      expect(field.hint).toBe(budgetEn.financing.hints.rate);
+      const cap = schema().fields.find((f) => f.name === 'maximumAmount')!;
+      expect(cap.hint).toBe(budgetEn.financing.hints.cap);
+    });
+
+    it('fixed (edit): "Fixed reduction" and no hint', () => {
+      const field = rateField({ scope: 'edit', fixed: true });
+      expect(field.label).toBe(budgetEn.financing.grant.fixedReductionField);
+      expect(field.label).not.toBe(budgetEn.financing.fields.rate);
+      expect(field.hint).toBeUndefined();
+    });
+
+    it('fixed is ignored in create scope', () => {
+      const field = rateField({ fixed: true });
+      expect(field.label).toBe(budgetEn.financing.fields.rate);
+    });
+  });
+
+  describe('validateGrantValues', () => {
+    const messages = {
+      nameRequired: 'N',
+      rateInvalid: 'RATE',
+      amountInvalid: 'AMOUNT',
+      itemsRequired: 'ITEMS',
+    };
+    const base = { name: 'G', reductionValue: '30', maximumAmount: '', items: [taskOption()] };
+
+    it('150: rate error for a percentage grant, none for a fixed one', () => {
+      const v = { ...base, reductionValue: '150' };
+      expect(Form.validateGrantValues(v, messages).reductionValue).toBe('RATE');
+      expect(Form.validateGrantValues(v, messages, { fixed: true }).reductionValue).toBeUndefined();
+    });
+
+    it('0: amount error for a fixed grant, rate error for a percentage grant', () => {
+      const v = { ...base, reductionValue: '0' };
+      expect(Form.validateGrantValues(v, messages, { fixed: true }).reductionValue).toBe('AMOUNT');
+      expect(Form.validateGrantValues(v, messages).reductionValue).toBe('RATE');
+    });
+
+    it('fixed rejects a blank reduction', () => {
+      const v = { ...base, reductionValue: '' };
+      expect(Form.validateGrantValues(v, messages, { fixed: true }).reductionValue).toBe('AMOUNT');
+    });
+
+    it('a cap of 0 is an amount error', () => {
+      expect(
+        Form.validateGrantValues({ ...base, maximumAmount: '0' }, messages).maximumAmount,
+      ).toBe('AMOUNT');
+    });
+
+    it('items are required in create scope only', () => {
+      const v = { ...base, items: [] };
+      expect(Form.validateGrantValues(v, messages).items).toBe('ITEMS');
+      expect(Form.validateGrantValues(v, messages, { scope: 'edit' }).items).toBeUndefined();
+    });
+
+    it('reads missing keys as blank', () => {
+      expect(Form.validateGrantValues({}, messages, { scope: 'edit' })).toEqual({
+        name: 'N',
+        reductionValue: 'RATE',
+      });
+    });
+  });
+
+  describe('in the dialog', () => {
+    let FormComponent: typeof ObjectFormTypes;
+    let media: MatchMediaControl;
+    beforeEach(async () => {
+      media = installMatchMedia({ '(min-width: 768px)': true });
+      FormComponent = await import('../components/ObjectForm/ObjectForm.js');
+    });
+    afterEach(() => media.restore());
+
+    function Harness() {
+      const s = Form.useGrantFormSchema();
+      return <FormComponent.ObjectForm schema={s} onCreated={() => {}} onCancel={() => {}} />;
+    }
+
+    it('shows Status and Deadline without More details, Status before Rate', () => {
+      render(
+        <MemoryRouter>
+          <Harness />
+        </MemoryRouter>,
+      );
+      const status = screen.getByLabelText(budgetEn.financing.fields.status);
+      const deadline = screen.getByLabelText(budgetEn.financing.fields.deadline);
+      const rate = screen.getByLabelText(budgetEn.financing.fields.rate, { exact: false });
+      expect(status).toBeVisible();
+      expect(deadline).toBeVisible();
+      expect(status.compareDocumentPosition(rate) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByLabelText(budgetEn.financing.fields.description)).not.toBeVisible();
+    });
   });
 
   describe('validate', () => {

@@ -48,7 +48,7 @@ Bank loan and credit line cards also have a **⋯** menu with **Prepare bank rep
 
 ### Own funds
 
-**Own funds** is a funding source that Cornerstone creates for you. It cannot be deleted, and it does not show **Ready to submit**, because it is not a loan. You can rename it, and you can set its amount to 0 or more.
+**Own funds** is a funding source that Cornerstone creates for you. It cannot be deleted, and it does not show **Ready to submit**, because it is not a loan. You can rename it, and you can set its amount to 0 or more. Its card has no **Type** field.
 
 Lines that [Split with AI](auto-itemize) creates are funded from Own funds by default, until you choose a different source for each line.
 
@@ -68,10 +68,12 @@ Select **Add funding source** on the Financing page, or choose **Funding source*
 - **Name** (required)
 - **Type** (required): Bank loan, Credit line, Savings, or Other
 - **Amount** (required): the total available from this source, more than 0
-- **Status**
 - **Interest rate** (optional, 0 to 100)
+- **Status**
 
 Under **More details** you can add the terms, a reference number, a contact address, and notes. A reference number and a contact address are what the bank report needs for its cover letter.
+
+Own funds is the one exception to the amount rule: it has no type, and its amount can be 0 or more. Cornerstone creates it for you, so the dialog never offers it.
 
 ## The Funding Source Page
 

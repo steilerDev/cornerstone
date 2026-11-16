@@ -196,3 +196,43 @@ describe('ObjectFormFields', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('errorFrom (#2255)', () => {
+  const LINKED: readonly ObjectFormField[] = [
+    { name: 'first', label: 'First', kind: 'text' },
+    { name: 'last', label: 'Last', kind: 'text', errorFrom: 'first' },
+  ];
+
+  it('links the second field to the first field error through the id prefix', () => {
+    setup({
+      fields: LINKED,
+      names: ['first', 'last'],
+      values: {},
+      errors: { first: 'Name needed' },
+      idPrefix: 'card-1-',
+    });
+    expect(screen.getAllByText('Name needed')).toHaveLength(1);
+    const last = screen.getByLabelText('Last');
+    expect(last).toHaveAttribute('aria-invalid', 'true');
+    expect(last).toHaveAttribute('aria-describedby', 'card-1-first-error');
+    expect(document.getElementById('card-1-first-error')).toHaveTextContent('Name needed');
+  });
+
+  it('uses the ids override of the source field when given', () => {
+    setup({
+      fields: LINKED,
+      names: ['first', 'last'],
+      values: {},
+      errors: { first: 'Name needed' },
+      idPrefix: 'p-',
+      ids: { first: 'custom-first' },
+    });
+    expect(screen.getByLabelText('Last')).toHaveAttribute('aria-describedby', 'custom-first-error');
+    expect(document.getElementById('custom-first-error')).not.toBeNull();
+  });
+
+  it('leaves the second field valid while the source field has no error', () => {
+    setup({ fields: LINKED, names: ['first', 'last'], values: {}, errors: {} });
+    expect(screen.getByLabelText('Last')).not.toHaveAttribute('aria-invalid');
+  });
+});

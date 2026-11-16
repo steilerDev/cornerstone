@@ -346,6 +346,16 @@ describe('ObjectFormField number attributes, function hints and ctx.setValues (#
     expect(input).toHaveAttribute('inputmode', 'decimal');
   });
 
+  it('renders max on a number input', () => {
+    setup({ kind: 'number', max: 5 });
+    expect(screen.getByLabelText('Label')).toHaveAttribute('max', '5');
+  });
+
+  it('ignores max on a non-number input', () => {
+    setup({ kind: 'text', max: 5 });
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('max');
+  });
+
   it('ignores step and inputMode on a non-number input', () => {
     setup({ kind: 'text', step: 0.01, inputMode: 'decimal' });
     const input = screen.getByLabelText('Label') as HTMLInputElement;
@@ -450,5 +460,70 @@ describe('ObjectFormField id and testId overrides (#2254)', () => {
     expect(document.getElementById('card-3-f')).not.toBeNull();
     expect(screen.getAllByTestId(/^card-color/).length).toBeGreaterThan(0);
     expect(screen.queryAllByTestId(/^own-color/)).toHaveLength(0);
+  });
+});
+
+describe('ctx.testId and linkedErrorId (#2255)', () => {
+  it('hands the field test id to a custom renderer', () => {
+    const seen: Array<string | undefined> = [];
+    setup({
+      kind: 'custom',
+      testId: 'field-tid',
+      render: (ctx) => {
+        seen.push(ctx.testId);
+        return <input id={ctx.id} aria-label="custom" />;
+      },
+    });
+    expect(seen).toEqual(['field-tid']);
+  });
+
+  it('the testId override wins over the field test id in the custom context', () => {
+    const seen: Array<string | undefined> = [];
+    setup(
+      {
+        kind: 'custom',
+        testId: 'field-tid',
+        render: (ctx) => {
+          seen.push(ctx.testId);
+          return <input id={ctx.id} aria-label="custom" />;
+        },
+      },
+      { testId: 'card-tid' },
+    );
+    expect(seen).toEqual(['card-tid']);
+  });
+
+  it('has no ctx.testId when neither is set', () => {
+    const seen: Array<string | undefined> = [];
+    setup({
+      kind: 'custom',
+      render: (ctx) => {
+        seen.push(ctx.testId);
+        return <input id={ctx.id} aria-label="custom" />;
+      },
+    });
+    expect(seen).toEqual([undefined]);
+  });
+
+  it('marks the field invalid and describes it by the linked error when it has no error of its own', () => {
+    setup({ kind: 'text', hint: 'A hint' }, { linkedErrorId: 'other-error' });
+    const input = screen.getByLabelText('Label');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'f-hint other-error');
+  });
+
+  it('ignores the linked error when the field has its own error', () => {
+    setup({ kind: 'text' }, { error: 'Own problem', linkedErrorId: 'other-error' });
+    const input = screen.getByLabelText('Label');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'f-error');
+    expect(input.getAttribute('aria-describedby')).not.toContain('other-error');
+  });
+
+  it('is valid without an error or a linked error', () => {
+    setup({ kind: 'text' });
+    const input = screen.getByLabelText('Label');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input).not.toHaveAttribute('aria-describedby');
   });
 });

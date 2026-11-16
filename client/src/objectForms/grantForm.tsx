@@ -3,10 +3,12 @@ import { SUBSIDY_APPLICATION_STATUSES, routeUrl } from '@cornerstone/shared';
 import type { SubsidyApplicationStatus } from '@cornerstone/shared';
 import { EntityMultiPicker } from '../components/EntityPicker/EntityMultiPicker.js';
 import type { EntityOption } from '../components/EntityPicker/types.js';
+import { fieldsForScope } from '../components/ObjectForm/objectFormState.js';
 import type {
   ObjectFormErrors,
   ObjectFormField,
   ObjectFormSchema,
+  ObjectFormScope,
   ObjectFormValues,
 } from '../components/ObjectForm/types.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
@@ -27,14 +29,75 @@ function chosen(value: unknown): readonly EntityOption[] {
   return Array.isArray(value) ? (value as EntityOption[]) : [];
 }
 
+export interface GrantFormOptions {
+  /** Default 'create' (the dialog). 'edit' = the grant page Details and Eligibility cards. */
+  readonly scope?: ObjectFormScope;
+  /** Edit scope: a legacy fixed-amount grant ("Fixed reduction", > 0, no 100 ceiling, no rate hint). */
+  readonly fixed?: boolean;
+}
+
+export interface GrantValueMessages {
+  readonly nameRequired: string;
+  readonly rateInvalid: string;
+  readonly amountInvalid: string;
+  readonly itemsRequired: string;
+}
+
+/** The messages of `validateGrantValues` (translation only). */
+export function useGrantValueMessages(): GrantValueMessages {
+  const { t } = useTranslation('budget');
+  return {
+    nameRequired: t('financing.errors.nameRequired'),
+    rateInvalid: t('financing.errors.rateInvalid'),
+    amountInvalid: t('financing.errors.amountInvalid'),
+    itemsRequired: t('financing.errors.itemsRequired'),
+  };
+}
+
 /**
- * The New grant form (Financing page and the New menu). Percentage grants only: the form has no
- * reduction type, provider or project-wide option. Page-agnostic: the dialog host decides what
- * happens after Save, and the edit form of the grant page extends it.
+ * Every grant rule, dialog and cards alike. A fixed-amount grant (edit only) needs a reduction
+ * above 0 with no ceiling; a percentage grant above 0 and at most 100. At least one item is
+ * required only when creating.
  */
-export function useGrantFormSchema(): ObjectFormSchema {
+export function validateGrantValues(
+  values: ObjectFormValues,
+  messages: GrantValueMessages,
+  options: { readonly fixed?: boolean; readonly scope?: ObjectFormScope } = {},
+): ObjectFormErrors {
+  const { fixed = false, scope = 'create' } = options;
+  const errors: Record<string, string> = {};
+  if (!text(values.name).trim()) errors.name = messages.nameRequired;
+  const rawRate = text(values.reductionValue).trim();
+  const rate = Number(rawRate);
+  if (fixed) {
+    if (!(rawRate !== '' && Number.isFinite(rate) && rate > 0)) {
+      errors.reductionValue = messages.amountInvalid;
+    }
+  } else if (!(rawRate !== '' && Number.isFinite(rate) && rate > 0 && rate <= RATE_MAX)) {
+    errors.reductionValue = messages.rateInvalid;
+  }
+  const rawCap = text(values.maximumAmount).trim();
+  if (rawCap !== '' && !(Number.isFinite(Number(rawCap)) && Number(rawCap) > 0)) {
+    errors.maximumAmount = messages.amountInvalid;
+  }
+  if (scope === 'create' && chosen(values.items).length === 0) {
+    errors.items = messages.itemsRequired;
+  }
+  return errors;
+}
+
+/**
+ * The grant form: the New grant dialog (Financing page and the New menu) and, with
+ * `scope: 'edit'`, the fields of the grant page cards. Percentage grants only when creating: the
+ * form has no reduction type, provider or project-wide option. Page-agnostic: the dialog host
+ * decides what happens after Save.
+ */
+export function useGrantFormSchema(options: GrantFormOptions = {}): ObjectFormSchema {
+  const { scope = 'create' } = options;
+  const fixed = scope === 'edit' && options.fixed === true;
   const { t } = useTranslation('budget');
   const statusVariants = useStatusBadgeVariants();
+  const messages = useGrantValueMessages();
 
   const fields: ObjectFormField[] = [
     {
@@ -46,16 +109,29 @@ export function useGrantFormSchema(): ObjectFormSchema {
       maxLength: NAME_MAX,
     },
     {
+      name: 'applicationStatus',
+      label: t('financing.fields.status'),
+      kind: 'select',
+      essential: true,
+      scope: 'create',
+      width: 'half',
+      options: SUBSIDY_APPLICATION_STATUSES.map((status) => ({
+        value: status,
+        label: statusVariants.grant[status].label,
+      })),
+    },
+    {
       name: 'reductionValue',
-      label: t('financing.fields.rate'),
+      label: fixed ? t('financing.grant.fixedReductionField') : t('financing.fields.rate'),
       kind: 'number',
       essential: true,
       required: true,
       width: 'half',
       min: 0,
+      max: fixed ? undefined : RATE_MAX,
       step: 0.01,
       inputMode: 'decimal',
-      hint: t('financing.hints.rate'),
+      hint: fixed ? undefined : t('financing.hints.rate'),
     },
     {
       name: 'maximumAmount',
@@ -66,6 +142,14 @@ export function useGrantFormSchema(): ObjectFormSchema {
       min: 0,
       step: 0.01,
       inputMode: 'decimal',
+      hint: t('financing.hints.cap'),
+    },
+    {
+      name: 'applicationDeadline',
+      label: t('financing.fields.deadline'),
+      kind: 'date',
+      essential: true,
+      width: 'half',
     },
     {
       name: 'items',
@@ -73,6 +157,8 @@ export function useGrantFormSchema(): ObjectFormSchema {
       kind: 'custom',
       essential: true,
       required: true,
+      scope: 'create',
+      testId: 'grant-form-items',
       render: (ctx) => (
         <EntityMultiPicker
           id={ctx.id}
@@ -83,31 +169,16 @@ export function useGrantFormSchema(): ObjectFormSchema {
           countLabel={(count) => t('financing.work.selected', { count })}
           invalid={ctx.invalid}
           describedBy={ctx.describedBy}
-          testId="grant-form-items"
+          testId={ctx.testId ?? 'grant-form-items'}
         />
       ),
-    },
-    {
-      name: 'applicationStatus',
-      label: t('financing.fields.status'),
-      kind: 'select',
-      width: 'half',
-      options: SUBSIDY_APPLICATION_STATUSES.map((status) => ({
-        value: status,
-        label: statusVariants.grant[status].label,
-      })),
-    },
-    {
-      name: 'applicationDeadline',
-      label: t('financing.fields.deadline'),
-      kind: 'date',
-      width: 'half',
     },
     {
       name: 'categories',
       label: t('financing.fields.categories'),
       kind: 'custom',
       hint: t('financing.hints.categories'),
+      testId: 'grant-form-categories',
       render: (ctx) => (
         <EntityMultiPicker
           id={ctx.id}
@@ -125,7 +196,7 @@ export function useGrantFormSchema(): ObjectFormSchema {
           countLabel={(count) => t('financing.work.selected', { count })}
           invalid={ctx.invalid}
           describedBy={ctx.describedBy}
-          testId="grant-form-categories"
+          testId={ctx.testId ?? 'grant-form-categories'}
         />
       ),
     },
@@ -147,29 +218,13 @@ export function useGrantFormSchema(): ObjectFormSchema {
     notes: '',
   };
 
-  const validate = (values: ObjectFormValues): ObjectFormErrors => {
-    const errors: Record<string, string> = {};
-    if (!text(values.name).trim()) errors.name = t('financing.errors.nameRequired');
-    const rawRate = text(values.reductionValue).trim();
-    const rate = Number(rawRate);
-    if (!(rawRate !== '' && Number.isFinite(rate) && rate > 0 && rate <= RATE_MAX)) {
-      errors.reductionValue = t('financing.errors.rateInvalid');
-    }
-    const rawCap = text(values.maximumAmount).trim();
-    if (rawCap !== '' && !(Number.isFinite(Number(rawCap)) && Number(rawCap) > 0)) {
-      errors.maximumAmount = t('financing.errors.amountInvalid');
-    }
-    if (chosen(values.items).length === 0) errors.items = t('financing.errors.itemsRequired');
-    return errors;
-  };
-
   const object = t('financing.nouns.grant');
   return {
     id: 'grant',
     title: t('financing.form.titleNewGrant', { object }),
-    fields,
+    fields: fieldsForScope(fields, scope),
     initialValues,
-    validate,
+    validate: (values) => validateGrantValues(values, messages, { fixed, scope }),
     addAnother: true,
     submit: async (values) => {
       const rawCap = text(values.maximumAmount).trim();

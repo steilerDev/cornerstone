@@ -432,6 +432,9 @@ export function ObjectForm({
       value={top.values[field.name]}
       values={top.values}
       error={top.errors[field.name]}
+      linkedErrorId={
+        field.errorFrom && top.errors[field.errorFrom] ? `${field.errorFrom}-error` : undefined
+      }
       busy={busy}
       onChange={(value) => setValue(field.name, value)}
       onSetValues={(next, announcement) => {

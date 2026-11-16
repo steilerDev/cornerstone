@@ -459,4 +459,103 @@ describe('useTrades', () => {
       expect(mockFetchTrades).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('enabled option (#2255)', () => {
+    it('makes no request and reports not loading when enabled is false', async () => {
+      const { result } = renderHook(() => useTrades({ enabled: false }));
+
+      await act(async () => {});
+
+      expect(mockFetchTrades).not.toHaveBeenCalled();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isInitialLoading).toBe(false);
+      expect(result.current.trades).toEqual([]);
+    });
+
+    it('fetches once when re-enabled', async () => {
+      mockFetchTrades.mockResolvedValue({ trades: [makeTrade('t9', 'Tiling')] });
+      const { result, rerender } = renderHook(({ enabled }) => useTrades({ enabled }), {
+        initialProps: { enabled: false },
+      });
+      await act(async () => {});
+      expect(mockFetchTrades).not.toHaveBeenCalled();
+
+      rerender({ enabled: true });
+
+      await waitFor(() => expect(result.current.trades).toHaveLength(1));
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('fetches by default (no options)', async () => {
+      renderHook(() => useTrades());
+      await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
+    });
+
+    it('ignores a rejection that arrives after the hook was disabled', async () => {
+      let rejectFetch: (reason: unknown) => void = () => {};
+      mockFetchTrades.mockImplementationOnce(
+        () => new Promise((_resolve, reject) => (rejectFetch = reject)),
+      );
+      const { result, rerender } = renderHook(({ enabled }) => useTrades({ enabled }), {
+        initialProps: { enabled: true },
+      });
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+
+      rerender({ enabled: false });
+
+      await act(async () => {
+        rejectFetch(new MockApiClientError(500, { code: 'INTERNAL_ERROR' }));
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.trades).toEqual([]);
+    });
+
+    it('ignores a resolution that arrives after unmount without warnings', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      let resolveFetch: (value: unknown) => void = () => {};
+      mockFetchTrades.mockImplementationOnce(
+        () => new Promise((resolve) => (resolveFetch = resolve)),
+      );
+      const { result, unmount } = renderHook(() => useTrades());
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+
+      unmount();
+
+      await act(async () => {
+        resolveFetch({ trades: [makeTrade('late', 'Late')] });
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.trades).toEqual([]);
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('ignores a superseded request that fails after a newer one succeeded', async () => {
+      const t2 = makeTrade('t2', 'Electrical');
+      let rejectA: (reason: unknown) => void = () => {};
+      mockFetchTrades.mockImplementationOnce(
+        () => new Promise((_resolve, reject) => (rejectA = reject)),
+      );
+      mockFetchTrades.mockResolvedValueOnce({ trades: [t2] });
+      const { result } = renderHook(() => useTrades());
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        result.current.refetch();
+      });
+      await waitFor(() => expect(result.current.trades).toEqual([t2]));
+      expect(result.current.isLoading).toBe(false);
+
+      await act(async () => {
+        rejectA(new MockApiClientError(500, { code: 'INTERNAL_ERROR' }));
+      });
+
+      expect(result.current.trades).toEqual([t2]);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
 });

@@ -26,6 +26,7 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 import { API } from '../../fixtures/testData.js';
 import type { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
 import { CreateMenu } from '../../pages/components/CreateMenu.js';
+import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { HouseholdItemCreatePage } from '../../pages/HouseholdItemCreatePage.js';
@@ -439,6 +440,193 @@ test.describe('Company picker - purchase form (AC5)', { tag: '@responsive' }, ()
       await expect(focusedInDialog('New purchase')).toHaveCount(1);
     } finally {
       await deleteCompaniesNamed(page, [typed]);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E3 / E4 - #2255: the company dialog offers "New trade" wherever it opens, and persists what it holds
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The vendor row (with its trade) found by exact name, or undefined. */
+async function findVendorNamed(
+  page: Page,
+  name: string,
+): Promise<{ id: string; name: string; trade: { id: string; name: string } | null } | undefined> {
+  const response = await page.request.get(`${API.vendors}?q=${encodeURIComponent(name)}`);
+  const body = (await response.json()) as {
+    vendors: Array<{ id: string; name: string; trade: { id: string; name: string } | null }>;
+  };
+  return body.vendors.find((vendor) => vendor.name === name);
+}
+
+async function findTradeNamed(page: Page, name: string): Promise<{ id: string } | undefined> {
+  const response = await page.request.get(API.trades);
+  const body = (await response.json()) as { trades: Array<{ id: string; name: string }> };
+  return body.trades.find((trade) => trade.name === name);
+}
+
+/** Delete the companies first (they reference the trade), then the trades. */
+async function cleanUpCompaniesAndTrades(
+  page: Page,
+  companies: string[],
+  trades: string[],
+): Promise<void> {
+  await deleteCompaniesNamed(page, companies);
+  for (const name of trades) {
+    const trade = await findTradeNamed(page, name);
+    if (trade) await page.request.delete(`${API.trades}/${trade.id}`);
+  }
+}
+
+/**
+ * The trade contract shared by every dialog the company form opens in: type a new trade, "New
+ * trade ‹text›" is offered, choosing it stacks the New trade dialog, Escape closes only that
+ * dialog (the company form keeps what was typed), and creating the trade for real selects it.
+ */
+async function createTradeInline(
+  page: Page,
+  company: ObjectFormDialog,
+  companyName: string,
+  tradeName: string,
+): Promise<void> {
+  const tradeForm = new ObjectFormDialog(page, 'New trade', 'tag-create-form');
+  const trade = new EntityPickerControl(page, 'tradeId', company.dialog);
+  await expect(company.field('name')).toHaveValue(companyName);
+
+  await trade.type(tradeName);
+  await expect(trade.createOption('trade', tradeName)).toBeVisible();
+  await trade.choose(trade.createOption('trade', tradeName));
+  await tradeForm.waitForOpen();
+  await expect(tradeForm.field('name')).toHaveValue(tradeName);
+
+  // Escape closes only the top dialog; the company form keeps its typed name
+  await page.keyboard.press('Escape');
+  await tradeForm.waitForClosed();
+  await expect(company.dialog).toBeVisible();
+  await expect(company.field('name')).toHaveValue(companyName);
+
+  // Create the trade for real
+  await trade.type(tradeName);
+  await trade.choose(trade.createOption('trade', tradeName));
+  await tradeForm.waitForOpen();
+  await tradeForm.save();
+  await tradeForm.waitForClosed();
+  await expect(trade.selectedDisplay()).toContainText(tradeName);
+}
+
+test.describe('Company dialog - inline trade (#2255 E3, AC1)', { tag: '@responsive' }, () => {
+  test('E3: the New company dialog of a company picker offers "New trade" and the trade is saved on the company', async ({
+    page,
+    testPrefix,
+  }) => {
+    const capture = new DiaryCapturePage(page);
+    const picker = capture.companyPicker;
+    const companyName = `${testPrefix} Inline Trade Co 2255`;
+    const tradeName = `${testPrefix} Inline Trade 2255`;
+    const entryId = await createDiaryEntryViaApi(page, {
+      entryType: 'daily_log',
+      entryDate: '2026-03-15',
+      body: `${testPrefix} 2255 log body`,
+      title: `${testPrefix} 2255 log`,
+    });
+    try {
+      await capture.gotoEdit(entryId);
+      await capture.openCompanyPicker();
+      await picker.openCreateForm(companyName);
+
+      await createTradeInline(page, picker.form, companyName, tradeName);
+      await picker.form.save();
+      await picker.form.waitForClosed();
+
+      // The company exists with the new trade
+      const trade = await findTradeNamed(page, tradeName);
+      expect(trade, 'the trade was created').toBeTruthy();
+      const vendor = await findVendorNamed(page, companyName);
+      expect(vendor, 'the company was created').toBeTruthy();
+      expect(vendor!.trade?.id).toBe(trade!.id);
+    } finally {
+      await deleteDiaryEntryViaApi(page, entryId);
+      await cleanUpCompaniesAndTrades(page, [companyName], [tradeName]);
+    }
+  });
+
+  test('E3b: the company step of the New invoice dialog offers "New trade" too', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoices = new InvoicesPage(page);
+    const dialog = invoices.createDialog;
+    const companyName = `${testPrefix} Invoice Trade Co 2255`;
+    const tradeName = `${testPrefix} Invoice Trade 2255`;
+    try {
+      await invoices.goto();
+      await invoices.waitForLoaded();
+      await invoices.openCreateModal();
+      await dialog.openNewCompany(companyName);
+
+      await createTradeInline(page, dialog.companyChild, companyName, tradeName);
+      await dialog.companyChild.save();
+      await dialog.waitForOpen();
+      await expect(dialog.companyChip()).toContainText(companyName);
+
+      const trade = await findTradeNamed(page, tradeName);
+      expect(trade, 'the trade was created').toBeTruthy();
+      const vendor = await findVendorNamed(page, companyName);
+      expect(vendor, 'the company was created').toBeTruthy();
+      expect(vendor!.trade?.id).toBe(trade!.id);
+    } finally {
+      await cleanUpCompaniesAndTrades(page, [companyName], [tradeName]);
+    }
+  });
+
+  test('E4: a company created from /companies/new keeps the name, trade, phone, e-mail and address it was given', async ({
+    page,
+    testPrefix,
+  }) => {
+    const list = new VendorsPage(page);
+    const detail = new VendorDetailPage(page);
+    const name = `${testPrefix} Persisted Co 2255`;
+    const tradeName = `${testPrefix} Persisted Trade 2255`;
+    const tradeResponse = await page.request.post(API.trades, { data: { name: tradeName } });
+    expect(tradeResponse.ok(), `POST trade: ${tradeResponse.status()}`).toBeTruthy();
+    const tradeId = ((await tradeResponse.json()) as { trade: { id: string } }).trade.id;
+    try {
+      await page.goto(routeUrl('companyNew'));
+      await list.createDialog.waitForOpen();
+      await list.createDialog.field('name').fill(name);
+      const trade = new EntityPickerControl(page, 'tradeId', list.createDialog.dialog);
+      await trade.pick(tradeName);
+      await list.createDialog.expandMoreDetails();
+      await list.createDialog.field('phone').fill('555-0255');
+      await list.createDialog.field('email').fill('persisted.2255@example.com');
+      await list.createDialog.field('address').fill('2255 Sample Street');
+      await list.createDialog.save();
+
+      await expect(detail.pageTitle).toHaveText(name);
+      const vendor = await findVendorNamed(page, name);
+      expect(vendor, 'the company was created').toBeTruthy();
+      const stored = await page.request.get(`${API.vendors}/${vendor!.id}`);
+      const record = (
+        (await stored.json()) as {
+          vendor: {
+            name: string;
+            phone: string | null;
+            email: string | null;
+            address: string | null;
+            trade: { id: string } | null;
+          };
+        }
+      ).vendor;
+      expect(record).toMatchObject({
+        name,
+        phone: '555-0255',
+        email: 'persisted.2255@example.com',
+        address: '2255 Sample Street',
+      });
+      expect(record.trade?.id).toBe(tradeId);
+    } finally {
+      await cleanUpCompaniesAndTrades(page, [name], [tradeName]);
     }
   });
 });

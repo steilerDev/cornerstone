@@ -39,6 +39,7 @@ import { API } from '../../fixtures/testData.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
+import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
 import { InvoiceFormDialog } from '../../pages/components/InvoiceFormDialog.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { VendorsPage } from '../../pages/VendorsPage.js';
@@ -1172,5 +1173,117 @@ test.describe('Company page - History', { tag: '@responsive' }, () => {
     await expect(company.history).toContainText(
       "Nothing has happened to this company's offers and invoices yet.",
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #2255 - one schema per object: the company cards show the dialog's fields, and the contact
+// person dialog names both name fields
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Company page - quick-create schemas (#2255)', { tag: '@responsive' }, () => {
+  test('E7: the Phone and e-mail, Address and About cards carry the New company dialog labels', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createCompany(page, { name: `${testPrefix} Schema Parity Co 2255` });
+    const company = new VendorDetailPage(page);
+    await company.goto(id);
+
+    // The labels of the New company dialog (Name, Trade, Phone, E-mail, Address, Notes)
+    const labelled = (
+      card: 'company-phone-email' | 'company-address' | 'company-about',
+      text: string,
+    ) => company.cardForm(card).getByLabel(new RegExp(`^${text}`));
+
+    await company.startEdit('company-phone-email');
+    await expect(labelled('company-phone-email', 'Phone')).toBeVisible();
+    await expect(labelled('company-phone-email', 'E-mail')).toBeVisible();
+    await company.cancelCard('company-phone-email');
+
+    await company.startEdit('company-address');
+    await expect(labelled('company-address', 'Address')).toBeVisible();
+    await company.cancelCard('company-address');
+
+    await company.startEdit('company-about');
+    await expect(labelled('company-about', 'Name')).toBeVisible();
+    await expect(labelled('company-about', 'Trade')).toBeVisible();
+    await expect(labelled('company-about', 'Notes')).toBeVisible();
+  });
+
+  test('E7b: the About card offers "New trade" in Trade (the row only; nothing is created)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createCompany(page, { name: `${testPrefix} About Trade Co 2255` });
+    const company = new VendorDetailPage(page);
+    await company.goto(id);
+    await company.startEdit('company-about');
+
+    const typed = `${testPrefix} Never Created Trade 2255`;
+    const trade = new EntityPickerControl(
+      page,
+      company.cardForm('company-about').getByLabel(/^Trade/),
+    );
+    await trade.type(typed);
+    await expect(trade.createOption('trade', typed)).toBeVisible();
+    await expect(trade.createOption('trade', typed)).toHaveCount(1);
+  });
+
+  test('E7c: the New contact person dialog names both name fields; the saved person is stored', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createCompany(page, { name: `${testPrefix} Contact Schema Co 2255` });
+    const company = new VendorDetailPage(page);
+    await company.goto(id);
+
+    await company.openNewContact();
+    const dialog = company.newContactDialog;
+    // First and last name are essentials; Role, Phone, E-mail and Notes are behind More details
+    await expect(dialog.field('firstName')).toBeVisible();
+    await expect(dialog.field('lastName')).toBeVisible();
+    await expect(dialog.field('role')).toBeHidden();
+
+    // "First or last name": one message, and both fields are marked
+    await dialog.save();
+    await expect(dialog.fieldError('firstName')).toHaveText('Enter a first or last name.');
+    await expect(dialog.fieldError('lastName')).toHaveCount(0);
+    for (const name of ['firstName', 'lastName']) {
+      await expect(dialog.field(name)).toHaveAttribute('aria-invalid', 'true');
+      await expect(dialog.field(name)).toHaveAttribute(
+        'aria-describedby',
+        /(^|\s)firstName-error(\s|$)/,
+      );
+    }
+    await expect(dialog.dialog).toBeVisible();
+
+    // A last name alone satisfies the rule
+    await dialog.field('lastName').fill('Onlylast');
+    await dialog.expandMoreDetails();
+    await dialog.field('role').fill('Planner');
+    await dialog.field('phone').fill('555-0256');
+    await dialog.field('email').fill('onlylast.2255@example.com');
+    await dialog.save();
+    await dialog.waitForClosed();
+
+    const stored = await page.request.get(`${API.vendors}/${id}/contacts`);
+    const { contacts } = (await stored.json()) as {
+      contacts: Array<{
+        firstName: string | null;
+        lastName: string | null;
+        role: string | null;
+        phone: string | null;
+        email: string | null;
+      }>;
+    };
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]).toMatchObject({
+      lastName: 'Onlylast',
+      role: 'Planner',
+      phone: '555-0256',
+      email: 'onlylast.2255@example.com',
+    });
+    expect(contacts[0]!.firstName ?? '').toBe('');
   });
 });

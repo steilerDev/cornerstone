@@ -94,7 +94,8 @@ function CategoryCreateDialog({ returnFocus, name, onFinish }: TagCreateDialogPr
 /**
  * Lets the capture screen's chips and the EntityPicker open New area / orientation / trade /
  * purchase category in place (a dialog over the page) and get the created tag back. Imported only by `App.tsx`, so
- * ObjectForm stays out of page closures; pages use `useTagCreate`. It never navigates.
+ * ObjectForm stays out of page closures; pages use `useTagCreate`. It never navigates. Rendered outside
+ * CompanyCreateProvider, so the provider-hosted dialogs also offer New trade.
  */
 export function TagCreateProvider({ children }: { readonly children: ReactNode }) {
   const { user } = useAuth();

@@ -1222,3 +1222,35 @@ describe('discard confirm focus target (#2212)', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+describe('errorFrom in the dialog (#2255)', () => {
+  const linkedFields: readonly ObjectFormField[] = [
+    { name: 'first', label: 'First', kind: 'text', essential: true },
+    { name: 'last', label: 'Last', kind: 'text', essential: true, errorFrom: 'first' },
+  ];
+  const linkedSchema = () =>
+    makeSchema(
+      {
+        initialValues: { first: '', last: '' },
+        validate: (values) => (!values.first && !values.last ? { first: 'Need a name' } : {}),
+      },
+      linkedFields,
+    );
+
+  it('shows the message once under the source field and marks the linked field invalid', async () => {
+    const user = userEvent.setup();
+    setup({ schema: linkedSchema() });
+    await user.click(save());
+
+    expect(screen.getAllByText('Need a name')).toHaveLength(1);
+    const last = screen.getByLabelText('Last');
+    expect(last).toHaveAttribute('aria-invalid', 'true');
+    expect(last).toHaveAttribute('aria-describedby', 'first-error');
+    expect(document.getElementById('first-error')).toHaveTextContent('Need a name');
+  });
+
+  it('does not mark the linked field before the error exists', () => {
+    setup({ schema: linkedSchema() });
+    expect(screen.getByLabelText('Last')).not.toHaveAttribute('aria-invalid');
+  });
+});

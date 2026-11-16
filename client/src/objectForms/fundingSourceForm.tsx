@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { BUDGET_SOURCE_STATUSES, BUDGET_SOURCE_TYPES, routeUrl } from '@cornerstone/shared';
 import type { BudgetSourceStatus, BudgetSourceType } from '@cornerstone/shared';
+import { fieldsForScope } from '../components/ObjectForm/objectFormState.js';
 import type {
   ObjectFormErrors,
   ObjectFormField,
   ObjectFormSchema,
+  ObjectFormScope,
   ObjectFormValues,
 } from '../components/ObjectForm/types.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
@@ -23,13 +25,71 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+export interface FundingSourceFormOptions {
+  /** Default 'create' (the dialog). 'edit' = the funding source page Details card. */
+  readonly scope?: ObjectFormScope;
+  /** Edit scope: the record is Own funds (Type hidden, amount may be 0). Ignored in create scope. */
+  readonly isDiscretionary?: boolean;
+}
+
+export interface FundingSourceValueMessages {
+  readonly nameRequired: string;
+  readonly amountInvalid: string;
+  readonly amountNotNegative: string;
+  readonly interestInvalid: string;
+}
+
+/** The messages of `validateFundingSourceValues` (translation only). */
+export function useFundingSourceValueMessages(): FundingSourceValueMessages {
+  const { t } = useTranslation('budget');
+  return {
+    nameRequired: t('financing.errors.nameRequired'),
+    amountInvalid: t('financing.errors.amountInvalid'),
+    amountNotNegative: t('financing.errors.amountNotNegative'),
+    interestInvalid: t('financing.errors.interestInvalid'),
+  };
+}
+
 /**
- * The New funding source form (Financing page and the New menu). Page-agnostic: the dialog host
- * decides what happens after Save, and the edit form of the funding source page extends it.
+ * Every funding source rule, dialog and card alike. The amount must be above 0, except the Own
+ * funds source (`isDiscretionary`), which accepts 0 or more (mirrors `updateBudgetSource`).
  */
-export function useFundingSourceFormSchema(): ObjectFormSchema {
+export function validateFundingSourceValues(
+  values: ObjectFormValues,
+  messages: FundingSourceValueMessages,
+  options: { readonly isDiscretionary?: boolean } = {},
+): ObjectFormErrors {
+  const own = options.isDiscretionary === true;
+  const errors: Record<string, string> = {};
+  if (!text(values.name).trim()) errors.name = messages.nameRequired;
+  const rawAmount = text(values.totalAmount).trim();
+  const amount = Number(rawAmount);
+  if (!(rawAmount !== '' && Number.isFinite(amount) && (own ? amount >= 0 : amount > 0))) {
+    errors.totalAmount = own ? messages.amountNotNegative : messages.amountInvalid;
+  }
+  const rawRate = text(values.interestRate).trim();
+  if (rawRate !== '') {
+    const rate = Number(rawRate);
+    if (!(Number.isFinite(rate) && rate >= 0 && rate <= RATE_MAX)) {
+      errors.interestRate = messages.interestInvalid;
+    }
+  }
+  return errors;
+}
+
+/**
+ * The funding source form: the New funding source dialog (Financing page and the New menu;
+ * page-agnostic, the host decides what happens after Save) and, with `scope: 'edit'`, the fields
+ * of the funding source page Details card.
+ */
+export function useFundingSourceFormSchema(
+  options: FundingSourceFormOptions = {},
+): ObjectFormSchema {
+  const { scope = 'create' } = options;
+  const own = scope === 'edit' && options.isDiscretionary === true;
   const { t } = useTranslation('budget');
   const statusVariants = useStatusBadgeVariants();
+  const messages = useFundingSourceValueMessages();
 
   const fields: ObjectFormField[] = [
     {
@@ -70,6 +130,7 @@ export function useFundingSourceFormSchema(): ObjectFormSchema {
       essential: true,
       width: 'half',
       min: 0,
+      max: RATE_MAX,
       step: 0.01,
       inputMode: 'decimal',
     },
@@ -78,6 +139,7 @@ export function useFundingSourceFormSchema(): ObjectFormSchema {
       label: t('financing.fields.status'),
       kind: 'select',
       essential: true,
+      scope: 'create',
       width: 'half',
       options: BUDGET_SOURCE_STATUSES.map((status) => ({
         value: status,
@@ -112,30 +174,13 @@ export function useFundingSourceFormSchema(): ObjectFormSchema {
     notes: '',
   };
 
-  const validate = (values: ObjectFormValues): ObjectFormErrors => {
-    const errors: Record<string, string> = {};
-    if (!text(values.name).trim()) errors.name = t('financing.errors.nameRequired');
-    const amount = Number(text(values.totalAmount));
-    if (!(text(values.totalAmount).trim() !== '' && Number.isFinite(amount) && amount > 0)) {
-      errors.totalAmount = t('financing.errors.amountInvalid');
-    }
-    const rawRate = text(values.interestRate).trim();
-    if (rawRate !== '') {
-      const rate = Number(rawRate);
-      if (!(Number.isFinite(rate) && rate >= 0 && rate <= RATE_MAX)) {
-        errors.interestRate = t('financing.errors.interestInvalid');
-      }
-    }
-    return errors;
-  };
-
   const object = t('financing.nouns.source');
   return {
     id: 'funding-source',
     title: t('financing.form.titleNewSource', { object }),
-    fields,
+    fields: fieldsForScope(fields, scope).filter((field) => !(own && field.name === 'sourceType')),
     initialValues,
-    validate,
+    validate: (values) => validateFundingSourceValues(values, messages, { isDiscretionary: own }),
     addAnother: true,
     submit: async (values) => {
       const rawRate = text(values.interestRate).trim();

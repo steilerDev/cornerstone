@@ -12,6 +12,8 @@ import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormResult } from '../components/ObjectForm/types.js';
 import type * as VendorsApiTypes from '../lib/vendorsApi.js';
 import type * as TradesApiTypes from '../lib/tradesApi.js';
+import { TagCreateContext } from './tagCreateContext.js';
+import enCommon from '../i18n/en/common.json';
 import type * as FormTypes from './companyForm.js';
 import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
 
@@ -57,8 +59,14 @@ const TRADES = [
   trade('t-tile', 'Tiling'),
   { ...trade('t-elec', 'Electrical'), translationKey: 'trades.electrical' },
 ];
+const mockUseTrades = jest.fn((_options?: { enabled?: boolean }) => ({
+  trades: TRADES as TradeListItem[],
+  isLoading: false,
+  isInitialLoading: false,
+  error: null,
+}));
 jest.unstable_mockModule('../hooks/useTrades.js', () => ({
-  useTrades: () => ({ trades: TRADES, isLoading: false, isInitialLoading: false, error: null }),
+  useTrades: (options?: { enabled?: boolean }) => mockUseTrades(options),
 }));
 
 describe('companyForm (ObjectForm schema)', () => {
@@ -72,6 +80,13 @@ describe('companyForm (ObjectForm schema)', () => {
     mockFetchTrades.mockReset();
     mockFetchTrades.mockResolvedValue({ trades: TRADES } as never);
     onCreated.mockReset();
+    mockUseTrades.mockReset();
+    mockUseTrades.mockReturnValue({
+      trades: TRADES,
+      isLoading: false,
+      isInitialLoading: false,
+      error: null,
+    });
     mockCreateVendor.mockResolvedValue({
       id: 'c-1',
       name: 'Sample Roofing Co',
@@ -166,6 +181,104 @@ describe('companyForm (ObjectForm schema)', () => {
       expect(Object.keys(schema.initialValues ?? {}).sort()).toEqual(
         ['address', 'email', 'name', 'notes', 'phone', 'tradeId'].sort(),
       );
+    });
+  });
+
+  describe('scopes and options (#2255)', () => {
+    const SIX = ['name', 'tradeId', 'phone', 'email', 'address', 'notes'];
+
+    it('edit scope yields the same six fields', () => {
+      const edit = renderHook(() => Form.useCompanyFormSchema({ scope: 'edit' }), {
+        wrapper: MemoryRouter,
+      }).result.current;
+      expect(edit.fields.map((f) => f.name)).toEqual(SIX);
+    });
+
+    it('loads trades by default and not with load: { trades: false }', () => {
+      schemaNow();
+      expect(mockUseTrades).toHaveBeenLastCalledWith({ enabled: true });
+      renderHook(() => Form.useCompanyFormSchema({ load: { trades: false } }), {
+        wrapper: MemoryRouter,
+      });
+      expect(mockUseTrades).toHaveBeenLastCalledWith({ enabled: false });
+    });
+
+    it('knownTrade supplies the selected label while the trades list is empty', () => {
+      mockUseTrades.mockReturnValue({
+        trades: [],
+        isLoading: false,
+        isInitialLoading: false,
+        error: null,
+      });
+      function Edit() {
+        const schema = Form.useCompanyFormSchema({
+          scope: 'edit',
+          knownTrade: {
+            id: 't-known',
+            name: 'Glazing',
+            color: null,
+            translationKey: null,
+          } as never,
+        });
+        return (
+          <FormComponent.ObjectForm
+            schema={schema}
+            prefill={{ tradeId: 't-known' }}
+            onCreated={onCreated}
+            onCancel={() => {}}
+          />
+        );
+      }
+      render(
+        <MemoryRouter>
+          <Edit />
+        </MemoryRouter>,
+      );
+      expect(screen.getByText('Glazing')).toBeInTheDocument();
+    });
+
+    it.each(['create', 'edit'] as const)(
+      'offers "New trade <text>" in %s scope under a TagCreateContext (D1)',
+      async (scope) => {
+        const user = userEvent.setup();
+        const request = jest.fn(async () => null);
+        function Host() {
+          const schema = Form.useCompanyFormSchema({ scope });
+          return (
+            <FormComponent.ObjectForm schema={schema} onCreated={onCreated} onCancel={() => {}} />
+          );
+        }
+        render(
+          <MemoryRouter>
+            <TagCreateContext value={request}>
+              <Host />
+            </TagCreateContext>
+          </MemoryRouter>,
+        );
+        await user.type(screen.getByLabelText('Trade'), 'Glazing');
+        const expected = enCommon.entityPicker.new.trade.replace('{{name}}', 'Glazing');
+        expect(await screen.findByRole('option', { name: expected })).toBeInTheDocument();
+      },
+    );
+  });
+
+  describe('validateCompanyValues', () => {
+    const messages = { nameRequired: 'NR', nameTooLong: 'NL', emailInvalid: 'EI' };
+
+    it('flags blank, whitespace-only and over-long names; missing keys read as blank', () => {
+      expect(Form.validateCompanyValues({}, messages)).toEqual({ name: 'NR' });
+      expect(Form.validateCompanyValues({ name: '   ' }, messages)).toEqual({ name: 'NR' });
+      expect(Form.validateCompanyValues({ name: 'x'.repeat(201) }, messages)).toEqual({
+        name: 'NL',
+      });
+      expect(Form.validateCompanyValues({ name: 'x'.repeat(200) }, messages)).toEqual({});
+    });
+
+    it('flags a bad e-mail only', () => {
+      expect(Form.validateCompanyValues({ name: 'A', email: 'nope' }, messages)).toEqual({
+        email: 'EI',
+      });
+      expect(Form.validateCompanyValues({ name: 'A', email: 'a@b.co' }, messages)).toEqual({});
     });
   });
 

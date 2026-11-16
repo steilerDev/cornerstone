@@ -14,11 +14,13 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BudgetSource, UpdateBudgetSourceRequest } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enBudget from '../../i18n/en/budget.json';
 import type * as SectionModule from './FundingSourceDetailsSection.js';
 
 const mockUpdate = jest.fn<(id: string, body: UpdateBudgetSourceRequest) => Promise<unknown>>();
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   updateBudgetSource: mockUpdate,
+  createBudgetSource: jest.fn(),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
   const localeValue = {
@@ -113,6 +115,7 @@ describe('FundingSourceDetailsSection', () => {
       expect(field('source-field-name').value).toBe('Loan Alpha');
       expect(field('source-field-amount').value).toBe('50000');
       expect(field('source-field-interest-rate').value).toBe('3.5');
+      expect(field('source-field-interest-rate')).toHaveAttribute('max', '100');
       expect(field('source-field-reference').value).toBe('REF-1');
       expect((screen.getByTestId('source-field-type') as HTMLSelectElement).value).toBe(
         'bank_loan',
@@ -337,5 +340,114 @@ describe('FundingSourceDetailsSection', () => {
       expect(screen.queryByText('Enter a name.')).toBeNull();
       expect(field('source-field-name').value).toBe('Loan Alpha');
     });
+  });
+});
+
+describe('FundingSourceDetailsSection on the schema (#2255)', () => {
+  let Section: typeof SectionModule.FundingSourceDetailsSection;
+  const onSaved = jest.fn<() => Promise<unknown>>();
+
+  beforeEach(async () => {
+    mockUpdate.mockReset().mockResolvedValue({});
+    onSaved.mockReset().mockResolvedValue(undefined);
+    if (!Section)
+      ({ FundingSourceDetailsSection: Section } = await import('./FundingSourceDetailsSection.js'));
+  });
+
+  const open = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(await screen.findByTestId('source-details-edit'));
+
+  it('has no Status control in the card (Status is a create-only essential)', async () => {
+    const user = userEvent.setup();
+    render(<Section source={source()} onSaved={onSaved} />);
+    await open(user);
+
+    const form = screen.getByTestId('source-details-form');
+    expect(within(form).queryByLabelText(enBudget.financing.fields.status)).toBeNull();
+  });
+
+  it('labels the inputs with the schema (en) labels, and the type field only for non-Own funds', async () => {
+    const user = userEvent.setup();
+    render(<Section source={source()} onSaved={onSaved} />);
+    await open(user);
+
+    expect(screen.getByTestId('source-field-name')).toHaveAccessibleName(
+      new RegExp(enBudget.financing.fields.name),
+    );
+    expect(screen.getByTestId('source-field-amount')).toHaveAccessibleName(
+      new RegExp(enBudget.financing.fields.amount),
+    );
+    expect(screen.getByTestId('source-field-interest-rate')).toHaveAccessibleName(
+      new RegExp(enBudget.financing.fields.interestRate),
+    );
+    expect(screen.getByTestId('source-field-type')).toHaveAccessibleName(
+      new RegExp(enBudget.financing.fields.type),
+    );
+  });
+
+  it('Own funds: no Type, an amount of 0 saves, -1 shows the not-negative message, sourceType is never sent', async () => {
+    const user = userEvent.setup();
+    render(
+      <Section
+        source={source({ sourceType: 'discretionary', isDiscretionary: true, totalAmount: 100 })}
+        onSaved={onSaved}
+      />,
+    );
+    await open(user);
+    expect(screen.queryByTestId('source-field-type')).toBeNull();
+    const amount = screen.getByTestId('source-field-amount');
+
+    await user.clear(amount);
+    await user.type(amount, '-1');
+    await user.click(screen.getByTestId('source-details-save'));
+    expect(await screen.findByText(enBudget.financing.errors.amountNotNegative)).toBeVisible();
+    expect(mockUpdate).not.toHaveBeenCalled();
+
+    await user.clear(amount);
+    await user.type(amount, '0');
+    await user.click(screen.getByTestId('source-details-save'));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    const body = mockUpdate.mock.calls[0]![1];
+    expect(body).toEqual({ totalAmount: 0 });
+    expect(body).not.toHaveProperty('sourceType');
+  });
+
+  it('a loan with amount 0 shows the amountInvalid message', async () => {
+    const user = userEvent.setup();
+    render(<Section source={source()} onSaved={onSaved} />);
+    await open(user);
+    const amount = screen.getByTestId('source-field-amount');
+
+    await user.clear(amount);
+    await user.type(amount, '0');
+    await user.click(screen.getByTestId('source-details-save'));
+
+    expect(await screen.findByText(enBudget.financing.errors.amountInvalid)).toBeVisible();
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('Cancel on a dirty card asks to discard, and discarding restores the stored value', async () => {
+    const user = userEvent.setup();
+    render(<Section source={source()} onSaved={onSaved} />);
+    await open(user);
+    await user.type(screen.getByTestId('source-field-notes'), ' edited');
+
+    await user.click(screen.getByTestId('source-details-cancel'));
+    await user.click(await screen.findByRole('button', { name: 'Discard' }));
+
+    await open(user);
+    expect(screen.getByTestId('source-field-notes')).toHaveValue('A note');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('keeps ids unique and prefixed per card instance', async () => {
+    const user = userEvent.setup();
+    render(<Section source={source()} onSaved={onSaved} />);
+    await open(user);
+
+    const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(screen.getByTestId('source-field-name').id).toMatch(/-name$/);
   });
 });

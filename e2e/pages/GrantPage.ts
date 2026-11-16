@@ -61,11 +61,19 @@ export class GrantPage {
   readonly deadlineInput: Locator;
   readonly descriptionInput: Locator;
   readonly notesInput: Locator;
+  /** The Rate field's hint ("Share of the covered costs the grant pays"); absent on a fixed grant. */
+  readonly rateHint: Locator;
+  /** The cap field's hint ("Only costs up to this amount count. Leave empty for no limit."). */
+  readonly capHint: Locator;
+  /** Any type selector or radio inside the Details card form (there must be none). */
+  readonly typeControls: Locator;
   readonly eligibilityCard: Locator;
   readonly eligibilityEdit: Locator;
   readonly eligibilitySave: Locator;
   readonly eligibilityCancel: Locator;
   readonly eligibilityInput: Locator;
+  /** The Cost categories multi-picker input, reached by its label (edit mode of the Eligibility card). */
+  readonly categoriesInput: Locator;
   readonly explanation: Locator;
   readonly explanationText: Locator;
 
@@ -106,11 +114,17 @@ export class GrantPage {
     this.deadlineInput = page.getByTestId('grant-field-deadline');
     this.descriptionInput = page.getByTestId('grant-field-description');
     this.notesInput = page.getByTestId('grant-field-notes');
+    this.rateHint = this.detailsCard.getByText('Share of the covered costs the grant pays');
+    this.capHint = this.detailsCard.getByText(
+      'Only costs up to this amount count. Leave empty for no limit.',
+    );
+    this.typeControls = this.detailsCard.locator('select, [type="radio"]');
     this.eligibilityCard = page.getByTestId('grant-eligibility');
     this.eligibilityEdit = page.getByTestId('grant-eligibility-edit');
     this.eligibilitySave = page.getByTestId('grant-eligibility-save');
     this.eligibilityCancel = page.getByTestId('grant-eligibility-cancel');
     this.eligibilityInput = page.getByTestId('grant-field-eligibility');
+    this.categoriesInput = this.eligibilityCard.getByLabel('Cost categories');
     this.explanation = page.getByTestId('grant-explanation');
     this.explanationText = page.getByTestId('grant-explanation-text');
 

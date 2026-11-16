@@ -46,9 +46,36 @@ function initialOf(options: ContactPersonFormOptions): Record<ContactField, stri
   };
 }
 
+export interface ContactPersonValueMessages {
+  readonly nameRequired: string;
+  readonly emailInvalid: string;
+}
+
+/** The messages of `validateContactPersonValues` (translation only). */
+export function useContactPersonValueMessages(): ContactPersonValueMessages {
+  const { t } = useTranslation('budget');
+  return {
+    nameRequired: t('companyPage.contactPersons.nameRequired'),
+    emailInvalid: t('companies.form.emailInvalid'),
+  };
+}
+
+/** Every contact person rule (first or last name; a valid e-mail); missing keys read as ''. */
+export function validateContactPersonValues(
+  values: ObjectFormValues,
+  messages: ContactPersonValueMessages,
+): ObjectFormErrors {
+  const errors: Record<string, string> = {};
+  if (!text(values.firstName) && !text(values.lastName)) errors.firstName = messages.nameRequired;
+  const email = text(values.email);
+  if (email && !isEmailAddress(email)) errors.email = messages.emailInvalid;
+  return errors;
+}
+
 /** The New / Edit contact person form of a company. Field names are the API body keys. */
 export function useContactPersonFormSchema(options: ContactPersonFormOptions): ObjectFormSchema {
   const { t } = useTranslation('budget');
+  const messages = useContactPersonValueMessages();
   const initialValues = initialOf(options);
   const { vendorId, onSaved } = options;
 
@@ -65,6 +92,7 @@ export function useContactPersonFormSchema(options: ContactPersonFormOptions): O
         label: t('companyPage.contactPersons.form.firstName'),
         kind: 'text',
         essential: true,
+        width: 'half',
         maxLength: NAME_MAX_LENGTH,
         testId: 'contact-person-first-name',
       },
@@ -73,6 +101,8 @@ export function useContactPersonFormSchema(options: ContactPersonFormOptions): O
         label: t('companyPage.contactPersons.form.lastName'),
         kind: 'text',
         essential: true,
+        width: 'half',
+        errorFrom: 'firstName',
         maxLength: NAME_MAX_LENGTH,
         testId: 'contact-person-last-name',
       },
@@ -107,15 +137,7 @@ export function useContactPersonFormSchema(options: ContactPersonFormOptions): O
         testId: 'contact-person-notes',
       },
     ],
-    validate: (values: ObjectFormValues): ObjectFormErrors => {
-      const errors: Record<string, string> = {};
-      if (!text(values.firstName) && !text(values.lastName)) {
-        errors.firstName = t('companyPage.contactPersons.nameRequired');
-      }
-      const email = text(values.email);
-      if (email && !isEmailAddress(email)) errors.email = t('companies.form.emailInvalid');
-      return errors;
-    },
+    validate: (values) => validateContactPersonValues(values, messages),
     submit: async (values) => {
       const trimmed = (field: ContactField) => text(values[field]) || null;
       let saved: VendorContact;
