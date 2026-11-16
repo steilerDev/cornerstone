@@ -54,8 +54,8 @@ interface BudgetLine {
   description: string;
   plannedAmount: number;
   includesVat: boolean | null;
-  budgetCategoryId: string | null;
-  budgetSourceId: string | null;
+  budgetCategory: { id: string } | null;
+  budgetSource: { id: string } | null;
 }
 
 async function fetchBudgets(page: Page, taskId: string): Promise<BudgetLine[]> {
@@ -125,8 +125,8 @@ test.describe('New task: Planned cost (Q1-Q3, AC1)', { tag: '@responsive' }, () 
       description: title,
       plannedAmount: 1500,
       includesVat: false,
-      budgetCategoryId: null,
-      budgetSourceId: await findOwnFundsId(page),
+      budgetCategory: null,
+      budgetSource: { id: await findOwnFundsId(page) },
     });
     const task = (await (await page.request.get(`${API.workItems}/${taskId}`)).json()) as {
       assignedVendor: { id: string } | null;
