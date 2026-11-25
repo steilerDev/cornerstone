@@ -16,7 +16,6 @@
     "loadingMore": "Loading more entries…",
     "loadingMoreAriaLabel": "Loading more diary entries",
     "loadMoreButton": "Load more",
-    "retryButton": "Retry",
     "errorMessage": "Failed to load more entries.",
     "endOfList": "You've reached the end — no more entries to load.",
     "initialLoadAnnouncement_one": "{{count}} entry loaded",

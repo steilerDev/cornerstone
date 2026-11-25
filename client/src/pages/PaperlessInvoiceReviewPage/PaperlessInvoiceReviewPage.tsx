@@ -389,7 +389,7 @@ export function PaperlessInvoiceReviewPage() {
               onClick={handleCancel}
               disabled
             >
-              {t('autoItemize.cancel')}
+              {t('common:button.cancel')}
             </button>
           </div>
           <div className={styles.headerMain}>
@@ -413,7 +413,7 @@ export function PaperlessInvoiceReviewPage() {
         <div className={styles.pageHeader}>
           <div>
             <button type="button" className={sharedStyles.btnSecondary} onClick={handleCancel}>
-              {t('autoItemize.cancel')}
+              {t('common:button.cancel')}
             </button>
           </div>
           <div className={styles.headerMain}>
@@ -657,7 +657,7 @@ export function PaperlessInvoiceReviewPage() {
                 onClick={handleCancel}
                 disabled={isSaving}
               >
-                {t('autoItemize.cancel')}
+                {t('common:button.cancel')}
               </button>
             </div>
           </div>

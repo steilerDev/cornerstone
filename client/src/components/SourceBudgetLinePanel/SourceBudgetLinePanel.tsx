@@ -612,7 +612,7 @@ export function SourceBudgetLinePanel({
         <div className={styles.errorBanner} role="alert">
           <p>{error}</p>
           <button type="button" className={styles.retryButton} onClick={onRetry}>
-            {t('sources.lines.retry')}
+            {t('common:button.retry')}
           </button>
         </div>
       </div>

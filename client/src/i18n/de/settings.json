@@ -37,10 +37,7 @@
     "theme": "Design"
   },
   "userManagement": {
-    "loading": "Benutzer werden geladen...",
-    "errorTitle": "Fehler",
     "loadError": "Benutzer konnten nicht geladen werden. Bitte versuche es erneut.",
-    "searchPlaceholder": "Nach Name oder E-Mail suchen...",
     "emptyState": "Keine Benutzer gefunden.",
     "emptyStateSearch": "Keine Benutzer gefunden, die deiner Suche entsprechen.",
     "tableHeaders": {
@@ -49,7 +46,6 @@
       "role": "Rolle",
       "authProvider": "Authentifizierung",
       "status": "Status",
-      "actions": "Aktionen",
       "memberSince": "Mitglied seit"
     },
     "roles": {
@@ -108,7 +104,6 @@
     },
     "deactivateModal": {
       "title": "{{name}} deaktivieren?",
-      "closeAriaLabel": "Schließen",
       "message": "Die Sitzungen werden sofort beendet.",
       "confirm": "Deaktivieren",
       "confirming": "Wird deaktiviert...",
@@ -323,9 +318,7 @@
     "rename": "Umbenennen",
     "renameLabel": "Neuer Name für {{name}}",
     "renameHint": "Beim Umbenennen wird die eingebaute Übersetzung ersetzt.",
-    "save": "Speichern",
     "saving": "Wird gespeichert…",
-    "cancel": "Abbrechen",
     "mergeDuplicates": "Doppelte zusammenführen…",
     "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits.",
     "nameRequired": "Gib einen Namen ein.",

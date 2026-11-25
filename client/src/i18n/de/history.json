@@ -46,7 +46,6 @@
   "infiniteScroll": {
     "loadingMore": "Weitere Änderungen werden geladen",
     "loadMore": "Mehr laden",
-    "retry": "Erneut versuchen",
     "loadMoreError": "Weitere Änderungen konnten nicht geladen werden.",
     "endOfList": "Du bist am Anfang des Verlaufs angekommen.",
     "batchAppended_one": "{{count}} weitere Änderung geladen",

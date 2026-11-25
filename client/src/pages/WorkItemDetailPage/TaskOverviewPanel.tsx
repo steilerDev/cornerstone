@@ -208,7 +208,7 @@ export function TaskOverviewPanel({
               message={fetchFailureMessage(failure, tErrors, t('taskPage.notes.loadError'))}
             />
             <button type="button" className={styles.compactButton} onClick={retry}>
-              {t('taskPage.retry')}
+              {t('common:button.retry')}
             </button>
           </div>
         ) : null}

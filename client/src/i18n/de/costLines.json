@@ -13,7 +13,6 @@
     "emptyTitle": "Noch keine Kostenpositionen vorhanden",
     "emptyBodyItem": "Füge eine Position mit einer Schätzung hinzu oder verknüpfe eine Position mit einem Angebot oder einer Rechnung.",
     "loadError": "Die Kostenpositionen konnten nicht geladen werden.",
-    "retry": "Erneut versuchen",
     "saved": "Gespeichert.",
     "savedCount_one": "{{count}} Position gespeichert.",
     "savedCount_other": "{{count}} Positionen gespeichert.",
@@ -159,7 +158,6 @@
     "removeLastReason": "Eine Tabelle braucht mindestens eine Zeile.",
     "enteredToggle": "{{value}}, erfasst als, Zeile {{row}}",
     "scrollRegion": "Tabelle der Kostenpositionen, scrollt seitlich",
-    "rowActions": "Aktionen für Zeile {{row}}",
     "rowRemoved": "Zeile {{row}} entfernt.",
     "status_one": "{{count}} Position",
     "status_other": "{{count}} Positionen",
@@ -177,7 +175,6 @@
     "previewHeading": "Dokument",
     "discardLead": "Die hinzugefügten Positionen sind nicht gespeichert.",
     "saving": "Wird gespeichert…",
-    "orphanHint": "Positionen ohne Aufgabe oder Anschaffung werden als nicht zugewiesen gespeichert.",
     "existingLabel": "Verknüpft {{description}}",
     "clearExisting": "Stattdessen neue Position verwenden",
     "optionsLoading": "Die Finanzierungsquellen werden noch geladen."

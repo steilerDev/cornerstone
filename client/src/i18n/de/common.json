@@ -55,7 +55,6 @@
   },
   "name": "Name",
   "noArea": "Kein Bereich",
-  "noAreaDescription": "Kein Bereich – alles ohne Bereichszuordnung anzeigen",
   "button": {
     "close": "Schließen",
     "save": "Speichern",
@@ -63,21 +62,16 @@
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "add": "Hinzufügen",
-    "create": "Erstellen",
-    "confirm": "Bestätigen",
     "back": "Zurück",
-    "search": "Suchen",
     "clearFilters": "Filter zurücksetzen",
     "next": "Weiter",
     "retry": "Erneut versuchen"
   },
-  "optional": "(optional)",
   "aria": {
     "goToHome": "Zum Start",
     "closeDialog": "Dialog schließen",
     "clearSelection": "Auswahl aufheben",
     "noArea": "Kein Bereich",
-    "noTrade": "Kein Gewerk",
     "noOrientation": "Keine Ausrichtung",
     "selectArea": "Bereich auswählen",
     "selectTrade": "Gewerk auswählen",
@@ -391,20 +385,6 @@
     "removeFailed": "{{title}} konnte nicht entfernt werden. Versuche es erneut.",
     "retry": "Erneut versuchen"
   },
-  "tagPicker": {
-    "placeholderEmpty": "Tags hinzufügen...",
-    "placeholderMore": "Weitere hinzufügen...",
-    "createHeader": "Neuen Tag erstellen:",
-    "colorLabel": "Farbe:",
-    "createButton": "Tag erstellen",
-    "creating": "Wird erstellt...",
-    "createError": "Tag konnte nicht erstellt werden. Bitte versuche es erneut.",
-    "noMatchingTags": "Keine passenden Tags gefunden",
-    "noMoreTags": "Keine weiteren Tags verfügbar"
-  },
-  "tagPill": {
-    "removeAriaLabel": "Tag {{name}} entfernen"
-  },
   "keyboardShortcuts": {
     "title": "Tastaturkürzel",
     "noPageShortcuts": "Diese Seite hat keine eigenen Tastaturkürzel.",
@@ -440,10 +420,6 @@
       "no": "Nein",
       "min": "Min",
       "max": "Max",
-      "from": "Von",
-      "to": "Bis",
-      "clearFilter": "Zurücksetzen",
-      "applyFilter": "Anwenden",
       "filterByColumn": "Nach {{column}} filtern",
       "textPlaceholder": "Suchen...",
       "searchPlaceholder": "Suchen...",
@@ -451,12 +427,6 @@
       "selectAll": "Alle auswählen",
       "selectNone": "Keine auswählen",
       "dateRangeAriaLabel": "Datumsbereichsauswahl"
-    },
-    "sort": {
-      "ascending": "Aufsteigend sortieren",
-      "descending": "Absteigend sortieren",
-      "none": "Keine Sortierung",
-      "ariaLabel": "Nach {{column}} sortieren"
     },
     "columnSettings": {
       "ariaLabel": "Spalteneinstellungen",
@@ -467,7 +437,6 @@
     },
     "pagination": {
       "showing": "Zeige {{from}}–{{to}} von {{total}}",
-      "page": "Seite {{page}} von {{totalPages}}",
       "previous": "Zurück",
       "next": "Weiter",
       "pageSize": "Pro Seite"

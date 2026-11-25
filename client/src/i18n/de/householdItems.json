@@ -138,7 +138,6 @@
   "purchasePage": {
     "typeLabel": "Anschaffung",
     "loading": "Anschaffung wird geladen…",
-    "retry": "Erneut versuchen",
     "deleted": "Anschaffung gelöscht.",
     "deleteError": "Die Anschaffung konnte nicht gelöscht werden.",
     "strip": {

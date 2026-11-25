@@ -96,7 +96,7 @@ function InvoiceDetailView({ id }: { id: string }) {
               className={sharedStyles.btnSecondary}
               onClick={() => void record.reload()}
             >
-              {t('invoiceDetail.retry')}
+              {t('common:button.retry')}
             </button>
           </div>
         </div>

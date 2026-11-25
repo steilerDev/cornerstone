@@ -86,7 +86,7 @@ function LoadError({
     <div className={styles.loadError}>
       <FormError message={loadError.message} />
       <button type="button" className={styles.retry} onClick={loadError.onRetry}>
-        {t('overview.retry')}
+        {t('common:button.retry')}
       </button>
     </div>
   );

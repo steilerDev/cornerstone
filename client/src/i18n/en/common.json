@@ -55,7 +55,6 @@
   },
   "name": "Name",
   "noArea": "No Area",
-  "noAreaDescription": "No area — show everything without an area",
   "button": {
     "close": "Close",
     "save": "Save",
@@ -63,21 +62,16 @@
     "delete": "Delete",
     "edit": "Edit",
     "add": "Add",
-    "create": "Create",
-    "confirm": "Confirm",
     "back": "Back",
-    "search": "Search",
     "clearFilters": "Clear Filters",
     "next": "Next",
     "retry": "Retry"
   },
-  "optional": "(optional)",
   "aria": {
     "goToHome": "Go to Home",
     "closeDialog": "Close dialog",
     "clearSelection": "Clear selection",
     "noArea": "No area",
-    "noTrade": "No trade",
     "noOrientation": "No orientation",
     "selectArea": "Select an area",
     "selectTrade": "Select a trade",
@@ -391,20 +385,6 @@
     "removeFailed": "{{title}} could not be removed. Try again.",
     "retry": "Try again"
   },
-  "tagPicker": {
-    "placeholderEmpty": "Add tags...",
-    "placeholderMore": "Add more...",
-    "createHeader": "Create new tag:",
-    "colorLabel": "Color:",
-    "createButton": "Create Tag",
-    "creating": "Creating...",
-    "createError": "Failed to create tag. Please try again.",
-    "noMatchingTags": "No matching tags found",
-    "noMoreTags": "No more tags available"
-  },
-  "tagPill": {
-    "removeAriaLabel": "Remove tag {{name}}"
-  },
   "keyboardShortcuts": {
     "title": "Keyboard shortcuts",
     "noPageShortcuts": "This page has no shortcuts of its own.",
@@ -440,10 +420,6 @@
       "no": "No",
       "min": "Min",
       "max": "Max",
-      "from": "From",
-      "to": "To",
-      "clearFilter": "Clear",
-      "applyFilter": "Apply",
       "filterByColumn": "Filter by {{column}}",
       "textPlaceholder": "Search...",
       "searchPlaceholder": "Search...",
@@ -451,12 +427,6 @@
       "selectAll": "Select All",
       "selectNone": "Select None",
       "dateRangeAriaLabel": "Date range picker"
-    },
-    "sort": {
-      "ascending": "Sort ascending",
-      "descending": "Sort descending",
-      "none": "No sort",
-      "ariaLabel": "Sort by {{column}}"
     },
     "columnSettings": {
       "ariaLabel": "Column settings",
@@ -467,7 +437,6 @@
     },
     "pagination": {
       "showing": "Showing {{from}}–{{to}} of {{total}}",
-      "page": "Page {{page}} of {{totalPages}}",
       "previous": "Previous",
       "next": "Next",
       "pageSize": "Per page"

@@ -113,7 +113,7 @@ function TaskView({ id }: { id: string }) {
                 className={sharedStyles.btnSecondary}
                 onClick={() => void state.reload()}
               >
-                {t('taskPage.retry')}
+                {t('common:button.retry')}
               </button>
             )}
           </div>
@@ -470,7 +470,7 @@ function TaskTabs({
               empty: t('taskPage.diary.empty'),
               loadError: t('taskPage.diary.loadError'),
               showAll: t('taskPage.diary.showAll'),
-              retry: t('taskPage.retry'),
+              retry: t('common:button.retry'),
               loading: t('taskPage.loading'),
               srCount: (count) => t('taskPage.diary.srCount', { count }),
             }}
@@ -494,7 +494,7 @@ function TaskTabs({
                 title: t('taskPage.history.title'),
                 empty: t('taskPage.history.empty'),
                 loadError: t('taskPage.history.loadError'),
-                retry: t('taskPage.retry'),
+                retry: t('common:button.retry'),
                 showAll: t('taskPage.history.showAll'),
               }}
             />

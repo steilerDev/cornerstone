@@ -312,7 +312,7 @@ export function DocumentBrowser({
             loadingLabel={t('browser.infiniteScroll.loadingMore')}
             loadingAriaLabel={t('browser.infiniteScroll.loadingMoreAriaLabel')}
             loadMoreLabel={t('browser.infiniteScroll.loadMoreButton')}
-            retryLabel={t('browser.infiniteScroll.retryButton')}
+            retryLabel={t('common:button.retry')}
             errorMessage={t('browser.infiniteScroll.errorMessage')}
             endOfListMessage={t('browser.infiniteScroll.endOfList')}
             sentinelRef={hook.sentinelRef}

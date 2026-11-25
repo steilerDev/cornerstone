@@ -79,7 +79,7 @@ export function CatchUpDialog({
       onClick={onClose}
       data-testid="home-catch-up-close"
     >
-      {t('catchUp.close')}
+      {t('common:button.close')}
     </button>
   );
 

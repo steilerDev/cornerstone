@@ -39,6 +39,10 @@ Index only. Detail lives in the linked topic files.
 - [Area page strip wording #2251](area-page-strip-wording-2251.md) — Area strip/detail de forms aligned with Task and Purchase strips
 - [Financing vocabulary #2242](financing-vocabulary-2242.md) — per-kind gender templates, Covered items, Own funds, PERMANENT_ALIASES gotcha
 
+## Key hygiene
+
+- [Key deletion mirroring](key-deletion-mirroring.md) — derive de deletions from the en git diff; JSON rewrite is lossless
+
 ## Audit history
 
 - [Audit pitfalls](audit-pitfalls.md) — why the 4-step full-coverage audit protocol exists

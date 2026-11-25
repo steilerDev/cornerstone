@@ -307,7 +307,7 @@ export function ConvertOfferForm({
           onClick={handleCancel}
           data-testid="convert-cancel"
         >
-          {t('convertPage.actions.cancel')}
+          {t('common:button.cancel')}
         </button>
         <button
           type="submit"

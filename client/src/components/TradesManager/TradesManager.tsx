@@ -403,7 +403,7 @@ export function TradesManager({
                       aria-disabled={saving ? 'true' : undefined}
                       data-testid={`${testIdPrefix}-rename-save`}
                     >
-                      {saving ? t('tradesManager.saving') : t('tradesManager.save')}
+                      {saving ? t('tradesManager.saving') : t('common:button.save')}
                     </button>
                     <button
                       type="button"
@@ -411,7 +411,7 @@ export function TradesManager({
                       onClick={() => finishRename(trade.id)}
                       data-testid={`${testIdPrefix}-rename-cancel`}
                     >
-                      {t('tradesManager.cancel')}
+                      {t('common:button.cancel')}
                     </button>
                   </div>
                 </form>

@@ -504,7 +504,7 @@ export function AutoItemizePage() {
             <FormError variant="banner" message={pageError || t('autoItemize.error')} />
             {pageStatus === 'error' && (
               <button type="button" className={sharedStyles.btnPrimary} onClick={handleRetry}>
-                {t('autoItemize.retry')}
+                {t('common:button.retry')}
               </button>
             )}
             <Link to={routeUrl('invoice', { id: invoiceId })} className={sharedStyles.btnSecondary}>
@@ -752,7 +752,7 @@ export function AutoItemizePage() {
                 onClick={handleSave}
                 disabled={pageStatus === 'saving'}
               >
-                {pageStatus === 'saving' ? t('autoItemize.saving') : t('autoItemize.save')}
+                {pageStatus === 'saving' ? t('autoItemize.saving') : t('common:button.save')}
               </button>
               <button
                 type="button"
@@ -760,7 +760,7 @@ export function AutoItemizePage() {
                 onClick={handleCancel}
                 disabled={pageStatus === 'saving'}
               >
-                {t('autoItemize.cancel')}
+                {t('common:button.cancel')}
               </button>
             </div>
           </div>

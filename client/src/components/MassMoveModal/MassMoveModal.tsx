@@ -101,7 +101,7 @@ export function MassMoveModal({
         onClick={onClose}
         disabled={isSubmitting}
       >
-        {t('common.cancel')}
+        {t('common:button.cancel')}
       </button>
       <button
         type="button"
@@ -110,7 +110,7 @@ export function MassMoveModal({
         aria-disabled={!canConfirm}
         disabled={!canConfirm || isSubmitting}
       >
-        {isSubmitting ? t('common.loading') : t('sources.budgetLines.move.confirmButton')}
+        {isSubmitting ? t('common:loading') : t('sources.budgetLines.move.confirmButton')}
       </button>
       {!canConfirm && !isSubmitting && (
         <span className={styles.srOnly}>

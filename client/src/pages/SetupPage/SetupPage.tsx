@@ -123,7 +123,7 @@ export function SetupPage() {
       <div className={sharedStyles.container}>
         <div className={sharedStyles.card}>
           <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
-          <p>{t('setup.loading')}</p>
+          <p>{tCommon('loading')}</p>
         </div>
       </div>
     );

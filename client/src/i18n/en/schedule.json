@@ -74,9 +74,6 @@
         "startToFinish": "Start-to-Finish"
       }
     },
-    "skeleton": {
-      "loading": "Loading chart..."
-    },
     "workItemBarsAriaLabel": "Task bars"
   },
   "calendar": {

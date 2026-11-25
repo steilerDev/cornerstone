@@ -32,10 +32,8 @@
   "shapeAddedArrow": "Arrow added",
   "shapeAddedLine": "Line added",
   "shapeAddedEllipse": "Ellipse added",
-  "shapeAddedText": "Text added",
   "shapeAddedMeasurement": "Measurement added",
   "shapeAddedFreehand": "Freehand path added",
-  "shapeSelected": "Shape selected",
   "shapeDeleted": "Shape deleted",
   "undoPerformed": "Undo performed",
   "redoPerformed": "Redo performed",
@@ -48,8 +46,5 @@
   "fontSizeSmall": "Small",
   "fontSizeMedium": "Medium",
   "fontSizeLarge": "Large",
-  "fontSizeXlarge": "Extra large",
-  "editText": "Edit text",
-  "editMeasurement": "Edit measurement label",
-  "measurementPlaceholder": "Enter distance"
+  "fontSizeXlarge": "Extra large"
 }

@@ -90,13 +90,11 @@
       "descriptionPlaceholder": "Beschreibe die zu erledigende Arbeit",
       "status": "Status",
       "assignedTo": "Wer",
-      "unassigned": "Nicht zugewiesen",
       "durationDays": "Dauer (Tage)",
       "durationError": "Dauer muss 0 oder mehr Tage betragen.",
       "startAfter": "Frühestens ab",
       "startBefore": "Spätestens ab",
       "constraintsError": "„Spätestens ab“ darf nicht vor „Frühestens ab“ liegen.",
-      "tags": "Tags",
       "area": "Bereich",
       "dependencies": "Wartet auf",
       "plannedCost": "Geplante Kosten",
@@ -130,7 +128,6 @@
       "grantsMore_one": "{{name}} und {{count}} weiteres",
       "grantsMore_other": "{{name}} und {{count}} weitere"
     },
-    "retry": "Erneut versuchen",
     "loading": "Aufgabe wird geladen…",
     "overview": {
       "details": "Details",

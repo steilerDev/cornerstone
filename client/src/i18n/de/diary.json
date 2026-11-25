@@ -88,7 +88,6 @@
     "loadingMore": "Weitere Einträge werden geladen…",
     "loadingMoreAriaLabel": "Weitere Tagebucheinträge werden geladen",
     "loadMoreButton": "Mehr laden",
-    "retryButton": "Erneut versuchen",
     "errorMessage": "Weitere Einträge konnten nicht geladen werden.",
     "endOfList": "Du hast das Ende erreicht – keine weiteren Einträge vorhanden.",
     "initialLoadAnnouncement_one": "{{count}} Eintrag geladen",

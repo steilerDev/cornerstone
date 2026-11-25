@@ -32,10 +32,8 @@
   "shapeAddedArrow": "Pfeil hinzugefügt",
   "shapeAddedLine": "Linie hinzugefügt",
   "shapeAddedEllipse": "Ellipse hinzugefügt",
-  "shapeAddedText": "Text hinzugefügt",
   "shapeAddedMeasurement": "Maß hinzugefügt",
   "shapeAddedFreehand": "Freihandlinie hinzugefügt",
-  "shapeSelected": "Form ausgewählt",
   "shapeDeleted": "Form gelöscht",
   "undoPerformed": "Rückgängig gemacht",
   "redoPerformed": "Wiederholt",
@@ -48,8 +46,5 @@
   "fontSizeSmall": "Klein",
   "fontSizeMedium": "Mittel",
   "fontSizeLarge": "Groß",
-  "fontSizeXlarge": "Sehr groß",
-  "editText": "Text bearbeiten",
-  "editMeasurement": "Maßbeschriftung bearbeiten",
-  "measurementPlaceholder": "Maß eingeben"
+  "fontSizeXlarge": "Sehr groß"
 }

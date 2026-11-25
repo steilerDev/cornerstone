@@ -218,7 +218,7 @@ function WhoWhereCard({
                   )}
                 />
                 <button type="button" className={styles.compactButton} onClick={onRetryUsers}>
-                  {t('taskPage.retry')}
+                  {t('common:button.retry')}
                 </button>
               </div>
             ) : null}

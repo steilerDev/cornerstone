@@ -97,7 +97,7 @@ function PurchaseView({ id }: { id: string }) {
                 className={sharedStyles.btnSecondary}
                 onClick={() => void state.reload()}
               >
-                {t('purchasePage.retry')}
+                {t('common:button.retry')}
               </button>
             )}
           </div>
@@ -361,7 +361,7 @@ function PurchaseLoaded({
                 empty: t('purchasePage.diary.empty'),
                 loadError: t('purchasePage.diary.loadError'),
                 showAll: t('purchasePage.diary.showAll'),
-                retry: t('purchasePage.retry'),
+                retry: t('common:button.retry'),
                 loading: t('purchasePage.loading'),
                 srCount: (count) => t('purchasePage.diary.srCount', { count }),
               }}
