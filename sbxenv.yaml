@@ -1,8 +1,10 @@
 schemaVersion: "1"
 name: cornerstone 
-agent: sbx-templates
+agent: claude
 workspace: .
 
 kits:
-  - dhi.io/sbx-templates:claude-code-docker
+  - sbx/claude:latest
   - git.steiler.dev/steilerdev/sbx-kit-session:latest
+  - git.steiler.dev/steilerdev/sbx-kit-gitea:latest
+  - git.steiler.dev/steilerdev/sbx-kit-ste:latest
