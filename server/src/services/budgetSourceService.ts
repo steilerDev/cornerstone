@@ -654,8 +654,8 @@ export function createBudgetSource(
   }
 
   // Validate totalAmount
-  if (typeof data.totalAmount !== 'number' || data.totalAmount <= 0) {
-    throw new ValidationError('Total amount must be a positive number');
+  if (typeof data.totalAmount !== 'number' || data.totalAmount < 0.01) {
+    throw new ValidationError('Total amount must be at least 0.01');
   }
 
   // Validate interestRate if provided
@@ -774,7 +774,7 @@ export function updateBudgetSource(
     if (typeof data.totalAmount !== 'number' || data.totalAmount < minValue) {
       const msg = existing.isDiscretionary
         ? 'Total amount must be a non-negative number'
-        : 'Total amount must be a positive number';
+        : 'Total amount must be at least 0.01';
       throw new ValidationError(msg);
     }
     updates.totalAmount = data.totalAmount;

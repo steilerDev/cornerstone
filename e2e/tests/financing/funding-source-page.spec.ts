@@ -596,7 +596,7 @@ test.describe('Funding source page: quick-create schema parity (#2255)', () => {
     await source.amountInput.fill('0');
     await source.notesInput.fill('E2E 2255 stubbed note');
     await source.detailsSave.click();
-    await expect(source.detailsCard.getByText('Enter an amount greater than 0.')).toHaveCount(0);
+    await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toHaveCount(0);
     await expect(source.detailsCard.getByText('Enter an amount of 0 or more.')).toHaveCount(0);
     await expect.poll(() => patchBody).not.toBeNull();
     // 0 is valid for Own funds: sent as 0, or omitted when it is already 0
@@ -604,7 +604,7 @@ test.describe('Funding source page: quick-create schema parity (#2255)', () => {
     expect(patchBody!.notes).toBe('E2E 2255 stubbed note');
   });
 
-  test('E6c: a regular source refuses an amount of 0 with the "greater than 0" message', async ({
+  test('E6c: a regular source refuses an amount of 0 with the "at least 0.01" message', async ({
     page,
     testPrefix,
   }) => {
@@ -615,11 +615,34 @@ test.describe('Funding source page: quick-create schema parity (#2255)', () => {
         name: `${testPrefix} E6c Zero`,
         totalAmount: 5000,
       });
+      let patchCount = 0;
+      page.on('request', (r) => {
+        if (
+          r.method() === 'PATCH' &&
+          new URL(r.url()).pathname === `${API.budgetSources}/${sourceId}`
+        )
+          patchCount++;
+      });
       await source.goto(sourceId);
       await source.openDetailsEdit();
       await source.amountInput.fill('0');
       await source.detailsSave.click();
-      await expect(source.detailsCard.getByText('Enter an amount greater than 0.')).toBeVisible();
+      await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toBeVisible();
+      await expect(source.amountInput).toHaveValue('0');
+      expect(patchCount).toBe(0);
+
+      // A sub-cent amount is refused with the same message and nothing is sent
+      await source.amountInput.fill('0.001');
+      await source.detailsSave.click();
+      await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toBeVisible();
+      // The card stayed in edit mode and no PATCH was sent
+      await expect(source.amountInput).toHaveValue('0.001');
+      expect(patchCount).toBe(0);
+      const stored = await page.request.get(`${API.budgetSources}/${sourceId}`);
+      expect(
+        ((await stored.json()) as { budgetSource: { totalAmount: number } }).budgetSource
+          .totalAmount,
+      ).toBe(5000);
     } finally {
       await runCleanup(cleanup);
     }
@@ -685,7 +708,7 @@ test.describe('Funding source page: details and delete', () => {
       await source.detailsSave.click();
 
       await expect(source.detailsCard.getByText('Enter a name.')).toBeVisible();
-      await expect(source.detailsCard.getByText('Enter an amount greater than 0.')).toBeVisible();
+      await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toBeVisible();
       await expect(source.detailsCard.getByText('Enter a rate between 0 and 100.')).toBeVisible();
       // Nothing was sent: the stored name is unchanged
       const stored = await page.request.get(`${API.budgetSources}/${sourceId}`);

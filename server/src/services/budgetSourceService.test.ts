@@ -941,7 +941,34 @@ describe('Budget Source Service', () => {
       }).toThrow(ValidationError);
       expect(() => {
         budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
-      }).toThrow('Total amount must be a positive number');
+      }).toThrow('Total amount must be at least 0.01');
+    });
+
+    it('throws ValidationError for a sub-cent totalAmount (0.001)', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'Sub Cent',
+        sourceType: 'bank_loan',
+        totalAmount: 0.001,
+      };
+
+      expect(() => {
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      }).toThrow(ValidationError);
+      expect(() => {
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      }).toThrow('Total amount must be at least 0.01');
+    });
+
+    it('accepts the boundary totalAmount of 0.01', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'One Cent',
+        sourceType: 'bank_loan',
+        totalAmount: 0.01,
+      };
+
+      const created = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+
+      expect(created.totalAmount).toBe(0.01);
     });
 
     it('throws ValidationError for negative totalAmount', () => {
@@ -1394,6 +1421,15 @@ describe('Budget Source Service', () => {
       expect(() => {
         budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
+    });
+    it('throws ValidationError with minimum-amount message for sub-cent totalAmount on update', () => {
+      const raw = insertRawSource({ name: 'Valid', sourceType: 'bank_loan', totalAmount: 1000 });
+
+      const data: UpdateBudgetSourceRequest = { totalAmount: 0.005 };
+
+      expect(() => {
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
+      }).toThrow('Total amount must be at least 0.01');
     });
 
     it('throws ValidationError for negative totalAmount on update', () => {

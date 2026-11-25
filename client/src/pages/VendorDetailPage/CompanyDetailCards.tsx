@@ -279,7 +279,11 @@ function AboutCard({ vendor, onSaved }: CardProps) {
               card.set(name as 'name' | 'tradeId' | 'notes', toDraftText(value))
             }
             idPrefix={`${baseId}-`}
-            testIds={{ name: 'company-field-name', notes: 'company-field-notes' }}
+            testIds={{
+              name: 'company-field-name',
+              tradeId: 'company-field-trade',
+              notes: 'company-field-notes',
+            }}
           />
         ),
       }}

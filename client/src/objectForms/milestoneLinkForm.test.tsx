@@ -85,6 +85,11 @@ describe('milestoneLinkForm (ObjectForm schema)', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
+  it('puts the milestone test id on the picker input', () => {
+    renderForm();
+    expect(screen.getByTestId('milestone-link-milestone')).toBe(screen.getByRole('textbox'));
+  });
+
   it('requires a milestone', async () => {
     const user = userEvent.setup();
     renderForm();

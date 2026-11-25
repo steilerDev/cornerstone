@@ -104,6 +104,11 @@ describe('dependencyForm (ObjectForm schema)', () => {
       ).toBeInTheDocument();
     });
 
+    it('puts the task test id on the picker input', () => {
+      renderForm();
+      expect(screen.getByTestId('dependency-task')).toBe(screen.getByRole('textbox'));
+    });
+
     it('words the type options relative to this task, by direction', () => {
       const { unmount } = renderForm();
       expect(within(typeSelect()).getByText('Finishes before this starts')).toBeInTheDocument();

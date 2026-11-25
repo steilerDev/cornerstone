@@ -322,6 +322,15 @@ describe('About card', () => {
     );
   });
 
+  it('puts the card test id on the Trade picker input, not the form default', async () => {
+    const user = userEvent.setup();
+    renderCards(EMPTY);
+    await open(user);
+
+    expect(screen.getByTestId('company-field-trade')).toBeInTheDocument();
+    expect(screen.queryByTestId('company-trade-input')).toBeNull();
+  });
+
   it('requires a name and sends nothing without one', async () => {
     const user = userEvent.setup();
     renderCards(FULL);

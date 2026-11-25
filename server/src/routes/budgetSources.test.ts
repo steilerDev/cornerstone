@@ -577,7 +577,7 @@ describe('Budget Source Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('returns 400 VALIDATION_ERROR for totalAmount of zero (exclusiveMinimum)', async () => {
+    it('returns 400 VALIDATION_ERROR for totalAmount of zero (minimum 0.01)', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
       const response = await app.inject({
@@ -590,6 +590,37 @@ describe('Budget Source Routes', () => {
       expect(response.statusCode).toBe(400);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR for a sub-cent totalAmount (0.001)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/budget-sources',
+        headers: { cookie },
+        payload: { name: 'Sub Cent', sourceType: 'bank_loan', totalAmount: 0.001 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts the boundary totalAmount of 0.01', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/budget-sources',
+        headers: { cookie },
+        payload: { name: 'One Cent', sourceType: 'bank_loan', totalAmount: 0.01 },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(
+        response.json<{ budgetSource: { totalAmount: number } }>().budgetSource.totalAmount,
+      ).toBe(0.01);
     });
 
     it('returns 400 VALIDATION_ERROR for negative totalAmount', async () => {

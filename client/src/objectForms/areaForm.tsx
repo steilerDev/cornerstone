@@ -101,6 +101,7 @@ export function useAreaFormSchema({ mode, area, areas }: AreaFormOptions): Objec
             <>
               <EntityPicker
                 kind="area"
+                inputTestId={ctx.testId}
                 id={ctx.id}
                 areas={[...areas]}
                 value={value}

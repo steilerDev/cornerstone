@@ -1249,6 +1249,7 @@
       "itemsRequired": "Wähle mindestens eine Aufgabe oder Anschaffung.",
       "nameRequired": "Gib einen Namen ein.",
       "amountInvalid": "Gib einen Betrag größer als 0 ein.",
+      "amountMinimum": "Gib einen Betrag von mindestens 0,01 ein.",
       "interestInvalid": "Gib einen Zinssatz zwischen 0 und 100 ein.",
       "rateInvalid": "Gib einen Satz größer als 0 und bis zu 100 ein.",
       "amountNotNegative": "Gib einen Betrag von 0 oder mehr ein."

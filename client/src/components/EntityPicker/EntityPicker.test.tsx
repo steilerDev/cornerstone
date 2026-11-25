@@ -367,6 +367,11 @@ describe('EntityPicker', () => {
       expect(screen.getByTestId('opt-v-2')).toBeInTheDocument();
     });
 
+    it('forwards inputTestId to the search input', () => {
+      render(<Harness kind="company" inputTestId="company-trade-input" />);
+      expect(screen.getByTestId('company-trade-input')).toBe(input());
+    });
+
     it('add mode: a pick is reported, the input stays, empty and focused', async () => {
       const user = userEvent.setup();
       render(<Harness kind="company" clearOnSelect />);

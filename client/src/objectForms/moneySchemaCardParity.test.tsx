@@ -250,7 +250,7 @@ describe('funding source: dialog and card share the same fields (AC4)', () => {
     expect(noAsterisk(dialog.totalAmount.name)).toBe(enBudget.financing.fields.amount);
     expect(noAsterisk(dialog.interestRate.name)).toBe(enBudget.financing.fields.interestRate);
     expect(dialog.name.error).toBe(enBudget.financing.errors.nameRequired);
-    expect(dialog.totalAmount.error).toBe(enBudget.financing.errors.amountInvalid);
+    expect(dialog.totalAmount.error).toBe(enBudget.financing.errors.amountMinimum);
     expect(dialog.interestRate.error).toBe(enBudget.financing.errors.interestInvalid);
     expect(dialog.name.maxLength).toBe('200');
   });

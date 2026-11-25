@@ -1243,6 +1243,7 @@
       "itemsRequired": "Choose at least one task or purchase",
       "nameRequired": "Enter a name.",
       "amountInvalid": "Enter an amount greater than 0.",
+      "amountMinimum": "Enter an amount of at least 0.01.",
       "interestInvalid": "Enter a rate between 0 and 100.",
       "rateInvalid": "Enter a rate above 0 and up to 100.",
       "amountNotNegative": "Enter an amount of 0 or more."
