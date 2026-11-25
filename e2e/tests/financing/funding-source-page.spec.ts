@@ -531,6 +531,101 @@ test.describe('Funding source page: History', () => {
   });
 });
 
+test.describe('Funding source page: quick-create schema parity (#2255)', () => {
+  test('E6: Details edit carries the dialog fields (no Status control) and persists the edit', async ({
+    page,
+    testPrefix,
+  }) => {
+    const cleanup = newCleanup();
+    try {
+      const source = new FundingSourcePage(page);
+      const sourceId = await createSource(page, cleanup, {
+        name: `${testPrefix} E6 Parity`,
+        sourceType: 'credit_line',
+        totalAmount: 8000,
+        interestRate: 2,
+      });
+      await source.goto(sourceId);
+      await source.openDetailsEdit();
+
+      // The New funding source dialog's labels, in the card; its Type is a real select
+      for (const label of [/^Name/, 'Type', /^Amount/, 'Interest rate', 'Reference']) {
+        await expect(source.detailsCard.getByLabel(label).first()).toBeVisible();
+      }
+      await expect(source.typeSelect).toBeVisible();
+      // The header StatusMenu owns Status
+      await expect(source.detailsCard.getByLabel('Status')).toHaveCount(0);
+      await expect(source.detailsCard.getByTestId('source-field-status')).toHaveCount(0);
+
+      await source.typeSelect.selectOption('savings');
+      await source.amountInput.fill('9000');
+      await source.detailsSave.click();
+      await expect(source.detailsEdit).toBeVisible();
+      const stored = await page.request.get(`${API.budgetSources}/${sourceId}`);
+      expect(
+        ((await stored.json()) as { budgetSource: { sourceType: string; totalAmount: number } })
+          .budgetSource,
+      ).toMatchObject({ sourceType: 'savings', totalAmount: 9000 });
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+
+  test('E6b: Own funds edit has no Type and accepts an amount of 0 (the save is stubbed)', async ({
+    page,
+  }) => {
+    const source = new FundingSourcePage(page);
+    const ownId = await findOwnFundsId(page);
+    // The seeded Own funds record is shared by every worker: never write to it
+    let patchBody: Record<string, unknown> | null = null;
+    await page.route(`**${API.budgetSources}/${ownId}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      patchBody = route.request().postDataJSON() as Record<string, unknown>;
+      const current = await page.request.get(`${API.budgetSources}/${ownId}`);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(await current.json()),
+      });
+    });
+    await source.goto(ownId);
+    await source.openDetailsEdit();
+    await expect(source.typeSelect).toHaveCount(0);
+
+    // The seeded amount may already be 0, so a note makes the save a real change
+    await source.amountInput.fill('0');
+    await source.notesInput.fill('E2E 2255 stubbed note');
+    await source.detailsSave.click();
+    await expect(source.detailsCard.getByText('Enter an amount greater than 0.')).toHaveCount(0);
+    await expect(source.detailsCard.getByText('Enter an amount of 0 or more.')).toHaveCount(0);
+    await expect.poll(() => patchBody).not.toBeNull();
+    // 0 is valid for Own funds: sent as 0, or omitted when it is already 0
+    expect(patchBody!.totalAmount ?? 0).toBe(0);
+    expect(patchBody!.notes).toBe('E2E 2255 stubbed note');
+  });
+
+  test('E6c: a regular source refuses an amount of 0 with the "greater than 0" message', async ({
+    page,
+    testPrefix,
+  }) => {
+    const cleanup = newCleanup();
+    try {
+      const source = new FundingSourcePage(page);
+      const sourceId = await createSource(page, cleanup, {
+        name: `${testPrefix} E6c Zero`,
+        totalAmount: 5000,
+      });
+      await source.goto(sourceId);
+      await source.openDetailsEdit();
+      await source.amountInput.fill('0');
+      await source.detailsSave.click();
+      await expect(source.detailsCard.getByText('Enter an amount greater than 0.')).toBeVisible();
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+});
+
 test.describe('Funding source page: details and delete', () => {
   test('F8c: the Details card edits with an explicit Save and the change persists', async ({
     page,

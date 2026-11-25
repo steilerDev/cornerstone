@@ -16,13 +16,15 @@ A screenshot of the grant page is not available yet.
 Select **Add grant** on the Financing page, or choose **Grant** from the **New** menu. The dialog asks for:
 
 - **Name** (required)
+- **Status**: the grant's status, **Eligible** by default. You can change it later from the grant's status chip
 - **Rate (%)** (required): the share of the covered costs the grant pays, above 0 and up to 100
-- **Link tasks / purchases** (required): choose at least one task or purchase the grant covers
-- **Eligible costs up to** (optional): a cap on the amount the grant can pay
+- **Eligible costs up to** (optional): only costs up to this amount count. Leave it empty for no limit
+- **Deadline** (optional)
+- **Eligible tasks and purchases** (required): choose at least one task or purchase the grant covers
 
-Under **More details** you can set the status, the deadline, the cost categories, a description, the eligibility rules, and notes.
+Under **More details** you can set the cost categories, a description, the eligibility rules, and notes.
 
-New grants are percentage-based. The dialog does not offer a fixed amount.
+New grants are percentage-based. The dialog has no provider, no fixed amount and no payout amount field.
 
 ## Grant Statuses
 
@@ -71,7 +73,7 @@ If you link no items yet, the Work tab says **No covered items yet** and shows *
 
 The **Expected** figure is the grant's payout for the covered costs:
 
-- **Percentage grants:** the rate applied to the covered costs, capped at **Eligible costs up to** if you set a cap
+- **Percentage grants:** the rate applied to the covered costs. If you set **Eligible costs up to**, only the covered costs up to that amount count before the rate is applied
 - **Legacy fixed grants:** the stored amount for each covered item, capped the same way
 
 The **Overview** tab repeats this in the section **How the expected grant is calculated**, with the actual rate, covered costs, and cap.
@@ -100,7 +102,7 @@ The strip shows the **Rate** (or the fixed reduction for legacy grants), **Eligi
 
 ### Overview tab
 
-- **Details** -- name, rate, status, deadline, description, and notes. Select **Edit** to change them and save
+- **Details** -- name, rate, eligible costs cap, deadline, description, and notes. Select **Edit** to change them and save. The status is changed from the header chip, not in this card
 - **Eligibility** -- the cost categories, the **No category** option, and the eligibility rules. Select **Edit** to change them
 - **How the expected grant is calculated** -- the explanation described above
 

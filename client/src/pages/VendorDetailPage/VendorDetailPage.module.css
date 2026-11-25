@@ -39,12 +39,6 @@
   overflow-wrap: anywhere;
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-3);
-}
-
 .inlineLink {
   color: var(--color-primary);
   text-decoration: none;

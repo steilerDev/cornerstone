@@ -3,12 +3,15 @@
  * the task and purchase lists.
  *
  * Scenarios
- * F6 (AC5, @responsive) New grant: no type selector and no provider; Save with no items shows the focused
- *                       error "Choose at least one task or purchase"; More details holds Cost
- *                       categories, Status and Deadline; two picks (keys only) give a grant covering
- *                       both; Cancel on a dirty form asks to discard
- * F6b (AC2/AC3)         New funding source: the types offered exclude Own funds; validation messages;
- *                       a saved source lands on its page
+ * F6 (AC5, @responsive) New grant: no type selector, provider, fixed amount or payout field; Save with no
+ *                       items shows the focused error "Choose at least one task or purchase"; Status
+ *                       (before Rate), Rate, cap, Deadline and the items picker are essentials, More
+ *                       details holds Cost categories, Description, Eligibility and Notes (#2255 E1);
+ *                       two picks (keys only) give a grant covering both, persisted values asserted
+ *                       through the API (#2255 E2); the cap is optional; Rate and cap are validated
+ * F6b (AC2/AC3)         New funding source: name, type, amount, rate and status are essentials; the types
+ *                       offered exclude Own funds; the amount must be above 0; a saved source lands on
+ *                       its page and the persisted record is asserted through the API (#2255 E2)
  * F7 (AC6, @responsive) the task and purchase list rows of a covered item show "‹name› · 40%"; two
  *                       grants show the first chip and "+1"; chips are plain labels, not links
  *
@@ -17,6 +20,8 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
+import type { BudgetSource } from '../../../shared/src/types/budgetSource.js';
+import type { SubsidyProgram } from '../../../shared/src/types/subsidyProgram.js';
 import { createPurchase, createTask, newCleanup, runCleanup } from '../../fixtures/costLineSeed.js';
 import { createGrant, deleteGrant } from '../../fixtures/financingSeed.js';
 import { API } from '../../fixtures/testData.js';
@@ -54,20 +59,59 @@ test.describe('New grant dialog', { tag: '@responsive' }, () => {
     await expect(dialog.dialog).toBeVisible();
   });
 
-  test('F6: More details holds Cost categories, Status and Deadline', async ({ page }) => {
+  test('F6: Status, Rate, cap, Deadline and the items are essentials; More details holds Cost categories, Description, Eligibility and Notes', async ({
+    page,
+  }) => {
     const financing = new FinancingPage(page);
     const dialog = new FinancingFormDialog(page, 'grant');
     await financing.goto();
     await financing.addGrant.click();
     await dialog.waitForOpen();
 
+    // Visible before More details is opened
+    await expect(dialog.name).toBeVisible();
+    await expect(dialog.grantStatus).toBeVisible();
+    await expect(dialog.rate).toBeVisible();
+    await expect(dialog.cap).toBeVisible();
+    await expect(dialog.deadline).toBeVisible();
+    await expect(dialog.items.input).toBeVisible();
+    await expect(dialog.dialog.getByLabel('Status', { exact: true })).toBeVisible();
+    await expect(dialog.dialog.getByLabel('Deadline', { exact: true })).toBeVisible();
+    // Status comes before Rate in the form
+    const statusBeforeRate = await dialog.dialog.evaluate((root) => {
+      const status = root.querySelector('#applicationStatus');
+      const rate = root.querySelector('#reductionValue');
+      return Boolean(
+        status && rate && status.compareDocumentPosition(rate) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+    expect(statusBeforeRate).toBe(true);
+    // The hints name what Rate and the cap mean
+    await expect(
+      dialog.dialog.getByText('Share of the covered costs the grant pays'),
+    ).toBeVisible();
+    await expect(
+      dialog.dialog.getByText('Only costs up to this amount count. Leave empty for no limit.'),
+    ).toBeVisible();
+
+    // Behind More details
     await expect(dialog.categories.input).toBeHidden();
-    await expect(dialog.grantStatus).toBeHidden();
-    await expect(dialog.deadline).toBeHidden();
+    await expect(dialog.field('description')).toBeHidden();
+    await expect(dialog.field('eligibility')).toBeHidden();
+    await expect(dialog.field('notes')).toBeHidden();
     await dialog.expandMoreDetails();
     await expect(dialog.categories.input).toBeVisible();
-    await expect(dialog.grantStatus).toBeVisible();
-    await expect(dialog.deadline).toBeVisible();
+    await expect(dialog.field('description')).toBeVisible();
+    await expect(dialog.field('eligibility')).toBeVisible();
+    await expect(dialog.field('notes')).toBeVisible();
+    // Status and Deadline are not duplicated behind it
+    await expect(dialog.grantStatus).toHaveCount(1);
+    await expect(dialog.deadline).toHaveCount(1);
+
+    // No fixed amount, payout or provider field anywhere
+    await expect(dialog.dialog.getByLabel('Fixed reduction')).toHaveCount(0);
+    await expect(dialog.dialog.getByLabel(/payout/i)).toHaveCount(0);
+    await expect(dialog.dialog.getByLabel('Provider')).toHaveCount(0);
   });
 
   test('F6: two picks (keys only) give a grant that covers both items', async ({
@@ -87,7 +131,14 @@ test.describe('New grant dialog', { tag: '@responsive' }, () => {
       await financing.goto();
       await financing.addGrant.click();
       await dialog.waitForOpen();
-      await dialog.fillGrant({ name: `${testPrefix} F6 Grant`, rate: 40 });
+      const grantName = `${testPrefix} F6 Grant`;
+      await dialog.fillGrant({
+        name: grantName,
+        rate: 40,
+        cap: 2500,
+        status: 'applied',
+        deadline: '2031-05-20',
+      });
       await dialog.pickItems([taskTitle, purchaseName]);
       await expect(dialog.itemChips.getByRole('listitem')).toHaveCount(2);
       await dialog.save();
@@ -99,6 +150,30 @@ test.describe('New grant dialog', { tag: '@responsive' }, () => {
       await expect(grant.heading).toBeFocused();
       cleanup.fns.push(() => deleteGrant(page, createdGrantId));
 
+      // The persisted record, not just the page
+      const stored = await page.request.get(`${API.subsidyPrograms}/${createdGrantId}`);
+      expect(stored.ok()).toBeTruthy();
+      const record = ((await stored.json()) as { subsidyProgram: SubsidyProgram }).subsidyProgram;
+      expect(record).toMatchObject({
+        name: grantName,
+        reductionType: 'percentage',
+        reductionValue: 40,
+        maximumAmount: 2500,
+        applicationStatus: 'applied',
+        applicationDeadline: '2031-05-20',
+      });
+      const covered = await page.request.get(`${API.subsidyPrograms}/${createdGrantId}/items`);
+      const { items } = (await covered.json()) as {
+        items: Array<{ type: string; id: string }>;
+      };
+      expect(items).toHaveLength(2);
+      expect(items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'work_item', id: taskId }),
+          expect.objectContaining({ type: 'household_item', id: purchaseId }),
+        ]),
+      );
+
       await grant.openWorkTab();
       await expect(grant.coveredItems.rows).toHaveCount(2);
       await expect(grant.coveredItems.row(GrantPage.rowId('work_item', taskId))).toBeVisible();
@@ -109,6 +184,57 @@ test.describe('New grant dialog', { tag: '@responsive' }, () => {
     } finally {
       await runCleanup(cleanup);
     }
+  });
+
+  test('F6: the cap is optional: a grant saved without it has no cap, the default status and no deadline', async ({
+    page,
+    testPrefix,
+  }) => {
+    const cleanup = newCleanup();
+    try {
+      const financing = new FinancingPage(page);
+      const dialog = new FinancingFormDialog(page, 'grant');
+      const taskTitle = `${testPrefix} F6 NoCap Task`;
+      await createTask(page, cleanup, taskTitle);
+      await financing.goto();
+      await financing.addGrant.click();
+      await dialog.waitForOpen();
+      await dialog.fillGrant({ name: `${testPrefix} F6 NoCap`, rate: 12.5 });
+      await dialog.pickItems([taskTitle]);
+      await dialog.save();
+
+      await expect(page).toHaveURL((url) =>
+        /\/budget\/financing\/grants\/[^/?#]+$/.test(url.pathname),
+      );
+      const createdId = new URL(page.url()).pathname.split('/').pop()!;
+      cleanup.fns.push(() => deleteGrant(page, createdId));
+      const stored = await page.request.get(`${API.subsidyPrograms}/${createdId}`);
+      const record = ((await stored.json()) as { subsidyProgram: SubsidyProgram }).subsidyProgram;
+      expect(record).toMatchObject({
+        reductionType: 'percentage',
+        reductionValue: 12.5,
+        maximumAmount: null,
+        applicationStatus: 'eligible',
+        applicationDeadline: null,
+      });
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+
+  test('F6: Rate and cap are validated', async ({ page }) => {
+    const financing = new FinancingPage(page);
+    const dialog = new FinancingFormDialog(page, 'grant');
+    await financing.goto();
+    await financing.addGrant.click();
+    await dialog.waitForOpen();
+    await dialog.fillGrant({ name: 'F6 Bad Numbers', rate: 150, cap: 0 });
+    await dialog.save();
+    await expect(dialog.fieldError('reductionValue')).toHaveText(
+      'Enter a rate above 0 and up to 100.',
+    );
+    await expect(dialog.fieldError('maximumAmount')).toHaveText('Enter an amount greater than 0.');
+    await expect(dialog.dialog).toBeVisible();
   });
 
   test('F6: a picked item can be removed again from its chip', async ({ page, testPrefix }) => {
@@ -139,6 +265,14 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
     await financing.addSource.click();
     await dialog.waitForOpen();
 
+    // Name, Type, Amount, Interest rate and Status are all visible without More details
+    await expect(dialog.name).toBeVisible();
+    await expect(dialog.sourceType).toBeVisible();
+    await expect(dialog.amount).toBeVisible();
+    await expect(dialog.interestRate).toBeVisible();
+    await expect(dialog.sourceStatus).toBeVisible();
+    await expect(dialog.field('terms')).toBeHidden();
+
     await expect(dialog.sourceType.locator('option')).toHaveText([
       'Bank loan',
       'Credit line',
@@ -151,7 +285,12 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
     await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount greater than 0.');
     await expect(dialog.name).toBeFocused();
 
+    // The amount must be above 0
     await dialog.name.fill('F6b Bad Rate');
+    await dialog.amount.fill('0');
+    await dialog.save();
+    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount greater than 0.');
+
     await dialog.amount.fill('1000');
     await dialog.interestRate.fill('150');
     await dialog.save();
@@ -171,13 +310,32 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
       await financing.goto();
       await financing.addSource.click();
       await dialog.waitForOpen();
-      await dialog.fillSource({ name, amount: 15000, type: 'bank_loan', interestRate: 3.25 });
+      await dialog.fillSource({
+        name,
+        amount: 15000,
+        type: 'bank_loan',
+        interestRate: 3.25,
+        status: 'exhausted',
+      });
       await dialog.save();
 
       await expect(page).toHaveURL((url) =>
         /\/budget\/financing\/sources\/[^/]+$/.test(url.pathname),
       );
       createdId = new URL(page.url()).pathname.split('/').pop()!;
+
+      // The persisted record, not just the page
+      const stored = await page.request.get(`${API.budgetSources}/${createdId}`);
+      expect(stored.ok()).toBeTruthy();
+      const record = ((await stored.json()) as { budgetSource: BudgetSource }).budgetSource;
+      expect(record).toMatchObject({
+        name,
+        sourceType: 'bank_loan',
+        totalAmount: 15000,
+        interestRate: 3.25,
+        status: 'exhausted',
+      });
+
       await expect(page.getByRole('heading', { level: 1, name })).toBeFocused();
       await expect(
         page.getByTestId('source-summary').getByTestId('summary-fact-amount'),

@@ -48,6 +48,9 @@ export function ObjectFormFields({
       {names.map((name) => {
         const field = fields.find((candidate) => candidate.name === name);
         if (!field || field.visibleWhen?.(values) === false) return null;
+        const from = field.errorFrom;
+        const linkedErrorId =
+          from && errors[from] ? `${ids?.[from] ?? `${idPrefix}${from}`}-error` : undefined;
         return (
           <ObjectFormField
             key={name}
@@ -55,6 +58,7 @@ export function ObjectFormFields({
             value={values[name]}
             values={values}
             error={errors[name]}
+            linkedErrorId={linkedErrorId}
             busy={busy}
             onChange={(next) => onChange(name, next)}
             onSetValues={(next) => {

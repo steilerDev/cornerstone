@@ -1242,7 +1242,8 @@
     },
     "hints": {
       "rate": "Anteil der abgedeckten Kosten, den das Förderprogramm übernimmt",
-      "categories": "Nur Kosten in diesen Kategorien zählen"
+      "categories": "Nur Kosten in diesen Kategorien zählen",
+      "cap": "Nur Kosten bis zu diesem Betrag zählen. Ohne Eintrag gibt es keine Obergrenze."
     },
     "errors": {
       "itemsRequired": "Wähle mindestens eine Aufgabe oder Anschaffung.",

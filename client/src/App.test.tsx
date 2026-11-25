@@ -3,6 +3,9 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import enBudget from './i18n/en/budget.json';
+import enCommon from './i18n/en/common.json';
 import { ROUTE_MAP } from '@cornerstone/shared';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
@@ -320,6 +323,15 @@ const mockFetchHouseholdSettings = jest.fn<typeof SettingsApiTypes.fetchHousehol
 jest.unstable_mockModule('./lib/settingsApi.js', () => ({
   fetchHouseholdSettings: mockFetchHouseholdSettings,
   updateHouseholdSettings: jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>(),
+}));
+
+// The Trade picker of the New company form (#2255) lists trades through this module.
+jest.unstable_mockModule('./lib/tradesApi.js', () => ({
+  fetchTrades: jest.fn(async () => ({ trades: [] })),
+  createTrade: jest.fn(),
+  updateTrade: jest.fn(),
+  deleteTrade: jest.fn(),
+  mergeTrade: jest.fn(),
 }));
 
 // The shell and the Documents route gate read GET /api/paperless/status (#2252).
@@ -1259,6 +1271,32 @@ describe('App', () => {
       },
       15000,
     );
+
+    it('offers "New trade" in the New company step opened from a company picker (provider order, #2255)', async () => {
+      const user = userEvent.setup();
+      pushDialog('/budget/invoices?create=1&kind=offer');
+      render(<App />);
+      await screen.findByRole('dialog', { name: 'New offer' }, { timeout: 5000 });
+
+      // The company picker of the New offer dialog -> "New company <text>" -> the company step.
+      const companyInput = await screen.findByLabelText(enBudget.invoiceForm.company.label, {
+        exact: false,
+      });
+      await user.type(companyInput, 'Synthetic Glazing Co');
+      await user.click(
+        await screen.findByRole('option', {
+          name: enBudget.companies.picker.newNamed.replace('{{name}}', 'Synthetic Glazing Co'),
+        }),
+      );
+      const tradeInput = await screen.findByLabelText(enBudget.companies.form.trade);
+      await user.type(tradeInput, 'Glazing');
+
+      expect(
+        await screen.findByRole('option', {
+          name: enCommon.entityPicker.new.trade.replace('{{name}}', 'Glazing'),
+        }),
+      ).toBeInTheDocument();
+    }, 20000);
 
     it('renders exactly one dialog and one page heading in the tab title of the page behind', async () => {
       pushDialog('/project/work-items/new');

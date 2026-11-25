@@ -7,11 +7,13 @@
  *   `#sourceType` (Bank loan · Credit line · Savings · Other: Own funds cannot be created),
  *   Amount `#totalAmount`, Interest rate `#interestRate`, Status `#status`; behind More details
  *   Terms `#terms`, Reference `#reference`, Contact address `#contactAddress`, Notes `#notes`.
- * - Grant (test id `grant-form`, title "New grant"): Name `#name`, Rate (%) `#reductionValue`,
- *   Eligible costs up to `#maximumAmount`, "Eligible tasks and purchases" multi-picker `#items`
- *   (chips `grant-form-items-chip-<id>`, `-remove-<id>`, status `grant-form-items-status`), no
- *   type selector and no provider; behind More details Status `#applicationStatus`, Deadline
- *   `#applicationDeadline`, Cost categories `#categories` (`grant-form-categories-*`), Description,
+ * - Funding source Status, Type, Amount and Interest rate are all essentials (no More details).
+ * - Grant (test id `grant-form`, title "New grant"): essentials Name `#name`, Status
+ *   `#applicationStatus` (before Rate), Rate (%) `#reductionValue`, Eligible costs up to
+ *   `#maximumAmount` (optional), Deadline `#applicationDeadline`, "Eligible tasks and purchases"
+ *   multi-picker `#items` (chips `grant-form-items-chip-<id>`, `-remove-<id>`, status
+ *   `grant-form-items-status`); no type selector, provider, fixed amount or payout field. Behind
+ *   More details: Cost categories `#categories` (`grant-form-categories-*`), Description,
  *   Eligibility, Notes. Save with no items shows "Choose at least one task or purchase".
  */
 
@@ -74,22 +76,30 @@ export class FinancingFormDialog extends ObjectFormDialog {
     amount: number | string;
     type?: string;
     interestRate?: number | string;
+    status?: string;
   }): Promise<void> {
     await this.name.fill(data.name);
     if (data.type !== undefined) await this.sourceType.selectOption(data.type);
     await this.amount.fill(String(data.amount));
     if (data.interestRate !== undefined) await this.interestRate.fill(String(data.interestRate));
+    if (data.status !== undefined) await this.sourceStatus.selectOption(data.status);
   }
 
-  /** Fill the essential fields of a grant (items are picked separately). */
+  /** Fill the essential fields of a grant (Status and Deadline included; items are picked separately). */
   async fillGrant(data: {
     name: string;
     rate: number | string;
     cap?: number | string;
+    /** Application status value (`eligible` | `applied` | `approved` | `received` | `rejected`). */
+    status?: string;
+    /** Deadline as `YYYY-MM-DD`. */
+    deadline?: string;
   }): Promise<void> {
     await this.name.fill(data.name);
+    if (data.status !== undefined) await this.grantStatus.selectOption(data.status);
     await this.rate.fill(String(data.rate));
     if (data.cap !== undefined) await this.cap.fill(String(data.cap));
+    if (data.deadline !== undefined) await this.deadline.fill(data.deadline);
   }
 
   /** Pick tasks / purchases into the items multi-picker (keys only). */

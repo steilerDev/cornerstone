@@ -14,11 +14,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SubsidyProgram, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enBudget from '../../i18n/en/budget.json';
 import type * as SectionModule from './GrantDetailsSection.js';
 
 const mockUpdate = jest.fn<(id: string, body: UpdateSubsidyProgramRequest) => Promise<unknown>>();
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
   updateSubsidyProgram: mockUpdate,
+  createSubsidyProgram: jest.fn(),
+  fetchSubsidyPrograms: jest.fn(),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
   const localeValue = {
@@ -292,5 +295,101 @@ describe('GrantDetailsSection', () => {
       expect(field('grant-field-name').value).toBe('Energy grant');
       expect(mockUpdate).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('GrantDetailsSection on the schema (#2255)', () => {
+  let Section: typeof SectionModule.GrantDetailsSection;
+  const onSaved = jest.fn<() => Promise<unknown>>();
+
+  beforeEach(async () => {
+    mockUpdate.mockReset().mockResolvedValue({});
+    onSaved.mockReset().mockResolvedValue(undefined);
+    if (!Section) ({ GrantDetailsSection: Section } = await import('./GrantDetailsSection.js'));
+  });
+
+  const open = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(await screen.findByTestId('grant-details-edit'));
+  const rate = () => screen.getByTestId('grant-field-rate');
+
+  it('percentage grant: rate hint and cap hint are shown and wired as descriptions', async () => {
+    const user = userEvent.setup();
+    render(<Section grant={grant()} onSaved={onSaved} />);
+    await open(user);
+
+    expect(screen.getByText(enBudget.financing.hints.rate)).toBeVisible();
+    expect(screen.getByText(enBudget.financing.hints.cap)).toBeVisible();
+    expect(rate().getAttribute('aria-describedby')).toContain('-hint');
+    expect(screen.getByTestId('grant-field-cap').getAttribute('aria-describedby')).toContain(
+      '-hint',
+    );
+  });
+
+  it('percentage grant: 150 shows rateInvalid and sends nothing', async () => {
+    const user = userEvent.setup();
+    render(<Section grant={grant()} onSaved={onSaved} />);
+    await open(user);
+
+    await user.clear(rate());
+    await user.type(rate(), '150');
+    await user.click(screen.getByTestId('grant-details-save'));
+
+    expect(await screen.findByText(enBudget.financing.errors.rateInvalid)).toBeVisible();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('fixed grant: labelled "Fixed reduction", no rate hint, 150 saves, the type is not sent', async () => {
+    const user = userEvent.setup();
+    render(
+      <Section grant={grant({ reductionType: 'fixed', reductionValue: 750 })} onSaved={onSaved} />,
+    );
+    await open(user);
+
+    const form = screen.getByTestId('grant-details-form');
+    expect(rate()).toHaveAccessibleName(new RegExp(enBudget.financing.grant.fixedReductionField));
+    expect(within(form).queryByText(enBudget.financing.hints.rate)).toBeNull();
+    await user.clear(rate());
+    await user.type(rate(), '150');
+    await user.click(screen.getByTestId('grant-details-save'));
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    const body = mockUpdate.mock.calls[0]![1];
+    expect(body).toEqual({ reductionValue: 150 });
+    expect(body).not.toHaveProperty('reductionType');
+  });
+
+  it('offers no select or radio for the grant type (AC3b)', async () => {
+    const user = userEvent.setup();
+    render(<Section grant={grant()} onSaved={onSaved} />);
+    await open(user);
+
+    const form = screen.getByTestId('grant-details-form');
+    expect(within(form).queryAllByRole('combobox')).toHaveLength(0);
+    expect(within(form).queryAllByRole('radio')).toHaveLength(0);
+    expect(within(form).queryByLabelText(/type/i)).toBeNull();
+  });
+
+  it('has no Status or Items control in the card', async () => {
+    const user = userEvent.setup();
+    render(<Section grant={grant()} onSaved={onSaved} />);
+    await open(user);
+
+    const form = screen.getByTestId('grant-details-form');
+    expect(within(form).queryByLabelText(enBudget.financing.fields.status)).toBeNull();
+    expect(within(form).queryByLabelText(enBudget.financing.fields.items)).toBeNull();
+  });
+
+  it('Cancel on a dirty card asks to discard, and discarding restores the stored value', async () => {
+    const user = userEvent.setup();
+    render(<Section grant={grant()} onSaved={onSaved} />);
+    await open(user);
+    await user.type(screen.getByTestId('grant-field-notes'), ' edited');
+
+    await user.click(screen.getByTestId('grant-details-cancel'));
+    await user.click(await screen.findByRole('button', { name: 'Discard' }));
+
+    await open(user);
+    expect(screen.getByTestId('grant-field-notes')).toHaveValue('A note');
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

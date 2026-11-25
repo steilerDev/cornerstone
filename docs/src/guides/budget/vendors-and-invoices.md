@@ -41,6 +41,8 @@ Click **New company** and fill in the fields:
 - **Trade** -- Optional. The company's specialty, such as Electrical or Plumbing. Type in the field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
 - **Phone**, **E-mail**, **Address** and **Notes** -- Optional. An e-mail address must be valid if you enter one.
 
+You can create a company from any company picker, for example from the **Company** field of the New invoice dialog or a cost line. The name you typed is filled in. The **Trade** field in that dialog also offers **New trade ‹text›**, which opens a trade dialog on top. Save it and the new trade is selected, while the company dialog keeps what you typed.
+
 ### Company Page
 
 Select a company in the list to open its page. The page has a header, a summary strip and five tabs: **Overview**, **Work**, **Payments**, **Site diary** and **History**.
@@ -74,9 +76,9 @@ The **Overview** tab holds four cards:
 - **Contact persons** -- one row for each person, with the name, role, phone and e-mail. Each row has a **Call** button that dials that person's number. A person without a phone number shows **No phone number**. Select **New contact person** to add someone. Use a row's **⋯** menu to edit the person or remove them. Removing a contact person shows a message with an **Undo** button, which restores the person. A contact person needs a first name or a last name.
 - **Phone and e-mail** -- the company's phone number and e-mail address.
 - **Address** -- the company's postal address.
-- **About** -- the company's name and notes, and who added the company (**Added by**).
+- **About** -- the company's name, trade and notes, and who added the company (**Added by**).
 
-Each card can be edited in place.
+Each card can be edited in place. The **Phone and e-mail**, **Address** and **About** cards use the same fields as the New company dialog, with the same rules. In the **Trade** field of the **About** card, **New trade ‹text›** is still offered.
 
 #### Payments
 

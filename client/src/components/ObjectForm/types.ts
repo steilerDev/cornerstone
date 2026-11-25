@@ -41,6 +41,8 @@ export interface ObjectFormRenderContext {
   readonly invalid: boolean;
   /** Hint and error ids for aria-describedby. */
   readonly describedBy: string | undefined;
+  /** The field's test id (the card's override or `field.testId`), for custom controls. */
+  readonly testId?: string;
   /** Opens a child form (create from a picker); the parent's values stay in memory. */
   readonly createChild: (child: ObjectFormChild) => void;
   /** The current values of the whole step, read-only (fields that depend on other fields). */
@@ -87,6 +89,8 @@ export interface ObjectFormField {
   readonly gate?: 'paperless';
   readonly min?: number;
   /** Number inputs only. */
+  readonly max?: number;
+  /** Number inputs only. */
   readonly step?: number;
   /** Number inputs only. */
   readonly inputMode?: 'decimal' | 'numeric';
@@ -94,6 +98,12 @@ export interface ObjectFormField {
   /** Single-line inputs only: the HTML autocomplete token (e.g. 'tel', 'email'). */
   readonly autoComplete?: string;
   readonly testId?: string;
+  /**
+   * Another field's name whose error also marks this field invalid (a rule naming both, e.g. first or
+   * last name). The message shows once, under that field; this field gets `aria-invalid` and that
+   * error's id in `aria-describedby`.
+   */
+  readonly errorFrom?: string;
   /** The field is rendered only while this returns true; hidden fields take no part in focus, "More details" or errors. */
   readonly visibleWhen?: (values: ObjectFormValues) => boolean;
   /** Custom fields only: render a `fieldset` with a `legend` instead of a `label` (radio groups). */

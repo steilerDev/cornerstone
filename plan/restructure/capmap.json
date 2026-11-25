@@ -1045,7 +1045,7 @@
     "to": "Global > New menu > Funding source (context: Money > Financing) and Money > Financing > Add funding source -> New funding source dialog (ObjectForm): Name, Type, Amount, Interest rate, Status; More details: Terms, Reference, Contact address, Notes",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use). #2212 (interim until the Financing page): Global › New menu › Funding source (on Money pages only) → the Funding sources page with its create form open (?create=1). #2242: Money › Financing › Add funding source and Global › New menu › Funding source open the New funding source ObjectForm in place (FinancingCreateProvider, ?create=1&kind=source). Essentials: Name, Type, Amount, Interest rate, Status; More details: Terms, Reference, Contact address, Notes. Own funds is never created. Add another is offered."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use). #2212 (interim until the Financing page): Global › New menu › Funding source (on Money pages only) → the Funding sources page with its create form open (?create=1). #2242: Money › Financing › Add funding source and Global › New menu › Funding source open the New funding source ObjectForm in place (FinancingCreateProvider, ?create=1&kind=source). Essentials: Name, Type, Amount, Interest rate, Status; More details: Terms, Reference, Contact address, Notes. Own funds is never created. Add another is offered. #2255: one schema (useFundingSourceFormSchema) renders the dialog and the funding source page Details card; Status is create-only (the header chip owns it)."
   },
   "MNY-026": {
     "name": "Edit a financing source inline",
@@ -1054,7 +1054,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "New detail page for the object (today an inline card). #2209: Money › Financing › Funding sources › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it. #2242: Funding source page › Overview › Details › Edit (explicit Save): name, type (hidden for Own funds), amount (0 or more for Own funds, above 0 otherwise), interest rate 0–100, terms, reference, contact address, notes. Status moves through the header chip."
+    "note": "New detail page for the object (today an inline card). #2209: Money › Financing › Funding sources › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it. #2242: Funding source page › Overview › Details › Edit (explicit Save): name, type (hidden for Own funds), amount (0 or more for Own funds, above 0 otherwise), interest rate 0–100, terms, reference, contact address, notes. Status moves through the header chip. #2255: the edit fields are the create schema's fields (ObjectFormFields)."
   },
   "MNY-027": {
     "name": "Mark a financing source active, exhausted or closed",
@@ -1137,11 +1137,11 @@
   "MNY-037": {
     "name": "Create a subsidy program",
     "from": "/budget/subsidies > header 'Add Program' > inline 'New Subsidy Program' form (name*, reduction type*, value*, application status, deadline, maximum amount, description, eligibility, notes, applicable categories)",
-    "to": "Money > Financing > Add grant (also New menu > Grant): Name, Rate (%), Eligible tasks and purchases (at least one), optional Eligible costs up to; More details: Status, Deadline, Cost categories (incl. No category), Description, Eligibility, Notes; no provider, no payout field; percentage only (owner, 7 Oct)",
+    "to": "Money > Financing > Add grant (also New menu > Grant): Name, Status, Rate (%), optional Eligible costs up to, Deadline, Eligible tasks and purchases (at least one); More details: Cost categories (incl. No category), Description, Eligibility, Notes; no provider, no payout field; percentage only (owner, 7 Oct)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > New menu); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2212 (interim until the Financing page): Global › New menu › Grant (on Money pages only) → the Grants page with its create form open (?create=1). #2242: Money › Financing › Add grant and Global › New menu › Grant open the New grant ObjectForm (?create=1&kind=grant). Essentials: Name, Rate (%), Eligible tasks and purchases (at least one), Eligible costs up to; More details: Status, Deadline, Cost categories (with No category), Description, Eligibility, Notes. Percentage only: no reduction type, provider or project-wide option. The grant and its links are created in one request."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2212 (interim until the Financing page): Global › New menu › Grant (on Money pages only) → the Grants page with its create form open (?create=1). #2242: Money › Financing › Add grant and Global › New menu › Grant open the New grant ObjectForm (?create=1&kind=grant). Essentials: Name, Rate (%), Eligible tasks and purchases (at least one), Eligible costs up to; More details: Status, Deadline, Cost categories (with No category), Description, Eligibility, Notes. Percentage only: no reduction type, provider or project-wide option. The grant and its links are created in one request. #2255: Status and Deadline are essentials (Status before Rate); the cap has the hint 'Only costs up to this amount count.'; the grant page Details and Eligibility cards render the same schema fields (useGrantFormSchema scope 'edit')."
   },
   "MNY-038": {
     "name": "Edit a subsidy program inline",
@@ -1150,7 +1150,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "New detail page for grants. #2209: Money › Financing › Grants › row StatusMenu chip; the inline edit loses Status. #2242: Grant page › Overview › Details and Eligibility, each with its own Edit and explicit Save. A legacy fixed grant edits \"Fixed reduction\" and keeps its type."
+    "note": "New detail page for grants. #2209: Money › Financing › Grants › row StatusMenu chip; the inline edit loses Status. #2242: Grant page › Overview › Details and Eligibility, each with its own Edit and explicit Save. A legacy fixed grant edits \"Fixed reduction\" and keeps its type. #2255: the edit fields are the create schema's fields (ObjectFormFields); a legacy fixed grant's amount is labelled Fixed reduction, > 0, no 100 ceiling."
   },
   "MNY-039": {
     "name": "Track a subsidy application status (eligible, applied, approved, received, rejected)",
@@ -1908,7 +1908,7 @@
     "to": "Global > New menu > Company (/companies/new); Companies > Companies list > primary 'New company'; inline 'New company ‹text›' in company search pickers",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2213: one ObjectForm create dialog (route /companies/new); pickers open the same form in place. #2236: every company picker is EntityPicker kind 'company' or 'who', so 'New company ‹text›' is offered wherever a company is picked (CostLineCompanyPicker, CompanyPickerDialog and the hand-built company SearchPickers retired)."
+    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2213: one ObjectForm create dialog (route /companies/new); pickers open the same form in place. #2236: every company picker is EntityPicker kind 'company' or 'who', so 'New company ‹text›' is offered wherever a company is picked (CostLineCompanyPicker, CompanyPickerDialog and the hand-built company SearchPickers retired). #2255: the New company dialog opened from a company picker (and the company step of the New invoice dialog) also offers 'New trade ‹text›' (TagCreateProvider now wraps CompanyCreateProvider)."
   },
   "MNY-138": {
     "name": "Delete a vendor",
@@ -1935,7 +1935,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Edit form shows the saved trade. #2244: three cards on Overview (Phone and e-mail, Address, About), each with its own Edit and explicit Save; only changed fields are sent."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Edit form shows the saved trade. #2244: three cards on Overview (Phone and e-mail, Address, About), each with its own Edit and explicit Save; only changed fields are sent. #2255: the edit fields are the create schema's fields (ObjectFormFields); the About card keeps 'New trade ‹text›'."
   },
   "MNY-141": {
     "name": "List all invoices of a vendor",
@@ -1953,7 +1953,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Contact persons on the first screen (WALK 8b). #2209: Companies › Company page › Contact persons › Delete (ConfirmDialog, replaces window.confirm). #2244: contact persons use the ObjectForm dialog (first or last name required), row Edit, and row ⋯ Remove with an Undo toast (no confirm dialog)."
+    "note": "Contact persons on the first screen (WALK 8b). #2209: Companies › Company page › Contact persons › Delete (ConfirmDialog, replaces window.confirm). #2244: contact persons use the ObjectForm dialog (first or last name required), row Edit, and row ⋯ Remove with an Undo toast (no confirm dialog). #2255: first and last name side by side; the 'first or last name' error marks both fields."
   },
   "MNY-146": {
     "name": "Configure currency and VAT rate for all money formatting and VAT gross-up",

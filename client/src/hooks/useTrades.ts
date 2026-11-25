@@ -36,17 +36,19 @@ export interface UseTradesResult {
  * Returns loading, error, and data states following the project's hook conventions.
  * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
-export function useTrades(): UseTradesResult {
+export function useTrades(options: { enabled?: boolean } = {}): UseTradesResult {
+  const { enabled = true } = options;
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
   const [trades, setTrades] = useState<TradeListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [isInitialLoading, setIsInitialLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     async function fetchData() {
@@ -81,7 +83,7 @@ export function useTrades(): UseTradesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors, tCommon]);
+  }, [enabled, fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);
@@ -112,8 +114,8 @@ export function useTrades(): UseTradesResult {
 
   return {
     trades,
-    isLoading,
-    isInitialLoading,
+    isLoading: enabled && isLoading,
+    isInitialLoading: enabled && isInitialLoading,
     error,
     refetch,
     createTrade: handleCreate,

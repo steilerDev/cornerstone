@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event';
 import type { SubsidyProgram, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
 import type { EntityOption } from '../../components/EntityPicker/types.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enBudget from '../../i18n/en/budget.json';
 import type * as SectionModule from './GrantEligibilitySection.js';
 
 const mockUpdate = jest.fn<(id: string, body: UpdateSubsidyProgramRequest) => Promise<unknown>>();
@@ -32,6 +33,7 @@ interface MultiProps {
   removeLabel: (option: EntityOption) => string;
   countLabel: (count: number) => string;
   testId: string;
+  id?: string;
 }
 jest.unstable_mockModule('../../components/EntityPicker/EntityMultiPicker.js', () => ({
   EntityMultiPicker: (props: MultiProps) => (
@@ -49,6 +51,12 @@ jest.unstable_mockModule('../../components/EntityPicker/EntityMultiPicker.js', (
           </li>
         ))}
       </ul>
+      <input
+        id={props.id}
+        readOnly
+        aria-label={undefined}
+        data-testid={`${props.testId}-control`}
+      />
       <span data-testid="count">{props.countLabel(props.value.length)}</span>
       {props.picker.specialOptions?.map((special) => (
         <button
@@ -99,6 +107,22 @@ describe('GrantEligibilitySection', () => {
     user.click(await screen.findByTestId('grant-eligibility-edit'));
   const save = (user: ReturnType<typeof userEvent.setup>) =>
     user.click(screen.getByTestId('grant-eligibility-save'));
+
+  describe('schema wiring (#2255)', () => {
+    it('the categories picker is reachable by its real label and keeps its card test id', async () => {
+      const user = userEvent.setup();
+      renderSection();
+      await startEdit(user);
+
+      const byLabel = screen.getByLabelText(enBudget.financing.fields.categories);
+      expect(byLabel.id).toMatch(/-categories$/);
+      expect(screen.getByTestId('grant-field-categories')).toBeInTheDocument();
+      expect(screen.queryByTestId('grant-form-categories')).toBeNull();
+      expect(screen.getByTestId('grant-field-eligibility')).toHaveAccessibleName(
+        enBudget.financing.fields.eligibility,
+      );
+    });
+  });
 
   describe('read mode', () => {
     it('lists the category names and the eligibility text', () => {

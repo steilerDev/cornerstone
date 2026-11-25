@@ -130,10 +130,10 @@ function RoutedApp() {
   return (
     <RealLocationContext value={real}>
       <RealLocationKeyContext value={location.key}>
-        <CompanyCreateProvider>
-          <InvoiceCreateProvider>
-            <FinancingCreateProvider>
-              <TagCreateProvider>
+        <TagCreateProvider>
+          <CompanyCreateProvider>
+            <InvoiceCreateProvider>
+              <FinancingCreateProvider>
                 <PhotoDialogsProvider>
                   <CaptureUploadProvider>
                     <RouteTitleFallback />
@@ -342,10 +342,10 @@ function RoutedApp() {
                     <ObjectFormRoutes />
                   </CaptureUploadProvider>
                 </PhotoDialogsProvider>
-              </TagCreateProvider>
-            </FinancingCreateProvider>
-          </InvoiceCreateProvider>
-        </CompanyCreateProvider>
+              </FinancingCreateProvider>
+            </InvoiceCreateProvider>
+          </CompanyCreateProvider>
+        </TagCreateProvider>
       </RealLocationKeyContext>
     </RealLocationContext>
   );
