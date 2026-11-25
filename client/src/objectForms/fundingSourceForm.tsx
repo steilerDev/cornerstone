@@ -50,7 +50,7 @@ export function useFundingSourceValueMessages(): FundingSourceValueMessages {
   };
 }
 
-/** The smallest regular funding source amount (mirrors updateBudgetSource: >= 0.01). */
+/** The smallest regular funding source amount (mirrors createBudgetSource and updateBudgetSource: >= 0.01). */
 const AMOUNT_MIN = 0.01;
 
 /**
