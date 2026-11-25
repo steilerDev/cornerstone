@@ -39,7 +39,7 @@ export interface ReferenceListLabels {
   readonly title: string;
   /** One line under the h2. */
   readonly description: string;
-  /** The New button's aria-label and the New dialog's title. */
+  /** The New button's aria-label. */
   readonly newItem: string;
   readonly empty: string;
   readonly loadFailed: string;

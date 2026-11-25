@@ -187,8 +187,7 @@
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
       "search": "Search {{items}}",
-      "noMatch": "No {{items}} match.",
-      "duplicateName": "An orientation with this name already exists."
+      "noMatch": "No {{items}} match."
     },
     "pointers": {
       "title": "Managed on other pages",

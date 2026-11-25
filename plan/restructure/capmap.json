@@ -4079,7 +4079,7 @@
   "PLT-105": {
     "name": "Create a budget category with colour, sort order and description",
     "from": "/settings/manage?tab=budget-categories > \"Create New Budget Category\": Name *, Color, Sort Order, Description > create | Legacy /budget/categories redirects here | /settings/manage?tab=budget-categories > 'Create New Budget Category' form; 'Categories (n)' list > 'Edit' / 'Delete' | /budget/categories -> redirect",
-    "to": "Settings > Project setup > Cost categories > New; inline in the cost line form",
+    "to": "Settings > Project setup > Cost categories > New",
     "change": "same",
     "gate": "none",
     "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render the new `costCategoryForm` schema (ObjectForm). The cost line form's category is a select without inline create (unchanged)."

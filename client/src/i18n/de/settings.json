@@ -186,7 +186,6 @@
       "editItem": "{{item}} bearbeiten",
       "empty": "Noch keine {{items}}.",
       "loadFailed": "Die {{items}} konnten nicht geladen werden.",
-      "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits.",
       "search": "{{items}} durchsuchen",
       "noMatch": "Keine {{items}} gefunden."
     },
