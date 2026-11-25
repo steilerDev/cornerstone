@@ -212,6 +212,8 @@ jest.unstable_mockModule('../../../lib/photoApi.js', () => ({
 
 jest.unstable_mockModule('../../../lib/apiClient.js', () => ({
   getBaseUrl: jest.fn(() => '/api'),
+  // ToolPalette -> unionKeys -> paperlessApi pulls this export in at import time
+  toApiClientError: jest.fn(),
   get: jest.fn(),
   post: jest.fn(),
   patch: jest.fn(),

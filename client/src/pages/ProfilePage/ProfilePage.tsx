@@ -12,6 +12,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
+import { LOCALE_ENDONYMS } from '../../lib/localeEndonyms.js';
 import styles from './ProfilePage.module.css';
 
 interface PasswordFormErrors {
@@ -20,8 +21,6 @@ interface PasswordFormErrors {
   confirmPassword?: string;
 }
 
-/** Endonyms are deliberately not translated. */
-const LOCALE_LABELS: Record<'en' | 'de', string> = { en: 'English', de: 'Deutsch' };
 const LANGUAGE_OPTIONS = ['en', 'de', 'system'] as const satisfies readonly LocalePreference[];
 const THEME_OPTIONS = ['light', 'dark', 'system'] as const satisfies readonly ThemePreference[];
 
@@ -338,10 +337,10 @@ export function ProfilePage() {
                 }}
               >
                 <option value="en" lang="en">
-                  {LOCALE_LABELS.en}
+                  {LOCALE_ENDONYMS.en}
                 </option>
                 <option value="de" lang="de">
-                  {LOCALE_LABELS.de}
+                  {LOCALE_ENDONYMS.de}
                 </option>
                 <option value="system">{t('profile.systemLanguage')}</option>
               </select>

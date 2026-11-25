@@ -1,3 +1,7 @@
+/** Annotation colour names in swatch order; each has a `photoAnnotator:color.<name>` label. */
+export const ANNOTATION_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'black', 'white'] as const;
+export type AnnotationColorName = (typeof ANNOTATION_COLOR_NAMES)[number];
+
 /** Fixed annotation content colors — intentionally NOT CSS tokens.
  *  These are user-visible mark-up colors that must stay constant across themes. */
 export const ANNOTATION_COLORS = {
@@ -7,7 +11,7 @@ export const ANNOTATION_COLORS = {
   blue: '#3b82f6',
   black: '#000000',
   white: '#ffffff',
-} as const;
+} as const satisfies Record<AnnotationColorName, string>;
 
 export type AnnotationColor = (typeof ANNOTATION_COLORS)[keyof typeof ANNOTATION_COLORS];
 

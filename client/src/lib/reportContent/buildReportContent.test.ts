@@ -292,7 +292,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.invoice"}',
+        'sourceReports.table.attachmentsNote::{"count":1,"types":"sourceReports.table.attachmentType.invoice"}',
       );
     });
 
@@ -308,7 +308,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.quotation"}',
+        'sourceReports.table.attachmentsNote::{"count":1,"types":"sourceReports.table.attachmentType.quotation"}',
       );
     });
 
@@ -319,7 +319,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.deposit"}',
+        'sourceReports.table.attachmentsNote::{"count":1,"types":"sourceReports.table.attachmentType.deposit"}',
       );
     });
 
@@ -333,7 +333,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNote_other::{"count":2,"types":"sourceReports.table.attachmentType.invoice, sourceReports.table.attachmentType.quotation"}',
+        'sourceReports.table.attachmentsNote::{"count":2,"types":"sourceReports.table.attachmentType.invoice, sourceReports.table.attachmentType.quotation"}',
       );
     });
 
@@ -347,7 +347,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNote_other::{"count":2,"types":"sourceReports.table.attachmentType.invoice"}',
+        'sourceReports.table.attachmentsNote::{"count":2,"types":"sourceReports.table.attachmentType.invoice"}',
       );
     });
 
@@ -361,7 +361,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNoteNoType_other::{"count":2}',
+        'sourceReports.table.attachmentsNoteNoType::{"count":2}',
       );
     });
 
@@ -370,7 +370,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
-        'sourceReports.table.attachmentsNoteNoType_one::{"count":1}',
+        'sourceReports.table.attachmentsNoteNoType::{"count":1}',
       );
     });
   });

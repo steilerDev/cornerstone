@@ -64,6 +64,7 @@ import {
   BREAKDOWN_PAYMENTS,
   BREAKDOWN_VIEWS,
 } from '../components/CostBreakdownTable/breakdownSettings.js';
+import { ANNOTATION_COLOR_NAMES } from '../components/photos/PhotoAnnotator/annotationConstants.js';
 import { COST_LINE_DOCUMENT_KINDS } from '../components/CostLineTable/costLineDocumentKind.js';
 import { COST_LINE_STATES } from '../components/CostLineTable/costLineState.js';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
@@ -94,6 +95,7 @@ export type UnionKeyNamespace =
   | 'common'
   | 'history'
   | 'home'
+  | 'photoAnnotator'
   | 'schedule'
   | 'workItems';
 
@@ -355,4 +357,6 @@ export const I18N_UNION_KEYS = {
   ),
   /** schedule — side-panel relation sentence of a successor (#2247). */
   scheduleHoldsUpRelation: unionKeySet('schedule', 'view.panel.holdsUpRelation', DEPENDENCY_TYPES),
+  /** photoAnnotator — accessible name of each annotation colour swatch (#2260). */
+  annotationColor: unionKeySet('photoAnnotator', 'color', ANNOTATION_COLOR_NAMES),
 } as const;

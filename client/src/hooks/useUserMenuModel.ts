@@ -6,13 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext.js';
 import { RESOLVED_LOCALES, useLocale } from '../contexts/LocaleContext.js';
 import { useTheme } from '../contexts/ThemeContext.js';
+import { LOCALE_ENDONYMS } from '../lib/localeEndonyms.js';
 import type { ResolvedLocale } from '../contexts/LocaleContext.js';
 import type { ThemePreference } from '../contexts/ThemeContext.js';
 import { useShortcutsHelp } from '../components/KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { GITHUB_URL, HELP_URL } from '../lib/externalLinks.js';
 import { initialsOf } from '../lib/initials.js';
 
-const LOCALE_LABELS: Record<ResolvedLocale, string> = { en: 'English', de: 'Deutsch' };
 const THEME_ORDER: readonly ThemePreference[] = ['light', 'dark', 'system'];
 
 export interface UserMenuChoice<T extends string> {
@@ -97,7 +97,7 @@ export function useUserMenuModel(): UserMenuModel {
       value: resolvedLocale,
       options: RESOLVED_LOCALES.map((value) => ({
         value,
-        label: LOCALE_LABELS[value],
+        label: LOCALE_ENDONYMS[value],
         lang: value,
       })),
       set: (value) => {

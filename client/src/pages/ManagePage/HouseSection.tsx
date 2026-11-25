@@ -8,12 +8,10 @@ import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
+import { LOCALE_ENDONYMS } from '../../lib/localeEndonyms.js';
 import { fetchHouseholdSettings, updateHouseholdSettings } from '../../lib/settingsApi.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import styles from './HouseSection.module.css';
-
-/** Endonyms are deliberately not translated (as in ProfilePage). */
-const ENTRIES_LANGUAGE_LABELS: Record<EntriesLanguage, string> = { de: 'Deutsch', en: 'English' };
 
 interface HouseSectionProps {
   /** Called once the first load has ended (success or failure). */
@@ -206,7 +204,7 @@ export function HouseSection({ onSettled }: HouseSectionProps) {
           >
             {ENTRIES_LANGUAGES.map((value) => (
               <option key={value} value={value} lang={value}>
-                {ENTRIES_LANGUAGE_LABELS[value]}
+                {LOCALE_ENDONYMS[value]}
               </option>
             ))}
           </select>

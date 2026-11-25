@@ -572,6 +572,15 @@ describe('App', () => {
     });
   });
 
+  it('shows the translated Loading... fallback while a lazy route is pending (#2260)', async () => {
+    render(<App />);
+    // Synchronous first render: lazy chunk and auth check are both still pending.
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
+  });
+
   it('renders the compact AppShell below 1024 px: top bar, bottom bar and no sidebar or floating button', async () => {
     render(<App />);
 

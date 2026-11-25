@@ -1,5 +1,6 @@
 import './i18n/index.js';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { LIVE_REDIRECT_ROUTES, liveConditionalRules, routePattern } from '@cornerstone/shared';
 import { AppShell } from './components/AppShell/AppShell';
@@ -25,6 +26,12 @@ import { InvoiceCreateProvider } from './objectForms/InvoiceCreateProvider.js';
 import { TagCreateProvider } from './objectForms/TagCreateProvider.js';
 import { PhotoDialogsProvider } from './photos/PhotoDialogsProvider.js';
 import { ObjectFormRoutes } from './objectForms/ObjectFormRoutes.js';
+
+/** Translated Suspense fallback for lazily loaded routes. */
+function RouteFallback() {
+  const { t } = useTranslation('common');
+  return <div>{t('loading')}</div>;
+}
 
 /**
  * Bridge component that syncs theme with server when user authenticates.
@@ -142,7 +149,7 @@ function RoutedApp() {
                       <Route
                         path={routePattern('setup')}
                         element={
-                          <Suspense fallback={<div>Loading...</div>}>
+                          <Suspense fallback={<RouteFallback />}>
                             <SetupPage />
                           </Suspense>
                         }
@@ -150,7 +157,7 @@ function RoutedApp() {
                       <Route
                         path={routePattern('login')}
                         element={
-                          <Suspense fallback={<div>Loading...</div>}>
+                          <Suspense fallback={<RouteFallback />}>
                             <LoginPage />
                           </Suspense>
                         }
@@ -195,7 +202,7 @@ function RoutedApp() {
                             <Route
                               path={routePattern('invoicePaperlessReview')}
                               element={
-                                <Suspense fallback={<div>Loading...</div>}>
+                                <Suspense fallback={<RouteFallback />}>
                                   <PaperlessInvoiceReviewPage />
                                 </Suspense>
                               }
@@ -205,7 +212,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('invoiceConvert')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <InvoiceConvertPage />
                               </Suspense>
                             }
@@ -213,7 +220,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('invoiceAutoItemize')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <AutoItemizePage />
                               </Suspense>
                             }
@@ -227,7 +234,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('diary')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <DiaryPage />
                               </Suspense>
                             }
@@ -235,7 +242,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('history')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <HistoryPage />
                               </Suspense>
                             }
@@ -244,7 +251,7 @@ function RoutedApp() {
                             <Route
                               path={routePattern('documents')}
                               element={
-                                <Suspense fallback={<div>Loading...</div>}>
+                                <Suspense fallback={<RouteFallback />}>
                                   <DocumentsPage />
                                 </Suspense>
                               }
@@ -253,7 +260,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('diaryEntryNew')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <DiaryCapturePage key="diary-capture" />
                               </Suspense>
                             }
@@ -261,7 +268,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('diaryEntry')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <DiaryEntryDetailPage />
                               </Suspense>
                             }
@@ -269,7 +276,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('diaryEntryEdit')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <DiaryCapturePage key="diary-capture" />
                               </Suspense>
                             }
@@ -277,7 +284,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('areas')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <AreasPage />
                               </Suspense>
                             }
@@ -285,7 +292,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('area')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <AreaDetailPage />
                               </Suspense>
                             }
@@ -293,7 +300,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('photos')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <PhotosPage />
                               </Suspense>
                             }
@@ -301,7 +308,7 @@ function RoutedApp() {
                           <Route
                             path={routePattern('photoSpot')}
                             element={
-                              <Suspense fallback={<div>Loading...</div>}>
+                              <Suspense fallback={<RouteFallback />}>
                                 <PhotoSpotViewerPage />
                               </Suspense>
                             }

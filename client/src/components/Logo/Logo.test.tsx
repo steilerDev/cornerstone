@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import i18n from '../../i18n/index.js';
 import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
 import type * as LogoTypes from './Logo.js';
 
@@ -21,7 +22,8 @@ describe('Logo component', () => {
     localStorage.clear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
     cleanup();
     localStorage.clear();
   });
@@ -36,6 +38,12 @@ describe('Logo component', () => {
     const { ThemeProvider } = ThemeContext;
     return render(<ThemeProvider>{ui}</ThemeProvider>);
   }
+
+  it('keeps the accessible name "Cornerstone" in German (common:appName)', async () => {
+    await i18n.changeLanguage('de');
+    renderWithTheme(<Logo variant="full" />);
+    expect(screen.getByRole('img', { name: 'Cornerstone' })).toBeInTheDocument();
+  });
 
   // ── variant = 'icon' (default) ─────────────────────────────────────────────
 

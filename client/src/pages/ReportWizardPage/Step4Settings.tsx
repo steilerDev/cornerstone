@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { ResolvedLocale } from '../../contexts/LocaleContext.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { LOCALE_ENDONYMS } from '../../lib/localeEndonyms.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
@@ -75,7 +76,7 @@ export function Step4Settings({
               checked={reportLanguage === 'en'}
               onChange={() => onReportLanguageChange('en')}
             />
-            English
+            {LOCALE_ENDONYMS.en}
           </label>
           <label>
             <input
@@ -85,7 +86,7 @@ export function Step4Settings({
               checked={reportLanguage === 'de'}
               onChange={() => onReportLanguageChange('de')}
             />
-            Deutsch
+            {LOCALE_ENDONYMS.de}
           </label>
         </div>
         <div className={styles.optionHelper}>{t('sourceReports.settingsStep.languageHelper')}</div>
