@@ -16,12 +16,15 @@
  * - rows are `li` elements named by their item (row test ids carry the record id, so rows are
  *   located by name); the handle is `Reorder <name>` (a button), the menu `Actions for <name>`;
  * - the ⋯ menu (portalled to the body) has Edit, Move up, Move down, Delete;
- * - the New/Edit dialog is a Modal from 768px and a bottom Sheet below (role `dialog`, found by
- *   the name field it holds); an unsaved close opens a discard `alertdialog`;
+ * - the New/Edit dialog is an ObjectForm (#2256): a Modal from 768px and a full-screen Sheet
+ *   below (role `dialog`, found by the form root test id = the list prefix). Name is essential;
+ *   Description / Colour sit behind "More details" (`<prefix>-more`). A duplicate name is a field
+ *   error under Name (not a banner); an unsaved close opens a discard `alertdialog`;
  * - a delete opens the shared ConfirmDialog (`<prefix>-delete-dialog`); a category still in use
  *   turns it into a blocked state (lead sentence, no Delete button, no counts).
  */
 
+import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
@@ -39,6 +42,9 @@ export const REFERENCE_LISTS = {
     title: 'Cost categories',
     newLabel: 'New cost category',
     editLabel: 'Edit cost category',
+    nameTestId: 'cost-category-name-input',
+    descriptionTestId: 'cost-category-description-input',
+    colorTestId: 'cost-category',
   },
   purchaseCategories: {
     sectionTestId: 'project-setup-purchase-categories',
@@ -47,6 +53,8 @@ export const REFERENCE_LISTS = {
     title: 'Purchase categories',
     newLabel: 'New purchase category',
     editLabel: 'Edit purchase category',
+    nameTestId: 'purchase-category-name-input',
+    colorTestId: 'purchase-category',
   },
   orientations: {
     sectionTestId: 'project-setup-photo-orientations',
@@ -55,8 +63,22 @@ export const REFERENCE_LISTS = {
     title: 'Photo orientations',
     newLabel: 'New orientation',
     editLabel: 'Edit orientation',
+    nameTestId: 'orientation-name-input',
+    descriptionTestId: 'orientation-description-input',
   },
 } as const;
+
+interface ReferenceListConfig {
+  readonly sectionTestId: string;
+  readonly prefix: string;
+  readonly anchor: string;
+  readonly title: string;
+  readonly newLabel: string;
+  readonly editLabel: string;
+  readonly nameTestId: string;
+  readonly descriptionTestId?: string;
+  readonly colorTestId?: string;
+}
 
 export interface ReferenceListValues {
   name: string;
@@ -82,6 +104,10 @@ export class ReferenceListControl {
   readonly reorderError: Locator;
   readonly retryButton: Locator;
   readonly dialog: Locator;
+  /** "More details" toggle of the ObjectForm. */
+  readonly moreButton: Locator;
+  /** Name field error (`#name-error`); the duplicate-name message lands here. */
+  readonly nameError: Locator;
   readonly nameInput: Locator;
   readonly descriptionInput: Locator;
   readonly colorInput: Locator;
@@ -92,7 +118,7 @@ export class ReferenceListControl {
   readonly deleteDialog: ConfirmDialogControl;
 
   constructor(page: Page, key: ReferenceListKey) {
-    const config = REFERENCE_LISTS[key];
+    const config: ReferenceListConfig = REFERENCE_LISTS[key];
     this.page = page;
     this.key = key;
     this.prefix = config.prefix;
@@ -108,13 +134,16 @@ export class ReferenceListControl {
     });
     this.reorderError = page.getByTestId(`${config.prefix}-reorder-error`);
     this.retryButton = page.getByTestId(`${config.prefix}-retry`);
-    this.dialog = page
-      .getByRole('dialog')
-      .filter({ has: page.getByTestId(`${config.prefix}-name`) });
-    this.nameInput = page.getByTestId(`${config.prefix}-name`);
-    this.descriptionInput = page.getByTestId(`${config.prefix}-description`);
-    this.colorInput = page.getByTestId(`${config.prefix}-color`);
-    this.noColor = page.getByTestId(`${config.prefix}-no-color`);
+    this.dialog = page.getByRole('dialog').filter({ has: page.getByTestId(config.prefix) });
+    this.moreButton = page.getByTestId(`${config.prefix}-more`);
+    this.nameError = this.dialog.locator('#name-error');
+    this.nameInput = page.getByTestId(config.nameTestId);
+    // Lists without the field never resolve these (a never-matching test id).
+    this.descriptionInput = page.getByTestId(
+      config.descriptionTestId ?? `${config.prefix}-no-description`,
+    );
+    this.colorInput = page.getByTestId(`${config.colorTestId ?? `${config.prefix}-none`}-color`);
+    this.noColor = page.getByTestId(`${config.colorTestId ?? `${config.prefix}-none`}-no-color`);
     this.saveButton = page.getByTestId(`${config.prefix}-save`);
     this.cancelButton = page.getByTestId(`${config.prefix}-cancel`);
     this.discardDialog = new ConfirmDialogControl(page, `${config.prefix}-discard`);
@@ -178,9 +207,21 @@ export class ReferenceListControl {
     await this.dialog.waitFor({ state: 'visible' });
   }
 
-  /** Fill the open dialog (does not save). */
+  /** Open "More details" when it is closed (no-op when open). */
+  async expandMoreDetails(): Promise<void> {
+    if ((await this.moreButton.count()) === 0) return;
+    if ((await this.moreButton.getAttribute('aria-expanded')) !== 'true') {
+      await this.moreButton.click();
+    }
+    await expect(this.moreButton).toHaveAttribute('aria-expanded', 'true');
+  }
+
+  /** Fill the open dialog (does not save); opens "More details" for Description / Colour. */
   async fillDialog(values: Partial<ReferenceListValues>): Promise<void> {
     if (values.name !== undefined) await this.nameInput.fill(values.name);
+    if (values.description !== undefined || values.color !== undefined) {
+      await this.expandMoreDetails();
+    }
     if (values.description !== undefined) await this.descriptionInput.fill(values.description);
     if (values.color === null) {
       if (!(await this.noColor.isChecked())) await this.noColor.check();

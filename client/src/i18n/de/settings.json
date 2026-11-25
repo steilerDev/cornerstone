@@ -74,31 +74,23 @@
       "error": "{{name}} konnte nicht entsperrt werden. Versuch es erneut."
     },
     "editModal": {
-      "title": "Benutzer bearbeiten",
-      "closeAriaLabel": "Schließen",
-      "displayNameLabel": "Anzeigename",
-      "emailLabel": "E-Mail",
-      "roleLabel": "Rolle",
-      "cancel": "Abbrechen",
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "error": "Benutzer konnte nicht aktualisiert werden. Bitte versuche es erneut."
+      "title": "Benutzer bearbeiten"
     },
-    "addUser": "Benutzer hinzufügen",
+    "addUser": "Neuer Benutzer",
     "createModal": {
-      "title": "Benutzer hinzufügen",
+      "title": "Neuer Benutzer",
       "emailLabel": "E-Mail",
       "displayNameLabel": "Anzeigename",
       "roleLabel": "Rolle",
-      "ssoOnlyLabel": "Nur Single Sign-on (kein Passwort)",
       "ssoOnlyHint": "Der Benutzer meldet sich mit Single Sign-on an. Es wird kein Passwort erstellt; das Konto wird beim ersten Anmelden mit einer bestätigten E-Mail verknüpft.",
       "passwordLabel": "Passwort",
       "confirmPasswordLabel": "Passwort bestätigen",
-      "passwordHint": "Mindestens 12 Zeichen.",
-      "cancel": "Abbrechen",
-      "create": "Benutzer erstellen",
-      "creating": "Wird erstellt...",
-      "error": "Benutzer konnte nicht erstellt werden. Bitte versuche es erneut."
+      "passwordHint": "Mindestens 12 Zeichen."
+    },
+    "form": {
+      "signInMethod": "Anmeldeart",
+      "signInLocal": "Passwort",
+      "signInOidc": "Single Sign-on"
     },
     "createValidation": {
       "emailTooLong": "E-Mail darf maximal 255 Zeichen lang sein",

@@ -4,7 +4,7 @@
  *
  * Photo orientations are a `ReferenceList` section (name and description, no color): a New
  * button, a ⋯ menu per row (Edit, Move up, Move down, Delete) and reorder by drag or keyboard.
- * The New/Edit dialog is a Modal from 768px and a bottom Sheet below. Delete asks first and lists
+ * The New/Edit dialog is a Modal from 768px and a full-screen Sheet below. Delete asks first and lists
  * the photos that lose their orientation.
  *
  * Scenarios:

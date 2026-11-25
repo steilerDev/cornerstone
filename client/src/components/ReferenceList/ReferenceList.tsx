@@ -1,5 +1,5 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeleteImpactEntityType } from '@cornerstone/shared';
 import { useEntriesLanguage } from '../../contexts/HouseNameContext.js';
@@ -10,9 +10,9 @@ import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { FormError } from '../FormError/FormError.js';
 import { OverflowMenu } from '../OverflowMenu/OverflowMenu.js';
+import type { ObjectFormResult } from '../ObjectForm/types.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import styles from './ReferenceList.module.css';
-import { ReferenceListDialog } from './ReferenceListDialog.js';
 import { moveId, positionOf } from './reorder.js';
 import { REFERENCE_LIST_SEARCH_MIN_ROWS, filterReferenceItems } from './referenceListSearch.js';
 import { useReorder } from './useReorder.js';
@@ -41,24 +41,38 @@ export interface ReferenceListLabels {
   readonly description: string;
   /** The New button's aria-label and the New dialog's title. */
   readonly newItem: string;
-  readonly editItem: string;
   readonly empty: string;
   readonly loadFailed: string;
   /** "Search cost categories": the search field's placeholder and accessible name. */
   readonly search: string;
   /** "No cost categories match." */
   readonly noMatch: string;
-  /** Shown on a 409 CONFLICT from create or update. */
-  readonly duplicateName: string;
   /** Lead of the blocked delete dialog when DELETE answers 409; omit when delete never 409s. */
   readonly deleteBlocked?: (name: string) => string;
 }
 
 export interface ReferenceListFields {
-  readonly nameMaxLength: number;
-  /** Omit = no description field. */
-  readonly descriptionMaxLength?: number;
+  /** Rows show a colour swatch. */
   readonly color?: boolean;
+}
+
+/** What a list hands its host to render the New / Edit dialog. */
+export interface ReferenceListFormRequest {
+  readonly mode: 'new' | 'edit';
+  /** The row being edited (`mode === 'edit'`). */
+  readonly item?: ReferenceListItem;
+  /** Pass to the schema's `create` option: persists through the list and announces "‹name› added". */
+  readonly create: (values: ReferenceListValues) => Promise<{ id: string }>;
+  /** Pass to the schema's `update` option: persists through the list and announces "‹name› saved". */
+  readonly update: (id: string, changes: Partial<ReferenceListValues>) => Promise<unknown>;
+  /** ObjectForm `onCreated`. */
+  readonly onDone: (result: ObjectFormResult) => void;
+  /** ObjectForm `onCancel`. */
+  readonly onCancel: () => void;
+  /** The New button (ObjectForm `returnFocusRef`). */
+  readonly returnFocusRef: RefObject<HTMLElement | null>;
+  /** ObjectForm `testId`: the list's `testIdPrefix`, so Save / Cancel / discard keep `${prefix}-save` etc. */
+  readonly testId: string;
 }
 
 export interface ReferenceListProps {
@@ -68,6 +82,8 @@ export interface ReferenceListProps {
   readonly testIdPrefix: string;
   readonly labels: ReferenceListLabels;
   readonly fields: ReferenceListFields;
+  /** Renders the New / Edit dialog: an ObjectForm over the object's schema. */
+  readonly renderForm: (request: ReferenceListFormRequest) => ReactNode;
   readonly items: readonly ReferenceListItem[];
   readonly status: 'loading' | 'error' | 'ready';
   readonly onRetry: () => void;
@@ -100,8 +116,9 @@ type PendingFocus =
 /**
  * An ordered list of simple reference items (name, optional description and color) with a New
  * button, a ⋯ menu per row (Edit, Move up, Move down, Delete) and reordering by pointer or
- * keyboard drag. Every move is one atomic request with the whole id list. All strings come from
- * props or the common namespace.
+ * keyboard drag. Every move is one atomic request with the whole id list. The New / Edit dialog
+ * is the host's `renderForm` (an ObjectForm); the list keeps the dialog state, focus return and
+ * announcements. All strings come from props or the common namespace.
  */
 export function ReferenceList({
   anchorId,
@@ -109,6 +126,7 @@ export function ReferenceList({
   testIdPrefix,
   labels,
   fields,
+  renderForm,
   items,
   status,
   onRetry,
@@ -131,6 +149,7 @@ export function ReferenceList({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const pendingFocusRef = useRef<PendingFocus>(null);
+  const newButtonRef = useRef<HTMLButtonElement>(null);
 
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
@@ -250,20 +269,27 @@ export function ReferenceList({
     setDialog({ mode: 'new' });
   };
 
-  const handleDialogSubmit = async (values: ReferenceListValues | Partial<ReferenceListValues>) => {
-    // Only the open dialog submits.
-    const current = dialog!;
-    if (current.mode === 'new') {
-      const created = await onCreate(values as ReferenceListValues);
-      pendingFocusRef.current = { kind: 'menu', id: created.id };
-      setDialog(null);
-      onAnnounce(t('referenceList.added', { name: (values as ReferenceListValues).name }));
-    } else {
-      await onUpdate(current.id, values);
-      pendingFocusRef.current = { kind: 'menu', id: current.id };
-      setDialog(null);
-      onAnnounce(t('referenceList.saved', { name: values.name ?? nameOf(current.id) }));
-    }
+  const createThroughList = async (values: ReferenceListValues) => {
+    const created = await onCreate(values);
+    onAnnounce(t('referenceList.added', { name: values.name }));
+    return created;
+  };
+
+  const updateThroughList = async (id: string, changes: Partial<ReferenceListValues>) => {
+    await onUpdate(id, changes);
+    onAnnounce(t('referenceList.saved', { name: changes.name ?? nameOf(id) }));
+  };
+
+  // An unchanged edit lands here too: no request, no announcement.
+  const handleFormDone = (result: ObjectFormResult) => {
+    pendingFocusRef.current = { kind: 'menu', id: result.id };
+    setDialog(null);
+  };
+
+  const handleFormCancel = () => {
+    // The menu item that opened an edit is gone: focus the row's ⋯ trigger.
+    if (dialog?.mode === 'edit') pendingFocusRef.current = { kind: 'menu', id: dialog.id };
+    setDialog(null);
   };
 
   const focusAfterRemoving = (id: string): PendingFocus => {
@@ -487,6 +513,7 @@ export function ReferenceList({
         </h2>
         <button
           type="button"
+          ref={newButtonRef}
           className={styles.newButton}
           aria-label={labels.newItem}
           aria-disabled={ready ? undefined : 'true'}
@@ -499,18 +526,19 @@ export function ReferenceList({
       <p className={styles.description}>{labels.description}</p>
       {renderBody()}
 
-      {dialog && (
-        <ReferenceListDialog
-          key={dialog.mode === 'edit' ? dialog.id : 'new'}
-          mode={dialog.mode}
-          item={editingItem}
-          labels={labels}
-          fields={fields}
-          testIdPrefix={testIdPrefix}
-          entriesLanguage={entriesLanguage}
-          onSubmit={handleDialogSubmit}
-          onClose={() => setDialog(null)}
-        />
+      {dialog && (dialog.mode === 'new' || editingItem) && (
+        <Fragment key={dialog.mode === 'edit' ? dialog.id : 'new'}>
+          {renderForm({
+            mode: dialog.mode,
+            ...(editingItem ? { item: editingItem } : {}),
+            create: createThroughList,
+            update: updateThroughList,
+            onDone: handleFormDone,
+            onCancel: handleFormCancel,
+            returnFocusRef: newButtonRef,
+            testId: testIdPrefix,
+          })}
+        </Fragment>
       )}
 
       {deleteState && (

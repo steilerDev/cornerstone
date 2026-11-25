@@ -19,6 +19,12 @@ jest.unstable_mockModule('../lib/tradesApi.js', () => ({
   createTrade: mockCreate,
 }));
 
+let mockLanguage: string | null = null;
+jest.unstable_mockModule('../contexts/HouseNameContext.js', () => ({
+  useEntriesLanguage: () => mockLanguage,
+  useHouseName: () => ({ houseName: null, entriesLanguage: mockLanguage }),
+}));
+
 const created = (name: string) =>
   ({ id: 't-1', name }) as Awaited<ReturnType<typeof ApiTypes.createTrade>>;
 
@@ -31,6 +37,7 @@ describe('tradeForm', () => {
   beforeEach(async () => {
     mockCreate.mockReset();
     onCreated.mockReset();
+    mockLanguage = null;
     media = installMatchMedia({ '(min-width: 768px)': true });
     if (!Form) {
       Form = await import('./tradeForm.js');
@@ -118,6 +125,32 @@ describe('tradeForm', () => {
         href: routeUrl('settingsManage'),
         label: 'Roofing (stored)',
       });
+    });
+  });
+
+  describe('shared name rules (also used by the Trades sheet)', () => {
+    const messages = () => renderHook(() => Form.useTradeValueMessages()).result.current;
+
+    it('exposes the translated required and duplicate messages', () => {
+      expect(messages()).toEqual({
+        nameRequired: 'Enter a name.',
+        duplicateName: 'A trade with this name exists already.',
+      });
+    });
+
+    it('validateTradeValues requires a trimmed name and passes a real one', () => {
+      const m = messages();
+
+      expect(Form.validateTradeValues({ name: '  ' }, m)).toEqual({ name: m.nameRequired });
+      expect(Form.validateTradeValues({ name: undefined }, m)).toEqual({ name: m.nameRequired });
+      expect(Form.validateTradeValues({ name: ' Roofing ' }, m)).toEqual({});
+    });
+
+    it('sets lang to the entries language, and leaves it unset while unknown', () => {
+      mockLanguage = 'de';
+      expect(schema().fields[0]?.lang).toBe('de');
+      mockLanguage = null;
+      expect(schema().fields[0]?.lang).toBeUndefined();
     });
   });
 

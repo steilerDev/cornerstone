@@ -72,7 +72,7 @@ By default, OIDC does not create accounts. Instead, it links existing accounts o
 
 1. **Local accounts with SSO linking** -- use the [admin panel](admin-panel) to add users with their email address and a password. When they sign in via OIDC for the first time, their account is linked. After linking, they can sign in with either their password or OIDC SSO.
 
-2. **SSO-only accounts** -- also created from the [admin panel](admin-panel), with the "Single sign-on only (no password)" option. These have no password and can only sign in via OIDC. They are linked automatically on their first SSO login.
+2. **SSO-only accounts** -- also created from the [admin panel](admin-panel), with **Sign-in method: Single sign-on** in the New user form. These have no password and can only sign in via OIDC. They are linked automatically on their first SSO login.
 
 **Linking process:**
 

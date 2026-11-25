@@ -122,6 +122,7 @@ export function ObjectFormField({
         {...common}
         className={cx(styles.textarea, invalid && styles.inputError)}
         rows={3}
+        lang={field.lang}
         value={text}
         maxLength={field.maxLength}
         placeholder={field.placeholder}
@@ -142,6 +143,7 @@ export function ObjectFormField({
         inputMode={kind === 'number' ? field.inputMode : undefined}
         maxLength={field.maxLength}
         autoComplete={field.autoComplete}
+        lang={field.lang}
         placeholder={field.placeholder}
         readOnly={busy}
         onChange={(event) => onChange(event.target.value)}

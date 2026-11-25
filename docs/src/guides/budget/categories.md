@@ -34,8 +34,11 @@ Cost categories are kept in **Settings > Project setup**. Purchase categories (f
 
 Navigate to **Settings > Project setup** and find the **Cost categories** section. Select **New cost category** and provide:
 
-- **Name** -- A short label (e.g., "Electrical")
-- **Description** -- Optional details about what costs belong in this category
+- **Name** -- A short label, required (up to 100 characters), e.g., "Electrical"
+
+Select **More details** to add:
+
+- **Description** -- Optional details about what costs belong in this category (up to 500 characters)
 - **Color** -- Optional. Pick a color to tell categories apart at a glance, or choose **No color**
 
 ## Searching and Reordering

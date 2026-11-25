@@ -1,9 +1,11 @@
 /**
- * E2E tests for editing users (Stories #37, #38)
+ * E2E tests for editing users (Stories #37, #38). The Edit dialog is the same ObjectForm schema
+ * as New user, in edit scope (#2256): Display name, Email and Role only, no password.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
+import { ConfirmDialogControl } from '../../pages/components/ConfirmDialogControl.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('Edit User', { lock: 'admin-account' }, () => {
@@ -30,6 +32,21 @@ test.describe('Edit User', { lock: 'admin-account' }, () => {
     await expect(userManagementPage.editDisplayNameInput).toHaveValue(TEST_ADMIN.displayName);
     await expect(userManagementPage.editEmailInput).toHaveValue(TEST_ADMIN.email);
     await expect(userManagementPage.editRoleSelect).toHaveValue('admin');
+  });
+
+  test('Edit shows Display name, Email and Role only (no password, no sign-in method)', async ({
+    page,
+  }) => {
+    const users = new UserManagementPage(page);
+    await users.goto();
+    await users.openEditModal(TEST_ADMIN.email);
+
+    await expect(users.editModal.getByLabel('Display Name')).toBeVisible();
+    await expect(users.editModal.getByLabel('Email')).toBeVisible();
+    await expect(users.editModal.getByLabel('Role')).toBeVisible();
+    await expect(users.editModal.locator('#password')).toHaveCount(0);
+    await expect(users.editModal.locator('#confirmPassword')).toHaveCount(0);
+    await expect(users.editModal.locator('#authProvider')).toHaveCount(0);
   });
 
   test('Change display name, save, verify in list', async ({ page }) => {
@@ -70,6 +87,8 @@ test.describe('Edit User', { lock: 'admin-account' }, () => {
     // When: User makes changes but clicks Cancel
     await userManagementPage.editDisplayNameInput.fill('Temporary Name');
     await userManagementPage.editCancelButton.click();
+    // And: the discard confirm (shared ObjectForm behaviour) is accepted
+    await new ConfirmDialogControl(page, 'user-form-discard').confirmAndWaitClosed();
 
     // Then: Modal should close
     await expect(userManagementPage.editModal).not.toBeVisible();
@@ -108,11 +127,10 @@ test.describe('Edit User', { lock: 'admin-account' }, () => {
     await userManagementPage.editDisplayNameInput.fill('');
     await userManagementPage.editSaveButton.click();
 
-    // Then: Should show error or button disabled
-    const isDisabled = await userManagementPage.editSaveButton.isDisabled();
-    const error = await userManagementPage.getEditModalError();
-
-    expect(isDisabled || error).toBeTruthy();
+    // Then: the field shows its error, the dialog stays open and Display name has focus
+    await expect(userManagementPage.editDisplayNameError).toBeVisible();
+    await expect(userManagementPage.editDisplayNameInput).toBeFocused();
+    await expect(userManagementPage.editModal).toBeVisible();
   });
 
   test('Validation: invalid email rejected', async ({ page }) => {
@@ -126,14 +144,38 @@ test.describe('Edit User', { lock: 'admin-account' }, () => {
     await userManagementPage.editEmailInput.fill('not-an-email');
     await userManagementPage.editSaveButton.click();
 
-    // Then: Should show error, button disabled, or HTML5 validation constraint
-    const isDisabled = await userManagementPage.editSaveButton.isDisabled();
-    const error = await userManagementPage.getEditModalError();
-    const isInputInvalid = await userManagementPage.editEmailInput.evaluate(
-      (el: HTMLInputElement) => !el.validity.valid,
-    );
+    // Then: the email field shows its error and the dialog stays open
+    await expect(userManagementPage.editEmailError).toBeVisible();
+    await expect(userManagementPage.editEmailInput).toBeFocused();
+    await expect(userManagementPage.editModal).toBeVisible();
+  });
 
-    expect(isDisabled || error || isInputInvalid).toBeTruthy();
+  test('Escape on an untouched dialog returns focus to the row menu button', async ({ page }) => {
+    const users = new UserManagementPage(page);
+    await users.goto();
+    await users.openEditModal(TEST_ADMIN.email);
+
+    await page.keyboard.press('Escape');
+
+    await expect(users.editModal).toBeHidden();
+    await expect(users.rowMenuTrigger(TEST_ADMIN.email)).toBeFocused();
+  });
+
+  test('Saving without a change sends no request', async ({ page }) => {
+    const users = new UserManagementPage(page);
+    const writes: string[] = [];
+    page.on('request', (request) => {
+      if (/\/api\/users\/[^/]+$/.test(request.url()) && request.method() === 'PATCH') {
+        writes.push(request.url());
+      }
+    });
+    await users.goto();
+    await users.openEditModal(TEST_ADMIN.email);
+
+    await users.editSaveButton.click();
+
+    await expect(users.editModal).toBeHidden();
+    expect(writes).toEqual([]);
   });
 
   /**

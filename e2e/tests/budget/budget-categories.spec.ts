@@ -4,7 +4,7 @@
  *
  * Both lists are `ReferenceList` sections: a New button, a ⋯ menu per row (Edit, Move up,
  * Move down, Delete), reorder by drag or keyboard, "No color" instead of an empty swatch. The
- * New/Edit dialog is a Modal from 768px (448px wide) and a bottom Sheet below. Deleting a
+ * New/Edit dialog is a Modal from 768px (448px wide) and a full-screen Sheet below. Deleting a
  * category that is still used turns the confirm into a blocked dialog with a fixed sentence and
  * no counts (the server hides the counts: #315 hardening).
  *
@@ -167,7 +167,7 @@ for (const list of LISTS) {
   // Scenario 2: create
   // ───────────────────────────────────────────────────────────────────────────
   test.describe(`${list.title} — create (Scenario 2)`, { tag: '@responsive' }, () => {
-    test('New opens the dialog as a Modal (448px) from 768px and a bottom Sheet below', async ({
+    test('New opens the dialog as a Modal (448px) from 768px and a full-screen Sheet below', async ({
       page,
     }) => {
       const setup = new ProjectSetupPage(page);
@@ -189,9 +189,9 @@ for (const list of LISTS) {
             `Modal width at ${width}px: ${box.width}`,
           ).toBeLessThanOrEqual(1);
         } else {
-          // A bottom Sheet is full width and sits on the bottom edge
+          // The ObjectForm Sheet is full-screen below 768px
           expect(Math.abs(box.width - width), `Sheet width: ${box.width}`).toBeLessThanOrEqual(1);
-          expect(Math.abs(box.y + box.height - 900), 'Sheet bottom edge').toBeLessThanOrEqual(1);
+          expect(Math.abs(box.height - 900), `Sheet height: ${box.height}`).toBeLessThanOrEqual(1);
         }
         await control.cancelButton.click();
         await expect(control.dialog).toHaveCount(0);
@@ -210,6 +210,8 @@ for (const list of LISTS) {
 
       try {
         await control.openNewDialog();
+        // Colour sits behind "More details" in the ObjectForm dialog
+        await control.expandMoreDetails();
         await expect(control.noColor).toBeChecked();
         await expect(control.colorInput).toBeDisabled();
         await control.fillDialog({ name: plain });
@@ -306,6 +308,7 @@ for (const list of LISTS) {
         await control.clickMenuItem(original, 'Edit');
         await expect(control.dialog.getByRole('heading', { name: list.editLabel })).toBeVisible();
         await expect(control.nameInput).toHaveValue(original);
+        await control.expandMoreDetails();
         await expect(control.noColor).toBeChecked();
         await control.fillDialog({ name: renamed, color: '#aa5500' });
         await control.save();
@@ -338,6 +341,8 @@ for (const list of LISTS) {
         await expect(control.swatch(name)).toHaveCount(1);
         await control.clickMenuItem(name, 'Edit');
         await control.dialog.waitFor({ state: 'visible' });
+        // A prefilled colour opens "More details" on its own
+        await control.expandMoreDetails();
         await expect(control.noColor).not.toBeChecked();
         await control.fillDialog({ color: null });
         await control.save();

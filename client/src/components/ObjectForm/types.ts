@@ -63,6 +63,7 @@ export interface ObjectFormField {
     | 'url'
     | 'tel'
     | 'email'
+    | 'password'
     | 'select'
     | 'color'
     | 'custom';
@@ -95,8 +96,10 @@ export interface ObjectFormField {
   /** Number inputs only. */
   readonly inputMode?: 'decimal' | 'numeric';
   readonly maxLength?: number;
-  /** Single-line inputs only: the HTML autocomplete token (e.g. 'tel', 'email'). */
+  /** Single-line inputs only: the HTML autocomplete token (e.g. 'tel', 'email', 'new-password'). */
   readonly autoComplete?: string;
+  /** Text-like inputs and textareas: the language of the typed text (the household's entries language). */
+  readonly lang?: string;
   readonly testId?: string;
   /**
    * Another field's name whose error also marks this field invalid (a rule naming both, e.g. first or

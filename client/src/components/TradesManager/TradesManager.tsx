@@ -2,6 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TradeListItem } from '@cornerstone/shared';
+import { useEntriesLanguage } from '../../contexts/HouseNameContext.js';
+import {
+  TRADE_NAME_MAX_LENGTH,
+  useTradeValueMessages,
+  validateTradeValues,
+} from '../../objectForms/tradeForm.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -19,7 +25,6 @@ import { useToast } from '../Toast/ToastContext.js';
 import { EntityPicker } from '../EntityPicker/EntityPicker.js';
 import styles from './TradesManager.module.css';
 
-const NAME_MAX_LENGTH = 200;
 const MAX_FOCUS_FRAMES = 30;
 
 export type TradesChange =
@@ -67,6 +72,8 @@ export function TradesManager({
   const { t, i18n } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const messages = useTradeValueMessages();
+  const entriesLanguage = useEntriesLanguage() ?? undefined;
   const { showToast } = useToast();
   const wide = useMediaQuery('(min-width: 768px)');
   const sheetId = useId();
@@ -190,8 +197,9 @@ export function TradesManager({
     event.preventDefault();
     if (adding) return;
     const name = newName.trim();
-    if (!name) {
-      setAddError(t('tradesManager.nameRequired'));
+    const errors = validateTradeValues({ name }, messages);
+    if (errors.name) {
+      setAddError(errors.name);
       newInputRef.current?.focus();
       return;
     }
@@ -206,7 +214,7 @@ export function TradesManager({
     } catch (err) {
       setAddError(
         err instanceof ApiClientError && err.statusCode === 409
-          ? t('tradesManager.duplicateName')
+          ? messages.duplicateName
           : errorText(err),
       );
       requestFocus({ kind: 'input' });
@@ -230,8 +238,9 @@ export function TradesManager({
   const handleSave = async (trade: TradeListItem) => {
     if (saving) return;
     const name = editValue.trim();
-    if (!name) {
-      setEditError(t('tradesManager.nameRequired'));
+    const errors = validateTradeValues({ name }, messages);
+    if (errors.name) {
+      setEditError(errors.name);
       return;
     }
     // Unchanged: no request, so a built-in trade keeps its translation key.
@@ -249,7 +258,7 @@ export function TradesManager({
     } catch (err) {
       setEditError(
         err instanceof ApiClientError && err.statusCode === 409
-          ? t('tradesManager.duplicateName')
+          ? messages.duplicateName
           : errorText(err),
       );
     } finally {
@@ -371,7 +380,8 @@ export function TradesManager({
                     className={styles.input}
                     type="text"
                     value={editValue}
-                    maxLength={NAME_MAX_LENGTH}
+                    maxLength={TRADE_NAME_MAX_LENGTH}
+                    lang={entriesLanguage}
                     autoFocus
                     onFocus={(event) => event.currentTarget.select()}
                     onChange={(event) => setEditValue(event.target.value)}
@@ -464,7 +474,8 @@ export function TradesManager({
             className={styles.input}
             type="text"
             value={newName}
-            maxLength={NAME_MAX_LENGTH}
+            maxLength={TRADE_NAME_MAX_LENGTH}
+            lang={entriesLanguage}
             onChange={(event) => setNewName(event.target.value)}
             aria-invalid={addError ? true : undefined}
             aria-describedby={newErrorId}

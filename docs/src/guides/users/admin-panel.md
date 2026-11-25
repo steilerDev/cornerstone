@@ -22,16 +22,19 @@ The admin panel shows all registered users with:
 
 ### Add Users
 
-You can create new user accounts directly from the admin panel using the **Add User** button. When creating a user, you specify:
+You can create new user accounts directly from the admin panel using the **New user** button. The form asks for:
 
+- **Display name** -- their name as shown in the app
 - **Email** -- the user's email address (used for login or OIDC linking)
-- **Display Name** -- their name as shown in the app
 - **Role** -- Admin or Member
-- **Password** -- required for local login accounts (minimum 12 characters)
+- **Sign-in method** -- shown only when OIDC is configured. Choose **Password** (the default) or **Single sign-on**
+- **Password** and **Confirm password** -- required for **Password** sign-in (minimum 12 characters). Both fields are hidden when **Single sign-on** is chosen
 
-#### Single sign-on only accounts
+If the email address is already in use, the form shows an error under the **Email** field.
 
-When OIDC is configured, you can create **"Single sign-on only (no password)"** accounts. These accounts:
+#### Single sign-on accounts
+
+When OIDC is configured, choose **Sign-in method: Single sign-on** to create an account without a password. These accounts:
 
 - Have no password and cannot log in locally
 - Are linked to OIDC on their first SSO login with a verified matching email
@@ -55,9 +58,9 @@ The user list shows an **Auth Provider** column with these labels:
 - **OIDC** -- OIDC sign-in only (already linked)
 - **OIDC (awaiting first sign-in)** -- created for OIDC but not yet linked (hasn't signed in via OIDC yet)
 
-### Edit Roles
+### Edit Users
 
-Change a user's role between Admin and Member. Role changes take effect immediately.
+Open a user's row menu and select **Edit** to change the **Display name**, **Email**, or **Role** in the same form. Only the fields you change are saved. Saving without a change does nothing. Role changes take effect immediately.
 
 ### Deactivate Accounts
 

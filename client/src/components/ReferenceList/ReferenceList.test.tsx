@@ -35,20 +35,14 @@ const LABELS: ListTypes.ReferenceListLabels = {
   title: 'Sample things',
   description: 'Things you can sort.',
   newItem: 'New sample thing',
-  editItem: 'Edit sample thing',
   empty: 'No sample things yet.',
   loadFailed: 'Sample things could not be loaded.',
   search: 'Search sample things',
   noMatch: 'No sample things match.',
-  duplicateName: 'That name is taken.',
   deleteBlocked: (name) => `${name} is still in use.`,
 };
 
-const FIELDS: ListTypes.ReferenceListFields = {
-  nameMaxLength: 50,
-  descriptionMaxLength: 200,
-  color: true,
-};
+const FIELDS: ListTypes.ReferenceListFields = { color: true };
 
 const A: Item = { id: 'a', name: 'Alpha', color: '#112233', description: 'First one' };
 const B: Item = { id: 'b', name: 'Bravo', color: null };
@@ -63,12 +57,73 @@ interface Handlers {
   onAnnounce: jest.Mock<(message: string) => void>;
 }
 
+/**
+ * Stands in for the host's ObjectForm so the list's `renderForm` contract is tested on its own:
+ * it reads the request, persists through `request.create` / `request.update`, then reports
+ * `onDone` or `onCancel`, like ObjectForm does.
+ */
+function StandInForm({
+  request,
+  seen,
+}: {
+  request: ListTypes.ReferenceListFormRequest;
+  seen: ListTypes.ReferenceListFormRequest[];
+}) {
+  const [name, setName] = useState(request.item?.name ?? '');
+  const [description, setDescription] = useState(request.item?.description ?? '');
+  const [error, setError] = useState(false);
+  seen.push(request);
+  const save = async () => {
+    try {
+      if (request.mode === 'new') {
+        const created = await request.create({ name, description: null, color: null });
+        request.onDone({ id: created.id, href: '/', label: name });
+        return;
+      }
+      const item = request.item!;
+      const changes: { name?: string; description?: string | null } = {};
+      if (name !== item.name) changes.name = name;
+      if (description !== (item.description ?? '')) changes.description = description || null;
+      if (Object.keys(changes).length > 0) await request.update(item.id, changes);
+      request.onDone({ id: item.id, href: '/', label: name });
+    } catch {
+      setError(true);
+    }
+  };
+  return (
+    <div
+      role="dialog"
+      aria-label={request.mode === 'edit' ? 'Edit sample thing' : 'New sample thing'}
+    >
+      <input
+        data-testid={`${request.testId}-name`}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <input
+        data-testid={`${request.testId}-description`}
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+      />
+      {error && <p>Could not save.</p>}
+      <button type="button" data-testid={`${request.testId}-save`} onClick={() => void save()}>
+        Save
+      </button>
+      <button type="button" data-testid={`${request.testId}-cancel`} onClick={request.onCancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 describe('ReferenceList', () => {
   let media: MatchMediaControl;
   let h: Handlers;
+  let seen: ListTypes.ReferenceListFormRequest[];
 
   beforeEach(() => {
     media = installMatchMedia({ '(min-width: 768px)': true });
+    seen = [];
     mockEntriesLanguage = null;
     mockFetchDeleteImpact.mockReset();
     mockFetchDeleteImpact.mockResolvedValue({ effects: [] } as unknown as DeleteImpactResponse);
@@ -113,6 +168,7 @@ describe('ReferenceList', () => {
         testIdPrefix={prefix}
         labels={labels}
         fields={fields}
+        renderForm={(request) => <StandInForm request={request} seen={seen} />}
         items={items}
         status={status}
         deleteImpactType={deleteImpactType}
@@ -242,7 +298,7 @@ describe('ReferenceList', () => {
     });
 
     it('renders no swatch when the list has no colour field', () => {
-      render(<Host fields={{ nameMaxLength: 50 }} />);
+      render(<Host fields={{}} />);
 
       expect(screen.getByTestId('sample-row-a').querySelector('[class*="swatch"]')).toBeNull();
     });
@@ -317,7 +373,21 @@ describe('ReferenceList', () => {
   });
 
   describe('create', () => {
-    it('opens the dialog, creates, announces and focuses the new row actions', async () => {
+    it('New renders the form with mode new, the list prefix and the New button as focus return', async () => {
+      const user = userEvent.setup();
+      render(<Host />);
+
+      await user.click(screen.getByTestId('sample-new'));
+
+      expect(screen.getByRole('dialog', { name: 'New sample thing' })).toBeInTheDocument();
+      const request = seen.at(-1)!;
+      expect(request.mode).toBe('new');
+      expect(request.item).toBeUndefined();
+      expect(request.testId).toBe('sample');
+      expect(request.returnFocusRef.current).toBe(screen.getByTestId('sample-new'));
+    });
+
+    it('request.create persists through onCreate, announces, and onDone closes and focuses the new row', async () => {
       const user = userEvent.setup();
       h.onCreate.mockResolvedValue({ id: 'd' });
       render(<Host />);
@@ -327,17 +397,14 @@ describe('ReferenceList', () => {
       await user.click(screen.getByTestId('sample-save'));
 
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(h.onCreate).toHaveBeenCalledWith({
-        name: 'Delta',
-        description: null,
-        color: null,
-      });
+      expect(h.onCreate).toHaveBeenCalledWith({ name: 'Delta', description: null, color: null });
+      expect(h.onAnnounce).toHaveBeenCalledTimes(1);
       expect(h.onAnnounce).toHaveBeenCalledWith('Delta added.');
       expect(names()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta']);
       expect(menuTrigger('d')).toHaveFocus();
     });
 
-    it('keeps the dialog open and shows the duplicate-name text on a 409', async () => {
+    it('keeps the form open and announces nothing when onCreate rejects', async () => {
       const user = userEvent.setup();
       h.onCreate.mockRejectedValue(new ApiClientError(409, { code: 'CONFLICT', message: 'x' }));
       render(<Host />);
@@ -346,11 +413,12 @@ describe('ReferenceList', () => {
       await user.type(screen.getByTestId('sample-name'), 'Alpha');
       await user.click(screen.getByTestId('sample-save'));
 
-      expect(await screen.findByText(LABELS.duplicateName)).toBeInTheDocument();
+      expect(await screen.findByText('Could not save.')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(h.onAnnounce).not.toHaveBeenCalled();
     });
 
-    it('Cancel closes the new dialog without a request', async () => {
+    it('onCancel closes the new form without a request', async () => {
       const user = userEvent.setup();
       render(<Host />);
 
@@ -359,17 +427,30 @@ describe('ReferenceList', () => {
 
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(h.onCreate).not.toHaveBeenCalled();
+      expect(h.onAnnounce).not.toHaveBeenCalled();
     });
   });
 
   describe('edit', () => {
-    it('opens the dialog filled with the row, saves only changes and announces', async () => {
+    it('Edit renders the form with mode edit and the row (displayed name, translated flag)', async () => {
+      const user = userEvent.setup();
+      render(<Host />);
+
+      await chooseAction(user, 'c', 'edit');
+
+      expect(screen.getByRole('dialog', { name: 'Edit sample thing' })).toBeInTheDocument();
+      const request = seen.at(-1)!;
+      expect(request.mode).toBe('edit');
+      expect(request.item).toEqual(C);
+      expect(request.testId).toBe('sample');
+      expect((screen.getByTestId('sample-name') as HTMLInputElement).value).toBe('Charlie');
+    });
+
+    it('request.update persists through onUpdate, announces the new name, and onDone focuses the row', async () => {
       const user = userEvent.setup();
       render(<Host />);
 
       await chooseAction(user, 'b', 'edit');
-      expect(screen.getByRole('dialog', { name: 'Edit sample thing' })).toBeInTheDocument();
-      expect((screen.getByTestId('sample-name') as HTMLInputElement).value).toBe('Bravo');
       await user.clear(screen.getByTestId('sample-name'));
       await user.type(screen.getByTestId('sample-name'), 'Bravo 2');
       await user.click(screen.getByTestId('sample-save'));
@@ -394,15 +475,40 @@ describe('ReferenceList', () => {
       expect(h.onAnnounce).toHaveBeenCalledWith('Alpha saved.');
     });
 
-    it('sends no request when nothing changed', async () => {
+    it('an unchanged edit closes, sends no request, announces nothing and focuses the row', async () => {
       const user = userEvent.setup();
       render(<Host />);
 
       await chooseAction(user, 'a', 'edit');
       await user.click(screen.getByTestId('sample-save'));
 
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(h.onUpdate).not.toHaveBeenCalled();
+      expect(h.onAnnounce).not.toHaveBeenCalled();
+      expect(menuTrigger('a')).toHaveFocus();
+    });
+
+    it('onCancel on an edit focuses the row actions button', async () => {
+      const user = userEvent.setup();
+      render(<Host />);
+
+      await chooseAction(user, 'b', 'edit');
+      await user.click(screen.getByTestId('sample-cancel'));
+
       expect(screen.queryByRole('dialog')).toBeNull();
+      expect(h.onUpdate).not.toHaveBeenCalled();
+      expect(menuTrigger('b')).toHaveFocus();
+    });
+
+    it('switching from one row edit to another remounts the form with the new row', async () => {
+      const user = userEvent.setup();
+      render(<Host />);
+
+      await chooseAction(user, 'a', 'edit');
+      await user.click(screen.getByTestId('sample-cancel'));
+      await chooseAction(user, 'b', 'edit');
+
+      expect((screen.getByTestId('sample-name') as HTMLInputElement).value).toBe('Bravo');
     });
   });
 
@@ -998,19 +1104,6 @@ describe('ReferenceList', () => {
 
       expect(screen.getByTestId('custom-delete-dialog-confirm')).toBeInTheDocument();
       expect(screen.queryByTestId('confirm-dialog-confirm')).toBeNull();
-    });
-  });
-
-  describe('phone layout', () => {
-    it('opens the new dialog as a sheet below 768 px', async () => {
-      media.set('(min-width: 768px)', false);
-      const user = userEvent.setup();
-      render(<Host />);
-
-      await user.click(screen.getByTestId('sample-new'));
-
-      expect(screen.getByTestId('sample-dialog-close')).toBeInTheDocument();
-      expect(findDuplicateTestIds()).toEqual([]);
     });
   });
 });
