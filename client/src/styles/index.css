@@ -43,6 +43,11 @@ body {
   color: var(--color-text-primary);
 }
 
+/* base link colour; unstyled anchors otherwise get the UA #0000EE, which fails contrast in dark (#2261) */
+a {
+  color: var(--color-primary);
+}
+
 input,
 textarea,
 select,

@@ -100,8 +100,19 @@
 }
 
 .cardLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
   color: var(--color-text-primary);
   text-decoration: none;
+}
+
+/* Covered-items count link inside a figure; underlined so it reads as a link, 44 px tall */
+.figureLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  text-decoration: underline;
 }
 
 .cardLink:hover {

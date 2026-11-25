@@ -870,3 +870,24 @@
     transition: none;
   }
 }
+
+/* Phone: buttons and form controls reach the 44 px touch target (#2261). The flex centring keeps
+   the label centred when the class sits on an <a>, which does not centre text vertically. */
+@media (max-width: 767px) {
+  .btnPrimary,
+  .btnPrimaryCompact,
+  .btnSecondary,
+  .btnSecondaryCompact,
+  .btnDanger,
+  .btnConfirmDelete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .input,
+  .select {
+    min-height: var(--touch-target-min);
+  }
+}

@@ -349,7 +349,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await expect(appShell.languageOption('de')).toBeChecked();
       await expect(
         appShell.bottomBar.locator('[data-testid^="bottom-bar-"]:not([data-testid$="-badge"])'),
-      ).toHaveText([/^(\d+\+?)?Start$/, 'Bautagebuch', 'Neu', 'Fotos', 'Mehr']);
+      ).toHaveText([/^Start( \d+\+?)?$/, 'Bautagebuch', 'Neu', 'Fotos', 'Mehr']);
       await appShell.closeMoreSheet();
 
       // The longest label is never truncated, at a phone and at a tablet width

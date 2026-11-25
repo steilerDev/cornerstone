@@ -88,6 +88,7 @@ export function FinancingGrantCard({ grant, originState }: FinancingGrantCardPro
             <NavAnchor
               to={routeUrl('grant', { id }, { tab: 'work' })}
               state={originState}
+              className={styles.figureLink}
               data-testid={`financing-grant-covered-${id}`}
             >
               {t('financing.grant.coveredCount', { count: grant.coveredItemCount })}

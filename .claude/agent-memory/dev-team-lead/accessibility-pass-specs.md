@@ -22,6 +22,10 @@ Found while speccing #2261 (P6.2, WCAG 2.1 AA pass).
 12. **Focus-sweep fixtures must snapshot `::after`/`::before`.** Stretched-link and full-cell targets (ObjectList titleLink, SummaryStrip target) draw the focus ring on a pseudo-element; a `getComputedStyle(el)`-only diff reports them as "no indicator".
 13. **Landmark AC vs existing E2E.** Making AuthGuard/AuthCheckFailed a `<main>` broke resilience tests that asserted `getByRole('main')` count 0 as a proxy for "no shell behind the panel". Grep E2E for `getByRole('main')` count assertions when adding landmarks.
 
+14. **CI round 2: unstyled `<a>` fails axe only in dark.** An anchor with no colour rule (plain `<a>`, NavAnchor without a class, or only `userText`) gets the UA link colour (#0000EE / visited #551A8B), which passes on white and fails on dark surfaces. A light-only manual check never sees it. Fix with a base `a { color: var(--color-primary) }` in index.css (class rules still win) and inherit in banners.
+15. **The 44 px sweep is dominated by shared classes.** Most mobile offenders were `btnPrimary`/`btnSecondary`/`btnSecondaryCompact`, form inputs (34–38 px), auth buttons and `inset`-sized `::before` overlays that land at 41 px. Fix at the shared class under a phone media query, never per consumer. Inset-based overlays must be sized `max(100%, var(--touch-target-min))` and centred.
+16. **When a fix moves a name from `aria-label` to srOnly content, E2E `toHaveAttribute('aria-label', …)` asserts break.** Grep E2E for `toHaveAttribute('aria-label'` on the changed component and switch to `toHaveAccessibleName`. Same for label-first reorders: grep both the en and de bottom-bar text regexes.
+
 **Why:** each of these would have surfaced as a fix loop or broken suites late in CI.
 
 Related: [[ux-visual-spec-verification]], [[restructure-baseline-hazards]], [[nav-shell-specs]]

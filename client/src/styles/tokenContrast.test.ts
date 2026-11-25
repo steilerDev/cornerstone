@@ -152,6 +152,9 @@ const rows: Row[] = [
   ['dark', '--color-primary-text', '--color-primary-hover', 4.5], // 9.84
   ['dark', '--color-primary-text', '--color-primary-active', 4.5], // 4.82
   ['dark', '--color-primary', '--color-bg-hover', 3], // 4.94 pagination hover border
+  ['dark', '--color-primary', '--color-bg-page', 4.5], // 7.24 link on page
+  ['dark', '--color-primary', '--color-bg-primary', 4.5], // 5.75 link on card
+  ['dark', '--color-primary', '--color-bg-secondary', 4.5], // 4.94 link on secondary surface
   ['light', '--color-primary-text', '--color-primary', 4.5], // 5.17
   ['light', '--color-primary-text', '--color-primary-hover', 4.5], // 6.70
   ['light', '--color-primary-text', '--color-primary-active', 4.5], // 8.72
@@ -1164,11 +1167,13 @@ describe('grammar foundations rule pins (#2209)', () => {
     ]);
   });
 
-  it('StatusMenu .chip::before grows the hit area with spacing tokens, never literals', () => {
+  it('StatusMenu .chip::before grows the hit area to --touch-target-min, never literals', () => {
     const decls = ruleFor(statusMenu, '.chip::before');
     expect(decls.get('position')).toBe('absolute');
-    expect(decls.get('inset')).toBe('calc(-1 * var(--spacing-3)) calc(-1 * var(--spacing-2))');
-    expect(decls.get('inset')).not.toMatch(/\d+(px|rem)/);
+    expect(decls.has('inset')).toBe(false);
+    expect(decls.get('width')).toBe('max(100%, var(--touch-target-min))');
+    expect(decls.get('height')).toBe('max(100%, var(--touch-target-min))');
+    expect(decls.get('transform')).toBe('translate(-50%, -50%)');
   });
 
   it('StatusMenu draws no hover ring on a busy (aria-disabled) chip', () => {

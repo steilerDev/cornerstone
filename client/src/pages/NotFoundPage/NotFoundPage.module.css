@@ -18,7 +18,9 @@
 }
 
 .homeLink {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
   padding: 0.75rem 1.5rem;
   background-color: var(--color-primary);
   color: var(--color-primary-text);

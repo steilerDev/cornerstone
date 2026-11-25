@@ -27,8 +27,11 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* --color-primary on --color-bg-hover is pinned in tokenContrast.test.ts (4.94 dark, 4.95 light);
+   on --color-bg-tertiary it was 4.07:1 in dark */
 .weekHeader[aria-current='date'] {
   color: var(--color-primary);
+  background-color: var(--color-bg-hover);
 }
 
 .list {

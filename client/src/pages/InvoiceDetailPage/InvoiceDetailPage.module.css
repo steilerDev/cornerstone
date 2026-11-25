@@ -58,3 +58,20 @@
   min-height: var(--touch-target-min);
   text-decoration: none;
 }
+
+/* Company link in the header description: underlined (it sits in running text), with a centred
+   vertical overlay that lifts the touch target to 44 px without changing the header layout */
+.companyLink {
+  position: relative;
+  text-decoration: underline;
+}
+
+.companyLink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--touch-target-min);
+  transform: translateY(-50%);
+}

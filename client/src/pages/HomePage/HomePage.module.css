@@ -389,6 +389,13 @@
   min-width: 0;
 }
 
+/* The link sits on the translucent primary wash; the banner text colour passes there and the
+   underline marks the link (WCAG 1.4.1) */
+.noticeText a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .footer {
   display: flex;
   justify-content: flex-start;

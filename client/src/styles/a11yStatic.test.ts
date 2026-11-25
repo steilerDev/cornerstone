@@ -443,3 +443,101 @@ describe('viewport meta (#2261, AC5)', () => {
     expect(content).not.toMatch(/maximum-scale/i);
   });
 });
+
+// ── 12. Link contrast, agenda header pair, phone touch minimums (#2261) ──────────────────
+
+const readCss = (file: string) => fs.readFileSync(path.join(srcDir, file), 'utf8');
+
+/** Rules found only inside `@media (max-width: 767px)` blocks of a stylesheet. */
+function phoneRules(file: string): CssRule[] {
+  const css = stripComments(readCss(file));
+  const rules: CssRule[] = [];
+  const re = /@media\s*\(max-width:\s*767px\)\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) {
+    let depth = 1;
+    let j = m.index + m[0].length;
+    const start = j;
+    while (j < css.length && depth > 0) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}') depth--;
+      j++;
+    }
+    rules.push(...parseRules(css.slice(start, j - 1)));
+  }
+  return rules;
+}
+
+function findRule(rules: CssRule[], selector: string): CssRule | undefined {
+  return rules.find((r) => r.selectors.includes(selector));
+}
+
+describe('link contrast and touch minimums (#2261)', () => {
+  it('index.css paints top-level anchors with --color-primary', () => {
+    const rule = findRule(parseRules(readCss('styles/index.css')), 'a');
+    expect(rule?.decls.get('color')).toBe('var(--color-primary)');
+  });
+
+  it('the Home notice link inherits the banner colour and is underlined', () => {
+    const rule = findRule(
+      parseRules(readCss('pages/HomePage/HomePage.module.css')),
+      '.noticeText a',
+    );
+    expect(rule?.decls.get('color')).toBe('inherit');
+    expect(rule?.decls.get('text-decoration')).toBe('underline');
+  });
+
+  it('the agenda current-week header sits on --color-bg-hover', () => {
+    const rule = findRule(
+      parseRules(readCss('components/GanttChart/ScheduleAgenda.module.css')),
+      ".weekHeader[aria-current='date']",
+    );
+    expect(rule?.decls.get('color')).toBe('var(--color-primary)');
+    expect(rule?.decls.get('background-color')).toBe('var(--color-bg-hover)');
+  });
+
+  it('the StatusMenu chip overlay is sized by --touch-target-min and does not use inset', () => {
+    const rule = findRule(
+      parseRules(readCss('components/StatusMenu/StatusMenu.module.css')),
+      '.chip::before',
+    );
+    expect(rule).toBeDefined();
+    expect(rule?.decls.has('inset')).toBe(false);
+    expect(rule?.decls.get('width')).toContain('--touch-target-min');
+    expect(rule?.decls.get('height')).toContain('--touch-target-min');
+  });
+
+  it.each([
+    '.btnPrimary',
+    '.btnSecondary',
+    '.btnSecondaryCompact',
+    '.btnPrimaryCompact',
+    '.btnDanger',
+    '.btnConfirmDelete',
+    '.input',
+    '.select',
+  ])('shared.module.css %s reaches the touch minimum on phones', (selector) => {
+    const rule = findRule(phoneRules('styles/shared.module.css'), selector);
+    expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+  });
+
+  it.each([
+    ['pages/shared/AuthPage.module.css', '.input', 'min-height'],
+    ['pages/shared/AuthPage.module.css', '.button', 'min-height'],
+    ['pages/LoginPage/LoginPage.module.css', '.ssoButton', 'min-height'],
+    ['pages/TimelinePage/TimelinePage.module.css', '.moreTrigger', 'min-width'],
+  ])('%s %s declares %s on phones', (file, selector, prop) => {
+    const rule = findRule(phoneRules(file), selector);
+    expect(rule?.decls.get(prop)).toBe('var(--touch-target-min)');
+  });
+
+  it.each([
+    ['components/TriStateCheckbox/TriStateCheckbox.module.css', '.label'],
+    ['pages/BudgetSourcesPage/FinancingPage.module.css', '.cardLink'],
+    ['pages/BudgetSourcesPage/FinancingPage.module.css', '.figureLink'],
+    ['pages/NotFoundPage/NotFoundPage.module.css', '.homeLink'],
+  ])('%s %s declares min-height with --touch-target-min', (file, selector) => {
+    const rule = findRule(parseRules(readCss(file)), selector);
+    expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+  });
+});

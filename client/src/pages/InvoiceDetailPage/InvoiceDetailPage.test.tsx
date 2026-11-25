@@ -410,6 +410,7 @@ describe('InvoiceDetailPage header (S11)', () => {
     const link = within(description).getByTestId('invoice-company-link');
     expect(link).toHaveAttribute('href', '/companies/vendor-1');
     expect(link).toHaveAttribute('lang', 'en');
+    expect(link.className).toContain('companyLink');
     await userEvent.click(link);
     await screen.findByText('Elsewhere');
     expect(probedOrigin()).toEqual({ to: `/budget/invoices/${ID}`, name: HEADING });
