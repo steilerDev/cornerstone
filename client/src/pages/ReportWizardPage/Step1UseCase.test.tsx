@@ -43,6 +43,15 @@ describe('Step1UseCase', () => {
     );
   });
 
+  it('only the claim card label carries the with-hint class', () => {
+    render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
+    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+    for (const r of radios) {
+      const hasClass = r.closest('label')!.className.includes('useCaseCardWithHint');
+      expect(hasClass).toBe(r.value === 'claim');
+    }
+  });
+
   it('none of the radios are checked when value is null', () => {
     render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];

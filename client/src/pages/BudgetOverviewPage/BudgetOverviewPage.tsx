@@ -358,7 +358,7 @@ export function BudgetOverviewPage() {
             content: (
               <>
                 <p>{t('overview.headline.formula')}</p>
-                <p>{tCommon('termHint.definition.range')}</p>
+                <p>{tCommon(I18N_UNION_KEYS.termHintDefinition.key('range'))}</p>
                 {cappedGrants.length > 0 ? (
                   <>
                     <p>{t('overview.headline.cappedLead')}</p>

@@ -24,8 +24,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  margin: -10px;
+  padding: 0;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  margin: calc((var(--font-size-base) - var(--touch-target-min)) / 2);
   border: none;
   background: none;
   color: var(--color-text-muted);

@@ -23,7 +23,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
-import { TermHint } from '../Tooltip/TermHint.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './ReportInvoiceList.module.css';
 
 /** Invoices shown per batch; the selection, counts and sums always cover every invoice. */
@@ -438,9 +438,8 @@ export function ReportInvoiceList({
                                     <th>{t('sourceReports.expand.itemColumnHeader')}</th>
                                     <th>{t('sourceReports.expand.linkedColumnHeader')}</th>
                                     <th>
-                                      <TermHint term="allocated">
-                                        {t('sourceReports.expand.allocatedColumnHeader')}
-                                      </TermHint>
+                                      {t('sourceReports.expand.allocatedColumnHeader')}{' '}
+                                      <TermHintPopover terms={['allocated']} align="end" />
                                     </th>
                                     <th>{t('sourceReports.expand.includeColumnHeader')}</th>
                                   </tr>

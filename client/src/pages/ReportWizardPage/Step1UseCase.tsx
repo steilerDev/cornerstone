@@ -24,7 +24,13 @@ export function Step1UseCase({ value, onChange, t }: Step1UseCaseProps) {
       >
         {USE_CASES.map((useCase) => (
           <div key={useCase} className={styles.useCaseItem}>
-            <label className={styles.useCaseCard}>
+            <label
+              className={
+                useCase === 'claim'
+                  ? `${styles.useCaseCard} ${styles.useCaseCardWithHint}`
+                  : styles.useCaseCard
+              }
+            >
               <input
                 type="radio"
                 name="useCase"

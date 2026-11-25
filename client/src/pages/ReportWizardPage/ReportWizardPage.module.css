@@ -49,8 +49,17 @@
 
 .useCaseHint {
   position: absolute;
-  top: var(--spacing-3);
-  right: var(--spacing-3);
+  top: var(--spacing-2);
+  inset-inline-end: var(--spacing-2);
+  display: flex;
+}
+
+.useCaseHint button {
+  margin: 0;
+}
+
+.useCaseCard.useCaseCardWithHint {
+  padding-inline-end: calc(var(--spacing-2) + var(--touch-target-min));
 }
 
 .useCaseCard {
