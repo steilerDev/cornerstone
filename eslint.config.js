@@ -10,6 +10,8 @@ const TEXT_ATTR =
   '/^(aria-(label|description|roledescription|valuetext|placeholder|braillelabel|brailleroledescription)|title|placeholder|alt|label|heading|message|description|tooltip|caption|subtitle|[a-z][a-zA-Z]*(Label|Title|Message|Heading|Description|Placeholder|Tooltip|Caption))$/';
 const JSX_CHILD = ':matches(JSXElement, JSXFragment) > JSXExpressionContainer';
 const TEXT_ATTR_NODE = `JSXAttribute[name.name=${TEXT_ATTR}]`;
+const OPERAND =
+  ":matches(ConditionalExpression, LogicalExpression, BinaryExpression[operator='+'])";
 const T_CALL =
   "CallExpression:matches([callee.name=/^(t|dt|t[A-Z][A-Za-z]*)$/], [callee.property.name='t'])";
 const HARDCODED_TEXT_MESSAGE =
@@ -118,7 +120,8 @@ export default tseslint.config(
   // attributes (aria-label, title, placeholder, alt, label, ...Label, ...Message ...) with a
   // letter in it fails; template-literal or concatenated keys passed to t() fail (use
   // I18N_UNION_KEYS). Non-language text (brand name, language endonyms, glyphs) comes from an
-  // existing key or a named module constant. These selectors live in the same array as #2129:
+  // existing key or a named module constant. Operands of ?:, &&/||/?? and + are checked one level
+  // deep; nested ternaries and operands two or more levels deep are not checked. These selectors live in the same array as #2129:
   // a later block setting no-restricted-syntax for the same files would replace, not merge.
   {
     files: ['client/src/**/*.{ts,tsx}'],
@@ -151,7 +154,11 @@ export default tseslint.config(
           message: HARDCODED_TEXT_MESSAGE,
         },
         {
-          selector: `${JSX_CHILD} > :matches(ConditionalExpression, LogicalExpression) > Literal[value=${LETTER}]`,
+          selector: `${JSX_CHILD} > ${OPERAND} > Literal[value=${LETTER}]`,
+          message: HARDCODED_TEXT_MESSAGE,
+        },
+        {
+          selector: `${JSX_CHILD} > ${OPERAND} > TemplateLiteral > TemplateElement[value.raw=${LETTER}]`,
           message: HARDCODED_TEXT_MESSAGE,
         },
         {
@@ -167,7 +174,11 @@ export default tseslint.config(
           message: HARDCODED_TEXT_MESSAGE,
         },
         {
-          selector: `${TEXT_ATTR_NODE} > JSXExpressionContainer > :matches(ConditionalExpression, LogicalExpression) > Literal[value=${LETTER}]`,
+          selector: `${TEXT_ATTR_NODE} > JSXExpressionContainer > ${OPERAND} > Literal[value=${LETTER}]`,
+          message: HARDCODED_TEXT_MESSAGE,
+        },
+        {
+          selector: `${TEXT_ATTR_NODE} > JSXExpressionContainer > ${OPERAND} > TemplateLiteral > TemplateElement[value.raw=${LETTER}]`,
           message: HARDCODED_TEXT_MESSAGE,
         },
         // #2260 — template-literal / concatenated i18n keys

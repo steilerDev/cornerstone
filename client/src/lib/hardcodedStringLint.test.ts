@@ -36,6 +36,8 @@ describe('JSX child literal selectors', () => {
     ['template child', '<p>{`Saved ${x}`}</p>', 1],
     ['conditional child', "<p>{x ? 'Yes' : 'No'}</p>", 2],
     ['logical child', "<p>{x || 'None'}</p>", 1],
+    ['child concatenation', "<p>{x + ' items'}</p>", 1],
+    ['child template in a branch', '<p>{x ? `${x} items` : null}</p>', 1],
   ])('flags %s', async (_n, jsx, count) => {
     expect(await hits(comp(jsx))).toBe(count);
   });
@@ -51,6 +53,8 @@ describe('text attribute selectors', () => {
     ['expression template prop', '<Foo emptyMessage={`No ${x}`} />', 1],
     ['conditional prop', "<Foo confirmLabel={x ? 'Delete' : 'Remove'} />", 2],
     ['logical prop', "<Foo confirmLabel={x || 'Remove'} />", 1],
+    ['attribute concatenation', "<button aria-label={'Close ' + x} />", 1],
+    ['attribute template in a branch', '<div emptyMessage={x ? `No ${x}` : undefined} />', 1],
     ['heading prop', '<Foo heading="Title" />', 1],
   ])('flags %s', async (_n, jsx, count) => {
     expect(await hits(comp(jsx))).toBe(count);
@@ -92,6 +96,11 @@ describe('legal code is not flagged', () => {
     ['input attrs', '<input type="text" name="title" autoComplete="off" />'],
     ['className conditional', "<div className={x ? 'a' : 'b'} />"],
     ['labelledby template', '<section aria-labelledby={`${x}-heading`} />'],
+    ['symbol-only concatenation', "<p>{x + ' — '}</p>"],
+    ['t() argument inside a branch', "<p>{x ? t('a.b') : null}</p>"],
+    ['numeric addition', '<p>{x + 1}</p>'],
+    // Nested ternaries are a documented blind spot of the #2260 selectors: not flagged.
+    ['nested ternary (documented blind spot)', "<p>{x ? (x ? 'A' : 'B') : null}</p>"],
   ])('%s', async (_n, jsx) => {
     expect(await hits(comp(jsx))).toBe(0);
   });

@@ -426,7 +426,8 @@
       "booleanAriaLabel": "Boolesche Filteroption",
       "selectAll": "Alle auswählen",
       "selectNone": "Keine auswählen",
-      "dateRangeAriaLabel": "Datumsbereichsauswahl"
+      "dateRangeAriaLabel": "Datumsbereichsauswahl",
+      "groupOption": "{{label}} (Gruppe)"
     },
     "columnSettings": {
       "ariaLabel": "Spalteneinstellungen",

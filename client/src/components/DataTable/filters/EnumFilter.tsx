@@ -204,7 +204,11 @@ export function EnumFilter({
                 onChange={() => handleToggle(option.value)}
                 className={styles.filterCheckbox}
                 id={`enum-${option.value}`}
-                aria-label={isParent ? `${option.label} (group)` : option.label}
+                aria-label={
+                  isParent
+                    ? t('dataTable.filter.groupOption', { label: option.label })
+                    : option.label
+                }
               />
               <span className={styles.filterCheckboxLabel}>{option.label}</span>
             </label>
