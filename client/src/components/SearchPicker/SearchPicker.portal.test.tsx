@@ -64,7 +64,7 @@ describe('SearchPicker', () => {
     it('value="id" + initialTitle="Title" shows selectedDisplay with "Title"', () => {
       renderPicker({ value: 'item-existing', initialTitle: 'Pre-set Item Title' });
       expect(screen.getByText('Pre-set Item Title')).toBeInTheDocument();
-      expect(screen.queryByPlaceholderText('Search items...')).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('Search…')).not.toBeInTheDocument();
     });
 
     it('initialTitle clear: clicking × calls onChange("") and shows input', async () => {
@@ -81,20 +81,20 @@ describe('SearchPicker', () => {
       await user.click(clearBtn);
 
       expect(onChange).toHaveBeenCalledWith('');
-      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
       expect(screen.queryByText('Pre-set Item Title')).not.toBeInTheDocument();
     });
 
     it('initialTitle not shown when value is empty string', () => {
       renderPicker({ value: '', initialTitle: 'Pre-set Item Title' });
       expect(screen.queryByText('Pre-set Item Title')).not.toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
     });
 
     it('initialTitle not shown when initialTitle prop is absent', () => {
       renderPicker({ value: 'item-existing' });
       // No initialTitle: falls through to search input (no selectedItem in state)
-      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
     });
 
     // ── Regression: stale initialTitle after clear-then-select ────────────────
@@ -119,10 +119,10 @@ describe('SearchPicker', () => {
       // Clear the selection — input is now shown
       const clearBtn = screen.getByRole('button', { name: /clear selection/i });
       await user.click(clearBtn);
-      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
 
       // Open the dropdown and select a real item
-      const input = screen.getByPlaceholderText('Search items...');
+      const input = screen.getByPlaceholderText('Search…');
       await user.click(input);
       await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
       await user.click(screen.getByText('Alpha Widget'));

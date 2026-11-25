@@ -80,7 +80,7 @@ describe('SearchPicker', () => {
       });
     });
 
-    it('uses default noResultsMessage "No matching items found" when not specified', async () => {
+    it('uses default noResultsMessage "Nothing matches" when not specified', async () => {
       mockSearchFn.mockResolvedValue([]);
       renderPicker({ placeholder: 'Search...' });
 
@@ -92,7 +92,7 @@ describe('SearchPicker', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('No matching items found')).toBeInTheDocument();
+        expect(screen.getByText('Nothing matches')).toBeInTheDocument();
       });
     });
 
@@ -123,7 +123,7 @@ describe('SearchPicker', () => {
       });
     });
 
-    it('uses default emptyHint "Type to search items" when not specified', async () => {
+    it('uses default emptyHint "Type to search" when not specified', async () => {
       mockSearchFn.mockResolvedValue([]);
       renderPicker({ placeholder: 'Search...' });
 
@@ -143,7 +143,7 @@ describe('SearchPicker', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Type to search items')).toBeInTheDocument();
+        expect(screen.getByText('Type to search')).toBeInTheDocument();
       });
     });
   });
