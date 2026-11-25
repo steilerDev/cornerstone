@@ -23,13 +23,14 @@ export const TOUCH_TARGET_MIN = 44;
 /**
  * The only elements the touch-target check skips. Each entry cites WCAG 2.5.5 (Target Size):
  * a) inline links inside a run of prose (the "inline" exception),
- * b) elements inside the Gantt SVG canvas: bar position and length encode dates, so the size
- *    is essential to the information (the "essential" exception),
+ * b) elements inside the Gantt SVG canvas and the calendar month grid: position and span encode
+ *    dates, so the size is essential to the information (the "essential" exception).
+ *    Week-view calendar items are NOT exempt; they reach 44 px through touchSized,
  * c) the skip link while it is visually hidden (it is not a target until it has focus).
  */
 export const TOUCH_TARGET_EXEMPTIONS = [
   'a: a with display inline whose parent block has text beyond the link (inline in prose)',
-  'b: elements inside the Gantt SVG canvas (essential, position and length encode dates)',
+  'b: elements inside the Gantt SVG canvas or the calendar month grid (essential, position and span encode dates)',
   'c: the visually hidden skip link while unfocused',
 ] as const;
 
@@ -127,8 +128,10 @@ export async function expectTouchTargets(page: Page, options: { label: string })
       if (el instanceof HTMLAnchorElement && el.getAttribute('href') === '#main-content') {
         if (document.activeElement !== el) continue;
       }
-      // Exemption (b), WCAG 2.5.5 (essential): Gantt bar position and length encode dates
+      // Exemption (b), WCAG 2.5.5 (essential): Gantt bar and calendar month-grid item
+      // position and span encode dates
       if (el.closest('[data-testid="gantt-svg"]')) continue;
+      if (el.closest('[data-testid="calendar-month-grid"]')) continue;
       // Exemption (a), WCAG 2.5.5 (inline): a link inside a run of prose
       if (el instanceof HTMLAnchorElement && getComputedStyle(el).display === 'inline') {
         const parent = el.parentElement;

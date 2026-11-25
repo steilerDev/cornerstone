@@ -105,6 +105,7 @@ export function MonthGrid({
     <div
       className={styles.grid}
       role="grid"
+      data-testid="calendar-month-grid"
       aria-label={t('calendar.monthGridAriaLabel', {
         period: `${getMonthName(month, localeString)} ${year}`,
       })}

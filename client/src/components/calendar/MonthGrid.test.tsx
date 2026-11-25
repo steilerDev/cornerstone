@@ -180,6 +180,11 @@ describe('MonthGrid', () => {
       expect(screen.getByRole('grid')).toBeInTheDocument();
     });
 
+    it('exposes the E2E hook data-testid="calendar-month-grid" on the grid', () => {
+      renderGrid({});
+      expect(screen.getByRole('grid')).toHaveAttribute('data-testid', 'calendar-month-grid');
+    });
+
     it('renders 42 gridcell elements (6 rows × 7 columns)', () => {
       renderGrid({});
       expect(screen.getAllByRole('gridcell')).toHaveLength(42);
