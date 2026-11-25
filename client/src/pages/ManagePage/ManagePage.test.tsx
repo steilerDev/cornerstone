@@ -434,7 +434,7 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await user.click(screen.getByTestId('cost-categories-new'));
-      await user.type(screen.getByTestId('cost-categories-name'), 'Paint');
+      await user.type(screen.getByTestId('cost-category-name-input'), 'Paint');
       await user.click(screen.getByTestId('cost-categories-save'));
 
       await waitFor(() => expect(statusRegion()).toHaveTextContent('Paint added.'));
@@ -476,7 +476,7 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await user.click(screen.getByTestId('cost-categories-new'));
-      await user.type(screen.getByTestId('cost-categories-name'), 'Paint');
+      await user.type(screen.getByTestId('cost-category-name-input'), 'Paint');
       await user.click(screen.getByTestId('cost-categories-save'));
 
       await waitFor(() =>
@@ -502,7 +502,7 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await user.click(screen.getByTestId('cost-categories-new'));
-      await user.type(screen.getByTestId('cost-categories-name'), 'Tiles');
+      await user.type(screen.getByTestId('cost-category-name-input'), 'Tiles');
       await user.click(screen.getByTestId('cost-categories-save'));
 
       expect(
@@ -518,8 +518,8 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await chooseCostAction(user, 'bc-2', 'edit');
-      await user.clear(screen.getByTestId('cost-categories-name'));
-      await user.type(screen.getByTestId('cost-categories-name'), 'Wall tiles');
+      await user.clear(screen.getByTestId('cost-category-name-input'));
+      await user.type(screen.getByTestId('cost-category-name-input'), 'Wall tiles');
       await user.click(screen.getByTestId('cost-categories-save'));
 
       await waitFor(() =>
@@ -534,14 +534,50 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await chooseCostAction(user, 'bc-1', 'edit');
-      expect((screen.getByTestId('cost-categories-name') as HTMLInputElement).value).toBe(
+      expect((screen.getByTestId('cost-category-name-input') as HTMLInputElement).value).toBe(
         'Materials',
       );
-      await user.type(screen.getByTestId('cost-categories-description'), 'Notes');
+      await user.type(screen.getByTestId('cost-category-description-input'), 'Notes');
       await user.click(screen.getByTestId('cost-categories-save'));
 
       await waitFor(() => expect(budgetApi.updateBudgetCategory).toHaveBeenCalledTimes(1));
       expect(budgetApi.updateBudgetCategory).toHaveBeenCalledWith('bc-1', { description: 'Notes' });
+    });
+
+    it('opens the edit dialog as an ObjectForm titled "Edit cost category" with the row values', async () => {
+      const user = userEvent.setup();
+      await loaded();
+
+      await chooseCostAction(user, 'bc-2', 'edit');
+
+      expect(screen.getByRole('dialog', { name: 'Edit cost category' })).toBeInTheDocument();
+      expect(screen.getByTestId('cost-category-name-input')).toHaveValue('Tiles');
+      expect(screen.getByTestId('cost-category-description-input')).toHaveValue('Floor and wall');
+    });
+
+    it('sends no PATCH and announces nothing when an edit is saved unchanged', async () => {
+      const user = userEvent.setup();
+      await loaded();
+
+      await chooseCostAction(user, 'bc-2', 'edit');
+      await user.click(screen.getByTestId('cost-categories-save'));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(budgetApi.updateBudgetCategory).not.toHaveBeenCalled();
+      expect(statusRegion()).toHaveTextContent('');
+      expect(costMenu('bc-2')).toHaveFocus();
+    });
+
+    it('Cancel on an edit closes it and returns focus to the row actions', async () => {
+      const user = userEvent.setup();
+      await loaded();
+
+      await chooseCostAction(user, 'bc-2', 'edit');
+      await user.click(screen.getByTestId('cost-categories-cancel'));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(budgetApi.updateBudgetCategory).not.toHaveBeenCalled();
+      expect(costMenu('bc-2')).toHaveFocus();
     });
 
     it('deletes after confirming and focuses the neighbouring row actions', async () => {
@@ -617,14 +653,50 @@ describe('ManagePage (Settings > Project setup)', () => {
       await loaded();
 
       await user.click(screen.getByTestId('purchase-categories-new'));
-      expect(screen.queryByTestId('purchase-categories-description')).toBeNull();
-      await user.type(screen.getByTestId('purchase-categories-name'), 'Lamps');
+      expect(screen.queryByTestId('purchase-category-description-input')).toBeNull();
+      await user.type(screen.getByTestId('purchase-category-name-input'), 'Lamps');
       await user.click(screen.getByTestId('purchase-categories-save'));
 
       await waitFor(() =>
         expect(householdApi.createHouseholdItemCategory).toHaveBeenCalledWith({
           name: 'Lamps',
           color: null,
+        }),
+      );
+    });
+
+    it('keeps the colour under More details in the New dialog', async () => {
+      const user = userEvent.setup();
+      await loaded();
+
+      await user.click(screen.getByTestId('purchase-categories-new'));
+
+      const more = screen.getByTestId('purchase-categories-more');
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByTestId('purchase-category-color')).not.toBeVisible();
+      await user.click(more);
+      expect(more).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByTestId('purchase-category-color')).toBeVisible();
+    });
+
+    it('edits only the changed name through updateHouseholdItemCategory', async () => {
+      const user = userEvent.setup();
+      householdApi.updateHouseholdItemCategory.mockResolvedValue({
+        ...FURNITURE,
+        name: 'Furnishings',
+      });
+      await loaded();
+
+      await user.click(screen.getByTestId('purchase-categories-menu-hic-1'));
+      await user.click(await screen.findByTestId('purchase-categories-edit-hic-1'));
+      expect(screen.getByRole('dialog', { name: 'Edit purchase category' })).toBeInTheDocument();
+      await user.clear(screen.getByTestId('purchase-category-name-input'));
+      await user.type(screen.getByTestId('purchase-category-name-input'), 'Furnishings');
+      await user.click(screen.getByTestId('purchase-categories-save'));
+
+      await waitFor(() =>
+        expect(householdApi.updateHouseholdItemCategory).toHaveBeenCalledWith('hic-1', {
+          name: 'Furnishings',
         }),
       );
     });
@@ -655,14 +727,33 @@ describe('ManagePage (Settings > Project setup)', () => {
 
       await user.click(screen.getByTestId('photo-orientations-new'));
       expect(screen.queryByTestId('photo-orientations-color')).toBeNull();
-      await user.type(screen.getByTestId('photo-orientations-name'), 'East');
-      await user.type(screen.getByTestId('photo-orientations-description'), 'Faces the garden');
+      await user.type(screen.getByTestId('orientation-name-input'), 'East');
+      await user.type(screen.getByTestId('orientation-description-input'), 'Faces the garden');
       await user.click(screen.getByTestId('photo-orientations-save'));
 
       await waitFor(() =>
         expect(orientationApi.createOrientation).toHaveBeenCalledWith({
           name: 'East',
           description: 'Faces the garden',
+        }),
+      );
+    });
+
+    it('edits only the changed description through updateOrientation', async () => {
+      const user = userEvent.setup();
+      orientationApi.updateOrientation.mockResolvedValue({ ...NORTH, description: 'Street side' });
+      await loaded();
+
+      await user.click(screen.getByTestId('photo-orientations-menu-or-1'));
+      await user.click(await screen.findByTestId('photo-orientations-edit-or-1'));
+      expect(screen.getByRole('dialog', { name: 'Edit orientation' })).toBeInTheDocument();
+      await user.clear(screen.getByTestId('orientation-description-input'));
+      await user.type(screen.getByTestId('orientation-description-input'), 'Street side');
+      await user.click(screen.getByTestId('photo-orientations-save'));
+
+      await waitFor(() =>
+        expect(orientationApi.updateOrientation).toHaveBeenCalledWith('or-1', {
+          description: 'Street side',
         }),
       );
     });

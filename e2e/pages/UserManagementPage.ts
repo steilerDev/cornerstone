@@ -15,7 +15,7 @@ interface CreateUserData {
   email: string;
   displayName: string;
   role?: 'admin' | 'member';
-  /** Check the "Single sign-on only" box (password fields are then not rendered). */
+  /** Choose Sign-in method "Single sign-on" (password fields are then not rendered). */
   ssoOnly?: boolean;
   /** Used for both Password and Confirm Password when not ssoOnly. */
   password?: string;
@@ -28,23 +28,25 @@ export class UserManagementPage {
   readonly table: Locator;
   readonly emptyState: Locator;
 
-  // Add User button + create modal
+  // New user button + create dialog (ObjectForm over `useUserFormSchema`, #2256)
   readonly addUserButton: Locator;
   readonly createModal: Locator;
   readonly createEmailInput: Locator;
   readonly createDisplayNameInput: Locator;
   readonly createRoleSelect: Locator;
-  readonly createSsoOnlyCheckbox: Locator;
-  readonly createSsoOnlyRow: Locator;
+  /** "Sign-in method" select (Password / Single sign-on); only rendered when OIDC is on. */
+  readonly createAuthProviderSelect: Locator;
   readonly createPasswordInput: Locator;
   readonly createConfirmPasswordInput: Locator;
   readonly createSubmitButton: Locator;
+  readonly createCancelButton: Locator;
   readonly createModalError: Locator;
+  readonly createDisplayNameError: Locator;
   readonly createEmailError: Locator;
   readonly createPasswordError: Locator;
   readonly createConfirmPasswordError: Locator;
 
-  // Edit modal
+  // Edit dialog (same form, edit scope: Display name, Email, Role)
   readonly editModal: Locator;
   readonly editModalHeading: Locator;
   readonly editModalCloseButton: Locator;
@@ -54,6 +56,8 @@ export class UserManagementPage {
   readonly editCancelButton: Locator;
   readonly editSaveButton: Locator;
   readonly editModalError: Locator;
+  readonly editDisplayNameError: Locator;
+  readonly editEmailError: Locator;
 
   // Deactivate modal
   readonly deactivateModal: Locator;
@@ -76,33 +80,35 @@ export class UserManagementPage {
     // Use .first() on the EmptyState component container to avoid strict mode with child elements.
     this.emptyState = page.locator('[class*="emptyState"]').first();
 
-    // Add User button + create modal (role="dialog" labelled "Add User")
+    // New user button + create dialog (role="dialog" named by its title). The form root carries
+    // `user-form`; field ids are the API field names; errors are `#<name>-error`.
     this.addUserButton = page.getByTestId('add-user-button');
-    this.createModal = page.getByRole('dialog', { name: 'Add User' });
-    this.createEmailInput = page.locator('#createEmail');
-    this.createDisplayNameInput = page.locator('#createDisplayName');
-    this.createRoleSelect = page.locator('#createRole');
-    this.createSsoOnlyCheckbox = page.locator('#createSsoOnly');
-    // The checkbox is wrapped in a <label> row (44px min-height on mobile)
-    this.createSsoOnlyRow = this.createSsoOnlyCheckbox.locator('xpath=ancestor::label');
-    this.createPasswordInput = page.locator('#createPassword');
-    this.createConfirmPasswordInput = page.locator('#createConfirmPassword');
-    this.createSubmitButton = page.getByTestId('create-user-submit');
-    this.createModalError = this.createModal.locator('[role="alert"]');
-    this.createEmailError = page.locator('#createEmail-error');
-    this.createPasswordError = page.locator('#createPassword-error');
-    this.createConfirmPasswordError = page.locator('#createConfirmPassword-error');
+    this.createModal = page.getByRole('dialog', { name: 'New user', exact: true });
+    this.createEmailInput = this.createModal.locator('#email');
+    this.createDisplayNameInput = this.createModal.locator('#displayName');
+    this.createRoleSelect = this.createModal.locator('#role');
+    this.createAuthProviderSelect = this.createModal.locator('#authProvider');
+    this.createPasswordInput = this.createModal.locator('#password');
+    this.createConfirmPasswordInput = this.createModal.locator('#confirmPassword');
+    this.createSubmitButton = this.createModal.getByTestId('user-form-save');
+    this.createCancelButton = this.createModal.getByTestId('user-form-cancel');
+    this.createModalError = this.createModal.getByRole('alert');
+    this.createDisplayNameError = this.createModal.locator('#displayName-error');
+    this.createEmailError = this.createModal.locator('#email-error');
+    this.createPasswordError = this.createModal.locator('#password-error');
+    this.createConfirmPasswordError = this.createModal.locator('#confirmPassword-error');
 
-    // Edit modal (uses role="dialog" with aria-label)
-    this.editModal = page.getByRole('dialog', { name: 'Edit User' });
-    this.editModalHeading = this.editModal.getByRole('heading', { level: 2, name: 'Edit User' });
-    this.editModalCloseButton = this.editModal.getByRole('button', { name: 'Close' });
-    this.editDisplayNameInput = page.locator('#editDisplayName');
-    this.editEmailInput = page.locator('#editEmail');
-    this.editRoleSelect = page.locator('#editRole');
-    this.editCancelButton = this.editModal.getByRole('button', { name: 'Cancel' });
-    this.editSaveButton = this.editModal.getByRole('button', { name: /Save Changes|Saving/ });
-    this.editModalError = this.editModal.locator('[role="alert"]');
+    this.editModal = page.getByRole('dialog', { name: 'Edit user', exact: true });
+    this.editModalHeading = this.editModal.getByRole('heading', { level: 2, name: 'Edit user' });
+    this.editModalCloseButton = this.editModal.getByRole('button', { name: 'Close dialog' });
+    this.editDisplayNameInput = this.editModal.locator('#displayName');
+    this.editEmailInput = this.editModal.locator('#email');
+    this.editRoleSelect = this.editModal.locator('#role');
+    this.editCancelButton = this.editModal.getByTestId('user-form-cancel');
+    this.editSaveButton = this.editModal.getByTestId('user-form-save');
+    this.editModalError = this.editModal.getByRole('alert');
+    this.editDisplayNameError = this.editModal.locator('#displayName-error');
+    this.editEmailError = this.editModal.locator('#email-error');
 
     // Deactivate dialog: the shared ConfirmDialog (role="alertdialog", #2209),
     // title "Deactivate <name>?", testid prefix user-deactivate
@@ -137,7 +143,7 @@ export class UserManagementPage {
       await this.createRoleSelect.selectOption(data.role);
     }
     if (data.ssoOnly) {
-      await this.createSsoOnlyCheckbox.check();
+      await this.createAuthProviderSelect.selectOption('oidc');
     } else if (data.password !== undefined) {
       await this.createPasswordInput.fill(data.password);
       await this.createConfirmPasswordInput.fill(data.password);
@@ -291,6 +297,7 @@ export class UserManagementPage {
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
 
+  /** Fills the open edit dialog and clicks Save (the caller asserts the outcome). */
   async editUser(data: EditUserData): Promise<void> {
     if (data.displayName !== undefined) {
       await this.editDisplayNameInput.fill(data.displayName);

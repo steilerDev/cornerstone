@@ -527,3 +527,37 @@ describe('ctx.testId and linkedErrorId (#2255)', () => {
     expect(input).not.toHaveAttribute('aria-describedby');
   });
 });
+
+describe('password kind and lang (#2256)', () => {
+  it('renders a password input that asks for new-password autofill', () => {
+    setup({ kind: 'password', autoComplete: 'new-password' });
+    const input = screen.getByLabelText('Label') as HTMLInputElement;
+    expect(input.tagName).toBe('INPUT');
+    expect(input.type).toBe('password');
+    expect(input).toHaveAttribute('autocomplete', 'new-password');
+  });
+
+  it.each(['text', 'email', 'password'] as const)('sets lang on a %s input', (kind) => {
+    setup({ kind, lang: 'de' });
+    expect(screen.getByLabelText('Label')).toHaveAttribute('lang', 'de');
+  });
+
+  it('sets lang on a textarea', () => {
+    setup({ kind: 'textarea', lang: 'de' });
+    expect(screen.getByLabelText('Label')).toHaveAttribute('lang', 'de');
+  });
+
+  it('sets no lang attribute when the field has none', () => {
+    setup({ kind: 'text' });
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('lang');
+  });
+
+  it('does not put lang on a select', () => {
+    setup({
+      kind: 'select',
+      lang: 'de',
+      options: [{ value: 'a', label: 'A' }],
+    });
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('lang');
+  });
+});

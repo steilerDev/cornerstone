@@ -43,7 +43,17 @@ jest.unstable_mockModule('../../hooks/useTrades.js', () => ({ useTrades: () => h
 // The merge dialog's "Keep this trade" field is an EntityPicker (kind trade): it lists the trades
 // through the trades API, answered from the same fixtures as the manager's own list.
 const mockFetchTrades = jest.fn<() => Promise<{ trades: TradeListItem[] }>>();
-jest.unstable_mockModule('../../lib/tradesApi.js', () => ({ fetchTrades: mockFetchTrades }));
+jest.unstable_mockModule('../../lib/tradesApi.js', () => ({
+  fetchTrades: mockFetchTrades,
+  // tradeForm (the shared name limit and messages) imports it; the sheet creates through useTrades.
+  createTrade: jest.fn(),
+}));
+
+let mockEntriesLanguage: 'de' | 'en' | null = null;
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  useEntriesLanguage: () => mockEntriesLanguage,
+  useHouseName: () => ({ houseName: null, entriesLanguage: mockEntriesLanguage }),
+}));
 
 const mockShowToast = jest.fn<(variant: string, message: string) => void>();
 jest.unstable_mockModule('../Toast/ToastContext.js', () => ({
@@ -90,6 +100,7 @@ describe('TradesManager', () => {
     hook.updateTrade.mockReset();
     hook.deleteTrade.mockReset();
     hook.mergeTrade.mockReset();
+    mockEntriesLanguage = null;
     mockFetchTrades.mockReset();
     mockFetchTrades.mockImplementation(() => Promise.resolve({ trades: hook.trades }));
     onClose.mockReset();
@@ -246,6 +257,42 @@ describe('TradesManager', () => {
     });
   });
 
+  async function startRename(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await openAction(user, name, 'Rename');
+    return (await screen.findByTestId('trades-manager-rename-input')) as HTMLInputElement;
+  }
+
+  describe('shared name rules (#2256)', () => {
+    it('caps the New trade input at the trade form limit of 200 characters', () => {
+      renderManager();
+
+      expect(newInput()).toHaveAttribute('maxlength', '200');
+    });
+
+    it('caps the Rename input at 200 characters', async () => {
+      const user = userEvent.setup();
+      renderManager();
+      const input = await startRename(user, 'Plumbing');
+
+      expect(input).toHaveAttribute('maxlength', '200');
+    });
+
+    it('marks both inputs with the entries language, and none while it is unknown', async () => {
+      const user = userEvent.setup();
+      mockEntriesLanguage = 'de';
+      renderManager();
+      expect(newInput()).toHaveAttribute('lang', 'de');
+      const input = await startRename(user, 'Plumbing');
+      expect(input).toHaveAttribute('lang', 'de');
+    });
+
+    it('sets no lang when the entries language is unknown', () => {
+      renderManager();
+
+      expect(newInput()).not.toHaveAttribute('lang');
+    });
+  });
+
   describe('add', () => {
     it('creates a trade on Enter with the trimmed name, then clears and refocuses the input', async () => {
       const user = userEvent.setup();
@@ -344,11 +391,6 @@ describe('TradesManager', () => {
   });
 
   describe('rename', () => {
-    async function startRename(user: ReturnType<typeof userEvent.setup>, name: string) {
-      await openAction(user, name, 'Rename');
-      return (await screen.findByTestId('trades-manager-rename-input')) as HTMLInputElement;
-    }
-
     it('starts with the displayed name selected', async () => {
       const user = userEvent.setup();
       renderManager();

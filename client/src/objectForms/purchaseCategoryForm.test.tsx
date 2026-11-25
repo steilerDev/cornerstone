@@ -10,27 +10,47 @@ import { ApiClientError } from '../lib/apiClient.js';
 import { installMatchMedia } from '../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormResult } from '../components/ObjectForm/types.js';
-import type * as ApiTypes from '../lib/householdItemCategoriesApi.js';
+import type { ReferenceListItem } from '../components/ReferenceList/ReferenceList.js';
 import type * as FormTypes from './purchaseCategoryForm.js';
 import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
 
-const mockCreate = jest.fn<typeof ApiTypes.createHouseholdItemCategory>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockCreateApi = jest.fn<(body: any) => Promise<any>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockUpdateApi = jest.fn<(id: string, body: any) => Promise<any>>();
 jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
-  createHouseholdItemCategory: mockCreate,
+  createHouseholdItemCategory: mockCreateApi,
+  updateHouseholdItemCategory: mockUpdateApi,
 }));
 
-const created = (name: string) =>
-  ({ id: 'c-1', name }) as Awaited<ReturnType<typeof ApiTypes.createHouseholdItemCategory>>;
+let mockLanguage: string | null = 'de';
+jest.unstable_mockModule('../contexts/HouseNameContext.js', () => ({
+  useEntriesLanguage: () => mockLanguage,
+  useHouseName: () => ({ houseName: null, entriesLanguage: mockLanguage }),
+}));
+
+const row = (overrides: Partial<ReferenceListItem> = {}): ReferenceListItem => ({
+  id: 'r-1',
+  name: 'Test Category A',
+  color: null,
+  ...overrides,
+});
 
 describe('purchaseCategoryForm', () => {
   let Form: typeof FormTypes;
   let FormComponent: typeof ObjectFormTypes;
   let media: MatchMediaControl;
   const onCreated = jest.fn<(result: ObjectFormResult) => void>();
+  const onCreate = jest.fn<(values: { name: string }) => Promise<{ id: string }>>();
+  const onUpdate = jest.fn<(id: string, changes: Record<string, unknown>) => Promise<unknown>>();
 
   beforeEach(async () => {
-    mockCreate.mockReset();
+    mockCreateApi.mockReset();
+    mockUpdateApi.mockReset();
     onCreated.mockReset();
+    onCreate.mockReset();
+    onUpdate.mockReset();
+    mockLanguage = 'de';
     media = installMatchMedia({ '(min-width: 768px)': true });
     if (!Form) {
       Form = await import('./purchaseCategoryForm.js');
@@ -42,8 +62,14 @@ describe('purchaseCategoryForm', () => {
     media.restore();
   });
 
-  function Harness({ prefill }: { prefill?: Record<string, string> }) {
-    const schema = Form.usePurchaseCategoryFormSchema();
+  function Harness({
+    options,
+    prefill,
+  }: {
+    options?: Parameters<typeof FormTypes.usePurchaseCategoryFormSchema>[0];
+    prefill?: Record<string, string>;
+  }) {
+    const schema = Form.usePurchaseCategoryFormSchema(options);
     return (
       <FormComponent.ObjectForm
         schema={schema}
@@ -54,37 +80,55 @@ describe('purchaseCategoryForm', () => {
     );
   }
 
-  const renderForm = (prefill?: Record<string, string>) =>
+  const renderForm = (
+    options?: Parameters<typeof FormTypes.usePurchaseCategoryFormSchema>[0],
+    prefill?: Record<string, string>,
+  ) =>
     render(
       <MemoryRouter>
-        <Harness prefill={prefill} />
+        <Harness options={options} prefill={prefill} />
       </MemoryRouter>,
     );
 
-  const schema = () => renderHook(() => Form.usePurchaseCategoryFormSchema()).result.current;
+  const schema = (options?: Parameters<typeof FormTypes.usePurchaseCategoryFormSchema>[0]) =>
+    renderHook(() => Form.usePurchaseCategoryFormSchema(options)).result.current;
 
-  describe('schema', () => {
-    it('is the New purchase category form with a name only', () => {
+  describe('schema (new)', () => {
+    it('is the New purchase category form with API-keyed fields in order', () => {
       const s = schema();
 
       expect(s.id).toBe('purchase-category');
       expect(s.title).toBe('New purchase category');
-      expect(s.initialValues).toEqual({ name: '' });
-      expect(s.fields.map((field) => field.name)).toEqual(['name']);
+      expect(s.initialValues).toEqual({ name: '', color: null });
+      expect(s.fields.map((field) => field.name)).toEqual(['name', 'color']);
     });
 
-    it('makes name an essential required text field with the API length cap', () => {
-      const [name] = schema().fields;
+    it('marks only the name essential, required and capped at the server limit', () => {
+      const s = schema();
+      const [name, ...rest] = s.fields;
 
       expect(name).toMatchObject({
+        name: 'name',
         kind: 'text',
         essential: true,
         required: true,
         maxLength: Form.PURCHASE_CATEGORY_NAME_MAX_LENGTH,
-        label: 'Name',
         testId: 'purchase-category-name-input',
       });
+      expect(rest.every((field) => !field.essential)).toBe(true);
       expect(Form.PURCHASE_CATEGORY_NAME_MAX_LENGTH).toBe(100);
+      expect(rest[0]).toMatchObject({ name: 'color', kind: 'color' });
+    });
+
+    it('sets the entries language on the text-like fields', () => {
+      mockLanguage = 'de';
+      expect(
+        schema()
+          .fields.filter((f) => f.kind !== 'color')
+          .map((f) => f.lang),
+      ).toEqual(['de']);
+      mockLanguage = null;
+      expect(schema().fields.every((f) => f.lang === undefined)).toBe(true);
     });
 
     it('requires a name after trimming', () => {
@@ -94,37 +138,145 @@ describe('purchaseCategoryForm', () => {
       expect(validate({ name: '   ' })).toEqual({ name: 'Enter a name.' });
       expect(validate({ name: undefined })).toEqual({ name: 'Enter a name.' });
       expect(validate({ name: 42 })).toEqual({ name: 'Enter a name.' });
-      expect(validate({ name: 'Furniture' })).toEqual({});
+      expect(validate({ name: 'Test Category A' })).toEqual({});
     });
 
     it('maps CONFLICT to a name error and leaves other codes to the banner', () => {
       const { mapError } = schema();
 
-      expect(mapError?.('CONFLICT', { name: 'Furniture' })).toEqual({
+      expect(mapError?.('CONFLICT', { name: 'A' })).toEqual({
         name: 'A purchase category with this name already exists.',
       });
-      expect(mapError?.('VALIDATION_ERROR', { name: 'Furniture' })).toBeNull();
-      expect(mapError?.('NOT_FOUND', { name: 'Furniture' })).toBeNull();
+      expect(mapError?.('VALIDATION_ERROR', { name: 'A' })).toBeNull();
+      expect(mapError?.('NOT_FOUND', { name: 'A' })).toBeNull();
     });
 
-    it('submit trims, creates and returns the stored name with the settings link', async () => {
-      mockCreate.mockResolvedValue(created('Furniture (stored)'));
+    it('submit calls the injected create with exactly the normalised values', async () => {
+      onCreate.mockResolvedValue({ id: 'new-1' });
 
-      const result = await schema().submit({ name: '  Furniture  ' });
-
-      expect(mockCreate).toHaveBeenCalledWith({ name: 'Furniture' });
-      expect(result).toEqual({
-        id: 'c-1',
-        href: routeUrl('settingsManage'),
-        label: 'Furniture (stored)',
+      const result = await schema({ create: onCreate }).submit({
+        name: '  Test Category A  ',
+        color: '',
       });
+
+      expect(onCreate).toHaveBeenCalledTimes(1);
+      expect(onCreate.mock.calls[0]?.[0]).toEqual({ name: 'Test Category A', color: null });
+      expect(mockCreateApi).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        id: 'new-1',
+        href: routeUrl('settingsManage'),
+        label: 'Test Category A',
+      });
+    });
+
+    it('submit falls back to the API client without an injected create', async () => {
+      mockCreateApi.mockResolvedValue({ id: 'api-1', name: 'Test Category A' });
+
+      const result = await schema().submit({ name: '  Test Category A  ', color: '' });
+
+      expect(mockCreateApi).toHaveBeenCalledWith({ name: 'Test Category A', color: null });
+      expect(result.id).toBe('api-1');
+    });
+  });
+
+  describe('schema (edit)', () => {
+    it('uses the edit id and title', () => {
+      const s = schema({ mode: 'edit', item: row() });
+
+      expect(s.id).toBe('purchase-category-edit');
+      expect(s.title).toBe('Edit purchase category');
+    });
+
+    it('shows the translated hint only for a translated row', () => {
+      const plain = schema({ mode: 'edit', item: row() }).fields[0]!;
+      const translated = schema({ mode: 'edit', item: row({ translated: true }) }).fields[0]!;
+      const newMode = schema({ item: row({ translated: true }) }).fields[0]!;
+
+      expect(plain.hint).toBeUndefined();
+      expect(translated.hint).toBe(
+        'This name is translated. If you change it, your text is shown in every language.',
+      );
+      expect(newMode.hint).toBeUndefined();
+    });
+
+    it('prefill carries the row values and is undefined for a new object', () => {
+      expect(Form.purchaseCategoryFormPrefill(undefined)).toBeUndefined();
+      expect(Form.purchaseCategoryFormPrefill(row())).toMatchObject({ name: 'Test Category A' });
+    });
+
+    it('an unchanged save calls neither update nor the API', async () => {
+      const result = await schema({ mode: 'edit', item: row(), update: onUpdate }).submit({
+        name: 'Test Category A',
+        color: null,
+      });
+
+      expect(onUpdate).not.toHaveBeenCalled();
+      expect(mockUpdateApi).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        id: 'r-1',
+        href: routeUrl('settingsManage'),
+        label: 'Test Category A',
+      });
+    });
+
+    it('an unchanged translated name sends nothing (keeps the translation key)', async () => {
+      await schema({
+        mode: 'edit',
+        item: row({ name: 'Übersetzt', translated: true }),
+        update: onUpdate,
+      }).submit({ name: 'Übersetzt', color: null });
+
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    it('a change calls the injected update with only the changed fields', async () => {
+      onUpdate.mockResolvedValue(undefined);
+
+      await schema({ mode: 'edit', item: row(), update: onUpdate }).submit({
+        name: 'Test Category A',
+        color: '#112233',
+      });
+
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      expect(onUpdate.mock.calls[0]).toEqual(['r-1', { color: '#112233' }]);
+      expect(mockUpdateApi).not.toHaveBeenCalled();
+    });
+
+    it('a change falls back to the API client with only the changed fields', async () => {
+      mockUpdateApi.mockResolvedValue({ id: 'r-1' });
+
+      await schema({ mode: 'edit', item: row() }).submit({
+        name: 'Test Category A',
+        color: '#112233',
+      });
+
+      expect(mockUpdateApi).toHaveBeenCalledWith('r-1', { color: '#112233' });
+    });
+
+    it('sends a name-only change to the API client without the other keys', async () => {
+      mockUpdateApi.mockResolvedValue({ id: 'r-1' });
+
+      await schema({ mode: 'edit', item: row() }).submit({ name: 'Test Category B', color: null });
+
+      expect(mockUpdateApi.mock.calls[0]).toEqual(['r-1', { name: 'Test Category B' }]);
+    });
+
+    it('treats edit mode without an item as a new object', async () => {
+      mockCreateApi.mockResolvedValue({ id: 'api-2' });
+      const s = schema({ mode: 'edit' });
+
+      expect(s.fields[0]?.hint).toBeUndefined();
+      await s.submit({ name: '  Test Category A  ', color: '' });
+
+      expect(mockCreateApi).toHaveBeenCalledTimes(1);
+      expect(mockUpdateApi).not.toHaveBeenCalled();
     });
   });
 
   describe('in the ObjectForm', () => {
-    it('creates the entry and reports the result', async () => {
+    it('creates the object and reports the result', async () => {
       const user = userEvent.setup();
-      mockCreate.mockResolvedValue(created('Glass'));
+      mockCreateApi.mockResolvedValue({ id: 'c-1', name: 'Glass' });
       renderForm();
 
       expect(screen.getByRole('dialog', { name: 'New purchase category' })).toBeInTheDocument();
@@ -135,15 +287,16 @@ describe('purchaseCategoryForm', () => {
       expect(onCreated.mock.calls[0]?.[0]).toMatchObject({ id: 'c-1', label: 'Glass' });
     });
 
-    it('pre-fills the name typed into the picker', async () => {
+    it('pre-fills the name typed into a picker', async () => {
       const user = userEvent.setup();
-      mockCreate.mockResolvedValue(created('Glass'));
-      renderForm({ name: 'Glass' });
+      mockCreateApi.mockResolvedValue({ id: 'c-1', name: 'Glass' });
+      renderForm(undefined, { name: 'Glass' });
 
       expect(screen.getByTestId('purchase-category-name-input')).toHaveValue('Glass');
       await user.click(screen.getByTestId('object-form-save'));
 
-      await waitFor(() => expect(mockCreate).toHaveBeenCalledWith({ name: 'Glass' }));
+      await waitFor(() => expect(mockCreateApi).toHaveBeenCalledTimes(1));
+      expect(mockCreateApi.mock.calls[0]?.[0]).toMatchObject({ name: 'Glass' });
     });
 
     it('does not save without a name', async () => {
@@ -153,17 +306,17 @@ describe('purchaseCategoryForm', () => {
       await user.click(screen.getByTestId('object-form-save'));
 
       expect(await screen.findByText('Enter a name.')).toBeInTheDocument();
-      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockCreateApi).not.toHaveBeenCalled();
     });
 
-    it('shows a duplicate error on the name for a server 409, without a banner', async () => {
+    it('shows a duplicate error on the name for a server CONFLICT, without a banner', async () => {
       const user = userEvent.setup();
-      mockCreate.mockRejectedValue(
+      mockCreateApi.mockRejectedValue(
         new ApiClientError(409, { code: 'CONFLICT', message: 'server text' }),
       );
       renderForm();
 
-      await user.type(screen.getByTestId('purchase-category-name-input'), 'Furniture');
+      await user.type(screen.getByTestId('purchase-category-name-input'), 'Test Category A');
       await user.click(screen.getByTestId('object-form-save'));
 
       expect(
@@ -179,7 +332,7 @@ describe('purchaseCategoryForm', () => {
 
     it('shows a banner for any other server error and keeps the form open', async () => {
       const user = userEvent.setup();
-      mockCreate.mockRejectedValue(
+      mockCreateApi.mockRejectedValue(
         new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'boom' }),
       );
       renderForm();
@@ -190,6 +343,40 @@ describe('purchaseCategoryForm', () => {
       expect(await screen.findByRole('alert')).toBeInTheDocument();
       expect(screen.getByRole('dialog', { name: 'New purchase category' })).toBeInTheDocument();
       expect(onCreated).not.toHaveBeenCalled();
+    });
+
+    it('edit mode opens prefilled, saves a change through update and reports the row', async () => {
+      const user = userEvent.setup();
+      onUpdate.mockResolvedValue(undefined);
+      const item = row();
+      const Edit = () => {
+        const s = Form.usePurchaseCategoryFormSchema({ mode: 'edit', item, update: onUpdate });
+        const prefill = Form.purchaseCategoryFormPrefill(item);
+        return (
+          <FormComponent.ObjectForm
+            schema={s}
+            prefill={prefill}
+            onCreated={onCreated}
+            onCancel={() => {}}
+          />
+        );
+      };
+      render(
+        <MemoryRouter>
+          <Edit />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByRole('dialog', { name: 'Edit purchase category' })).toBeInTheDocument();
+      const input = screen.getByTestId('purchase-category-name-input');
+      expect(input).toHaveValue('Test Category A');
+      await user.clear(input);
+      await user.type(input, 'Test Category B');
+      await user.click(screen.getByTestId('object-form-save'));
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(onUpdate.mock.calls[0]).toEqual(['r-1', { name: 'Test Category B' }]);
+      expect(onCreated.mock.calls[0]?.[0]).toMatchObject({ id: 'r-1', label: 'Test Category B' });
     });
   });
 });

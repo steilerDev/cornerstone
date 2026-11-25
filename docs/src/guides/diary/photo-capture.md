@@ -49,8 +49,11 @@ Orientations are a managed list, just like [areas and trades](/guides/work-items
 
 Navigate to **Settings > Project setup** and find the **Photo orientations** section. Select **New orientation** and provide:
 
-- **Name** -- A short label, required (up to 100 characters). For example `North side` or `From the street`.
-- **Description** -- Optional context, e.g. *Side facing the garden* (up to 500 characters).
+- **Name** -- A short label, required (up to 200 characters). For example `North side` or `From the street`.
+
+Select **More details** to add:
+
+- **Description** -- Optional context, e.g. *Side facing the garden* (up to 2000 characters).
 
 The list shows every orientation in the order you set. To change the order, drag a row by its reorder handle, or open the row's actions menu and choose **Move up** or **Move down**. Each row also has **Edit** and **Delete** actions. Deleting an orientation asks for confirmation first.
 

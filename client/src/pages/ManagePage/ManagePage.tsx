@@ -8,6 +8,7 @@ import { useReferenceListData } from '../../hooks/useReferenceListData.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import sharedStyles from '../../styles/shared.module.css';
 import { HouseSection } from './HouseSection.js';
+import { CostCategoryForm, OrientationForm, PurchaseCategoryForm } from './referenceForms.js';
 import { useProjectSetupLocation } from './projectSetupLocation.js';
 import {
   costCategoryAdapter,
@@ -86,9 +87,6 @@ export function ManagePage() {
             newItem: t('projectSetup.costCategories.newItem', {
               item: t('projectSetup.costCategories.item'),
             }),
-            editItem: t('projectSetup.costCategories.editItem', {
-              item: t('projectSetup.costCategories.item'),
-            }),
             empty: t('projectSetup.costCategories.empty', {
               items: t('projectSetup.costCategories.items'),
             }),
@@ -101,10 +99,10 @@ export function ManagePage() {
             noMatch: t('projectSetup.costCategories.noMatch', {
               items: t('projectSetup.costCategories.items'),
             }),
-            duplicateName: t('projectSetup.costCategories.duplicateName'),
             deleteBlocked: (name) => t('projectSetup.costCategories.deleteBlocked', { name }),
           }}
-          fields={{ nameMaxLength: 100, descriptionMaxLength: 500, color: true }}
+          fields={{ color: true }}
+          renderForm={(request) => <CostCategoryForm request={request} />}
           items={costItems}
           status={costCategories.status}
           onRetry={costCategories.retry}
@@ -125,9 +123,6 @@ export function ManagePage() {
             newItem: t('projectSetup.purchaseCategories.newItem', {
               item: t('projectSetup.purchaseCategories.item'),
             }),
-            editItem: t('projectSetup.purchaseCategories.editItem', {
-              item: t('projectSetup.purchaseCategories.item'),
-            }),
             empty: t('projectSetup.purchaseCategories.empty', {
               items: t('projectSetup.purchaseCategories.items'),
             }),
@@ -140,10 +135,10 @@ export function ManagePage() {
             noMatch: t('projectSetup.purchaseCategories.noMatch', {
               items: t('projectSetup.purchaseCategories.items'),
             }),
-            duplicateName: t('projectSetup.purchaseCategories.duplicateName'),
             deleteBlocked: (name) => t('projectSetup.purchaseCategories.deleteBlocked', { name }),
           }}
-          fields={{ nameMaxLength: 100, color: true }}
+          fields={{ color: true }}
+          renderForm={(request) => <PurchaseCategoryForm request={request} />}
           items={purchaseItems}
           status={purchaseCategories.status}
           onRetry={purchaseCategories.retry}
@@ -164,9 +159,6 @@ export function ManagePage() {
             newItem: t('projectSetup.orientations.newItem', {
               item: t('projectSetup.orientations.item'),
             }),
-            editItem: t('projectSetup.orientations.editItem', {
-              item: t('projectSetup.orientations.item'),
-            }),
             empty: t('projectSetup.orientations.empty', {
               items: t('projectSetup.orientations.items'),
             }),
@@ -179,9 +171,9 @@ export function ManagePage() {
             noMatch: t('projectSetup.orientations.noMatch', {
               items: t('projectSetup.orientations.items'),
             }),
-            duplicateName: t('projectSetup.orientations.duplicateName'),
           }}
-          fields={{ nameMaxLength: 200, descriptionMaxLength: 2000 }}
+          fields={{}}
+          renderForm={(request) => <OrientationForm request={request} />}
           items={orientationItems}
           status={orientations.status}
           onRetry={orientations.retry}

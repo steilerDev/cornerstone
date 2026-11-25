@@ -74,31 +74,23 @@
       "error": "Could not unlock {{name}}. Try again."
     },
     "editModal": {
-      "title": "Edit User",
-      "closeAriaLabel": "Close",
-      "displayNameLabel": "Display Name",
-      "emailLabel": "Email",
-      "roleLabel": "Role",
-      "cancel": "Cancel",
-      "save": "Save Changes",
-      "saving": "Saving...",
-      "error": "Failed to update user. Please try again."
+      "title": "Edit user"
     },
-    "addUser": "Add User",
+    "addUser": "New user",
     "createModal": {
-      "title": "Add User",
+      "title": "New user",
       "emailLabel": "Email",
       "displayNameLabel": "Display Name",
       "roleLabel": "Role",
-      "ssoOnlyLabel": "Single sign-on only (no password)",
       "ssoOnlyHint": "The user signs in with single sign-on. No password is created; the account is linked the first time they sign in with a verified email.",
       "passwordLabel": "Password",
       "confirmPasswordLabel": "Confirm Password",
-      "passwordHint": "At least 12 characters.",
-      "cancel": "Cancel",
-      "create": "Create User",
-      "creating": "Creating...",
-      "error": "Failed to create user. Please try again."
+      "passwordHint": "At least 12 characters."
+    },
+    "form": {
+      "signInMethod": "Sign-in method",
+      "signInLocal": "Password",
+      "signInOidc": "Single sign-on"
     },
     "createValidation": {
       "emailTooLong": "Email must be 255 characters or less",
@@ -195,8 +187,7 @@
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
       "search": "Search {{items}}",
-      "noMatch": "No {{items}} match.",
-      "duplicateName": "An orientation with this name already exists."
+      "noMatch": "No {{items}} match."
     },
     "pointers": {
       "title": "Managed on other pages",

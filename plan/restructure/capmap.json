@@ -3843,15 +3843,15 @@
     "to": "Settings > Users (admin only) > 'New user' (ObjectForm dialog)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2256: the New user dialog is the user ObjectForm schema (`objectForms/userForm.tsx`): Display name, Email, Role, Sign-in method (only with OIDC), Password and Confirm password (local sign-in only). The trigger reads 'New user'."
   },
   "PLT-078": {
     "name": "Create a single-sign-on-only user (no password)",
     "from": "/settings/users > \"Add User\" modal > checkbox \"Single sign-on only (no password)\" (only when OIDC is configured)",
-    "to": "Settings > Users (admin only) > New user > 'Single sign-on only' (OIDC only)",
+    "to": "Settings > Users (admin only) > New user > Sign-in method 'Single sign-on' (OIDC only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2256: the checkbox became the schema's Sign-in method select; password fields are removed while Single sign-on is chosen."
   },
   "PLT-079": {
     "name": "Edit another user's display name, email address and role",
@@ -3859,7 +3859,7 @@
     "to": "Settings > Users (admin only) > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the row ⋯ is the shared OverflowMenu (menu roles, arrow keys, 44px trigger, focus return)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the row ⋯ is the shared OverflowMenu (menu roles, arrow keys, 44px trigger, focus return). #2256: Edit is the user schema's edit scope in an ObjectForm dialog (Display name, Email, Role); unchanged saves send nothing."
   },
   "PLT-080": {
     "name": "Promote a member to admin or demote an admin, without losing the last admin",
@@ -3867,7 +3867,7 @@
     "to": "Settings > Users (admin only) > Edit > Role (last-admin guard)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2256: Edit is the user schema's edit scope in an ObjectForm dialog (Display name, Email, Role); unchanged saves send nothing."
   },
   "PLT-081": {
     "name": "Deactivate a user account",
@@ -3973,7 +3973,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index 'New area'; inline 'New area' in pickers; Project setup 'Areas' row.",
-    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2218: Areas index 'New area' and row ⋯ > Add sub-area. #2236: 'every area picker' is EntityPicker kind 'area', whose create row opens New area through TagCreateProvider with the typed name pre-filled."
+    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2218: Areas index 'New area' and row ⋯ > Add sub-area. #2236: 'every area picker' is EntityPicker kind 'area', whose create row opens New area through TagCreateProvider with the typed name pre-filled. #2256: no change; `areaForm` already serves the Areas index New/Edit and the area picker."
   },
   "PLT-094": {
     "name": "View the area hierarchy",
@@ -4017,7 +4017,7 @@
     "to": "Companies > Companies list > ⋯ > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there; inline 'New trade ‹text›' in trade pickers",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. #2236: trade pickers (company form, company page; the Trades sheet's Merge target with create off) are EntityPicker kind 'trade'; their 'New trade ‹text›' row opens the trade form through TagCreateProvider. TradePicker retired. #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone.",
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. #2236: trade pickers (company form, company page; the Trades sheet's Merge target with create off) are EntityPicker kind 'trade'; their 'New trade ‹text›' row opens the trade form through TagCreateProvider. TradePicker retired. #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone. #2256: the Trades sheet's New row and Rename take the name limit, messages and validator from `tradeForm` (`validateTradeValues`); the inline controls are unchanged.",
     "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there.",
     "clicks": 2,
     "clickPath": "Companies list > ⋯ (1) > Trades (2)"
@@ -4028,7 +4028,7 @@
     "to": "Companies > Companies list > ⋯ > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only). #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone.",
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only). #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone. #2256: the Trades sheet's New row and Rename take the name limit, messages and validator from `tradeForm` (`validateTradeValues`); the inline controls are unchanged.",
     "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there.",
     "clicks": 2,
     "clickPath": "Companies list > ⋯ (1) > Trades (2)"
@@ -4050,7 +4050,7 @@
     "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > ⋯ > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language."
+    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language. #2256: the unchanged-name guard is `referenceChanges` in `objectForms/referenceForm.ts`, shared by the cost category, purchase category and orientation schemas."
   },
   "PLT-102": {
     "name": "Create a photo orientation (viewing direction) with description and sort order",
@@ -4058,7 +4058,7 @@
     "to": "Settings > Project setup > Photo orientations > New; inline 'New orientation' in the photo tag picker",
     "change": "same",
     "gate": "none",
-    "note": "Inline create removes the Settings detour for photos (J05 prerequisite). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2236: the photo tag picker is EntityPicker kind 'orientation' with inline 'New orientation' (TagCreateProvider); OrientationPicker retired."
+    "note": "Inline create removes the Settings detour for photos (J05 prerequisite). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2236: the photo tag picker is EntityPicker kind 'orientation' with inline 'New orientation' (TagCreateProvider); OrientationPicker retired. #2256: Project setup New and row ⋯ Edit render the `orientationForm` schema (ObjectForm), the same schema as the photo tag picker's inline 'New orientation'; Description is under More details."
   },
   "PLT-103": {
     "name": "Edit an orientation inline",
@@ -4066,7 +4066,7 @@
     "to": "Settings > Project setup > Photo orientations > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and row ⋯ Edit render the `orientationForm` schema (ObjectForm), the same schema as the photo tag picker's inline 'New orientation'; Description is under More details."
   },
   "PLT-104": {
     "name": "Delete an orientation",
@@ -4079,10 +4079,10 @@
   "PLT-105": {
     "name": "Create a budget category with colour, sort order and description",
     "from": "/settings/manage?tab=budget-categories > \"Create New Budget Category\": Name *, Color, Sort Order, Description > create | Legacy /budget/categories redirects here | /settings/manage?tab=budget-categories > 'Create New Budget Category' form; 'Categories (n)' list > 'Edit' / 'Delete' | /budget/categories -> redirect",
-    "to": "Settings > Project setup > Cost categories > New; inline in the cost line form",
+    "to": "Settings > Project setup > Cost categories > New",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render the new `costCategoryForm` schema (ObjectForm). The cost line form's category is a select without inline create (unchanged)."
   },
   "PLT-106": {
     "name": "Edit a budget category inline",
@@ -4090,7 +4090,7 @@
     "to": "Settings > Project setup > Cost categories > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render the new `costCategoryForm` schema (ObjectForm). The cost line form's category is a select without inline create (unchanged)."
   },
   "PLT-107": {
     "name": "Delete a budget category",
@@ -4106,7 +4106,7 @@
     "to": "Settings > Project setup > Purchase categories > New",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render `purchaseCategoryForm` (ObjectForm) — the inline picker dialog's schema, now with Colour under More details."
   },
   "PLT-109": {
     "name": "Edit a household-item category inline",
@@ -4114,7 +4114,7 @@
     "to": "Settings > Project setup > Purchase categories > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render `purchaseCategoryForm` (ObjectForm) — the inline picker dialog's schema, now with Colour under More details."
   },
   "PLT-110": {
     "name": "Delete a household-item category",

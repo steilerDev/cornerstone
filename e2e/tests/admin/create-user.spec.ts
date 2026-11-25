@@ -1,6 +1,6 @@
 /**
  * E2E tests for admin-created users (#2122): SSO-only accounts without a password and
- * local accounts, created through the Add User modal on /settings/users.
+ * local accounts, created through the New user dialog (an ObjectForm, #2256) on /settings/users.
  *
  * AC3 (first SSO login links the pending account) cannot be driven here: the mock IdP
  * always returns member@e2e-test.local, which oidc.spec.ts already uses. It is covered
@@ -57,11 +57,12 @@ test.describe('Admin creates users', () => {
     const users = new UserManagementPage(page);
     await users.goto();
 
-    // When: admin opens Add User and ticks "Single sign-on only"
+    // When: admin opens New user and chooses Sign-in method "Single sign-on"
     await users.openCreateModal();
-    await expect(users.createSsoOnlyCheckbox).toBeVisible();
+    await expect(users.createAuthProviderSelect).toBeVisible();
+    await expect(users.createAuthProviderSelect).toHaveValue('local');
     await expect(users.createPasswordInput).toBeVisible();
-    await users.createSsoOnlyCheckbox.check();
+    await users.createAuthProviderSelect.selectOption('oidc');
 
     // Then: password fields are removed from the DOM
     await expect(users.createPasswordInput).toHaveCount(0);
@@ -114,7 +115,7 @@ test.describe('Admin creates users', () => {
     const users = new UserManagementPage(page);
     await users.goto();
 
-    // When: admin creates a local user (checkbox left unchecked)
+    // When: admin creates a local user (Sign-in method left on Password)
     createdEmails.push(localEmail);
     await users.createUser({
       email: localEmail,
@@ -125,16 +126,37 @@ test.describe('Admin creates users', () => {
     // Then: dialog closed (createUser waits) and row shows "Local"
     await expect(await users.getAuthProviderCell(localEmail)).toHaveText('Local');
 
-    // And: the credentials work against the login API from a fresh context
+    // And: the created user signs in through the login page from a fresh context (AC2)
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     try {
-      const response = await context.request.post(API.login, {
-        data: { email: localEmail, password: PASSWORD },
-      });
-      expect(response.status()).toBe(200);
+      const loginPage = new LoginPage(await context.newPage());
+      await loginPage.goto();
+      await loginPage.login(localEmail, PASSWORD);
+      await loginPage.expectRedirectToDashboard();
+      await expect(loginPage.page).not.toHaveURL(new RegExp(`${ROUTES.login}$`));
     } finally {
       await context.close();
     }
+  });
+
+  test('Role and Sign-in method are present; an empty submit shows the field errors', async ({
+    page,
+  }) => {
+    const users = new UserManagementPage(page);
+    await users.goto();
+    await users.openCreateModal();
+
+    // Role and Sign-in method (OIDC is on in the E2E stack) sit next to the identity fields
+    await expect(users.createRoleSelect).toHaveValue('member');
+    await expect(users.createAuthProviderSelect).toBeVisible();
+    await expect(users.createModal.getByLabel('Sign-in method')).toBeVisible();
+
+    await users.createSubmitButton.click();
+    await expect(users.createDisplayNameError).toBeVisible();
+    await expect(users.createEmailError).toBeVisible();
+    await expect(users.createPasswordError).toBeVisible();
+    await expect(users.createDisplayNameInput).toBeFocused();
+    await expect(users.createModal).toBeVisible();
   });
 
   test('Validation errors and duplicate email keep the dialog open', async ({ page }) => {
@@ -211,7 +233,7 @@ test.describe('Admin creates users', () => {
   });
 
   test(
-    'Responsive: Add User and checkbox are reachable with a 44px touch target on mobile',
+    'Responsive: the dialog is a full-screen sheet on mobile; Save and Cancel are reachable',
     { tag: '@responsive' },
     async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'mobile', 'Mobile project only');
@@ -222,29 +244,41 @@ test.describe('Admin creates users', () => {
       await users.openCreateModal();
       await expect(users.createEmailInput).toBeVisible();
       await expect(users.createDisplayNameInput).toBeVisible();
-      await expect(users.createSsoOnlyCheckbox).toBeVisible();
-      await users.createSsoOnlyRow.scrollIntoViewIfNeeded();
-      const box = await users.createSsoOnlyRow.boundingBox();
+      await expect(users.createAuthProviderSelect).toBeVisible();
+
+      const viewport = page.viewportSize();
+      const box = await users.createModal.boundingBox();
       expect(box).not.toBeNull();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(Math.abs((box?.width ?? 0) - (viewport?.width ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((box?.height ?? 0) - (viewport?.height ?? 0))).toBeLessThanOrEqual(1);
+
+      await expect(users.createSubmitButton).toBeInViewport();
+      await expect(users.createCancelButton).toBeInViewport();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        'no horizontal overflow',
+      ).toBe(true);
     },
   );
 
-  test('Keyboard: Space toggles SSO-only, focus stays, Escape returns focus to Add User', async ({
-    page,
-  }) => {
+  test('Keyboard: the Sign-in method select switches to SSO and keeps focus', async ({ page }) => {
     const users = new UserManagementPage(page);
     await users.goto();
     await users.openCreateModal();
 
-    await users.createRoleSelect.focus();
-    await page.keyboard.press('Tab');
-    await expect(users.createSsoOnlyCheckbox).toBeFocused();
-    await page.keyboard.press('Space');
+    await users.createAuthProviderSelect.focus();
+    await page.keyboard.press('ArrowDown');
 
-    await expect(users.createSsoOnlyCheckbox).toBeChecked();
+    await expect(users.createAuthProviderSelect).toHaveValue('oidc');
     await expect(users.createPasswordInput).toHaveCount(0);
-    await expect(users.createSsoOnlyCheckbox).toBeFocused();
+    await expect(users.createConfirmPasswordInput).toHaveCount(0);
+    await expect(users.createAuthProviderSelect).toBeFocused();
+  });
+
+  test('Keyboard: Escape on an untouched dialog returns focus to New user', async ({ page }) => {
+    const users = new UserManagementPage(page);
+    await users.goto();
+    await users.openCreateModal();
 
     await page.keyboard.press('Escape');
     await expect(users.createModal).toBeHidden();
