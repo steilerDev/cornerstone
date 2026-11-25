@@ -27,14 +27,14 @@ export const TOUCH_TARGET_MIN = 44;
  *    dates, so the size is essential to the information (the "essential" exception).
  *    Week-view calendar items are NOT exempt; they reach 44 px through touchSized,
  * c) the skip link while it is visually hidden (it is not a target until it has focus),
- * d) the BudgetBar chart (data-testid="budget-bar"): segment width encodes the amount (essential);
+ * d) the BudgetBar chart (data-chart="budget-bar"): segment width encodes the amount (essential);
  *    segments are aria-hidden pointer shortcuts and the focusable bar is the keyboard path.
  */
 export const TOUCH_TARGET_EXEMPTIONS = [
   'a: a with display inline whose parent block has text beyond the link (inline in prose)',
   'b: elements inside the Gantt SVG canvas or the calendar month grid (essential, position and span encode dates)',
   'c: the visually hidden skip link while unfocused',
-  'd: the BudgetBar chart (data-testid="budget-bar"): segment width encodes the amount (essential); segments are aria-hidden pointer shortcuts and the focusable bar is the keyboard path',
+  'd: the BudgetBar chart (data-chart="budget-bar"): segment width encodes the amount (essential); segments are aria-hidden pointer shortcuts and the focusable bar is the keyboard path',
 ] as const;
 
 export interface A11yScanOptions {
@@ -99,8 +99,9 @@ export async function expectTouchTargets(page: Page, options: { label: string })
     };
 
     // Hit area: the larger of the element's box and its absolutely positioned ::before/::after.
-    // An overlay counts only when it can take the tap: pointer-events:none overlays and overlays
-    // clipped by the host's overflow are skipped.
+    // An overlay counts only when it can take the tap: it is skipped when it has pointer-events:none,
+    // or when the host is both its containing block and overflow-clipped. A static host's overflow
+    // does not clip an absolutely positioned overlay anchored to an ancestor.
     const effectiveSize = (el: Element): { width: number; height: number } => {
       let box = el.getBoundingClientRect();
       if (
@@ -114,16 +115,17 @@ export async function expectTouchTargets(page: Page, options: { label: string })
       let width = box.width;
       let height = box.height;
       const host = getComputedStyle(el);
+      const hostIsContainingBlock =
+        host.position !== 'static' ||
+        host.transform !== 'none' ||
+        host.filter !== 'none' ||
+        /paint|layout|strict|content/.test(host.contain);
+      const hostClips =
+        host.overflow !== 'visible' || host.overflowX !== 'visible' || host.overflowY !== 'visible';
       for (const pseudo of ['::before', '::after']) {
         const style = getComputedStyle(el, pseudo);
         if (style.pointerEvents === 'none') continue;
-        if (
-          host.overflow !== 'visible' ||
-          host.overflowX !== 'visible' ||
-          host.overflowY !== 'visible'
-        ) {
-          continue;
-        }
+        if (hostIsContainingBlock && hostClips) continue;
         if (style.position !== 'absolute' || style.content === 'none' || style.content === '') {
           continue;
         }
@@ -147,7 +149,7 @@ export async function expectTouchTargets(page: Page, options: { label: string })
       if (el.closest('[data-testid="gantt-svg"]')) continue;
       if (el.closest('[data-testid="calendar-month-grid"]')) continue;
       // Exemption (d), WCAG 2.5.5 (essential)
-      if (el.closest('[data-testid="budget-bar"]')) continue;
+      if (el.closest('[data-chart="budget-bar"]')) continue;
       // Exemption (a), WCAG 2.5.5 (inline): a link inside a run of prose
       if (el instanceof HTMLAnchorElement && getComputedStyle(el).display === 'inline') {
         const parent = el.parentElement;

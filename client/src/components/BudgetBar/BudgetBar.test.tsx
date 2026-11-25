@@ -24,12 +24,13 @@ describe('BudgetBar', () => {
     expect(screen.getByRole('img')).toBeInTheDocument();
   });
 
-  it('exposes the img element with the budget-bar test id and keyboard focus', () => {
+  it('marks the focusable img element as the budget-bar chart', () => {
     render(<BudgetBar segments={baseSegments} maxValue={100000} />);
 
-    const bar = screen.getByTestId('budget-bar');
-    expect(bar).toHaveAttribute('role', 'img');
+    const bar = screen.getByRole('img');
+    expect(bar).toHaveAttribute('data-chart', 'budget-bar');
     expect(bar.tabIndex).toBe(0);
+    expect(bar).not.toHaveAttribute('data-testid');
   });
 
   it('builds aria-label describing all non-zero segments', () => {
