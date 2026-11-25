@@ -969,6 +969,72 @@ describe('Modal', () => {
     });
   });
 
+  // ── viewer variant (#2257) ────────────────────────────────────────────────
+
+  describe('variant="viewer"', () => {
+    it('has no header row and no close button (the content renders its own)', () => {
+      render(
+        <Modal {...defaultProps} variant="viewer">
+          <p>media</p>
+        </Modal>,
+      );
+      expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+      expect(screen.getByRole('dialog').querySelector('[class*="header"]')).toBeNull();
+    });
+
+    it('keeps the title as a visually hidden heading that names the dialog', () => {
+      render(
+        <Modal {...defaultProps} variant="viewer">
+          <p>media</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('heading', { name: 'Test Modal Title' }).className).toContain(
+        'srOnly',
+      );
+      expect(screen.getByRole('dialog', { name: 'Test Modal Title' })).toHaveAttribute(
+        'aria-modal',
+        'true',
+      );
+    });
+
+    it('applies the viewer content class (plus className) instead of the default content classes', () => {
+      render(
+        <Modal {...defaultProps} variant="viewer" className="extra">
+          <p data-testid="child">media</p>
+        </Modal>,
+      );
+      const content = screen.getByTestId('child').parentElement!;
+      expect(content.className).toContain('viewer');
+      expect(content.className).toContain('extra');
+      expect(content.className).not.toContain('modalContent');
+      expect(content.className).not.toContain('palette');
+      expect(screen.getByRole('dialog').className).not.toContain('paletteRoot');
+    });
+
+    it('renders children directly, with no body wrapper and no footer', () => {
+      render(
+        <Modal {...defaultProps} variant="viewer" footer={<button>Save</button>}>
+          <p data-testid="child">media</p>
+        </Modal>,
+      );
+      expect(screen.getByTestId('child').parentElement!.className).not.toContain('paletteBody');
+      expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    });
+
+    it('closes on Escape and on a backdrop click', () => {
+      const onClose = jest.fn<() => void>();
+      render(
+        <Modal title="Viewer" onClose={onClose} variant="viewer">
+          <p>media</p>
+        </Modal>,
+      );
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+      fireEvent.click(document.querySelector('[class*="modalBackdrop"]')!);
+      expect(onClose).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('hideTitle', () => {
     it('hides the title visually but keeps the heading and the close button', () => {
       render(

@@ -6,12 +6,11 @@ import styles from './PhotoCard.module.css';
 export interface PhotoCardProps {
   photo: Photo;
   onClick: () => void;
-  onDelete?: () => void;
   onEdit?: () => void;
   editable?: boolean;
 }
 
-export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }: PhotoCardProps) {
+export function PhotoCard({ photo, onClick, onEdit, editable = true }: PhotoCardProps) {
   const { t } = useTranslation('photoViewer');
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -21,9 +20,6 @@ export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }:
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onClick();
-    } else if (e.key === 'Delete' && onDelete) {
-      e.preventDefault();
-      onDelete();
     }
   };
 
@@ -76,10 +72,10 @@ export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }:
         type="button"
         onClick={onClick}
         className={styles.clickArea}
-        aria-label={`View photo: ${photo.caption || photo.originalFilename}`}
+        aria-label={t('viewPhoto', { name: photo.caption || photo.originalFilename })}
       />
 
-      {/* Edit and Delete buttons (shown on hover/focus) */}
+      {/* Edit button (shown on hover/focus) */}
       {(isHovered || isFocused) && (
         <div className={styles.actionButtons}>
           {onEdit && editable && (
@@ -94,20 +90,6 @@ export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }:
               title={t('annotate')}
             >
               <PencilIcon />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className={styles.deleteButton}
-              aria-label={`Delete photo: ${photo.caption || photo.originalFilename}`}
-              title={t('deleteWithShortcutHint')}
-            >
-              ×
             </button>
           )}
         </div>

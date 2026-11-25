@@ -4,7 +4,7 @@ import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from '
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { WorkItemPageDetail, WorkItemStatus } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
@@ -24,7 +24,6 @@ import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { taskTransitions } from '../../components/StatusMenu/statusVocabularies.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useObjectDiary } from '../../hooks/useObjectDiary.js';
 import type { UseObjectDiaryResult } from '../../hooks/useObjectDiary.js';
@@ -213,7 +212,6 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('work_item', showDelete ? id : null);
 
   const cardFor = (target: OverviewTarget): RefObject<SectionCardController | null> =>
     target === 'details' ? detailsCardRef : whoWhereCardRef;
@@ -371,15 +369,13 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
       />
       {documents.panel}
       {showDelete && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', { name: displayTitle })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="work_item"
+          id={id}
+          name={displayTitle}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}

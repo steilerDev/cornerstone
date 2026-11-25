@@ -1342,48 +1342,34 @@ export function ReportWizardPage() {
 
       {/* Discard edits confirmation modal */}
       {showDiscardConfirm && (
-        <Modal
+        <ConfirmDialog
           title={
             isGeneratingOnly(wizardState)
               ? t('sourceReports.editable.discardConfirmTitleGenerating')
               : t('sourceReports.editable.discardConfirmTitle')
           }
-          onClose={() => {
+          lead={
+            isGeneratingOnly(wizardState)
+              ? t('sourceReports.editable.discardConfirmBodyGenerating')
+              : t('sourceReports.editable.discardConfirmBody')
+          }
+          confirmLabel={t('sourceReports.editable.discardAndContinue')}
+          busyLabel={t('sourceReports.editable.discardAndContinue')}
+          cancelLabel={t('sourceReports.editable.keepEditing')}
+          busy={false}
+          onConfirm={() => {
+            const run = pendingChangeRef.current;
+            setShowDiscardConfirm(false);
+            pendingChangeRef.current = null;
+            run?.();
+          }}
+          onCancel={() => {
             setShowDiscardConfirm(false);
             pendingChangeRef.current = null;
           }}
-          footer={
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={() => {
-                  pendingChangeRef.current!();
-                  setShowDiscardConfirm(false);
-                  pendingChangeRef.current = null;
-                }}
-              >
-                {t('sourceReports.editable.discardAndContinue')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => {
-                  setShowDiscardConfirm(false);
-                  pendingChangeRef.current = null;
-                }}
-              >
-                {t('sourceReports.editable.keepEditing')}
-              </button>
-            </div>
-          }
-        >
-          <p>
-            {isGeneratingOnly(wizardState)
-              ? t('sourceReports.editable.discardConfirmBodyGenerating')
-              : t('sourceReports.editable.discardConfirmBody')}
-          </p>
-        </Modal>
+          restoreToOpenerOnConfirm
+          testIdPrefix="report-discard"
+        />
       )}
 
       {/* Mark as submitted confirmation */}
@@ -1487,40 +1473,26 @@ export function ReportWizardPage() {
 
       {/* AI overwrite confirmation modal */}
       {showAiOverwriteConfirm && (
-        <Modal
+        <ConfirmDialog
           title={t('sourceReports.editable.aiOverwriteConfirmTitle')}
-          onClose={() => {
+          lead={t('sourceReports.editable.aiOverwriteConfirmBody')}
+          confirmLabel={t('sourceReports.editable.aiOverwriteAndGenerate')}
+          busyLabel={t('sourceReports.editable.aiOverwriteAndGenerate')}
+          cancelLabel={t('sourceReports.editable.keepEditing')}
+          busy={false}
+          onConfirm={() => {
+            const run = pendingAiGenerationRef.current;
+            setShowAiOverwriteConfirm(false);
+            pendingAiGenerationRef.current = null;
+            run?.();
+          }}
+          onCancel={() => {
             setShowAiOverwriteConfirm(false);
             pendingAiGenerationRef.current = null;
           }}
-          footer={
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={() => {
-                  setShowAiOverwriteConfirm(false);
-                  pendingAiGenerationRef.current!();
-                  pendingAiGenerationRef.current = null;
-                }}
-              >
-                {t('sourceReports.editable.aiOverwriteAndGenerate')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => {
-                  setShowAiOverwriteConfirm(false);
-                  pendingAiGenerationRef.current = null;
-                }}
-              >
-                {t('sourceReports.editable.keepEditing')}
-              </button>
-            </div>
-          }
-        >
-          <p>{t('sourceReports.editable.aiOverwriteConfirmBody')}</p>
-        </Modal>
+          restoreToOpenerOnConfirm
+          testIdPrefix="report-ai-overwrite"
+        />
       )}
     </PageLayout>
   );

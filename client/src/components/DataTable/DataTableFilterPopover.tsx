@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, FilterType } from './DataTable.js';
@@ -8,69 +8,38 @@ import { DateFilter } from './filters/DateFilter.js';
 import { EnumFilter } from './filters/EnumFilter.js';
 import { BooleanFilter } from './filters/BooleanFilter.js';
 import { EntityFilter } from './filters/EntityFilter.js';
+import { AnchoredPanel } from '../Modal/AnchoredPanel.js';
+import type { AnchoredPanelDismissReason } from '../Modal/AnchoredPanel.js';
 import styles from './DataTable.module.css';
-
-/** Gap kept between the popover and the viewport edges (the page gutter). */
-const VIEWPORT_GUTTER_PX = 16;
 
 export interface DataTableFilterPopoverProps<T> {
   column: ColumnDef<T>;
   value: string;
   onApply: (value: string) => void;
-  triggerRect: DOMRect;
   filterMeta?: FilterMeta;
+  anchorRef: RefObject<HTMLElement | null>;
+  id: string;
+  onDismiss: (reason: AnchoredPanelDismissReason) => void;
 }
 
 /**
  * Filter popover for a single column
- * Uses position:fixed to avoid clipping inside table container
+ * An `AnchoredPanel` (portaled, so the table container never clips it)
  */
 export function DataTableFilterPopover<T>({
   column,
   value,
   onApply,
-  triggerRect,
   filterMeta,
+  anchorRef,
+  id,
+  onDismiss,
 }: DataTableFilterPopoverProps<T>) {
   const { t } = useTranslation('common');
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Auto-apply: pass onApply directly to filter components as onChange
   // No local state needed — filters propagate immediately
   const handleChange = onApply;
-
-  // Align with the trigger, then clamp inside the viewport using the measured width, re-measured
-  // on open and on resize (a header near the right edge would otherwise push the popover off-screen).
-  // The measured position is written straight to the element; it is not React state.
-  const triggerLeft = triggerRect.left;
-  useLayoutEffect(() => {
-    const place = () => {
-      const el = popoverRef.current;
-      if (!el) return;
-      const maxLeft = window.innerWidth - el.offsetWidth - VIEWPORT_GUTTER_PX;
-      el.style.left = `${Math.max(VIEWPORT_GUTTER_PX, Math.min(triggerLeft, maxLeft))}px`;
-    };
-    place();
-    window.addEventListener('resize', place);
-    // The popover grows with its content (an empty input becomes a chip), so re-place on its own resize.
-    const observer =
-      typeof ResizeObserver !== 'undefined' && popoverRef.current
-        ? new ResizeObserver(place)
-        : null;
-    if (observer && popoverRef.current) observer.observe(popoverRef.current);
-    return () => {
-      window.removeEventListener('resize', place);
-      observer?.disconnect();
-    };
-  }, [triggerLeft]);
-
-  const popoverStyle = {
-    position: 'fixed' as const,
-    top: `${triggerRect.bottom + 4}px`,
-    left: `${Math.max(VIEWPORT_GUTTER_PX, triggerLeft)}px`,
-    maxWidth: `min(300px, calc(100vw - ${2 * VIEWPORT_GUTTER_PX}px))`,
-    zIndex: 1000,
-  };
 
   const renderFilterComponent = () => {
     const filterType = column.filterType as FilterType;
@@ -136,16 +105,24 @@ export function DataTableFilterPopover<T>({
   };
 
   return (
-    <div
-      ref={popoverRef}
-      className={styles.filterPopover}
-      style={popoverStyle}
+    <AnchoredPanel
+      open
+      anchorRef={anchorRef}
       role="dialog"
-      aria-label={t('dataTable.filter.filterByColumn', { column: column.label })}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      id={id}
+      ariaLabel={t('dataTable.filter.filterByColumn', { column: column.label })}
+      trapFocus
+      onDismiss={onDismiss}
+      testId={`data-table-filter-panel-${column.key}`}
     >
-      {renderFilterComponent()}
-    </div>
+      {/* Portals bubble synthetic events through the React tree: keep a click from sorting the column. */}
+      <div
+        className={styles.filterPopover}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {renderFilterComponent()}
+      </div>
+    </AnchoredPanel>
   );
 }

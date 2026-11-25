@@ -1,13 +1,14 @@
 /**
  * Page Object Model for the PhotoViewer modal and the embedded PhotoAnnotator.
  *
- * The PhotoViewer is rendered as a portal directly into `document.body` (via
- * `createPortal`), so all locators use `page.*` scope (not scoped to a parent).
+ * Since #2257 the PhotoViewer is a shared `Modal variant="viewer"`: a `role="dialog"` named
+ * "Photo viewer" (`dialog`), portaled into `document.body`, so all locators use `page.*` scope
+ * (not scoped to a parent). Its focus trap owns Escape and focus restore (to the opener).
  *
  * Key data-testid attributes (from PhotoViewer.tsx and ToolPalette.tsx):
  *
  * PhotoViewer chrome:
- *   - photo-viewer          — outermost div wrapper
+ *   - photo-viewer          — the viewer container, inside the Modal dialog (`dialog`)
  *   - photo-viewer-close    — close button (×)
  *   - photo-viewer-prev     — "previous" navigation (only when multiple photos)
  *   - photo-viewer-next     — "next" navigation (only when multiple photos)
@@ -47,6 +48,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 
 // ── Annotator shape types (mirror of client/src/.../useUndoStack.ts) ─────────
 // SOURCE: client/src/components/photos/PhotoAnnotator/useUndoStack.ts — keep in sync
@@ -164,7 +166,10 @@ export class PhotoViewerPage {
 
   // ── Viewer chrome ────────────────────────────────────────────────────────────
 
-  /** Root container div of the PhotoViewer portal */
+  /** The Modal dialog (role="dialog", accessible name "Photo viewer", #2257). */
+  readonly dialog: Locator;
+
+  /** The viewer container (data-testid="photo-viewer"), inside the dialog. */
   readonly modal: Locator;
 
   /** Close button (×) — hidden while annotating */
@@ -238,6 +243,12 @@ export class PhotoViewerPage {
    * Clicking opens the clear-confirmation Modal.
    */
   readonly clearAnnotationsButton: Locator;
+
+  /** Trash button of the viewer chrome (data-testid="photo-viewer-delete"); editable entries only. */
+  readonly deleteButton: Locator;
+
+  /** The "Delete photo" ConfirmDialog (testIdPrefix `photo-delete`), stacked above the viewer. */
+  readonly deleteDialog: ConfirmDialogControl;
 
   // ── PhotoAnnotator toolbar (ToolPalette) ─────────────────────────────────────
 
@@ -345,6 +356,7 @@ export class PhotoViewerPage {
     this.page = page;
 
     // Viewer root
+    this.dialog = page.getByRole('dialog', { name: 'Photo viewer', exact: true });
     this.modal = page.getByTestId('photo-viewer');
     this.closeButton = page.getByTestId('photo-viewer-close');
 
@@ -378,6 +390,9 @@ export class PhotoViewerPage {
     this.annotateReason = this.modal.locator('[class*="annotateReason"]');
     this.viewOriginalButton = page.getByTestId('photo-viewer-view-original');
     this.clearAnnotationsButton = page.getByTestId('photo-viewer-clear-annotations');
+
+    this.deleteButton = page.getByTestId('photo-viewer-delete');
+    this.deleteDialog = new ConfirmDialogControl(page, 'photo-delete');
 
     // ToolPalette — the toolbar role is "toolbar" with translated aria-label.
     // Match by role to avoid relying on translation key exactness.

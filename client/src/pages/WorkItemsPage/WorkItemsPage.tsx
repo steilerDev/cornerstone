@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemListRow } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { queryKey } from '../../components/ObjectList/objectListUrl.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
@@ -53,7 +52,6 @@ export function WorkItemsPage() {
     queryKey: () => queryKey(list.query),
   });
   const rows = useTaskRows({ actions });
-  const deleteConsequences = useDeleteImpact('work_item', deletion.item?.id ?? null);
 
   return (
     <ObjectList<WorkItemListRow, TaskListMeta>
@@ -84,13 +82,10 @@ export function WorkItemsPage() {
       headingRef={headingRef}
     >
       {deletion.item ? (
-        <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.title })}
-          consequences={deleteConsequences}
-          irreversible
-          tone="danger"
-          confirmLabel={tCommon('button.delete')}
-          busyLabel={tCommon('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="work_item"
+          id={deletion.item.id}
+          name={deletion.item.title.trim() || tCommon('navigation.untitledTask')}
           busy={deletion.busy}
           error={deletion.error}
           blocked={deletion.blocked}

@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import styles from './AreasPage.module.css';
 
@@ -44,7 +44,6 @@ export function AreaDeleteDialog({
   const { t } = useTranslation('areas');
   const { t: tCommon } = useTranslation('common');
   const blocked = forceBlocked || tasks + purchases > 0;
-  const consequences = useDeleteImpact('area', blocked ? null : areaId);
 
   const title = tCommon('confirmDialog.deleteTitle', { name: path });
 
@@ -114,12 +113,11 @@ export function AreaDeleteDialog({
   }
 
   return (
-    <ConfirmDialog
-      title={title}
-      consequences={consequences}
-      confirmLabel={tCommon('button.delete')}
-      busyLabel={tCommon('confirmDialog.deleting')}
-      tone="danger"
+    <DeleteConfirmDialog
+      entityType="area"
+      id={areaId}
+      name={path}
+      irreversible={false}
       busy={busy}
       error={error}
       onConfirm={onConfirm}

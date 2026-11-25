@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { MilestoneCompletionState, MilestoneDetail } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { ObjectHeader } from '../../components/ObjectHeader/index.js';
 import type { ObjectHeaderPrimary } from '../../components/ObjectHeader/index.js';
@@ -17,7 +17,6 @@ import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { milestoneTransitions } from '../../components/StatusMenu/statusVocabularies.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useObjectRecord } from '../../hooks/useObjectRecord.js';
@@ -161,7 +160,6 @@ function MilestoneLoaded({
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const [reopening, setReopening] = useState(false);
-  const deleteConsequences = useDeleteImpact('milestone', showDelete ? numId : null);
 
   // Opening the card from another tab: select Overview first; its card exists once it is active.
   const pendingEditRef = useRef<StartEditOptions | null>(null);
@@ -332,15 +330,13 @@ function MilestoneLoaded({
         }}
       />
       {showDelete && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', { name: displayName })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="milestone"
+          id={numId}
+          name={displayName}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}

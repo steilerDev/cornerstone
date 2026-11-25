@@ -651,6 +651,55 @@ describe('ReportWizardPage', () => {
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
     });
 
+    it('the discard confirmation is a ConfirmDialog: an alertdialog with Keep editing focused first (#2257)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      fireEvent.change(within(desktopTable()).getByDisplayValue('Original Usage Text'), {
+        target: { value: 'Edited Usage Text' },
+      });
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      // The wizard moves focus to the step heading after a step change: let it settle first
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'));
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
+
+      expect(screen.getByRole('alertdialog', { name: 'Discard your edits?' })).toBeInTheDocument();
+      expect(screen.getByTestId('report-discard-cancel')).toHaveTextContent('Keep editing');
+      expect(screen.getByTestId('report-discard-confirm')).toHaveTextContent(
+        'Discard and continue',
+      );
+      expect(screen.getByTestId('report-discard-cancel')).toHaveFocus();
+    });
+
+    it('confirming through the confirm test id applies the pending change once and cancelling clears it', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      fireEvent.change(within(desktopTable()).getByDisplayValue('Original Usage Text'), {
+        target: { value: 'Edited Usage Text' },
+      });
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      const box = () => screen.getByRole('checkbox', { name: /ACME.*INV-/ });
+
+      await user.click(box());
+      await user.click(screen.getByTestId('report-discard-cancel'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(box()).toBeChecked();
+
+      await user.click(box());
+      await user.click(screen.getByTestId('report-discard-confirm'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(box()).not.toBeChecked();
+    });
+
     it('"Keep Editing" cancels the pending change entirely — the guarded mutation never applies', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());

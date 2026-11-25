@@ -774,6 +774,31 @@ describe('HouseholdItemDetailPage', () => {
       );
     });
 
+    // AC1 (#2257): same "Delete <name>?" and server counts as the Purchases list dialog.
+    it('titles the dialog "Delete <name>?" and lists the server counts', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'household_item',
+        id: 'hi-1',
+        effects: [
+          { kind: 'costLines', count: 1 },
+          { kind: 'photos', count: 0 },
+        ],
+      });
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Sample sofa?' }),
+      ).toBeInTheDocument();
+      const items = await screen.findByTestId('purchase-delete-consequences');
+      expect(
+        within(items)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Cost lines deleted with it: 1']);
+    });
+
     it.each(['Delete', 'Backspace'])('opens with the %s key', async (key) => {
       const dialog = await openByKey(key);
       expect(dialog).toHaveTextContent('Sample sofa');

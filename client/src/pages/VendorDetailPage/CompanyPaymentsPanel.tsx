@@ -4,11 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { InvoiceListRow, VendorDetail } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
+import { invoiceDisplayTitle } from '../../lib/invoiceTitle.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { RelatedList } from '../../components/RelatedList/RelatedList.js';
 import type { RelatedListAction, RelatedListRow } from '../../components/RelatedList/types.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -53,7 +53,6 @@ export function CompanyPaymentsPanel({
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const impact = useDeleteImpact('invoice', deleting?.id ?? null);
 
   const { rows, failure } = payments;
   const loadError =
@@ -264,21 +263,20 @@ export function CompanyPaymentsPanel({
         />
       ) : null}
       {deleting && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', {
-            name:
-              deleting.invoiceNumber ??
-              (deleting.status === 'quotation'
-                ? t('companyPage.payments.deleteNameOffer')
-                : t('companyPage.payments.deleteNameInvoice')),
-          })}
-          consequences={impact}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="invoice"
+          id={deleting.id}
+          name={invoiceDisplayTitle(
+            {
+              vendorName: vendor.name,
+              invoiceNumber: deleting.invoiceNumber,
+              status: deleting.status,
+            },
+            { invoice: tc('navigation.invoice'), offer: tc('navigation.offer') },
+          )}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void confirmDelete()}
           onCancel={closeDelete}
           returnFocusRef={returnFocusRef}

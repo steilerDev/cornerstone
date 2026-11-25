@@ -421,6 +421,43 @@ describe('delete', () => {
     await waitFor(() => expect(heading()).toHaveFocus());
   });
 
+  // AC1 (#2257): "Delete <name>?" plus the server counts, identical to the Purchase page dialog.
+  it('titles the dialog "Delete <name>?" and lists the server counts for that purchase', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'household_item',
+      id: 'hi-oven',
+      effects: [
+        { kind: 'costLines', count: 1 },
+        { kind: 'photos', count: 0 },
+      ],
+    });
+    renderPage();
+    await loaded();
+    await openDelete();
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Built-in oven?' }),
+    ).toBeInTheDocument();
+    expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'hi-oven');
+    const items = await screen.findByTestId('purchase-list-delete-consequences');
+    expect(
+      within(items)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Cost lines deleted with it: 1']);
+  });
+
+  it('names an unnamed purchase "Untitled purchase", as the Purchase page does', async () => {
+    mockListRows.mockResolvedValue(makePurchaseResponse([{ ...OVEN, name: '  ' }]));
+    renderPage();
+    await loaded();
+    await openDelete();
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Untitled purchase?' }),
+    ).toBeInTheDocument();
+  });
+
   it('keeps the dialog in its blocked state on a 409', async () => {
     mockDelete.mockRejectedValue(new ApiClientError(409, { code: 'CONFLICT', message: 'x' }));
     renderPage();

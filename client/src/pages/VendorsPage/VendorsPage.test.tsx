@@ -818,6 +818,32 @@ describe('delete', () => {
     await waitFor(() => expect(mockFetchDeleteImpact).toHaveBeenCalledWith('vendor', 'c2'));
   });
 
+  // AC1 (#2257): "Delete <name>?" plus the server counts, identical to the Company page dialog.
+  it('titles the dialog "Delete <name>?" and lists the server counts for that company', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'vendor',
+      id: 'c2',
+      effects: [
+        { kind: 'contacts', count: 2 },
+        { kind: 'tasksUnassigned', count: 0 },
+      ],
+    });
+    renderPage();
+    await loaded();
+
+    await openDelete();
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Example Tiling Co?' }),
+    ).toBeInTheDocument();
+    const items = await screen.findByTestId('company-list-delete-consequences');
+    expect(
+      within(items)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Contact persons deleted with it: 2']);
+  });
+
   it('deletes, reloads the list and puts focus on the heading', async () => {
     mockDeleteVendor.mockResolvedValue(undefined as never);
     renderPage();

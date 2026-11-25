@@ -110,48 +110,13 @@
   transform: scale(0.95);
 }
 
-.deleteButton {
-  background: var(--color-photo-action-danger-bg);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
-  min-width: 32px;
-  padding: 0;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.deleteButton:hover {
-  background: var(--color-danger);
-  transform: scale(1.1);
-}
-
-.deleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.deleteButton:active {
-  transform: scale(0.95);
-}
-
 /* Responsive design */
 @media (max-width: 767px) {
   .card {
     border-radius: var(--radius-sm);
   }
 
-  .editButton,
-  .deleteButton {
+  .editButton {
     width: 36px;
     height: 36px;
     min-height: 36px;
@@ -160,8 +125,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card,
-  .deleteButton {
+  .card {
     transition: none;
     transform: none !important;
   }

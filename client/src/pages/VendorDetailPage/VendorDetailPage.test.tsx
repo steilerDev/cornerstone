@@ -668,6 +668,30 @@ describe('VendorDetailPage delete', () => {
     expect(mockDeleteVendor).not.toHaveBeenCalled();
   });
 
+  // AC1 (#2257): same title shape and server counts as the Companies list dialog.
+  it('lists the server counts, omitting zero counts', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'vendor',
+      id: 'v1',
+      effects: [
+        { kind: 'contacts', count: 2 },
+        { kind: 'tasksUnassigned', count: 0 },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await loaded();
+
+    await openDelete(user);
+
+    const items = await screen.findByTestId('vendor-delete-consequences');
+    expect(
+      within(items)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Contact persons deleted with it: 2']);
+  });
+
   it('deletes, replaces the page with the Companies list and hands focus to the heading', async () => {
     const user = userEvent.setup();
     renderPage();

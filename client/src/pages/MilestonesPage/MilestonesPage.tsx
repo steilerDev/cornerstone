@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MilestoneListRow } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useListRowDelete } from '../../hooks/useListRowDelete.js';
@@ -48,7 +47,6 @@ export function MilestonesPage() {
     onDeleted: refresh,
   });
   const rows = useMilestoneRows({ onDelete: requestDelete });
-  const deleteConsequences = useDeleteImpact('milestone', deletion.item?.id ?? null);
 
   return (
     <ObjectList<MilestoneListRow, MilestoneListMeta>
@@ -68,13 +66,10 @@ export function MilestonesPage() {
       headingRef={headingRef}
     >
       {deletion.item ? (
-        <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.title })}
-          consequences={deleteConsequences}
-          irreversible
-          tone="danger"
-          confirmLabel={tCommon('button.delete')}
-          busyLabel={tCommon('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="milestone"
+          id={deletion.item.id}
+          name={deletion.item.title.trim() || tCommon('navigation.untitledMilestone')}
           busy={deletion.busy}
           error={deletion.error}
           blocked={deletion.blocked}

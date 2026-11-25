@@ -589,6 +589,31 @@ describe('MilestoneDetailPage', () => {
       await waitFor(() => expect(mockFetchDeleteImpact).toHaveBeenCalledWith('milestone', 1));
     });
 
+    // AC1 (#2257): same "Delete <title>?" and server counts as the Milestones list dialog.
+    it('titles the dialog "Delete <title>?" and lists the server counts', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'milestone',
+        id: '1',
+        effects: [
+          { kind: 'milestoneLinks', count: 1 },
+          { kind: 'photos', count: 0 },
+        ],
+      });
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Roof closed?' }),
+      ).toBeInTheDocument();
+      const items = await screen.findByTestId('milestone-delete-consequences');
+      expect(
+        within(items)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Milestones it no longer counts toward: 1']);
+    });
+
     it.each(['Delete', 'Backspace'])('opens with the %s key', async (key) => {
       const dialog = await openByKey(key);
       expect(dialog).toHaveTextContent('Roof closed');

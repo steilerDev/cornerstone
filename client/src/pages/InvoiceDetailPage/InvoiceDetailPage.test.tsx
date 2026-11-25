@@ -757,6 +757,38 @@ describe('InvoiceDetailPage header (S11)', () => {
       expect(mockFetchDeleteImpact).toHaveBeenCalledWith('invoice', ID);
     });
 
+    // AC1 (#2257): the same title and counts as the Company page Payments row
+    // (CompanyPaymentsPanel.test.tsx asserts the identical name for the same invoice).
+    it('titles the dialog "Delete <company> · <number>?" and lists the server counts', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'invoice',
+        id: ID,
+        effects: [
+          { kind: 'progressPayments', count: 2 },
+          { kind: 'documentLinks', count: 0 },
+        ],
+      });
+      mockFetchInvoiceById.mockResolvedValue(
+        record({ vendorName: 'Sample Roofing Ltd', invoiceNumber: 'SAMPLE-0042' }),
+      );
+      renderPage();
+      await screen.findByRole('heading', { level: 1, name: /Sample Roofing Ltd/ });
+      openMenu();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('object-header-delete'));
+      });
+
+      expect(
+        await screen.findByRole('alertdialog', {
+          name: 'Delete Sample Roofing Ltd · SAMPLE-0042?',
+        }),
+      ).toBeInTheDocument();
+      expect(await screen.findByTestId('invoice-delete-consequences')).toHaveTextContent(
+        'Progress payments deleted with it: 2',
+      );
+      expect(screen.queryByText(/Linked documents/)).toBeNull();
+    });
+
     it('does not load the impact until the dialog is opened', async () => {
       await loaded();
       expect(mockFetchDeleteImpact).not.toHaveBeenCalled();

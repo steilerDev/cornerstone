@@ -11,7 +11,7 @@
  *   - Annotate button enabled when photo has width/height
  *   - Clicking Annotate enters annotating mode (PhotoAnnotator rendered)
  *   - Navigation arrows hidden while annotating
- *   - Escape during annotation cancels annotator (NOT viewer)
+ *   - The Modal close request (Escape) during annotation cancels the annotator (NOT the viewer)
  *   - View Original button not visible when annotatedAt=null
  *   - View Original button visible when annotatedAt is set
  *   - Clicking View Original toggles aria-pressed and updates img src
@@ -31,6 +31,11 @@
  *   - (#1734) Annotation save calls onPhotoChanged with updated photo
  *   - (#1734) Metadata save calls onPhotoChanged with updated photo
  *   - (#1734) Metadata save propagates: onPhotoChanged called before navigation
+ *
+ * #2257: the viewer renders inside `Modal variant="viewer"`. This file replaces Modal with a stand-in
+ * (viewer: a role="dialog" named by the title; any other variant: the confirm/tag dialogs) so the
+ * viewer's own logic is tested in isolation. The real Modal behaviour (Escape to the topmost layer,
+ * focus trap, focus restore, scroll lock) is covered in PhotoViewer.modal.test.tsx.
  *
  * Note: jest.unstable_mockModule may not intercept locally (systemic worktree issue).
  * Tests are structured correctly and will pass in CI.
@@ -118,23 +123,49 @@ let lastModalProps: {
   returnFocusRef?: unknown;
 } = {};
 
+let lastViewerModalProps: { title?: string; initialFocusRef?: unknown; variant?: string } = {};
+
 jest.unstable_mockModule('../Modal/Modal.js', () => ({
   Modal: ({
     title,
+    variant,
     children,
     footer,
     onClose,
     skipOpenerRef,
     returnFocusRef,
+    initialFocusRef,
   }: {
     title: string;
+    variant?: string;
     children: React.ReactNode;
     footer?: React.ReactNode;
     onClose: () => void;
     skipOpenerRef?: { current: boolean };
     returnFocusRef?: unknown;
-  }) =>
-    React.createElement(
+    initialFocusRef?: unknown;
+  }) => {
+    if (variant === 'viewer') {
+      // The viewer layer: the real Modal's focus trap hands Escape to onClose
+      return React.createElement(
+        'div',
+        {
+          'data-testid': 'mock-viewer-modal',
+          role: 'dialog',
+          'aria-label': title,
+          ref: () => {
+            lastViewerModalProps = { title, initialFocusRef, variant };
+          },
+        },
+        React.createElement(
+          'button',
+          { 'data-testid': 'viewer-modal-escape', onClick: onClose },
+          'Escape',
+        ),
+        children,
+      );
+    }
+    return React.createElement(
       'div',
       {
         'data-testid': 'mock-modal',
@@ -148,7 +179,8 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
       React.createElement('button', { 'data-testid': 'modal-close', onClick: onClose }, 'Close'),
       children,
       footer,
-    ),
+    );
+  },
 }));
 
 // ─── Mock PhotoDetailsPanel ───────────────────────────────────────────────────
@@ -682,10 +714,34 @@ describe('PhotoViewer', () => {
     expect(screen.queryByTestId('photo-viewer-next')).not.toBeInTheDocument();
   });
 
-  it('Escape key calls onClose when not annotating', () => {
+  it('is a Modal viewer layer named "Photo viewer", initially focusing the close button', () => {
+    renderViewer([makePhoto()]);
+    expect(screen.getByRole('dialog', { name: 'Photo viewer' })).toBeInTheDocument();
+    expect(lastViewerModalProps.variant).toBe('viewer');
+    expect(lastViewerModalProps.initialFocusRef).toEqual({
+      current: screen.getByTestId('photo-viewer-close'),
+    });
+    expect(screen.getByTestId('photo-viewer').parentElement).toBe(
+      screen.getByTestId('mock-viewer-modal'),
+    );
+  });
+
+  it('the Modal close request (Escape, backdrop) closes the viewer when not annotating', () => {
+    renderViewer([makePhoto()]);
+    fireEvent.click(screen.getByTestId('viewer-modal-escape'));
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('the close button closes the viewer', () => {
+    renderViewer([makePhoto()]);
+    fireEvent.click(screen.getByTestId('photo-viewer-close'));
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('no longer reacts to a window Escape itself (the Modal owns it)', () => {
     renderViewer([makePhoto()]);
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 
   // ─── startInAnnotator prop ─────────────────────────────────────────────────
@@ -803,16 +859,16 @@ describe('PhotoViewer', () => {
       expect(screen.getByRole('button', { name: enPhotoViewer.nextPhoto })).toBeInTheDocument();
     });
 
-    it('ignores an Escape another handler already consumed (defaultPrevented)', () => {
-      renderViewer([makePhoto()]);
+    it('ignores an arrow key another handler already consumed (defaultPrevented)', () => {
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })]);
       const event = new KeyboardEvent('keydown', {
-        key: 'Escape',
+        key: 'ArrowRight',
         bubbles: true,
         cancelable: true,
       });
       event.preventDefault();
       window.dispatchEvent(event);
-      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'a');
     });
 
     it('phone: Escape in the Details sheet closes only the sheet, not the viewer', async () => {
@@ -831,36 +887,31 @@ describe('PhotoViewer', () => {
       expect(screen.getByTestId('photo-viewer')).toBeInTheDocument();
     });
 
-    it('ignores the viewer keys while the details sheet is open (arrows and Escape)', () => {
+    it('ignores the arrow keys while the details sheet is open', () => {
       media = installMatchMedia({ [PHONE]: true });
       renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })]);
       fireEvent.click(screen.getByTestId('photo-viewer-details'));
 
       fireEvent.keyDown(window, { key: 'ArrowRight' });
-      fireEvent.keyDown(window, { key: 'Escape' });
 
       expect(mockOnClose).not.toHaveBeenCalled();
       expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'a');
     });
 
-    it('ignores the viewer keys while the tag editor is open and handles them after it closes', () => {
+    it('ignores the arrow keys while the tag editor is open and handles them after it closes', () => {
       renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })]);
       fireEvent.click(screen.getByTestId('mock-editing-start'));
 
       fireEvent.keyDown(window, { key: 'ArrowRight' });
-      fireEvent.keyDown(window, { key: 'Escape' });
-      expect(mockOnClose).not.toHaveBeenCalled();
       expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'a');
 
       fireEvent.click(screen.getByTestId('mock-editing-end'));
       fireEvent.keyDown(window, { key: 'ArrowRight' });
       expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'b');
-      fireEvent.keyDown(window, { key: 'Escape' });
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('keyboard navigation and backdrop', () => {
+  describe('keyboard navigation', () => {
     const shownId = () => screen.getByTestId('mock-details-panel').getAttribute('data-photo-id');
 
     it('ArrowRight and ArrowLeft step through the photos and wrap around', () => {
@@ -877,13 +928,7 @@ describe('PhotoViewer', () => {
       expect(shownId()).toBe('b');
     });
 
-    it('Escape closes the viewer', () => {
-      renderViewer([makePhoto()]);
-      fireEvent.keyDown(window, { key: 'Escape' });
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-
-    it('arrows and Escape do not move or close while annotating; Escape cancels the annotator', () => {
+    it('arrows do not move while annotating; the Modal close request cancels the annotator and focuses Annotate, not the viewer', () => {
       renderViewer([makePhoto({ id: 'a', width: 800, height: 600 }), makePhoto({ id: 'b' })]);
       fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
 
@@ -891,22 +936,11 @@ describe('PhotoViewer', () => {
       fireEvent.keyDown(window, { key: 'ArrowLeft' });
       expect(screen.getByTestId('mock-photo-annotator')).toBeInTheDocument();
 
-      fireEvent.keyDown(window, { key: 'Escape' });
+      fireEvent.click(screen.getByTestId('viewer-modal-escape'));
       expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
       expect(mockOnClose).not.toHaveBeenCalled();
       expect(shownId()).toBe('a');
-    });
-
-    it('a click on the backdrop closes the viewer, a click inside the photo area does not', () => {
-      renderViewer([makePhoto()]);
-      const viewer = screen.getByTestId('photo-viewer');
-      const backdrop = viewer.firstElementChild as HTMLElement;
-
-      fireEvent.click(viewer.querySelector('img')!);
-      expect(mockOnClose).not.toHaveBeenCalled();
-
-      fireEvent.click(backdrop);
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('photo-viewer-annotate')).toHaveFocus();
     });
   });
 
@@ -1269,20 +1303,19 @@ describe('PhotoViewer', () => {
     it.each([
       ['delete', openDelete],
       ['clear annotations', openClear],
-    ] as const)('%s dialog open: the viewer ignores Escape and the arrow keys', (_name, open) => {
+    ] as const)('%s dialog open: the viewer ignores the arrow keys', (_name, open) => {
       open();
-      fireEvent.keyDown(window, { key: 'Escape' });
       fireEvent.keyDown(window, { key: 'ArrowRight' });
       fireEvent.keyDown(window, { key: 'ArrowLeft' });
       expect(mockOnClose).not.toHaveBeenCalled();
       expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
     });
 
-    it('with no dialog open the viewer still closes on Escape (guard is lifted)', () => {
+    it('with no dialog open the viewer arrows work again (guard is lifted)', () => {
       openDelete();
       fireEvent.click(screen.getByTestId('photo-delete-cancel'));
-      fireEvent.keyDown(window, { key: 'Escape' });
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'p2');
     });
   });
 });

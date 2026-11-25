@@ -91,6 +91,12 @@ describe('AreaDeleteDialog', () => {
       expect(screen.queryByTestId('areas-delete-show-tasks')).toBeNull();
     });
 
+    it('does not claim the delete is irreversible: the area delete answers with Undo (#2257)', async () => {
+      renderDialog();
+      await screen.findByTestId('areas-delete-dialog-consequences');
+      expect(screen.queryByText("This can't be undone.")).toBeNull();
+    });
+
     it('confirms and cancels through the callbacks', async () => {
       const user = userEvent.setup();
       renderDialog();

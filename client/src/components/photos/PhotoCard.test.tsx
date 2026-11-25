@@ -4,11 +4,10 @@
  * Tests:
  *   - Edit button renders when onEdit is provided and editable=true
  *   - Edit button does NOT render when editable=false (even if onEdit is provided)
- *   - Delete button renders when onDelete is provided
  *   - Clicking Edit button calls onEdit
- *   - Clicking Delete button calls onDelete
  *   - Image renders with caption and originalFilename
- *   - Keyboard navigation: Enter/Space clicks the card, Delete key calls onDelete
+ *   - The view label is translated and names the photo
+ *   - Keyboard navigation: Enter/Space clicks the card; the Delete key does nothing (#2257 AC4)
  */
 
 import { jest, describe, it, expect } from '@jest/globals';
@@ -19,9 +18,10 @@ import { PhotoCard } from './PhotoCard.js';
 // Mock i18next
 jest.unstable_mockModule('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, options?: { name?: string }) => {
       const translations: Record<string, string> = {
         annotate: 'Annotate photo',
+        viewPhoto: `View photo: ${options?.name ?? ''}`,
       };
       return translations[key] || key;
     },
@@ -112,27 +112,17 @@ describe('PhotoCard', () => {
     expect(mockEdit).toHaveBeenCalledTimes(1);
   });
 
-  it('renders Delete button when onDelete is provided', () => {
-    const mockDelete = jest.fn();
-    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
-    // Hover to show action buttons
-    const card = screen.getByRole('listitem');
-    fireEvent.mouseEnter(card);
-
-    const deleteButton = screen.getByRole('button', { name: /Delete photo/ });
-    expect(deleteButton).toBeInTheDocument();
+  it('names the click area after the caption, falling back to the filename', () => {
+    const { rerender } = render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'View photo: Test Caption' })).toBeInTheDocument();
+    rerender(<PhotoCard photo={{ ...mockPhoto, caption: null }} onClick={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'View photo: test.jpg' })).toBeInTheDocument();
   });
 
-  it('calls onDelete when Delete button is clicked', () => {
-    const mockDelete = jest.fn();
-    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
-    // Hover to show action buttons
-    const card = screen.getByRole('listitem');
-    fireEvent.mouseEnter(card);
-
-    const deleteButton = screen.getByRole('button', { name: /Delete photo/ });
-    fireEvent.click(deleteButton);
-    expect(mockDelete).toHaveBeenCalledTimes(1);
+  it('renders no delete button, even while hovered', () => {
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={jest.fn()} />);
+    fireEvent.mouseEnter(screen.getByRole('listitem'));
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it('calls onClick when Enter key is pressed', () => {
@@ -151,12 +141,15 @@ describe('PhotoCard', () => {
     expect(mockClick).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onDelete when Delete key is pressed', () => {
-    const mockDelete = jest.fn();
-    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
+  it('does nothing when the Delete or Backspace key is pressed', () => {
+    const mockClick = jest.fn();
+    const mockEdit = jest.fn();
+    render(<PhotoCard photo={mockPhoto} onClick={mockClick} onEdit={mockEdit} />);
     const card = screen.getByRole('listitem');
     fireEvent.keyDown(card, { key: 'Delete' });
-    expect(mockDelete).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(card, { key: 'Backspace' });
+    expect(mockClick).not.toHaveBeenCalled();
+    expect(mockEdit).not.toHaveBeenCalled();
   });
 
   it('hides action buttons on blur', () => {
@@ -184,5 +177,14 @@ describe('PhotoCard', () => {
 
     const editButton = screen.getByRole('button', { name: /Annotate photo/ });
     expect(editButton).toBeInTheDocument();
+  });
+
+  it('shows the action buttons while a control inside the card has focus, hides them on blur', () => {
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={jest.fn()} />);
+    const viewButton = screen.getByRole('button', { name: /View photo/ });
+    fireEvent.focus(viewButton);
+    expect(screen.getByRole('button', { name: /Annotate photo/ })).toBeInTheDocument();
+    fireEvent.blur(viewButton);
+    expect(screen.queryByRole('button', { name: /Annotate photo/ })).not.toBeInTheDocument();
   });
 });

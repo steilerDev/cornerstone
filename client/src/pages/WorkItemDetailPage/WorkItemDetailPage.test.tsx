@@ -762,6 +762,44 @@ describe('WorkItemDetailPage', () => {
       await waitFor(() => expect(mockFetchDeleteImpact).toHaveBeenCalledWith('work_item', 'wi-1'));
     });
 
+    // AC1 (#2257): same "Delete <title>?" and same server counts as the Tasks list dialog
+    // (WorkItemsPage.test.tsx asserts the identical shape and item texts).
+    it('titles the dialog "Delete <title>?" and lists the server counts', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'work_item',
+        id: 'wi-1',
+        effects: [
+          { kind: 'subtasks', count: 1 },
+          { kind: 'notes', count: 1 },
+          { kind: 'photos', count: 0 },
+        ],
+      });
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Pour slab?' }),
+      ).toBeInTheDocument();
+      const items = await screen.findByTestId('work-item-delete-consequences');
+      expect(
+        within(items)
+          .getAllByRole('listitem')
+          .map((li) => li.textContent),
+      ).toEqual(['Subtasks deleted with it: 1', 'Notes deleted with it: 1']);
+    });
+
+    it('names an untitled task "Untitled task", as the Tasks list does', async () => {
+      mockGetWorkItem.mockResolvedValue(makeTaskPage({ title: '   ' }));
+      await loaded();
+      fireEvent.click(screen.getByTestId('object-header-menu'));
+      fireEvent.click(await screen.findByTestId('object-header-delete'));
+
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Untitled task?' }),
+      ).toBeInTheDocument();
+    });
+
     it.each(['Delete', 'Backspace'])('opens with the %s key', async (key) => {
       const dialog = await openByKey(key);
       expect(dialog).toHaveTextContent('Pour slab');

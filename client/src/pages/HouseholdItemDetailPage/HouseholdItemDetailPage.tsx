@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from '
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { HouseholdItemPageDetail, HouseholdItemStatus } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { ObjectDiaryPanel } from '../../components/FeedRow/ObjectDiaryPanel.js';
@@ -18,7 +18,6 @@ import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { purchaseTransitions } from '../../components/StatusMenu/statusVocabularies.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useObjectDiary } from '../../hooks/useObjectDiary.js';
@@ -205,7 +204,6 @@ function PurchaseLoaded({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('household_item', showDelete ? id : null);
 
   // Opening the card from another tab: select Overview first; its card exists once it is active.
   useEffect(() => {
@@ -374,15 +372,13 @@ function PurchaseLoaded({
       />
       {documents.panel}
       {showDelete && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', { name: displayName })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="household_item"
+          id={id}
+          name={displayName}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useClickOutside } from '../../hooks/useClickOutside.js';
+import { AnchoredPanel } from '../Modal/AnchoredPanel.js';
+import { getFocusableElements } from '../Modal/useFocusTrap.js';
 import type { ColumnDef } from './DataTable.js';
 import { ColumnSettingsList } from './ColumnSettingsList.js';
 import styles from './DataTable.module.css';
@@ -16,7 +17,7 @@ export interface DataTableColumnSettingsProps<T> {
 /**
  * Column visibility and ordering settings popover
  * Gear icon + checkbox list with drag-and-drop reordering, desktop-only (hidden on mobile)
- * Uses position:fixed with getBoundingClientRect
+ * The popover is an `AnchoredPanel` (non-modal dialog) anchored to the gear button
  */
 export function DataTableColumnSettings<T>({
   columns,
@@ -27,29 +28,16 @@ export function DataTableColumnSettings<T>({
 }: DataTableColumnSettingsProps<T>) {
   const { t } = useTranslation('common');
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
   const [isOpen, setIsOpen] = useState(false);
-  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  // The anchored panel mounts its children a pass after `open`, so the node is tracked in state.
+  const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
 
-  // Close on outside click
-  useClickOutside([popoverRef, triggerRef], () => setIsOpen(false), isOpen);
-
-  // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
+  // The anchored panel does not focus itself: move focus to its first control after it opens.
+  useLayoutEffect(() => {
+    if (!isOpen || !contentNode) return;
+    getFocusableElements(contentNode)[0]?.focus();
+  }, [isOpen, contentNode]);
 
   return (
     <>
@@ -57,22 +45,11 @@ export function DataTableColumnSettings<T>({
         ref={triggerRef}
         type="button"
         className={styles.columnSettingsButton}
-        onClick={() => {
-          if (!isOpen && triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            setPopoverStyle({
-              position: 'fixed',
-              top: `${rect.bottom + 4}px`,
-              right: `${window.innerWidth - rect.right}px`,
-              maxWidth: '250px',
-              zIndex: 1000,
-            });
-          }
-          setIsOpen(!isOpen);
-        }}
+        onClick={() => setIsOpen((open) => !open)}
         aria-label={t('dataTable.columnSettings.ariaLabel')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
+        aria-controls={panelId}
       >
         <svg
           width="14"
@@ -88,14 +65,21 @@ export function DataTableColumnSettings<T>({
         </svg>
       </button>
 
-      {isOpen && (
-        <div
-          ref={popoverRef}
-          className={styles.columnSettingsPopover}
-          style={popoverStyle}
-          role="dialog"
-          aria-label={t('dataTable.columnSettings.title')}
-        >
+      <AnchoredPanel
+        open={isOpen}
+        anchorRef={triggerRef}
+        role="dialog"
+        id={panelId}
+        ariaLabel={t('dataTable.columnSettings.title')}
+        trapFocus
+        placement="bottom-end"
+        onDismiss={(reason) => {
+          setIsOpen(false);
+          if (reason === 'escape') triggerRef.current?.focus();
+        }}
+        testId="data-table-column-settings-panel"
+      >
+        <div ref={setContentNode} className={styles.columnSettingsPopover}>
           <ColumnSettingsList
             title={t('dataTable.columnSettings.title')}
             columns={columns}
@@ -105,7 +89,7 @@ export function DataTableColumnSettings<T>({
             onResetToDefaults={onResetToDefaults}
           />
         </div>
-      )}
+      </AnchoredPanel>
     </>
   );
 }

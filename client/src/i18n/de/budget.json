@@ -995,8 +995,6 @@
       "stillToPayAmount": "{{amount}} noch zu zahlen",
       "remainingOnOffer": "Restbetrag laut Angebot {{amount}}",
       "progressPaymentTitle": "Abschlagszahlung · {{date}}",
-      "deleteNameInvoice": "diese Rechnung",
-      "deleteNameOffer": "dieses Angebot",
       "deleteError": "Die Rechnung konnte nicht gelöscht werden. Versuche es erneut."
     },
     "work": {
@@ -1258,10 +1256,6 @@
       "titleNewSource": "Neue Finanzierungsquelle",
       "titleNewGrant": "Neues Förderprogramm",
       "added": "{{name}} hinzugefügt."
-    },
-    "delete": {
-      "titleSource": "{{object}} löschen?",
-      "titleGrant": "{{object}} löschen?"
     },
     "deleted": "{{name}} gelöscht.",
     "sourcePage": {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from './DataTable.js';
@@ -35,37 +35,9 @@ export function DataTableHeader<T>({
 }: DataTableHeaderProps<T>) {
   const { t } = useTranslation('common');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
-  const filterTriggerRef = useRef<Record<string, HTMLButtonElement>>({});
 
-  // Close filter popover on outside click or Escape
-  useEffect(() => {
-    if (!activeFilterColumn) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(`.${styles.filterPopover}`) &&
-        !target.closest('[data-search-picker-dropdown]') &&
-        !target.closest(`.${styles.tableHeaderFilterButton}`)
-      ) {
-        setActiveFilterColumn(null);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Keep focus off <body>: return it to the column's filter button when it was inside the popover
-      const active = document.activeElement;
-      if (active instanceof HTMLElement && active.closest(`.${styles.filterPopover}`)) {
-        filterTriggerRef.current[activeFilterColumn]!.focus();
-      }
-      setActiveFilterColumn(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [activeFilterColumn]);
+  const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelBaseId = useId();
 
   const visibleCols = columns.filter((col) => visibleColumns.has(col.key));
 
@@ -108,9 +80,6 @@ export function DataTableHeader<T>({
                 </span>
                 {col.filterable && col.filterType && (col.filterParamKey || col.getValue) && (
                   <button
-                    ref={(el) => {
-                      if (el) filterTriggerRef.current[col.key] = el;
-                    }}
                     type="button"
                     disabled={!!disabledReason}
                     aria-disabled={disabledReason ? 'true' : undefined}
@@ -121,8 +90,12 @@ export function DataTableHeader<T>({
                     } ${disabledReason ? styles.tableHeaderFilterButtonDisabled : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      activeTriggerRef.current = e.currentTarget;
                       setActiveFilterColumn(activeFilterColumn === col.key ? null : col.key);
                     }}
+                    aria-expanded={activeFilterColumn === col.key}
+                    aria-haspopup="dialog"
+                    aria-controls={`${panelBaseId}-${col.key}`}
                     aria-label={
                       disabledReason || t('dataTable.filter.filterByColumn', { column: col.label })
                     }
@@ -156,8 +129,12 @@ export function DataTableHeader<T>({
                     onApply={(value) => {
                       onFilter(col.filterParamKey || col.key, value || null);
                     }}
-                    // The popover opens from this column's trigger button, so its ref is set
-                    triggerRect={filterTriggerRef.current[col.key]!.getBoundingClientRect()}
+                    anchorRef={activeTriggerRef}
+                    id={`${panelBaseId}-${col.key}`}
+                    onDismiss={(reason) => {
+                      setActiveFilterColumn(null);
+                      if (reason === 'escape') activeTriggerRef.current?.focus();
+                    }}
                   />
                 )}
             </th>

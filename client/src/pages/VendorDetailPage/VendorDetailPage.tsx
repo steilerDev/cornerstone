@@ -4,7 +4,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { VendorDetail } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { ObjectHeader } from '../../components/ObjectHeader/index.js';
@@ -18,7 +18,6 @@ import type { SectionCardController } from '../../components/SectionCard/index.j
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
@@ -134,7 +133,6 @@ function CompanyLoaded({ id, vendor, state, h1Text, originState }: CompanyLoaded
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('vendor', showDelete ? id : null);
 
   // An invoice or offer created from the dialog: the figures and both lists refresh.
   useOnObjectCreated('invoice', () => void state.refresh());
@@ -331,15 +329,13 @@ function CompanyLoaded({ id, vendor, state, h1Text, originState }: CompanyLoaded
         headingRef={headingRef}
       />
       {showDelete && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', { name: vendor.name })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="vendor"
+          id={id}
+          name={vendor.name}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}

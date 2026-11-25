@@ -6,7 +6,6 @@ import styles from './PhotoGrid.module.css';
 export interface PhotoGridProps {
   photos: Photo[];
   onPhotoClick: (photo: Photo) => void;
-  onDelete?: (photo: Photo) => void;
   onEdit?: (photo: Photo) => void;
   loading?: boolean;
   editable?: boolean;
@@ -15,7 +14,6 @@ export interface PhotoGridProps {
 export function PhotoGrid({
   photos,
   onPhotoClick,
-  onDelete,
   onEdit,
   loading,
   editable = true,
@@ -43,7 +41,6 @@ export function PhotoGrid({
           key={photo.id}
           photo={photo}
           onClick={() => onPhotoClick(photo)}
-          onDelete={onDelete ? () => onDelete(photo) : undefined}
           onEdit={onEdit ? () => onEdit(photo) : undefined}
           editable={editable}
         />

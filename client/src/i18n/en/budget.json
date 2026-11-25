@@ -989,8 +989,6 @@
       "stillToPayAmount": "Still to pay {{amount}}",
       "remainingOnOffer": "Remaining on offer {{amount}}",
       "progressPaymentTitle": "Progress payment · {{date}}",
-      "deleteNameInvoice": "this invoice",
-      "deleteNameOffer": "this offer",
       "deleteError": "The invoice could not be deleted. Try again."
     },
     "work": {
@@ -1252,10 +1250,6 @@
       "titleNewSource": "New {{object}}",
       "titleNewGrant": "New {{object}}",
       "added": "{{name}} added."
-    },
-    "delete": {
-      "titleSource": "Delete {{object}}?",
-      "titleGrant": "Delete {{object}}?"
     },
     "deleted": "{{name}} deleted.",
     "sourcePage": {

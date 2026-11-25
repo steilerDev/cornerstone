@@ -65,6 +65,8 @@ Each page can add its own shortcuts, which appear under **On this page**. The mo
 | `Delete` or `Backspace` | Task, purchase and milestone pages | Delete the item, after you confirm |
 | `n` | List pages | Create a new item in that list |
 
+On list pages, `Delete` and `Backspace` do nothing. To delete a record from a list, open its **⋯** menu and choose **Delete**. That dialog always asks first.
+
 See the guide for each area for the details, for example [Tasks](work-items/).
 
 ## Turn Off Single-Key Shortcuts

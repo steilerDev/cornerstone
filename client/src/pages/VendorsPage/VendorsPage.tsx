@@ -3,14 +3,13 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { VendorListItem } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { ALL_CHIP } from '../../components/ObjectList/objectListUrl.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { TradesManager } from '../../components/TradesManager/TradesManager.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useListRowDelete } from '../../hooks/useListRowDelete.js';
@@ -109,7 +108,6 @@ function CompaniesList({ trades, tradesError, displayName, refetchTrades }: Comp
     onDeleted: refresh,
     blockedMessage: t('companies.list.deleteBlocked'),
   });
-  const deleteConsequences = useDeleteImpact('vendor', deletion.item?.id ?? null);
   const rows = useCompanyRows({ displayName, onDelete: request });
 
   return (
@@ -147,13 +145,10 @@ function CompaniesList({ trades, tradesError, displayName, refetchTrades }: Comp
         />
       ) : null}
       {deletion.item ? (
-        <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.name })}
-          consequences={deleteConsequences}
-          irreversible
-          tone="danger"
-          confirmLabel={tCommon('button.delete')}
-          busyLabel={tCommon('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="vendor"
+          id={deletion.item.id}
+          name={deletion.item.name}
           busy={deletion.busy}
           error={deletion.error}
           blocked={deletion.blocked}

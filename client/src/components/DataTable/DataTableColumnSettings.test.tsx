@@ -129,6 +129,84 @@ describe('DataTableColumnSettings', () => {
     });
   });
 
+  describe('anchored panel (#2257)', () => {
+    const trigger = () => screen.getByRole('button', { name: /column settings/i });
+
+    it('opens as a role="dialog" anchored panel portaled outside the trigger parent', async () => {
+      const { container } = renderSettings();
+      await userEvent.click(trigger());
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('data-anchored-panel');
+      expect(dialog).toHaveAttribute('data-testid', 'data-table-column-settings-panel');
+      expect(container.contains(dialog)).toBe(false);
+    });
+
+    it('is named by the settings title and wired to the trigger with aria-controls', async () => {
+      renderSettings();
+      expect(trigger()).toHaveAttribute('aria-controls');
+      await userEvent.click(trigger());
+      const dialog = screen.getByRole('dialog', { name: /columns/i });
+      expect(dialog.id).toBe(trigger().getAttribute('aria-controls'));
+    });
+
+    it('moves focus to the first control in the panel when it opens', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement).not.toBe(trigger());
+    });
+
+    it('Escape closes the panel and returns focus to the trigger', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger()).toHaveFocus();
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('an outside press closes the panel without stealing focus back', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('a press inside the panel keeps it open', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      fireEvent.mouseDown(screen.getAllByRole('checkbox')[0]!);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('a press inside a SearchPicker dropdown does not close the panel', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      const dropdown = document.createElement('div');
+      dropdown.setAttribute('data-search-picker-dropdown', '');
+      const option = document.createElement('button');
+      dropdown.appendChild(option);
+      document.body.appendChild(dropdown);
+      fireEvent.mouseDown(option);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      dropdown.remove();
+    });
+
+    it('the panel carries no inline z-index or fixed positioning of its own content', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      const content = screen.getByRole('dialog').firstElementChild as HTMLElement;
+      expect(content.style.zIndex).toBe('');
+      expect(content.style.position).toBe('');
+    });
+
+    it('works without a router (no route-change signal is wired)', async () => {
+      renderSettings();
+      await userEvent.click(trigger());
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
   describe('checkbox list', () => {
     it('renders a checkbox for each column', async () => {
       const user = userEvent.setup();
