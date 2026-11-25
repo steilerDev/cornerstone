@@ -19,6 +19,6 @@ A naive literal scan of `client/src/i18n/en` reports far more dead keys than exi
 - Check the open sibling branches (`git grep` on `origin/<branch>`) before deleting a key; check the branch's own diff from its merge-base, not `HEAD..branch`.
 - Deleting en values can drop a `moneyLabels` entry in `baseline.json` ("baseline is behind"). Simulate with `normalizeLabel` + the `MONEY_WORDS` array read from `build-baseline.mjs` (not exported), and route a `plan:build` to the architect after the frontend step.
 - AC2 merges: limit to visible action-button labels/"Loading..." with identical en and de values; keep keys pinned by E2E `i18nValue(...)` out of scope to avoid an E2E task; `t('common:button.x')` works from any namespace `t`.
-- Tell implementers not to rewrite locale JSON with `JSON.stringify` (re-encodes ` ` escapes); diffs must be deletion-only.
+- Locale diffs must be deletion-only. Rewriting with `JSON.stringify(obj, null, 2) + '\n'` is safe: on #2259 every `en/*.json` and `de/*.json` round-tripped byte-identical (no `\u` escapes exist). Agrees with translator memory `key-deletion-mirroring.md`.
 
 Related: [[vocabulary-pass-specs]], [[restructure-i18n-specs]], [[restructure-baseline-hazards]]

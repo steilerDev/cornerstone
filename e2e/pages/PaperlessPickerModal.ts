@@ -4,9 +4,6 @@
  *
  * DOM observations (DocumentBrowser in modal mode):
  * - Dialog title: "Link document"
- * - Correspondent SearchPicker: id="correspondent-picker"
- *   placeholder="Filter by correspondent…" (documents.json: browser.correspondentPlaceholder)
- *   SearchPicker portal dropdown: [data-search-picker-dropdown] in document.body
  * - DocumentBrowser in modal mode with defaultHideLinked=true
  * - Hide-linked toggle: checkbox labelled by "Hide already-linked documents"
  *   (documents.json: browser.hideLinked)
@@ -32,15 +29,6 @@ export class PaperlessPickerModal {
 
   /** The modal dialog element */
   readonly modal: Locator;
-
-  /** Correspondent SearchPicker input (id="correspondent-picker") */
-  readonly correspondentInput: Locator;
-
-  /** Clear button on correspondent SearchPicker (appears when a value is selected) */
-  readonly correspondentClearButton: Locator;
-
-  /** Portal dropdown rendered by SearchPicker in document.body */
-  readonly correspondentPortalDropdown: Locator;
 
   /** Hide-linked checkbox (label text: "Hide already-linked documents") */
   readonly hideLinkedToggle: Locator;
@@ -85,18 +73,6 @@ export class PaperlessPickerModal {
 
     // Modal is identified by its title heading (default: "Link document")
     this.modal = page.getByRole('dialog', { name: dialogName });
-
-    // Correspondent SearchPicker input — id="correspondent-picker" inside the modal
-    this.correspondentInput = this.modal.locator('#correspondent-picker');
-
-    // Clear button appears next to SearchPicker when a value is selected
-    this.correspondentClearButton = this.modal.getByRole('button', {
-      name: 'Clear selection',
-      exact: true,
-    });
-
-    // SearchPicker portals its dropdown to document.body (not inside modal)
-    this.correspondentPortalDropdown = page.locator('[data-search-picker-dropdown]');
 
     // Hide-linked checkbox — label wraps the checkbox and label text
     this.hideLinkedToggle = this.modal.getByRole('checkbox', {
@@ -173,24 +149,6 @@ export class PaperlessPickerModal {
     // Step 2: wait for the loading state to clear (aria-busy transitions from "true" to "false").
     // This covers stage 2 (document fetch). 10s timeout is generous for a mocked endpoint.
     await expect(this.documentGrid).toHaveAttribute('aria-busy', 'false', { timeout: 10000 });
-  }
-
-  /**
-   * Select a correspondent by typing in the SearchPicker and clicking the option.
-   * @param name - The correspondent name to select
-   */
-  async selectCorrespondent(name: string): Promise<void> {
-    await this.correspondentInput.fill(name);
-    await this.correspondentPortalDropdown.waitFor({ state: 'visible' });
-    await this.correspondentPortalDropdown.getByRole('option', { name }).click();
-  }
-
-  /**
-   * Clear the currently selected correspondent.
-   * The clear button only appears after a selection has been made in the same session.
-   */
-  async clearCorrespondent(): Promise<void> {
-    await this.correspondentClearButton.click();
   }
 
   /**
