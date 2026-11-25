@@ -2,7 +2,6 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  min-height: var(--touch-target-min);
   cursor: pointer;
   user-select: none;
 }
@@ -32,6 +31,10 @@
 }
 
 @media (max-width: 1023px) {
+  .label {
+    min-height: var(--touch-target-min);
+  }
+
   .labelHidden {
     justify-content: center;
     min-width: var(--touch-target-min);

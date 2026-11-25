@@ -448,11 +448,11 @@ describe('viewport meta (#2261, AC5)', () => {
 
 const readCss = (file: string) => fs.readFileSync(path.join(srcDir, file), 'utf8');
 
-/** Rules found only inside `@media (max-width: 767px)` blocks of a stylesheet. */
-function phoneRules(file: string): CssRule[] {
+/** Rules found only inside `@media (max-width: <maxWidthPx>px)` blocks of a stylesheet. */
+function mediaRules(file: string, maxWidthPx: number): CssRule[] {
   const css = stripComments(readCss(file));
   const rules: CssRule[] = [];
-  const re = /@media\s*\(max-width:\s*767px\)\s*\{/g;
+  const re = new RegExp(`@media\\s*\\(max-width:\\s*${maxWidthPx}px\\)\\s*\\{`, 'g');
   let m: RegExpExecArray | null;
   while ((m = re.exec(css))) {
     let depth = 1;
@@ -466,6 +466,35 @@ function phoneRules(file: string): CssRule[] {
     rules.push(...parseRules(css.slice(start, j - 1)));
   }
   return rules;
+}
+
+/** Rules found only inside `@media (max-width: 767px)` blocks of a stylesheet. */
+const phoneRules = (file: string): CssRule[] => mediaRules(file, 767);
+
+/** Rules of a stylesheet with every `@media` block removed (the desktop/base rules). */
+function baseRules(file: string): CssRule[] {
+  const css = stripComments(readCss(file));
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const at = css.indexOf('@media', i);
+    if (at === -1) {
+      out += css.slice(i);
+      break;
+    }
+    out += css.slice(i, at);
+    const open = css.indexOf('{', at);
+    if (open === -1) break;
+    let depth = 1;
+    let j = open + 1;
+    while (j < css.length && depth > 0) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}') depth--;
+      j++;
+    }
+    i = j;
+  }
+  return parseRules(out);
 }
 
 function findRule(rules: CssRule[], selector: string): CssRule | undefined {
@@ -531,13 +560,39 @@ describe('link contrast and touch minimums (#2261)', () => {
     expect(rule?.decls.get(prop)).toBe('var(--touch-target-min)');
   });
 
+  it('TriStateCheckbox .label reaches the touch minimum on tablet and phone widths', () => {
+    const rule = findRule(
+      mediaRules('components/TriStateCheckbox/TriStateCheckbox.module.css', 1023),
+      '.label',
+    );
+    expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+  });
+
+  it.each([
+    ['pages/BudgetSourcesPage/FinancingPage.module.css', '.cardLink'],
+    ['pages/BudgetSourcesPage/FinancingPage.module.css', '.figureLink'],
+    ['pages/NotFoundPage/NotFoundPage.module.css', '.homeLink'],
+  ])('%s %s declares min-height with --touch-target-min on phones', (file, selector) => {
+    const rule = findRule(phoneRules(file), selector);
+    expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+  });
+
   it.each([
     ['components/TriStateCheckbox/TriStateCheckbox.module.css', '.label'],
     ['pages/BudgetSourcesPage/FinancingPage.module.css', '.cardLink'],
     ['pages/BudgetSourcesPage/FinancingPage.module.css', '.figureLink'],
     ['pages/NotFoundPage/NotFoundPage.module.css', '.homeLink'],
-  ])('%s %s declares min-height with --touch-target-min', (file, selector) => {
-    const rule = findRule(parseRules(readCss(file)), selector);
-    expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+  ])('%s %s has no min-height outside media blocks (desktop unchanged)', (file, selector) => {
+    const rule = findRule(baseRules(file), selector);
+    expect(rule).toBeDefined();
+    expect(rule?.decls.has('min-height')).toBe(false);
+  });
+
+  it('FinancingPage .figureLink keeps its underline on desktop', () => {
+    const rule = findRule(
+      baseRules('pages/BudgetSourcesPage/FinancingPage.module.css'),
+      '.figureLink',
+    );
+    expect(rule?.decls.get('text-decoration')).toBe('underline');
   });
 });

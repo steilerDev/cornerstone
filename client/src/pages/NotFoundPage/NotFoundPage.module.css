@@ -18,9 +18,7 @@
 }
 
 .homeLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target-min);
+  display: inline-block;
   padding: 0.75rem 1.5rem;
   background-color: var(--color-primary);
   color: var(--color-primary-text);
@@ -28,6 +26,14 @@
   border-radius: 0.5rem;
   font-weight: var(--font-weight-medium);
   transition: background-color 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  .homeLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
 }
 
 .homeLink:hover {

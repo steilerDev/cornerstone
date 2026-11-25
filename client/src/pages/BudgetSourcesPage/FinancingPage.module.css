@@ -100,18 +100,12 @@
 }
 
 .cardLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target-min);
   color: var(--color-text-primary);
   text-decoration: none;
 }
 
-/* Covered-items count link inside a figure; underlined so it reads as a link, 44 px tall */
+/* Covered-items count link inside a figure; underlined so it reads as a link */
 .figureLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target-min);
   text-decoration: underline;
 }
 
@@ -196,6 +190,15 @@
 @media (max-width: 1023px) {
   .primaryLink,
   .addButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 767px) {
+  .cardLink,
+  .figureLink {
+    display: inline-flex;
+    align-items: center;
     min-height: var(--touch-target-min);
   }
 }
