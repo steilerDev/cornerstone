@@ -45,6 +45,7 @@
 - [Page story shared-prop docs](recurring-patterns.md) — new component props/frames need Architecture bullets; cross-page imports → lib/ (PR #2358)
 - [Partial schema in a card](recurring-patterns.md) — card-subset schema hooks still fetch areas/categories; cross-page CSS `composes` (PR #2361)
 - [Pseudo overlay touch targets](recurring-patterns.md) — `pointer-events:none` or host `overflow:hidden` fakes a 44 px pass (PR #2372)
+- [Wiki tables vs curated record](recurring-patterns.md) — Route-Map notes/carries drift past plan:check; diff mechanically; "Planned" contracts vs routes (#2262)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Per-line payment attribution](per-line-payment-attribution.md) — #2237 ADR-039 §5: sub-cent reconcile; tagged payments to the tagged source's lines (option B); residual gaps vs Rail A/B

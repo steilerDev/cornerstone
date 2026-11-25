@@ -94,3 +94,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Dead-key cleanup specs](dead-key-specs.md) — naive scan overcounts 7x: union registry eval, DB translation_key, context/plural suffixes, t( heads; moneyLabels drop
 - [Lint rule specs](lint-rule-specs.md) — probe selectors on the tree first, flat-config array replacement, message-tagged probe tests, × in À-ÿ, Refs for closed issues
 - [Accessibility pass specs](accessibility-pass-specs.md) — translucent focus variants, drop-shadow spread, output=status, a11y-name churn, no fragment skip link, control-border token
+- [Wiki final-pass specs](wiki-final-pass-specs.md) — stale stage counts, unbuilt "Planned" contracts, anchor renames, scanner false positives, detached wiki HEAD
