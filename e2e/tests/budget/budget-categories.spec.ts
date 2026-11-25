@@ -4,7 +4,7 @@
  *
  * Both lists are `ReferenceList` sections: a New button, a ⋯ menu per row (Edit, Move up,
  * Move down, Delete), reorder by drag or keyboard, "No color" instead of an empty swatch. The
- * New/Edit dialog is a Modal from 768px (448px wide) and a full-screen Sheet below. Deleting a
+ * New/Edit dialog is a Modal from 768px (640px wide, the ObjectForm Modal) and a full-screen Sheet below. Deleting a
  * category that is still used turns the confirm into a blocked dialog with a fixed sentence and
  * no counts (the server hides the counts: #315 hardening).
  *
@@ -167,7 +167,7 @@ for (const list of LISTS) {
   // Scenario 2: create
   // ───────────────────────────────────────────────────────────────────────────
   test.describe(`${list.title} — create (Scenario 2)`, { tag: '@responsive' }, () => {
-    test('New opens the dialog as a Modal (448px) from 768px and a full-screen Sheet below', async ({
+    test('New opens the dialog as a Modal (640px) from 768px and a full-screen Sheet below', async ({
       page,
     }) => {
       const setup = new ProjectSetupPage(page);
@@ -184,8 +184,9 @@ for (const list of LISTS) {
         const box = await control.dialogPanel().boundingBox();
         if (!box) throw new Error('dialog panel has no box');
         if (width >= 768) {
+          // ObjectForm Modal is min(40rem, 100vw - 2rem), so 640px at 768px and 1280px
           expect(
-            Math.abs(box.width - 448),
+            Math.abs(box.width - 640),
             `Modal width at ${width}px: ${box.width}`,
           ).toBeLessThanOrEqual(1);
         } else {
