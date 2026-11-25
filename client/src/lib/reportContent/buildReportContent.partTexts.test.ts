@@ -263,7 +263,7 @@ describe('buildReportContent — partTexts rendered with the real bundles', () =
     it('uses the singular plural form at N = 2 (count = 1)', () => {
       const texts = build(tEn, 'en-US');
       expect(texts.multiPartNotice(2)).toBe(
-        'This report consists of 2 files. The remaining invoice attachments follow in one further file with its own attachment letter.',
+        'This report consists of 2 files. The other invoice attachments follow in one further file with its own attachment letter.',
       );
       expect(texts.multiPartNoticeNoLetter(2)).toBe(
         'Part 1 of 2. The invoice attachments continue in one further file.',
@@ -273,7 +273,7 @@ describe('buildReportContent — partTexts rendered with the real bundles', () =
     it('uses the plural form with the further-file count at N = 4 (count = 3)', () => {
       const texts = build(tEn, 'en-US');
       expect(texts.multiPartNotice(4)).toBe(
-        'This report consists of 4 files. The remaining invoice attachments follow in 3 further files, each with its own attachment letter.',
+        'This report consists of 4 files. The other invoice attachments follow in 3 further files, each with its own attachment letter.',
       );
       expect(texts.multiPartNoticeNoLetter(4)).toBe(
         'Part 1 of 4. The invoice attachments continue in 3 further files.',

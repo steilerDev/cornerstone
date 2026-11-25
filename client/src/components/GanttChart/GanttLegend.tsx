@@ -5,7 +5,9 @@ import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { WorkItemStatus } from '@cornerstone/shared';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
 import { Sheet } from '../Modal/Sheet.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './GanttLegend.module.css';
 
 export interface GanttLegendProps {
@@ -32,6 +34,8 @@ interface LegendEntry {
   readonly key: string;
   readonly swatch: ReactNode;
   readonly label: string;
+  /** Terms the entry explains: an info button after the label. */
+  readonly termHints?: readonly [TermHintTerm, ...TermHintTerm[]];
 }
 
 /** A 20x12 swatch; the child draws in a 20x12 box. */
@@ -105,6 +109,7 @@ export function GanttLegend({
         </Swatch>
       ),
       label: t('view.legend.late'),
+      termHints: ['late', 'heldUp'],
     },
     {
       key: 'planned',
@@ -168,6 +173,7 @@ export function GanttLegend({
         <li key={entry.key} className={styles.entry}>
           {entry.swatch}
           <span>{entry.label}</span>
+          {entry.termHints ? <TermHintPopover terms={entry.termHints} /> : null}
         </li>
       ))}
       {doneHiddenNote && (

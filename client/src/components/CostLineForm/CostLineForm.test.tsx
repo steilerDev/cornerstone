@@ -881,7 +881,7 @@ describe('CostLineForm', () => {
 
       expect(
         await screen.findByText(
-          'A line without an offer or invoice can only move to the same kind of item.',
+          'A line without an offer or invoice can only move to an object of the same kind: task to task, purchase to purchase.',
         ),
       ).toBeInTheDocument();
       expect(mockUpdateWork).not.toHaveBeenCalled();

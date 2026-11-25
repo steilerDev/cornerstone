@@ -228,7 +228,7 @@ describe('HistoryPage', () => {
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
       expect(screen.getByRole('heading', { name: 'History', level: 1 })).toBeInTheDocument();
       expect(
-        screen.getByText('Everything that changed in your project, newest first.'),
+        screen.getByText('Everything that changed in your build, newest first.'),
       ).toBeInTheDocument();
     });
 

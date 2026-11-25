@@ -51,3 +51,14 @@
     transition: none;
   }
 }
+
+.multiline {
+  white-space: normal;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2 * var(--spacing-4)));
+}
+
+/* WCAG 1.4.13 hoverable: the open bubble keeps the hover (it is a descendant of the wrapper). */
+.multiline.visible {
+  pointer-events: auto;
+}

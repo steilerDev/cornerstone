@@ -361,6 +361,19 @@ describe('AttentionRowView: link actions', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
+  it('gives the Split link the Split definition as its title and no other link a title (#2258)', () => {
+    renderRow(makeRow('H2'), { withNavigate: true });
+    expect(screen.getByTestId(`${TID}-split`)).toHaveAttribute(
+      'title',
+      'Divide an offer or invoice into cost lines.',
+    );
+  });
+
+  it('gives the Continue link no title (#2258)', () => {
+    renderRow(makeRow('H1'), { withNavigate: true });
+    expect(screen.getByTestId(`${TID}-continue`)).not.toHaveAttribute('title');
+  });
+
   it('N9 offers Convert as a link to the Convert page of the offer, not to the offer', () => {
     const r = makeRow('N9');
     renderRow(r, { withNavigate: true });
@@ -528,9 +541,9 @@ describe('AttentionRowView: Not now', () => {
     renderRow(makeRow('N1'));
     const button = screen.getByTestId(`${TID}-not-now`);
     expect(button).toHaveTextContent('Not now');
-    expect(button).toHaveAttribute('title', 'Hides this row for 7 days.');
+    expect(button).toHaveAttribute('title', 'Hides a row on Home for 7 days.');
     const hint = document.getElementById(button.getAttribute('aria-describedby') as string);
-    expect(hint).toHaveTextContent('Hides this row for 7 days.');
+    expect(hint).toHaveTextContent('Hides a row on Home for 7 days.');
     expect(hint).toHaveAttribute('hidden');
   });
 

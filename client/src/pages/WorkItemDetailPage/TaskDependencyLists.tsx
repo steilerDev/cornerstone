@@ -88,6 +88,7 @@ export function TaskDependencyLists({
     return (
       <RelatedList
         title={t(waitsFor ? 'taskPage.timing.waitsFor' : 'taskPage.timing.waitingForThis')}
+        {...(waitsFor ? { titleTermHint: 'waitsFor' as const } : {})}
         testId={waitsFor ? 'task-waits-for' : 'task-waiting'}
         rows={buildRows(direction, dependencies)}
         linkState={originState}

@@ -244,7 +244,7 @@ export class InvoiceDetailPage {
    * AND config.autoItemizeEnabled=true (open the card's menu first with `openCardMenu`).
    */
   itemizeButton(_documentTitle?: string): Locator {
-    return this.documents.menuItem('Itemize');
+    return this.documents.menuItem('Split with AI');
   }
 
   /** Opens the card menu and chooses Itemize (navigates to the auto-itemize page). */

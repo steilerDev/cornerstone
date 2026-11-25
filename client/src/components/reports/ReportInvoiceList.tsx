@@ -23,6 +23,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import { TermHint } from '../Tooltip/TermHint.js';
 import styles from './ReportInvoiceList.module.css';
 
 /** Invoices shown per batch; the selection, counts and sums always cover every invoice. */
@@ -436,7 +437,11 @@ export function ReportInvoiceList({
                                   <tr>
                                     <th>{t('sourceReports.expand.itemColumnHeader')}</th>
                                     <th>{t('sourceReports.expand.linkedColumnHeader')}</th>
-                                    <th>{t('sourceReports.expand.allocatedColumnHeader')}</th>
+                                    <th>
+                                      <TermHint term="allocated">
+                                        {t('sourceReports.expand.allocatedColumnHeader')}
+                                      </TermHint>
+                                    </th>
                                     <th>{t('sourceReports.expand.includeColumnHeader')}</th>
                                   </tr>
                                 </thead>

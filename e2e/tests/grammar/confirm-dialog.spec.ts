@@ -323,7 +323,7 @@ test.describe('ConfirmDialog — task delete with counts', { tag: '@responsive' 
 
       const dialog = new ConfirmDialogControl(page, 'work-item-list-delete', `Delete ${title}?`);
       await dialog.waitForOpen();
-      await expect(dialog.consequence(/Subtasks deleted with it/)).toContainText('1');
+      await expect(dialog.consequence(/Checklist items deleted with it/)).toContainText('1');
       await expect(dialog.consequence(/Notes deleted with it/)).toContainText('1');
       await expect(dialog.consequence(/Cost lines deleted with it/)).toContainText('1');
       await expect(dialog.cancelButton).toBeFocused();

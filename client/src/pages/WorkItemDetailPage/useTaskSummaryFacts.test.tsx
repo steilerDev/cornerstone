@@ -91,6 +91,28 @@ describe('useTaskSummaryFacts', () => {
     ]);
   });
 
+  it('hints Waits for and Holds up and no other fact (#2258)', () => {
+    const { facts } = renderFacts(makeTaskPage());
+    const hints = Object.fromEntries(
+      facts().map((f) => [f.id, (f as { termHint?: string }).termHint]),
+    );
+    expect(hints).toEqual({
+      when: undefined,
+      where: undefined,
+      who: undefined,
+      cost: undefined,
+      waitsFor: 'waitsFor',
+      holdsUp: 'holdsUp',
+    });
+  });
+
+  it('underlines the Waits for label with its definition (#2258)', () => {
+    renderFacts(makeTaskPage());
+    expect(fact('waitsFor')).toHaveAccessibleName(/^Waits for /);
+    expect(screen.getByText('Waits for').className).toContain('term');
+    expect(screen.getByText('Holds up').className).toContain('term');
+  });
+
   it('adds the Documents fact last, and only when there is one', () => {
     const { facts, unmount } = renderFacts(makeTaskPage(), DOCUMENTS_FACT);
     expect(

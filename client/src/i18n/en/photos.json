@@ -1,10 +1,10 @@
 {
   "page": {
-    "subtitle": "Every spot, by area and orientation. Open one to step through its photos by diary date.",
+    "subtitle": "Every spot, by area and orientation. Open one to step through its photos by the date of their diary entry.",
     "loading": "Loading photos",
     "loadError": "Photos could not be loaded.",
     "retry": "Try again",
-    "emptyTitle": "No diary photos yet",
+    "emptyTitle": "No photos in the site diary yet",
     "emptyDescription": "Photos you add to diary entries appear here, sorted by area and orientation."
   },
   "filter": {
@@ -37,7 +37,7 @@
     "keyHint": "Left/Right: earlier/later photo · Esc: back",
     "announcement": "Photo {{current}} of {{total}}, {{date}}",
     "detailsLabel": "Photo details",
-    "diaryDate": "Diary date",
+    "diaryDate": "Diary entry date",
     "area": "Area",
     "orientation": "Orientation",
     "caption": "Caption",

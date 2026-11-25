@@ -45,7 +45,10 @@ describe('BudgetBar', () => {
     ];
     render(<BudgetBar segments={zeroSegments} maxValue={100000} />);
 
-    expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Budget breakdown: no data');
+    expect(screen.getByRole('img')).toHaveAttribute(
+      'aria-label',
+      'Breakdown of the figures: none yet',
+    );
   });
 
   it('includes overflow in aria-label when overflow > 0', () => {
@@ -483,5 +486,32 @@ describe('BudgetBar', () => {
 
     const label = screen.getByRole('img').getAttribute('aria-label')!;
     expect(label).toContain('12345');
+  });
+
+  it('shows an info button after the overflow note when overflowNoteHint is set (#2258)', () => {
+    const segments: BudgetBarSegment[] = [
+      { key: 'a', value: 100, color: 'var(--color-budget-claimed)', label: 'A' },
+    ];
+    const { rerender } = render(
+      <BudgetBar
+        segments={segments}
+        maxValue={100}
+        overflow={50}
+        overflowNote="Over-allocated by 50.00"
+        overflowNoteHint="overAllocated"
+      />,
+    );
+    const note = screen.getByTestId('budget-bar-overflow-note');
+    expect(note).toContainElement(screen.getByRole('button', { name: 'Explain “Over-allocated”' }));
+
+    rerender(
+      <BudgetBar
+        segments={segments}
+        maxValue={100}
+        overflow={50}
+        overflowNote="Over-allocated by 50.00"
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Explain/ })).toBeNull();
   });
 });

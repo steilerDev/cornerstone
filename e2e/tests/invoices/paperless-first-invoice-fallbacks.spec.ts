@@ -361,7 +361,7 @@ test.describe('Scenario 12 — Abandon review creates no invoice', () => {
 // Scenario 13 — Vendor required validation
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Story #1703/#1704 behavior change: the "Create Invoice & Itemize" button is
+// Story #1703/#1704 behavior change: the "Create invoice and split" button is
 // NO LONGER disabled when vendor is empty. Instead, clicking with no vendor
 // shows an inline field error in <div id="vendor-error"> (FormError variant="field")
 // and returns early without navigating. This enforces vendor-required via UX
@@ -400,7 +400,7 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       // Confirm button is NOT disabled when vendor is empty (behavior change in Story #1703)
       await expect(reviewPage.confirmButton).not.toBeDisabled();
 
-      // Click "Create Invoice & Itemize" without setting a vendor
+      // Click "Create invoice and split" without setting a vendor
       await reviewPage.confirmButton.click();
 
       // Inline vendor field error should appear at #vendor-error

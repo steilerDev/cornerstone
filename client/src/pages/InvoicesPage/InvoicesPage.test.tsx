@@ -302,9 +302,13 @@ describe('Offers summary', () => {
     const offers = renderPage('/budget/invoices?status=quotation');
     await loaded();
     expect(screen.getByTestId('invoices-sort-header-date')).toBeInTheDocument();
-    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(
+    // The Remaining on offer header also holds its term-hint info button (glyph ⓘ).
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent?.replace('ⓘ', ''))).toEqual(
       expect.arrayContaining(['Offered', 'Remaining on offer', 'Progress payments']),
     );
+    expect(
+      screen.getByRole('button', { name: 'Explain “Remaining on offer”' }),
+    ).toBeInTheDocument();
     offers.unmount();
 
     renderPage();

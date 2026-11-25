@@ -155,11 +155,18 @@ describe('glossary.json (real file)', () => {
       ['Grant', 'Förderprogramm'],
       ['Funding source', 'Finanzierungsquelle'],
       ['Draw-down request', 'Mittelabruf'],
+      ['Proof of funds', 'Verwendungsnachweis'],
+      ['Budget overview', 'Kostenaufstellung'],
     ];
 
     it.each(GERMAN)('%s is "%s" in German', (canon, german) => {
       const de = term(canon).de;
       expect(de.singular ?? de.verb).toBe(german);
+    });
+
+    it('the Add verb pins lowercase verbs in German compound labels (#2258)', () => {
+      expect(term('Add').de.note).toMatch(/lowercase/i);
+      expect(term('Add').de.note).toContain('Rechnung hinzufügen');
     });
 
     it('every German form is approved or shipped, never proposed', () => {
@@ -295,6 +302,7 @@ describe('glossary.json (real file)', () => {
       ['Company', 'Vendors'],
       ['Company', 'Auftragnehmer'],
       ['Contact person', 'Contact'],
+      ['Budget overview', 'Budgetübersicht'],
       ['Offer', 'Quotation'],
       ['Offer', 'Quotations'],
       ['Offer', 'Quote'],

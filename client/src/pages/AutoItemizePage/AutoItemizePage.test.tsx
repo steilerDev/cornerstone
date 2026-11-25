@@ -844,7 +844,7 @@ describe('AutoItemizePage', () => {
       });
 
       // Only the grid's blank row remains, and the empty message is shown.
-      expect(screen.getByText('No line items extracted')).toBeInTheDocument();
+      expect(screen.getByText('No lines found')).toBeInTheDocument();
       expect(screen.queryByDisplayValue('Tile work')).not.toBeInTheDocument();
       expect(document.querySelectorAll('[data-testid^="auto-itemize-grid-row-"]')).toHaveLength(1);
     });
@@ -2149,7 +2149,7 @@ describe('AutoItemizePage', () => {
 
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
       expect(screen.getByRole('heading', { level: 1, name: 'Split with AI' })).toBeInTheDocument();
-      expect(screen.getByRole('alert')).toHaveTextContent('Error loading auto-itemize');
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load Split with AI.");
     });
 
     it('Cancel steps back in history when the page was opened from the invoice', async () => {

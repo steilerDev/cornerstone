@@ -230,23 +230,23 @@ export class DiaryCapturePage {
       exact: true,
     });
     this.signedNote = page.getByText('Saving locks this entry because it is signed.');
-    this.vendorSignerRadio = page.getByRole('radio', { name: 'Vendor' });
+    this.vendorSignerRadio = page.getByRole('radio', { name: 'Company' });
     this.removeSignatureButton = page.getByRole('button', { name: 'Remove Signature' });
     this.signatureError = page.getByText(
       'Accept or remove the unfinished signature before saving.',
     );
     this.signerSection = page.locator('[class*="signerSection"]');
     this.signatureCompanyInput = this.signerSection.getByRole('textbox', {
-      name: 'Vendor',
+      name: 'Company',
       exact: true,
     });
     this.signatureCompanyChip = this.signerSection.locator('[class*="selectedDisplay"]');
     this.signatureOtherCompanyInput = this.signerSection.getByRole('textbox', {
-      name: 'Enter vendor name',
+      name: 'Enter company name',
       exact: true,
     });
     this.signatoryNameInput = this.signerSection.getByPlaceholder(
-      'Name of person signing on behalf of vendor',
+      'Name of the person signing for the company',
     );
     this.companyPicker = new CompanyPickerControl(
       page,

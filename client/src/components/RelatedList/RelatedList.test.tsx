@@ -160,6 +160,7 @@ function Host(props: HostProps) {
         emptyMessage={props.emptyMessage ?? 'Nothing here yet.'}
         testId={props.testId ?? 'rel'}
         {...(props.headingLevel ? { headingLevel: props.headingLevel } : {})}
+        {...(props.titleTermHint ? { titleTermHint: props.titleTermHint } : {})}
         {...(props.loadError !== undefined ? { loadError: props.loadError } : {})}
         {...(props.onRetry ? { onRetry: props.onRetry } : {})}
         {...(props.count !== undefined ? { count: props.count } : {})}
@@ -269,6 +270,24 @@ describe('RelatedList: count override (#2239)', () => {
   it('shows no count on a load error', () => {
     renderHost({ loadError: 'Could not load things.', count: 5 });
     expect(screen.getByRole('heading', { name: 'Things' })).toBeInTheDocument();
+  });
+});
+
+describe('RelatedList: titleTermHint (#2258)', () => {
+  it('shows an info button beside the heading, outside it', () => {
+    renderHost({ title: 'Waits for', titleTermHint: 'waitsFor' });
+    const heading = screen.getByRole('heading', { name: 'Waits for (3)' });
+    const button = screen.getByRole('button', { name: 'Explain “Waits for”' });
+    expect(heading).not.toContainElement(button);
+    fireEvent.click(button);
+    expect(screen.getByRole('dialog', { name: 'What these terms mean' })).toHaveTextContent(
+      'The tasks or milestones this one cannot start before.',
+    );
+  });
+
+  it('shows no info button without titleTermHint', () => {
+    renderHost();
+    expect(screen.queryByRole('button', { name: /Explain/ })).toBeNull();
   });
 });
 

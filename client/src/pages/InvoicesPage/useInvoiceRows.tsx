@@ -76,6 +76,7 @@ export function useInvoiceRows({ chip, actions }: UseInvoiceRowsOptions): RowPro
       notYetSplit: {
         label: t('invoices.list.badges.notYetSplit'),
         className: badgeStyles.neutral!,
+        title: tCommon(I18N_UNION_KEYS.termHintDefinition.key('notYetSplit')),
       },
       overdue: { label: t('invoices.list.badges.overdue'), className: badgeStyles.overduePast! },
       dueSoon: { label: t('invoices.list.badges.dueSoon'), className: badgeStyles.dueSoon! },
@@ -88,7 +89,7 @@ export function useInvoiceRows({ chip, actions }: UseInvoiceRowsOptions): RowPro
         className: badgeStyles.containerOnly!,
       },
     }),
-    [t],
+    [t, tCommon],
   );
 
   const titleText = (inv: InvoiceListRow): string =>
@@ -139,6 +140,7 @@ export function useInvoiceRows({ chip, actions }: UseInvoiceRowsOptions): RowPro
       {
         key: 'allocated',
         label: t('invoices.list.columns.allocated'),
+        termHints: ['split'],
         defaultVisible: false,
         render: (inv) => {
           if (inv.budgetLines.length === 0 || inv.amount === 0) return '—';
@@ -170,6 +172,7 @@ export function useInvoiceRows({ chip, actions }: UseInvoiceRowsOptions): RowPro
       {
         key: 'remainingOnOffer',
         label: t('invoices.list.columns.remainingOnOffer'),
+        termHints: ['remainingOnOffer'],
         align: 'end',
         render: (inv) =>
           inv.remainingOnOffer === null ? '—' : formatCurrency(inv.remainingOnOffer),

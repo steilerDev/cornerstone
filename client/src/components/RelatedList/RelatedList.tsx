@@ -35,6 +35,7 @@ const DEFAULT_COLLAPSED_LIMIT = 10;
 export function RelatedList({
   title,
   headingLevel = 2,
+  titleTermHint,
   rows,
   count,
   loadError,
@@ -291,6 +292,7 @@ export function RelatedList({
           title={title}
           {...(rows !== null && !loadError ? { count: count ?? rows.length } : {})}
           headingLevel={headingLevel}
+          {...(titleTermHint ? { titleTermHint } : {})}
           headingId={headingId}
           headingRef={headingRef}
         >

@@ -151,6 +151,24 @@ describe('title and secondary line', () => {
     expect(screen.queryByTestId('invoices-badge-progress-only-inv-1')).toBeNull();
   });
 
+  it('titles the Not yet split chip with its definition (#2258)', () => {
+    mountHook();
+    show(<>{out.renderSecondary!(makeRow({ notYetSplit: true }))}</>);
+    expect(screen.getByTestId('invoices-badge-not-yet-split-inv-1')).toHaveAttribute(
+      'title',
+      'The part of an offer or invoice not divided into cost lines yet.',
+    );
+  });
+
+  it('puts term hints on the Split and Remaining on offer headers only (#2258)', () => {
+    mountHook();
+    const hinted = out.columns!.filter((c) => c.termHints).map((c) => [c.key, c.termHints]);
+    expect(hinted).toEqual([
+      ['allocated', ['split']],
+      ['remainingOnOffer', ['remainingOnOffer']],
+    ]);
+  });
+
   it('shows Due soon within seven days and no flag for a far or missing due date', () => {
     mountHook();
     const { unmount } = show(<>{out.renderSecondary!(makeRow({ dueDate: isoOffset(7) }))}</>);

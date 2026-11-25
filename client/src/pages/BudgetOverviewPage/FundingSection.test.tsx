@@ -64,6 +64,24 @@ describe('FundingSection', () => {
     expect(screen.getByTestId('money-funding-row-bs-b')).toHaveTextContent('€500.00 of €400.00');
   });
 
+  it('underlines Allocated in every row and explains Over-allocated only where it shows (#2258)', () => {
+    renderSection([savings, loan]);
+    for (const id of ['bs-a', 'bs-b']) {
+      const term = within(screen.getByTestId(`money-funding-row-${id}`)).getByText('Allocated');
+      expect(term.className).toContain('term');
+    }
+    expect(
+      within(screen.getByTestId('money-funding-row-bs-b')).getByRole('button', {
+        name: 'Explain “Over-allocated”',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('money-funding-row-bs-a')).queryByRole('button', {
+        name: /Explain/,
+      }),
+    ).toBeNull();
+  });
+
   it('draws a bar capped at the source amount and shows no extra amount without over-allocation', () => {
     renderSection([savings]);
     const row = screen.getByTestId('money-funding-row-bs-a');

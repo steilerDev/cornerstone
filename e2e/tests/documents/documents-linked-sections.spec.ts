@@ -794,7 +794,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 
       const updatedBadge = invoiceDetailPage.getAttachmentTypeBadge(linkId);
       await expect(updatedBadge).toBeVisible();
-      await expect(updatedBadge).toHaveText('Quotation');
+      await expect(updatedBadge).toHaveText('Offer');
       await expect(select).toHaveValue('quotation');
     } finally {
       await cleanupAttachmentMocks(page);
@@ -816,7 +816,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
       await invoiceDetailPage.openDocuments();
 
       const badge = invoiceDetailPage.getAttachmentTypeBadge(linkId);
-      await expect(badge).toHaveText('Quotation');
+      await expect(badge).toHaveText('Offer');
 
       const select = invoiceDetailPage.getAttachmentTypeSelect(linkId);
       await expect(select).toHaveValue('quotation');
@@ -829,7 +829,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
       await select.selectOption('deposit');
       await patchResponse;
 
-      await expect(badge).toHaveText('Deposit');
+      await expect(badge).toHaveText('Progress payment');
       await expect(select).toHaveValue('deposit');
     } finally {
       await cleanupAttachmentMocks(page);
@@ -851,7 +851,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
       await invoiceDetailPage.openDocuments();
 
       const badge = invoiceDetailPage.getAttachmentTypeBadge(linkId);
-      await expect(badge).toHaveText('Deposit');
+      await expect(badge).toHaveText('Progress payment');
 
       const select = invoiceDetailPage.getAttachmentTypeSelect(linkId);
       const patchResponse = page.waitForResponse(
@@ -978,7 +978,7 @@ test.describe('Attachment-type tagging — Link document picker (Scenarios 13-14
       // The new card shows the "Deposit" badge
       const badge = invoiceDetailPage.getAttachmentTypeBadge(createBody.documentLink.id);
       await expect(badge).toBeVisible();
-      await expect(badge).toHaveText('Deposit');
+      await expect(badge).toHaveText('Progress payment');
     } finally {
       await cleanupAttachmentMocks(page);
       if (ids) await deleteVendorViaApi(page, ids.vendorId);
@@ -1131,8 +1131,8 @@ test.describe('Attachment-type tagging — dark mode (Scenario 24)', () => {
       await invoiceDetailPage.openDocuments();
 
       const expectedLabels: Record<number, string> = {
-        [docIds[0]!]: 'Quotation',
-        [docIds[1]!]: 'Deposit',
+        [docIds[0]!]: 'Offer',
+        [docIds[1]!]: 'Progress payment',
         [docIds[2]!]: 'Invoice',
       };
 

@@ -18,7 +18,7 @@
  * - Cost tab: the combined tree area › item › line (SourceBudgetLinePanel `#source-lines-<id>`),
  *   tri-state checkboxes (aria-labels "Select all in <area>", "Select all under <item>",
  *   "Select <line>"), the selection bar `source-lines-<id>-selection-bar` with
- *   `source-lines-<id>-move` ("Move to another source"), then the Move modal.
+ *   `source-lines-<id>-move` ("Move to another funding source"), then the Move modal.
  * - History tab: ObjectHistorySection `source-history` (+ `source-history-show-all`).
  * - Delete: ConfirmDialog prefix `source-delete`.
  */
@@ -122,7 +122,7 @@ export class FundingSourcePage {
     this.history = page.getByTestId('section-source-history');
     this.historyShowAll = page.getByTestId('source-history-show-all');
 
-    this.moveModal = page.getByRole('dialog', { name: 'Move lines to another source' });
+    this.moveModal = page.getByRole('dialog', { name: 'Move lines to another funding source' });
     this.moveModalSearchInput = this.moveModal.locator('#target-source');
     this.moveModalConfirmButton = this.moveModal.getByRole('button', {
       name: /Move lines|Loading/i,

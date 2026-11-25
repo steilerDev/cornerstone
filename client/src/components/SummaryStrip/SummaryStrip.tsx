@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { FigureKind } from '../../types/figureKind.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { isPlainLeftClick } from '../../lib/plainClick.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
+import { TermHint } from '../Tooltip/TermHint.js';
 import sharedStyles from '../../styles/shared.module.css';
 import { factSpans } from './factSpans.js';
 import styles from './SummaryStrip.module.css';
@@ -27,6 +29,8 @@ interface FactBase {
   readonly trailing?: ReactNode;
   /** Screen-reader text of an empty value; default "Not set". */
   readonly emptyText?: string;
+  /** Underline the label and explain this term in a tooltip (#2258). */
+  readonly termHint?: TermHintTerm;
 }
 
 export type SummaryFact =
@@ -161,9 +165,18 @@ function Fact({
       data-span-md={spans.md}
       data-span-lg={spans.lg}
     >
-      <dt id={labelId} className={styles.label}>
-        {fact.label}
-      </dt>
+      {fact.termHint ? (
+        // The term span takes the label id, so aria-labelledby names the label, not the tooltip.
+        <dt className={styles.label}>
+          <TermHint term={fact.termHint} id={labelId}>
+            {fact.label}
+          </TermHint>
+        </dt>
+      ) : (
+        <dt id={labelId} className={styles.label}>
+          {fact.label}
+        </dt>
+      )}
       <dd className={styles.value}>
         {target}
         {fact.trailing ? <span className={styles.trailing}>{fact.trailing}</span> : null}

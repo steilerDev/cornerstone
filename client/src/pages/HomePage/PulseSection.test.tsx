@@ -167,7 +167,7 @@ describe('PulseSection', () => {
 
     const still = await waitFor(() => tile('home-pulse-still-to-pay'));
     expect(still).toHaveTextContent('4,200.00');
-    expect(still).toHaveTextContent('1 open invoice');
+    expect(still).toHaveTextContent('1 invoice is still to pay');
     expect(still).not.toHaveTextContent('1 open invoices');
     const progress = tile('home-pulse-progress');
     expect(progress).toHaveTextContent('2 of 8 tasks done');
@@ -177,7 +177,7 @@ describe('PulseSection', () => {
   it('uses the plural for zero open invoices', async () => {
     mockGetHomePulse.mockResolvedValue(makePulse({ stillToPayCount: 0 }));
     renderWithRouter(<PulseSection />);
-    expect(await screen.findByText('0 open invoices')).toBeInTheDocument();
+    expect(await screen.findByText('0 invoices are still to pay')).toBeInTheDocument();
   });
 
   it('draws the progress bar width from done over total, and 0 without tasks', async () => {

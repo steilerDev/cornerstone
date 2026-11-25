@@ -55,7 +55,7 @@
   },
   "name": "Name",
   "noArea": "Kein Bereich",
-  "noAreaDescription": "Kein Bereich — Elemente ohne Bereichszuweisung anzeigen",
+  "noAreaDescription": "Kein Bereich – alles ohne Bereichszuordnung anzeigen",
   "button": {
     "close": "Schließen",
     "save": "Speichern",
@@ -89,18 +89,11 @@
   "searching": "Suche läuft...",
   "appName": "Cornerstone",
   "search": {
-    "placeholder": "Elemente suchen...",
-    "emptyHint": "Zum Suchen tippen",
-    "noResults": "Keine passenden Elemente gefunden",
-    "loadError": "Elemente konnten nicht geladen werden",
-    "searchError": "Suche fehlgeschlagen"
-  },
-  "status": {
-    "notStarted": "Nicht begonnen",
-    "inProgress": "In Bearbeitung",
-    "completed": "Abgeschlossen",
-    "onHold": "Pausiert",
-    "cancelled": "Abgebrochen"
+    "placeholder": "Suchen…",
+    "emptyHint": "Tippen, um zu suchen",
+    "noResults": "Nichts passt",
+    "loadError": "Die Liste konnte nicht geladen werden.",
+    "searchError": "Suche fehlgeschlagen. Versuche es erneut."
   },
   "theme": {
     "light": "Hell",
@@ -182,8 +175,8 @@
       "n5": "Zahlung fällig am {{date}} ({{when}}).",
       "n6_one": "Offen seit {{date}} ({{count}} Tag), ohne Fälligkeitsdatum.",
       "n6_other": "Offen seit {{date}} ({{count}} Tage), ohne Fälligkeitsdatum.",
-      "n8_one": "{{count}} Position einreichbar.",
-      "n8_other": "{{count}} Positionen einreichbar.",
+      "n8_one": "{{count}} Rechnung oder Abschlagszahlung ist einreichbar.",
+      "n8_other": "{{count}} Rechnungen und Abschlagszahlungen sind einreichbar.",
       "n9": "Angebot gültig bis {{date}} ({{when}}).",
       "n9Passed": "Die Gültigkeit des Angebots endete am {{date}} ({{when}}).",
       "n10Late_one": "{{status}}, {{count}} Tag verspätet (Lieferung geplant {{date}}).",
@@ -223,15 +216,14 @@
     "discardWaiting_other": "{{count}} Fotos, die noch auf den Upload warten, werden ebenfalls gelöscht.",
     "amountPrefix": "Betrag:",
     "notNow": "Später",
-    "notNowHint": "Blendet diese Zeile für 7 Tage aus.",
     "notNowToast": "Für 7 Tage ausgeblendet.",
     "notNowFailed": "Diese Zeile konnte nicht ausgeblendet werden.",
     "backOn": "Wieder ab {{date}}",
     "showAgain": "Wieder anzeigen",
     "showAll": "Alle anzeigen ({{count}})",
     "showFewer": "Weniger anzeigen",
-    "showingAll": "Alle {{count}} Einträge werden angezeigt",
-    "showingFirst": "Die ersten {{count}} Einträge werden angezeigt",
+    "showingAll": "Alle {{count}} Zeilen werden angezeigt",
+    "showingFirst": "Die ersten {{count}} Zeilen werden angezeigt",
     "catchUp": {
       "line_one": "{{count}} Aufgabe ist verspätet",
       "line_other": "{{count}} Aufgaben sind verspätet",
@@ -437,14 +429,10 @@
     "dismissAriaLabel": "Benachrichtigung schließen"
   },
   "actions": "Aktionen",
-  "assignmentPicker": {
-    "usersGroup": "Benutzer",
-    "vendorsGroup": "Auftragnehmer"
-  },
   "dataTable": {
     "search": {
       "placeholder": "Suchen...",
-      "ariaLabel": "Elemente suchen"
+      "ariaLabel": "Diese Liste durchsuchen"
     },
     "filter": {
       "all": "Alle",
@@ -478,15 +466,15 @@
       "saveError": "Spalteneinstellungen konnten nicht gespeichert werden"
     },
     "pagination": {
-      "showing": "Zeige {{from}}–{{to}} von {{total}} Einträgen",
+      "showing": "Zeige {{from}}–{{to}} von {{total}}",
       "page": "Seite {{page}} von {{totalPages}}",
       "previous": "Zurück",
       "next": "Weiter",
       "pageSize": "Pro Seite"
     },
     "empty": {
-      "defaultMessage": "Keine Einträge gefunden",
-      "filteredMessage": "Keine Einträge entsprechen den aktuellen Filtern"
+      "defaultMessage": "Noch nichts vorhanden",
+      "filteredMessage": "Nichts entspricht den aktuellen Filtern"
     },
     "loading": "Tabellendaten werden geladen..."
   },
@@ -628,7 +616,7 @@
     "dateBeforeStart": "Wähle ein Datum ab dem Startdatum.",
     "whenStarted": "Wann hat es begonnen?",
     "whenFinished": "Wann wurde es abgeschlossen?",
-    "whenArrived": "Wann ist es angekommen?",
+    "whenArrived": "Wann wurde es geliefert?",
     "whenOrdered": "Wann wurde es bestellt?",
     "whenReached": "Wann wurde es erreicht?",
     "whenPaid": "Wann wurde diese Zahlung geleistet?",
@@ -677,7 +665,7 @@
       "purchaseDependencies": "Anschaffungen, die nicht mehr auf dieses Element warten:",
       "costLines": "Ebenfalls gelöschte Kostenpositionen:",
       "invoiceLinks": "Ebenfalls entfernte Rechnungsverknüpfungen:",
-      "subtasks": "Ebenfalls gelöschte Unteraufgaben:",
+      "subtasks": "Ebenfalls gelöschte Checklistenpunkte:",
       "notes": "Ebenfalls gelöschte Notizen:",
       "taskDependencies": "Ebenfalls entfernte Abhängigkeiten:",
       "milestoneLinks": "Meilensteine, zu denen es nicht mehr zählt:",
@@ -771,9 +759,6 @@
     "newDiaryEntry": "Neuer Tagebucheintrag",
     "newTask": "Neue Aufgabe"
   },
-  "statusHints": {
-    "submitted": "Bezahlt oder fällig und in einem Mittelabruf an die Bank enthalten"
-  },
   "referenceList": {
     "new": "Neu",
     "nameLabel": "Name",
@@ -819,6 +804,49 @@
   },
   "integrationsLink": {
     "label": "Zu den Integrationen"
+  },
+  "termHint": {
+    "explain": "Begriffe erklären",
+    "explainTerm": "„{{term}}“ erklären",
+    "panelLabel": "Was diese Begriffe bedeuten",
+    "term": {
+      "late": "Verspätet",
+      "heldUp": "Aufgehalten",
+      "waitsFor": "Wartet auf",
+      "holdsUp": "Hält auf",
+      "critical": "Kritisch",
+      "notNow": "Später",
+      "range": "Spanne",
+      "split": "Aufschlüsselung",
+      "notYetSplit": "Nicht aufgeschlüsselt",
+      "submitted": "Eingereicht",
+      "readyToSubmit": "Einreichbar",
+      "drawDownRequest": "Mittelabruf",
+      "remainingOnOffer": "Restbetrag",
+      "allocated": "Zugeordnet",
+      "unallocated": "Frei",
+      "overAllocated": "Überzogen",
+      "spot": "Blickpunkt"
+    },
+    "definition": {
+      "late": "Eine Aufgabe oder Anschaffung ist über ihr geplantes Datum hinaus, oder ein Meilenstein wird nach seinem Ziel erwartet.",
+      "heldUp": "Eine Aufgabe, die auf eine verspätete Aufgabe wartet.",
+      "waitsFor": "Die Aufgaben oder Meilensteine, vor denen diese nicht beginnen kann.",
+      "holdsUp": "Jede unfertige Aufgabe, die sich verschiebt, wenn diese rutscht, Meilensteine eingeschlossen.",
+      "critical": "Liegt auf der Kette von Aufgaben, die das Enddatum bestimmt: Rutscht sie, verschiebt sich das Enddatum.",
+      "notNow": "Blendet eine Zeile auf der Startseite für 7 Tage aus.",
+      "range": "Die bestmögliche und die schlechteste Annahme rund um einen Geldbetrag.",
+      "split": "Schlüsselt ein Angebot oder eine Rechnung in Kostenpositionen auf.",
+      "notYetSplit": "Der Teil eines Angebots oder einer Rechnung, der noch nicht in Kostenpositionen aufgeschlüsselt ist.",
+      "submitted": "Bezahlt oder fällig und in einem Mittelabruf an die Bank enthalten.",
+      "readyToSubmit": "Bezahlte oder fällige Beträge, die über ein Darlehen oder eine Kreditlinie finanziert werden und in noch keinem Mittelabruf enthalten sind.",
+      "drawDownRequest": "Ein Bankbericht, mit dem der Kreditgeber Geld gegen Rechnungen auszahlen soll.",
+      "remainingOnOffer": "Der Betrag eines Angebots abzüglich der darauf geleisteten Abschlagszahlungen.",
+      "allocated": "Die Kosten der Kostenpositionen, für die eine Finanzierungsquelle aufkommt.",
+      "unallocated": "Der Betrag einer Finanzierungsquelle abzüglich des Zugeordneten, sofern das null oder mehr ist.",
+      "overAllocated": "Was über den Betrag einer Finanzierungsquelle hinaus zugeordnet ist.",
+      "spot": "Ein Bereich plus eine Ausrichtung, über die Zeit in ihren Fotos betrachtet."
+    }
   },
   "objectList": {
     "count": "({{count}})",

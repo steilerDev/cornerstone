@@ -55,7 +55,7 @@
     "details": "Details",
     "openInPaperless": "Open in Paperless",
     "opensInNewTab": "(opens in a new tab)",
-    "itemize": "Itemize",
+    "itemize": "Split with AI",
     "unlink": "Unlink",
     "linked": "Linked {{title}}.",
     "toast": {
@@ -93,8 +93,8 @@
     "openInPaperlessAriaLabel": "Open '{{title}}' in Paperless",
     "attachmentType": {
       "none": "No tag",
-      "quotation": "Quotation",
-      "deposit": "Deposit",
+      "quotation": "Offer",
+      "deposit": "Progress payment",
       "invoice": "Invoice",
       "selectLabel": "Tag document type: {{title}}"
     },

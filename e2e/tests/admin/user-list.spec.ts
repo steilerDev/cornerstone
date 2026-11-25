@@ -59,7 +59,7 @@ test.describe('User List Display', { lock: 'admin-account' }, () => {
       // Member Since (date) — not asserted (format varies by locale)
     }
     await expect(await userManagementPage.getAuthProviderCell(TEST_ADMIN.email)).toHaveText(
-      'Local',
+      'Password',
     );
     await expect(await userManagementPage.getStatusCell(TEST_ADMIN.email)).toHaveText('Active');
   });

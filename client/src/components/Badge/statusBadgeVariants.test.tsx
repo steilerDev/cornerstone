@@ -46,6 +46,7 @@ import {
   buildPurchaseStatusVariants,
   buildRefundVariants,
   buildScheduleSignalVariants,
+  buildCriticalSignalVariant,
   buildTaskStatusVariants,
   scheduleSignalBadgeProps,
 } from './statusBadgeVariants.js';
@@ -96,7 +97,7 @@ describe('buildInvoiceStatusVariants', () => {
 
   it('gives only the claimed chip a decorative icon and a tooltip', () => {
     expect(variants.claimed.icon).toBeDefined();
-    expect(variants.claimed.title).toBe(enCommon.statusHints.submitted);
+    expect(variants.claimed.title).toBe(enCommon.termHint.definition.submitted);
     for (const status of ['pending', 'paid', 'quotation'] as const) {
       expect(variants[status].icon).toBeUndefined();
       expect(variants[status].title).toBeUndefined();
@@ -110,7 +111,7 @@ describe('buildInvoiceStatusVariants', () => {
     expect(first?.tagName.toLowerCase()).toBe('svg');
     expect(first).toHaveAttribute('aria-hidden', 'true');
     expect(first).toHaveAttribute('focusable', 'false');
-    expect(chip).toHaveAttribute('title', enCommon.statusHints.submitted);
+    expect(chip).toHaveAttribute('title', enCommon.termHint.definition.submitted);
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(chip.textContent).toBe('Submitted');
   });
@@ -154,7 +155,7 @@ describe('buildCostLineStateVariants (#2235)', () => {
 
   it('gives only Submitted a decorative icon and a tooltip', () => {
     expect(variants.submitted.icon).toBeDefined();
-    expect(variants.submitted.title).toBe(enCommon.statusHints.submitted);
+    expect(variants.submitted.title).toBe(enCommon.termHint.definition.submitted);
     for (const state of ['estimate', 'offered', 'invoiced', 'paid'] as const) {
       expect(variants[state].icon).toBeUndefined();
       expect(variants[state].title).toBeUndefined();
@@ -180,7 +181,7 @@ describe('buildProgressPaymentStatusVariants', () => {
 
   it('gives the claimed progress payment the check icon and tooltip', () => {
     expect(variants.claimed.icon).toBeDefined();
-    expect(variants.claimed.title).toBe(enCommon.statusHints.submitted);
+    expect(variants.claimed.title).toBe(enCommon.termHint.definition.submitted);
     expect(variants.pending.icon).toBeUndefined();
     expect(variants.paid.icon).toBeUndefined();
   });
@@ -265,9 +266,21 @@ describe('buildMilestoneStatusVariants (#2198)', () => {
     const variants = buildMilestoneStatusVariants(spyT);
     expect(variants.upcoming.label).toBe('Upcoming');
     expect(variants.reached.label).toBe('Reached');
-    expect(calls).toHaveLength(MILESTONE_DISPLAY_STATUSES.length);
-    expect(calls.every((c) => c.days === 0)).toBe(true);
-    expect(calls.every((c) => c.key.includes('statusVocabulary.milestone.'))).toBe(true);
+    // The Late chip also asks for its term-hint title (no days option).
+    const labelCalls = calls.filter((c) => c.key.includes('statusVocabulary.milestone.'));
+    expect(labelCalls).toHaveLength(MILESTONE_DISPLAY_STATUSES.length);
+    expect(labelCalls.every((c) => c.days === 0)).toBe(true);
+    expect(calls.filter((c) => !c.key.includes('statusVocabulary.milestone.'))).toEqual([
+      { key: 'termHint.definition.late', days: undefined },
+    ]);
+  });
+
+  it('gives only the Late milestone chip the Late definition as its title (#2258)', () => {
+    const variants = buildMilestoneStatusVariants(realT);
+    expect(variants.late.title).toBe(enCommon.termHint.definition.late);
+    for (const status of MILESTONE_DISPLAY_STATUSES) {
+      if (status !== 'late') expect(variants[status].title).toBeUndefined();
+    }
   });
 });
 
@@ -297,6 +310,20 @@ describe('buildScheduleSignalVariants', () => {
     const variants = buildScheduleSignalVariants(realTFor(deCommon), 3);
     expect(variants.late.label).toBe('Verspätet · 3 T');
     expect(variants.held_up.label).toBe('Aufgehalten');
+  });
+
+  it('titles the Late and Held up chips with the registry definitions (#2258)', () => {
+    const variants = buildScheduleSignalVariants(realTFor(enCommon), 2);
+    expect(variants.late.title).toBe(enCommon.termHint.definition.late);
+    expect(variants.held_up.title).toBe(enCommon.termHint.definition.heldUp);
+    const de = buildScheduleSignalVariants(realTFor(deCommon), 2);
+    expect(de.late.title).toBe(deCommon.termHint.definition.late);
+    expect(de.late.title).not.toBe(variants.late.title);
+  });
+
+  it('titles the Critical chip with its registry definition (#2258)', () => {
+    const { critical } = buildCriticalSignalVariant(realTFor(enCommon));
+    expect(critical.title).toBe(enCommon.termHint.definition.critical);
   });
 
   it('maps late to scheduleAtRisk and held up to scheduleWarning', () => {

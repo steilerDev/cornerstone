@@ -132,6 +132,7 @@ function offerFacts(
       id: 'offers-remaining',
       kind: 'static',
       label: t('invoices.list.offers.remaining'),
+      termHint: 'remainingOnOffer',
       value: formatCurrency(offers.remainingOnOffer),
     },
   ];

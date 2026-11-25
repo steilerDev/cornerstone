@@ -82,6 +82,8 @@ export const TERMS_WITHOUT_DESTINATION: ReadonlyMap<string, string> = new Map(
     'Own funds': 'a kind of funding source, no page of its own',
     'Covered items': 'shown on the grant page, no list of its own',
     'Draw-down request': 'shown inside Financing, no page or filter of its own',
+    'Budget overview':
+      'a bank report type chosen in the report wizard, no page or filter of its own',
     Late: 'derived from the schedule, not a stored status with a filter',
     'Holds up': 'derived from dependencies, not a stored status with a filter',
     Upcoming: 'derived from dates, not a stored status with a filter',

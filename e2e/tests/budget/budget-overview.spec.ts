@@ -619,7 +619,7 @@ test.describe('Money overview — breakdown views (AC3)', () => {
     await expect(overview.cell(fitting, 'expectedCost')).toHaveText(euro(4000));
     await expect(overview.totalCell('expectedCost')).toHaveText(euro(17600));
     await expect(overview.total).toContainText('Total for the current settings');
-    await expect(overview.headline).toContainText('Whole project');
+    await expect(overview.headline).toContainText('Whole build');
 
     await overview.estimateChip('high').click();
     await page.waitForURL((url) => url.searchParams.get('estimate') === 'high');

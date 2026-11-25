@@ -617,6 +617,19 @@ describe('SpotViewer list heading', () => {
     ).toBeInTheDocument();
   });
 
+  it('explains Spot with an info button beside the spot heading only (#2258)', () => {
+    setup();
+    const heading = screen.getByRole('heading', { level: 2, name: 'Same spot over time' });
+    const button = screen.getByRole('button', { name: 'Explain “Spot”' });
+    expect(heading).not.toContainElement(button);
+    expect(heading.parentElement).toBe(button.parentElement);
+  });
+
+  it('has no Spot info button for the No area group (#2258)', () => {
+    setup({ isNoAreaGroup: true });
+    expect(screen.queryByRole('button', { name: 'Explain “Spot”' })).not.toBeInTheDocument();
+  });
+
   it('reads "Photos with no area" for the No area group', () => {
     setup({ isNoAreaGroup: true });
     expect(

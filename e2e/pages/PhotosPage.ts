@@ -42,7 +42,7 @@ export class PhotosPage {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: /^(Photos|Fotos)$/ });
     this.table = page.getByRole('table');
-    this.emptyState = page.getByText('No diary photos yet');
+    this.emptyState = page.getByText('No photos in the site diary yet');
     this.errorBanner = page.getByRole('alert');
     this.retryButton = page.getByRole('button', { name: 'Try again' });
 

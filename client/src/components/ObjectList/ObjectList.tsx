@@ -46,6 +46,7 @@ import type {
   ObjectListSurface,
   ObjectListTitle,
 } from './types.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './ObjectList.module.css';
 
 export interface ObjectListProps<T, M = undefined, C = never> {
@@ -661,6 +662,12 @@ export function ObjectList<T, M = undefined, C = never>({
                             ) : (
                               column.label
                             )}
+                            {column.termHints ? (
+                              <TermHintPopover
+                                terms={column.termHints}
+                                align={column.align === 'end' ? 'end' : 'start'}
+                              />
+                            ) : null}
                           </th>
                         );
                       })}

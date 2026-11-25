@@ -410,7 +410,7 @@ describe('GrantWorkPanel', () => {
       const user = await openPicker();
 
       expect(submit()).toHaveAttribute('aria-disabled', 'true');
-      expect(submit()).toHaveTextContent('Link 0 items');
+      expect(submit()).toHaveTextContent('Link 0 tasks and purchases');
       await user.click(submit());
 
       expect(mockLinkItems).not.toHaveBeenCalled();
@@ -424,10 +424,10 @@ describe('GrantWorkPanel', () => {
       const user = await openPicker();
 
       await user.click(screen.getByRole('button', { name: 'pick-task' }));
-      expect(submit()).toHaveTextContent('Link 1 item');
+      expect(submit()).toHaveTextContent('Link 1 task or purchase');
       expect(submit()).not.toHaveAttribute('aria-disabled');
       await user.click(screen.getByRole('button', { name: 'pick-purchase' }));
-      expect(submit()).toHaveTextContent('Link 2 items');
+      expect(submit()).toHaveTextContent('Link 2 tasks and purchases');
       expect(screen.getByTestId('count')).toHaveTextContent('2 selected');
       await user.click(submit());
 
@@ -437,7 +437,7 @@ describe('GrantWorkPanel', () => {
         { type: 'household_item', id: 'hi-9' },
       ]);
       await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
-      expect(mockShowToast).toHaveBeenCalledWith('success', 'Linked 2 items.');
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'Linked 2 tasks and purchases.');
       await waitFor(() => expect(screen.queryByTestId('grant-link-picker')).toBeNull());
       expect(
         await screen.findByTestId('grant-covered-items-row-work_item:wi-9'),
@@ -511,7 +511,7 @@ describe('GrantWorkPanel', () => {
       const user = await openPicker();
       await user.click(screen.getByRole('button', { name: 'pick-task' }));
       await user.click(screen.getByRole('button', { name: 'Remove Windows' }));
-      expect(submit()).toHaveTextContent('Link 0 items');
+      expect(submit()).toHaveTextContent('Link 0 tasks and purchases');
       fireEvent.click(submit());
       expect(mockLinkItems).not.toHaveBeenCalled();
     });

@@ -9,7 +9,7 @@
  * so call it sparingly (one session per test).
  */
 
-import type { Browser, BrowserContext, Page } from '@playwright/test';
+import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { createLocalUserViaApi, deleteUserViaApi } from './apiHelpers.js';
 import { API } from './testData.js';
@@ -28,6 +28,8 @@ export interface LocaleSession {
  * @param admin  the admin page used for the API calls that create and remove the user
  * @param url    the path to open once the locale is seeded; the page is reloaded afterwards
  *               because the locale is read once at start-up
+ * @param contextOptions  extra context options, e.g. the project's viewport/touch settings so a
+ *               phone run keeps its phone layout (#2258)
  */
 export async function openAsLocaleUser(
   browser: Browser,
@@ -35,13 +37,17 @@ export async function openAsLocaleUser(
   testPrefix: string,
   url: string,
   locale: 'en' | 'de' = 'de',
+  contextOptions: BrowserContextOptions = {},
 ): Promise<LocaleSession> {
   const user = await createLocalUserViaApi(admin, {
     email: `locale-${locale}-${testPrefix.toLowerCase()}-${Date.now()}@e2e-test.local`,
     displayName: 'E2E Locale User',
     password: PASSWORD,
   });
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({
+    ...contextOptions,
+    storageState: { cookies: [], origins: [] },
+  });
   const page = await context.newPage();
   try {
     const login = await page.request.post(API.login, {

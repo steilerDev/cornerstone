@@ -214,4 +214,19 @@ describe('Tooltip', () => {
     // Tooltip should still be visible (hide was cancelled)
     expect(tooltip).toHaveClass('visible');
   });
+
+  it('adds the multiline class only when multiline is set', () => {
+    const { rerender } = render(
+      <Tooltip content="Long text">
+        <span>Trigger</span>
+      </Tooltip>,
+    );
+    expect(screen.getByRole('tooltip').className).not.toContain('multiline');
+    rerender(
+      <Tooltip content="Long text" multiline>
+        <span>Trigger</span>
+      </Tooltip>,
+    );
+    expect(screen.getByRole('tooltip').className).toContain('multiline');
+  });
 });

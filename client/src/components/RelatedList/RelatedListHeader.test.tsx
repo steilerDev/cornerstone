@@ -64,4 +64,19 @@ describe('RelatedListHeader', () => {
     expect(container.firstElementChild?.className).toContain('header');
     expect(container.firstElementChild?.className).toContain('headerFlush');
   });
+
+  it('puts an info button beside the heading (outside it) when titleTermHint is set (#2258)', () => {
+    render(
+      <RelatedListHeader title="Waits for" count={2} headingId="h-1" titleTermHint="waitsFor" />,
+    );
+    const heading = screen.getByRole('heading', { level: 2, name: 'Waits for (2)' });
+    const button = screen.getByRole('button', { name: 'Explain “Waits for”' });
+    expect(heading).not.toContainElement(button);
+    expect(heading.parentElement).toBe(button.parentElement);
+  });
+
+  it('renders no info button without titleTermHint', () => {
+    render(<RelatedListHeader title="Waits for" count={2} headingId="h-1" />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
 });

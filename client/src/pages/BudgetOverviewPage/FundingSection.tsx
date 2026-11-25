@@ -7,6 +7,7 @@ import { useUserText } from '../../hooks/useUserText.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
+import { TermHint } from '../../components/Tooltip/TermHint.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import styles from './BudgetOverviewPage.module.css';
 
@@ -58,7 +59,7 @@ export function FundingSection({ sources }: FundingSectionProps) {
                 <span {...userText(styles.fundingName)}>{source.name}</span>
                 <span className={styles.fundingAmounts}>
                   <span className={styles.fundingLabel}>
-                    {t('overview.funding.allocatedLabel')}
+                    <TermHint term="allocated">{t('overview.funding.allocatedLabel')}</TermHint>
                   </span>{' '}
                   <span>
                     {t('overview.funding.amountOf', {
@@ -86,6 +87,7 @@ export function FundingSection({ sources }: FundingSectionProps) {
                       })
                     : undefined
                 }
+                overflowNoteHint="overAllocated"
                 height="sm"
                 formatValue={formatCurrency}
               />

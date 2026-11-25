@@ -87,7 +87,7 @@ test.describe('Funding source chip (AC5, AC10 e)', { tag: '@responsive' }, () =>
     await expect(overview.sourceCheckbox(LOAN)).not.toBeChecked();
     // The headline is the whole project and reads so while a filter is on
     await expect(overview.leftToSpendFigure).toHaveText(euro(7200));
-    await expect(overview.headline).toContainText('Whole project');
+    await expect(overview.headline).toContainText('Whole build');
   });
 
   test('Re-checking every source announces all sources and clears the param', async ({ page }) => {

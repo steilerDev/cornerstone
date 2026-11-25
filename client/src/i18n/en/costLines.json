@@ -117,7 +117,7 @@
     "errorAmount": "Enter an amount of 0 or more.",
     "errorAmountPositive": "Enter an amount above 0.",
     "errorBelongsTo": "Pick a task or purchase.",
-    "errorMoveType": "A line without an offer or invoice can only move to the same kind of item.",
+    "errorMoveType": "A line without an offer or invoice can only move to an object of the same kind: task to task, purchase to purchase.",
     "errorOverInvoice": "The cost lines would be more than this offer or invoice is worth."
   },
   "linkInvoice": {

@@ -25,6 +25,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { TermHintControl } from './components/TermHintControl.js';
 
 export const FINANCING_ROUTE = routeUrl('financing');
 
@@ -45,9 +46,12 @@ export class FinancingPage {
   readonly grantsHeading: Locator;
   readonly retry: Locator;
   readonly errorAlert: Locator;
+  /** Underlined term definitions (#2258). */
+  readonly termHints: TermHintControl;
 
   constructor(page: Page) {
     this.page = page;
+    this.termHints = new TermHintControl(page);
     this.heading = page.getByRole('heading', { level: 1, name: 'Financing', exact: true });
     this.root = page.getByTestId('financing-page');
     this.prepareBankReport = page.getByTestId('financing-prepare-bank-report');
@@ -78,6 +82,11 @@ export class FinancingPage {
 
   sourceCard(id: string): Locator {
     return this.page.getByTestId(`financing-source-${id}`);
+  }
+
+  /** The underlined figure label (Allocated, Submitted, Unallocated, Ready to submit) of a source card. */
+  termHint(sourceId: string, label: string): Locator {
+    return this.termHints.term(this.sourceCard(sourceId), label);
   }
 
   grantCard(id: string): Locator {

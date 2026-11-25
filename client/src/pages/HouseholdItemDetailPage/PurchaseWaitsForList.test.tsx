@@ -118,6 +118,13 @@ describe('PurchaseWaitsForList', () => {
     expect(screen.getByRole('heading', { level: 2, name: /^Waits for/ })).toBeInTheDocument();
   });
 
+  it('explains "Waits for" with an info button beside the heading (#2258)', () => {
+    renderList();
+    const heading = screen.getByRole('heading', { level: 2 });
+    const button = screen.getByRole('button', { name: 'Explain “Waits for”' });
+    expect(heading).not.toContainElement(button);
+  });
+
   it('says the purchase waits for nothing when there are no dependencies', () => {
     renderList(makePurchasePage());
     expect(screen.getByText("This purchase doesn't wait for a task or milestone.")).toBeVisible();

@@ -945,6 +945,36 @@ describe('ReportInvoiceList', () => {
       expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
     });
 
+    it('underlines the Allocated column header of the expansion with its definition (#2258)', async () => {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
+      const { container } = await renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      fireEvent.click(findExpandButton(container, 'inv-1'));
+      const term = (await screen.findAllByText('sourceReports.expand.allocatedColumnHeader')).find(
+        (el) => el.className.includes('term'),
+      );
+      expect(term).toBeDefined();
+      expect(term!.closest('th')).not.toBeNull();
+      expect(
+        screen
+          .getAllByRole('tooltip')
+          .some(
+            (tip) => tip.textContent === 'The cost of the cost lines a funding source pays for.',
+          ),
+      ).toBe(true);
+    });
+
     it('aria-expanded starts false, and the expansion panel is not rendered before clicking', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),

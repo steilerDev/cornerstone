@@ -202,7 +202,7 @@ describe('SourceBudgetLinePanel', () => {
   describe('states', () => {
     it('shows a labelled skeleton region while loading', () => {
       renderPanel({ isLoading: true });
-      expect(screen.getByRole('region', { name: 'Loading budget lines…' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Loading lines…' })).toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).toBeNull();
     });
 
@@ -215,7 +215,7 @@ describe('SourceBudgetLinePanel', () => {
 
     it.each([null, makeResponse()])('shows the empty state for %j', (value) => {
       renderPanel({ data: value });
-      expect(screen.getByText('No budget lines assigned')).toBeInTheDocument();
+      expect(screen.getByText('No cost lines use this funding source')).toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).toBeNull();
     });
   });
@@ -224,7 +224,7 @@ describe('SourceBudgetLinePanel', () => {
     it('is one region named for the source with ONE tree: area h2, item h3 with the kind word', () => {
       renderPanel({ data: data() });
 
-      const region = screen.getByRole('region', { name: 'Budget lines for Home Loan' });
+      const region = screen.getByRole('region', { name: 'Cost lines that Home Loan pays for' });
       expect(region).toHaveAttribute('id', 'source-lines-src-1');
       expect(
         within(region)
@@ -410,7 +410,7 @@ describe('SourceBudgetLinePanel', () => {
       fireEvent.click(screen.getByTestId('source-lines-src-1-move'));
       expect(onMoveLines).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId('source-lines-src-1-move')).toHaveTextContent(
-        'Move to another source',
+        'Move to another funding source',
       );
     });
 

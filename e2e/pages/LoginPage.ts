@@ -23,7 +23,7 @@ export class LoginPage {
     this.emailInput = page.getByLabel('Email');
     this.passwordInput = page.getByLabel('Password');
     this.signInButton = page.getByRole('button', { name: /Sign In|Signing In/ });
-    this.ssoButton = page.getByRole('button', { name: 'Login with SSO' });
+    this.ssoButton = page.getByRole('button', { name: 'Sign in with single sign-on' });
     this.errorBanner = page.locator('[role="alert"]').first();
     this.divider = page.getByText('or', { exact: true });
   }

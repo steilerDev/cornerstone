@@ -382,6 +382,9 @@ export function AttentionRowView({
             state={originState}
             className={styles.actionLink}
             onNavigate={onNavigate}
+            {...(action === 'split'
+              ? { title: t(I18N_UNION_KEYS.termHintDefinition.key('split')) }
+              : {})}
             data-testid={key}
           >
             {actionLabel}
@@ -462,7 +465,7 @@ export function AttentionRowView({
           <button
             type="button"
             className={sharedStyles.btnText}
-            title={t('attention.notNowHint')}
+            title={t(I18N_UNION_KEYS.termHintDefinition.key('notNow'))}
             aria-describedby={hintId}
             aria-disabled={busy ? 'true' : undefined}
             onClick={() => void handleNotNow()}
@@ -471,7 +474,7 @@ export function AttentionRowView({
             {t('attention.notNow')}
           </button>
           <span id={hintId} hidden>
-            {t('attention.notNowHint')}
+            {t(I18N_UNION_KEYS.termHintDefinition.key('notNow'))}
           </span>
         </>
       )}

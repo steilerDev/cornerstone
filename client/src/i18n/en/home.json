@@ -70,8 +70,8 @@
     "range": "Range {{from}} to {{to}}",
     "stillToPay": {
       "label": "Still to pay",
-      "count_one": "{{count}} open invoice",
-      "count_other": "{{count}} open invoices"
+      "count_one": "{{count}} invoice is still to pay",
+      "count_other": "{{count}} invoices are still to pay"
     },
     "progress": {
       "label": "Progress",
@@ -104,7 +104,7 @@
       "funding": "Add your first funding source",
       "companies": "Add your first companies",
       "tasks": "Plan your first tasks",
-      "household": "Invite your household",
+      "household": "Invite your household members",
       "backups": "Check backups",
       "firstLog": "Log your first day on site"
     },

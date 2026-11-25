@@ -296,7 +296,7 @@ describe('UserManagementPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('shows "Local" for a local account without an OIDC link', async () => {
+    it('shows "Password" for a local account without an OIDC link', async () => {
       enableAuthColumn();
       mockListUsers.mockResolvedValueOnce({
         users: [makeUser({ authProvider: 'local', oidcLinked: false })],
@@ -305,12 +305,12 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Local').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Password').length).toBeGreaterThan(0);
       });
-      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
+      expect(screen.queryByText('Password and single sign-on')).not.toBeInTheDocument();
     });
 
-    it('shows "Local + OIDC" for a local account linked to OIDC', async () => {
+    it('shows "Password and single sign-on" for a local account linked to OIDC', async () => {
       enableAuthColumn();
       mockListUsers.mockResolvedValueOnce({
         users: [makeUser({ authProvider: 'local', oidcLinked: true })],
@@ -319,11 +319,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Local + OIDC').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Password and single sign-on').length).toBeGreaterThan(0);
       });
     });
 
-    it('shows "OIDC" for an OIDC-origin account', async () => {
+    it('shows "Single sign-on" for an OIDC-origin account', async () => {
       enableAuthColumn();
       mockListUsers.mockResolvedValueOnce({
         users: [makeUser({ authProvider: 'oidc', oidcLinked: true })],
@@ -332,9 +332,9 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('OIDC').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Single sign-on').length).toBeGreaterThan(0);
       });
-      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
+      expect(screen.queryByText('Password and single sign-on')).not.toBeInTheDocument();
     });
   });
 

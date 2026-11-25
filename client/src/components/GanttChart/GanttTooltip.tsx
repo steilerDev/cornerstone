@@ -2,6 +2,7 @@ import { routeUrl } from '@cornerstone/shared';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { WorkItemStatus, DependencyType, HouseholdItemStatus } from '@cornerstone/shared';
 import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
@@ -414,9 +415,9 @@ function WorkItemTooltipContent({
             to={routeUrl('workItem', { id: data.workItemId })}
             state={originState}
             className={styles.viewItemLink}
-            aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
+            aria-label={`${t(I18N_UNION_KEYS.scheduleOpenSubject.key('task'))} ${data.title}`}
           >
-            {t('gantt.tooltip.navigation.viewItem')}
+            {t(I18N_UNION_KEYS.scheduleOpenSubject.key('task'))}
           </Link>
         </>
       )}
@@ -584,9 +585,9 @@ function MilestoneTooltipContent({
             type="button"
             className={styles.viewItemLink}
             onClick={() => onMilestoneNavigate(data.milestoneId!)}
-            aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
+            aria-label={`${t(I18N_UNION_KEYS.scheduleOpenSubject.key('milestone'))} ${data.title}`}
           >
-            {t('gantt.tooltip.navigation.viewItem')}
+            {t(I18N_UNION_KEYS.scheduleOpenSubject.key('milestone'))}
           </button>
         </>
       )}
@@ -710,7 +711,7 @@ function HouseholdItemTooltipContent({
             className={styles.viewItemButton}
             onClick={() => onNavigate(data.householdItemId!)}
           >
-            {t('gantt.tooltip.navigation.viewItem')}
+            {t(I18N_UNION_KEYS.scheduleOpenSubject.key('purchase'))}
           </button>
         </>
       )}

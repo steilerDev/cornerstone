@@ -440,9 +440,9 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.queryAllByText(/Analyzing/i).length).toBeGreaterThan(0);
       });
 
-      // The "Create Invoice & Itemize" button must not be visible yet
+      // The "Create invoice and split" button must not be visible yet
       expect(
-        screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
+        screen.queryByRole('button', { name: 'Create invoice and split' }),
       ).not.toBeInTheDocument();
     });
   });
@@ -450,7 +450,7 @@ describe('PaperlessInvoiceReviewPage', () => {
   // ─── 2. Ready state — vendor pre-fill + SuggestionBadge ─────────────────────
 
   describe('ready state — vendor pre-fill', () => {
-    it('shows cancel and "Create Invoice & Itemize" buttons when ready', async () => {
+    it('shows cancel and "Create invoice and split" buttons when ready', async () => {
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ suggestedVendorId: null }));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
@@ -473,7 +473,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The create button must be present (disabled when vendorId is empty)
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
       expect(createBtn).toBeInTheDocument();
     });
 
@@ -570,7 +570,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // Without a vendor the button must NOT be disabled (only disabled when saving)
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       // The component disables the button via: disabled={pageStatus === 'saving'}
       // NOT via: disabled={!vendorId} — vendor validation is inside handleSave now
@@ -588,7 +588,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       // Button is NOT disabled without a vendor (only disabled when saving).
       // Vendor validation fires inside handleSave and renders an inline field error via
@@ -629,7 +629,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       expect(createBtn).not.toBeDisabled();
       await act(async () => {
@@ -675,7 +675,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       expect(createBtn).not.toBeDisabled();
       await act(async () => {
@@ -708,7 +708,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       expect(createBtn).not.toBeDisabled();
       await act(async () => {
@@ -970,7 +970,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: 'Back to Invoices' })).toBeInTheDocument();
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         expect(
-          screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
+          screen.queryByRole('button', { name: 'Create invoice and split' }),
         ).not.toBeInTheDocument();
         expect(mockGetPaperlessDocument).not.toHaveBeenCalled();
         expect(mockPreviewAutoItemize).not.toHaveBeenCalled();
@@ -1005,7 +1005,7 @@ describe('PaperlessInvoiceReviewPage', () => {
   // ─── 12. onLineCreated callback — auto-created badge ───────────────────────
 
   // ─── 13. Silent failure fix — vendor field error (Story #1703/#1704) ────────
-  // QA Spec scenario 10: clicking "Create Invoice & Itemize" with no vendor renders
+  // QA Spec scenario 10: clicking "Create invoice and split" with no vendor renders
   // a visible FormError with variant="field" and does NOT navigate.
 
   describe('silent failure fix — vendor field error on save with no vendor', () => {
@@ -1030,7 +1030,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The Create Invoice button is not disabled when no vendor (only disabled when saving)
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       // Click even if it looks disabled — vendor validation fires in handleSave
       await act(async () => {
@@ -1071,7 +1071,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -1110,7 +1110,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       expect(createBtn).not.toBeDisabled();
       await act(async () => {
@@ -1124,7 +1124,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // Still the normal page (inline banner), not the fatal error screen
-      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Create invoice and split' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Back to Invoices/i })).not.toBeInTheDocument();
     });
 
@@ -1142,7 +1142,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       renderPage();
 
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
       await waitFor(() => expect(createBtn).not.toBeDisabled());
       await act(async () => {
         fireEvent.click(createBtn);
@@ -1151,7 +1151,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
       });
-      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Create invoice and split' })).toBeInTheDocument();
     });
   });
 
@@ -1263,7 +1263,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       // The Create Invoice button should be clickable (not disabled) even without a vendor.
       // disabled is only set when pageStatus === 'saving'.
-      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       // Button must NOT have the disabled attribute
       expect(createBtn).not.toBeDisabled();
@@ -1347,7 +1347,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       mockReady();
       renderRouted();
 
-      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await screen.findByRole('button', { name: 'Create invoice and split' });
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
       expect(screen.getByRole('heading', { level: 1, name: 'New invoice' })).toBeInTheDocument();
       const note = screen.getByText(/^Extraction complete/);
@@ -1381,7 +1381,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         url: '/budget/invoices/new/paperless?documentId=42',
         state: { origin: { to: '/budget/invoices?status=pending' } },
       });
-      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await screen.findByRole('button', { name: 'Create invoice and split' });
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
@@ -1393,7 +1393,7 @@ describe('PaperlessInvoiceReviewPage', () => {
     it('Cancel without an origin replaces history with the Invoices list', async () => {
       mockReady();
       const log = renderRouted();
-      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await screen.findByRole('button', { name: 'Create invoice and split' });
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
@@ -1409,7 +1409,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         url: '/budget/invoices/new/paperless?documentId=42',
         state: { origin: { to: '/project/overview' }, documentId: 99 },
       });
-      const create = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const create = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       await act(async () => {
         fireEvent.click(create);
@@ -1424,7 +1424,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       mockReady();
       mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
       const log = renderRouted();
-      const create = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      const create = await screen.findByRole('button', { name: 'Create invoice and split' });
 
       await act(async () => {
         fireEvent.click(create);
@@ -1438,7 +1438,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       mockReady();
       const log = renderRouted();
 
-      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await screen.findByRole('button', { name: 'Create invoice and split' });
       expect(log.actions).toEqual([]);
     });
   });

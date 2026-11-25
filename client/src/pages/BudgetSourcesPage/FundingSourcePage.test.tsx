@@ -494,6 +494,18 @@ describe('FundingSourcePage', () => {
       }
     });
 
+    it('underlines Allocated, Submitted and Unallocated and no other label (#2258)', async () => {
+      renderPage();
+      await loaded();
+      const strip = within(screen.getByTestId('source-summary'));
+      for (const label of ['Allocated', 'Submitted', 'Unallocated']) {
+        expect(strip.getByText(label).className).toContain('term');
+      }
+      for (const label of ['Amount', 'Paid', 'Rate']) {
+        expect(strip.getByText(label).className).not.toContain('term');
+      }
+    });
+
     it('Paid and Submitted link to the Cost tab; Paid is the paid figure', async () => {
       const user = userEvent.setup();
       renderPage();
@@ -601,11 +613,24 @@ describe('FundingSourcePage', () => {
       await loaded();
 
       expect(screen.getByTestId('source-over-allocated')).toHaveTextContent(
-        'Over-allocated by €12,000.00. This source is used beyond its amount.',
+        'Over-allocated by €12,000.00. This funding source is used beyond its amount.',
       );
       expect(screen.getByTestId('budget-bar-overflow-note')).toHaveTextContent(
         'Over-allocated by €12,000.00',
       );
+    });
+
+    it('explains Over-allocated after the bar note (#2258)', async () => {
+      mockFetchBudgetSource.mockResolvedValue(
+        record({}, { allocated: 62000, unallocated: 0, overAllocated: 12000 }),
+      );
+      renderPage();
+      await loaded();
+      expect(
+        within(screen.getByTestId('budget-bar-overflow-note')).getByRole('button', {
+          name: 'Explain “Over-allocated”',
+        }),
+      ).toBeInTheDocument();
     });
 
     it('Move lines... selects the Cost tab, focuses the first checkbox and pre-selects nothing', async () => {
@@ -632,7 +657,7 @@ describe('FundingSourcePage', () => {
       const user = userEvent.setup();
       renderPage(`/budget/financing/sources/${ID}?tab=cost`);
       await loaded();
-      await screen.findByRole('region', { name: 'Budget lines for Loan Alpha' });
+      await screen.findByRole('region', { name: 'Cost lines that Loan Alpha pays for' });
       return user;
     }
 
@@ -648,7 +673,7 @@ describe('FundingSourcePage', () => {
       renderPage(`/budget/financing/sources/${ID}?tab=cost`);
       await loaded();
       await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
-      await screen.findByRole('region', { name: 'Budget lines for Loan Alpha' });
+      await screen.findByRole('region', { name: 'Cost lines that Loan Alpha pays for' });
       expect(mockFetchLines).toHaveBeenCalledTimes(2);
     });
 

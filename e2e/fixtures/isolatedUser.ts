@@ -93,6 +93,12 @@
  *    Resolution (AC2): `isolatedUserPerTest` at describe scope for the
  *    "Effective Amount" describe only.
  *
+ * 6. e2e/tests/i18n/first-open-language.spec.ts (#2258)
+ *    Key: `locale` (written by the app when the user menu switches language). Each scenario that
+ *    signs in creates its own member in its own browser context, so no shared row is touched; the
+ *    `users/me/preferences` string in the file is a `waitForResponse` predicate, not a write.
+ *    Resolution: a plain-function dedicated user (no `test.use()`, so no shard moves).
+ *
  * No audited spec needs the admin role, so no spec required the AC3 treatment.
  * `role: 'admin'` is supported below for any future case that does.
  *

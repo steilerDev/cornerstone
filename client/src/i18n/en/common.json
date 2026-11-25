@@ -55,7 +55,7 @@
   },
   "name": "Name",
   "noArea": "No Area",
-  "noAreaDescription": "No Area — show items without an area assignment",
+  "noAreaDescription": "No area — show everything without an area",
   "button": {
     "close": "Close",
     "save": "Save",
@@ -89,18 +89,11 @@
   "searching": "Searching...",
   "appName": "Cornerstone",
   "search": {
-    "placeholder": "Search items...",
-    "emptyHint": "Type to search items",
-    "noResults": "No matching items found",
-    "loadError": "Failed to load items",
-    "searchError": "Failed to search items"
-  },
-  "status": {
-    "notStarted": "Not Started",
-    "inProgress": "In Progress",
-    "completed": "Completed",
-    "onHold": "On Hold",
-    "cancelled": "Cancelled"
+    "placeholder": "Search…",
+    "emptyHint": "Type to search",
+    "noResults": "Nothing matches",
+    "loadError": "Couldn't load the list.",
+    "searchError": "Couldn't search. Try again."
   },
   "theme": {
     "light": "Light",
@@ -182,8 +175,8 @@
       "n5": "Payment due {{date}} ({{when}}).",
       "n6_one": "Open since {{date}} ({{count}} day), no due date.",
       "n6_other": "Open since {{date}} ({{count}} days), no due date.",
-      "n8_one": "{{count}} item ready to submit.",
-      "n8_other": "{{count}} items ready to submit.",
+      "n8_one": "{{count}} invoice or progress payment is ready to submit.",
+      "n8_other": "{{count}} invoices and progress payments are ready to submit.",
       "n9": "Offer due {{date}} ({{when}}).",
       "n9Passed": "Offer due date {{date}} has passed ({{when}}).",
       "n10Late_one": "{{status}}, {{count}} day late (delivery planned {{date}}).",
@@ -223,15 +216,14 @@
     "discardWaiting_other": "{{count}} photos still waiting to upload are deleted too.",
     "amountPrefix": "Amount:",
     "notNow": "Not now",
-    "notNowHint": "Hides this row for 7 days.",
     "notNowToast": "Hidden for 7 days.",
     "notNowFailed": "Couldn't hide this row.",
     "backOn": "Back on {{date}}",
     "showAgain": "Show again",
     "showAll": "Show all ({{count}})",
     "showFewer": "Show fewer",
-    "showingAll": "Showing all {{count}} items",
-    "showingFirst": "Showing the first {{count}} items",
+    "showingAll": "Showing all {{count}} rows",
+    "showingFirst": "Showing the first {{count}} rows",
     "catchUp": {
       "line_one": "{{count}} task is late",
       "line_other": "{{count}} tasks are late",
@@ -437,14 +429,10 @@
     "dismissAriaLabel": "Dismiss notification"
   },
   "actions": "Actions",
-  "assignmentPicker": {
-    "usersGroup": "Users",
-    "vendorsGroup": "Vendors"
-  },
   "dataTable": {
     "search": {
       "placeholder": "Search...",
-      "ariaLabel": "Search items"
+      "ariaLabel": "Search this list"
     },
     "filter": {
       "all": "All",
@@ -478,15 +466,15 @@
       "saveError": "Failed to save column settings"
     },
     "pagination": {
-      "showing": "Showing {{from}}–{{to}} of {{total}} items",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
       "page": "Page {{page}} of {{totalPages}}",
       "previous": "Previous",
       "next": "Next",
       "pageSize": "Per page"
     },
     "empty": {
-      "defaultMessage": "No items found",
-      "filteredMessage": "No items match the current filters"
+      "defaultMessage": "Nothing here yet",
+      "filteredMessage": "Nothing matches the current filters"
     },
     "loading": "Loading table data..."
   },
@@ -677,7 +665,7 @@
       "purchaseDependencies": "Purchases that no longer wait for it:",
       "costLines": "Cost lines deleted with it:",
       "invoiceLinks": "Invoice links removed with it:",
-      "subtasks": "Subtasks deleted with it:",
+      "subtasks": "Checklist items deleted with it:",
       "notes": "Notes deleted with it:",
       "taskDependencies": "Dependencies removed with it:",
       "milestoneLinks": "Milestones it no longer counts toward:",
@@ -770,9 +758,6 @@
     "newInvoice": "New invoice",
     "newDiaryEntry": "New diary entry",
     "newTask": "New task"
-  },
-  "statusHints": {
-    "submitted": "Paid or due, and included in a draw-down request to the bank"
   },
   "referenceList": {
     "new": "New",
@@ -894,5 +879,48 @@
   },
   "integrationsLink": {
     "label": "See Integrations"
+  },
+  "termHint": {
+    "explain": "Explain these terms",
+    "explainTerm": "Explain “{{term}}”",
+    "panelLabel": "What these terms mean",
+    "term": {
+      "late": "Late",
+      "heldUp": "Held up",
+      "waitsFor": "Waits for",
+      "holdsUp": "Holds up",
+      "critical": "Critical",
+      "notNow": "Not now",
+      "range": "Range",
+      "split": "Split",
+      "notYetSplit": "Not yet split",
+      "submitted": "Submitted",
+      "readyToSubmit": "Ready to submit",
+      "drawDownRequest": "Draw-down request",
+      "remainingOnOffer": "Remaining on offer",
+      "allocated": "Allocated",
+      "unallocated": "Unallocated",
+      "overAllocated": "Over-allocated",
+      "spot": "Spot"
+    },
+    "definition": {
+      "late": "A task or purchase past its planned date, or a milestone projected after its target.",
+      "heldUp": "A task waiting for a late task.",
+      "waitsFor": "The tasks or milestones this one cannot start before.",
+      "holdsUp": "Every unfinished task that moves if this one slips, milestone gates included.",
+      "critical": "On the chain of tasks that sets the end date: if it slips, the end date moves.",
+      "notNow": "Hides a row on Home for 7 days.",
+      "range": "The best and the worst case around a money figure.",
+      "split": "Divide an offer or invoice into cost lines.",
+      "notYetSplit": "The part of an offer or invoice not divided into cost lines yet.",
+      "submitted": "Paid or due, and included in a draw-down request to the bank.",
+      "readyToSubmit": "Paid or due amounts funded by a loan or credit line that no draw-down request includes yet.",
+      "drawDownRequest": "A bank report asking the lender to pay out against invoices.",
+      "remainingOnOffer": "An offer's amount minus the progress payments made against it.",
+      "allocated": "The cost of the cost lines a funding source pays for.",
+      "unallocated": "A funding source's amount minus what is allocated, when that is zero or more.",
+      "overAllocated": "What is allocated beyond a funding source's amount.",
+      "spot": "One area plus one orientation, seen over time in its photos."
+    }
   }
 }

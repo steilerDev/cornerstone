@@ -599,7 +599,7 @@ test.describe('Scenario 3 — Merge failure + Retry', () => {
 
       // ── First attempt fails: error card with Retry + Undo ────────────────
       await expect(autoItemizePage.mergeErrorRow).toBeVisible();
-      await expect(autoItemizePage.mergeErrorRow).toContainText("Couldn't merge these line items.");
+      await expect(autoItemizePage.mergeErrorRow).toContainText("Couldn't merge these lines.");
       await expect(autoItemizePage.mergeRetryButton).toBeVisible();
       await expect(autoItemizePage.mergeUndoButton).toBeVisible();
 

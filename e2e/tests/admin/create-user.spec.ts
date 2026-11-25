@@ -17,7 +17,7 @@ import { createSsoOnlyUserViaApi, deleteUserViaApi } from '../../fixtures/apiHel
 import { API, ROUTES } from '../../fixtures/testData.js';
 
 const PASSWORD = 'e2e-create-user-pw-123!';
-const PENDING_LABEL = 'OIDC (awaiting first sign-in)';
+const PENDING_LABEL = 'Single sign-on (awaiting first sign-in)';
 
 async function findUserId(page: Page, email: string): Promise<string | null> {
   const response = await page.request.get(`${API.users}?q=${encodeURIComponent(email)}`);
@@ -123,8 +123,8 @@ test.describe('Admin creates users', () => {
       password: PASSWORD,
     });
 
-    // Then: dialog closed (createUser waits) and row shows "Local"
-    await expect(await users.getAuthProviderCell(localEmail)).toHaveText('Local');
+    // Then: dialog closed (createUser waits) and row shows "Password"
+    await expect(await users.getAuthProviderCell(localEmail)).toHaveText('Password');
 
     // And: the created user signs in through the login page from a fresh context (AC2)
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });

@@ -14,6 +14,7 @@ import shared from '../../styles/shared.module.css';
 import type { BreakdownEstimate, BreakdownView } from './breakdownSettings.js';
 import { cellValue } from './breakdownTree.js';
 import type { BreakdownColumn, BreakdownNode } from './breakdownTree.js';
+import { TermHint } from '../Tooltip/TermHint.js';
 import styles from './CostBreakdownTable.module.css';
 
 /** Depth classes stop here; deeper rows share the last indent. */
@@ -68,7 +69,11 @@ export function BreakdownTableView({
         <span
           {...(node.label.userText ? userText(styles.nameText) : { className: styles.nameText })}
         >
-          {node.label.text}
+          {node.kind === 'notYetSplit' ? (
+            <TermHint term="notYetSplit">{node.label.text}</TermHint>
+          ) : (
+            node.label.text
+          )}
         </span>
         {line ? (
           <span className={styles.lineMeta}>

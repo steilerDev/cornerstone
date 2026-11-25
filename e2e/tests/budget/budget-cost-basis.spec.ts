@@ -139,11 +139,11 @@ test.describe('Payment chips (AC4, AC10 c)', { tag: '@responsive' }, () => {
 
     await overview.goto();
     await overview.waitForBreakdown();
-    await expect(overview.headline).not.toContainText('Whole project');
+    await expect(overview.headline).not.toContainText('Whole build');
 
     await overview.paymentChip('paid').click();
     await page.waitForURL((url) => url.searchParams.get('paymentStatus') === 'paid');
-    await expect(overview.headline).toContainText('Whole project');
+    await expect(overview.headline).toContainText('Whole build');
     await expect(overview.leftToSpendFigure).toHaveText(euro(7200));
   });
 

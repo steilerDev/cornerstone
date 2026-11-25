@@ -153,19 +153,19 @@ describe('AutoItemizeLines grid wiring', () => {
 describe('empty state and funding note', () => {
   it('says nothing was extracted while only the blank row exists', () => {
     setup(makeState({ rows: [row('a')] }));
-    expect(screen.getByText('No line items extracted')).toBeInTheDocument();
+    expect(screen.getByText('No lines found')).toBeInTheDocument();
   });
 
   it('hides the empty message once a row has content', () => {
     setup(makeState());
-    expect(screen.queryByText('No line items extracted')).not.toBeInTheDocument();
+    expect(screen.queryByText('No lines found')).not.toBeInTheDocument();
   });
 
   it('notes the discretionary funding source when a new line uses it', () => {
     setup(
       makeState({ rows: [row('a', { description: 'Tile', budgetSourceId: 'disc' }), row('b')] }),
     );
-    expect(screen.getByRole('note')).toHaveTextContent(/Own funds source/);
+    expect(screen.getByRole('note')).toHaveTextContent(/funded from Own funds/);
   });
 
   it('shows no note for other sources, linked rows or a missing discretionary source', () => {
@@ -223,8 +223,8 @@ describe('merge bar', () => {
     const { user } = setup(state);
     const merge = screen.getByTestId('auto-itemize-merge');
     expect(merge).toHaveAttribute('aria-disabled', 'true');
-    expect(merge).toHaveAccessibleName('Merge 1 selected line items');
-    expect(merge).toHaveAccessibleDescription('Select at least 2 items to merge');
+    expect(merge).toHaveAccessibleName('Merge 1 selected lines');
+    expect(merge).toHaveAccessibleDescription('Select at least 2 lines to merge');
     await user.click(merge);
     expect(state.onMergeSelected).not.toHaveBeenCalled();
   });

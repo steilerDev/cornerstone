@@ -36,7 +36,7 @@ export class ConfirmDialogControl {
     await this.dialog.waitFor({ state: 'visible' });
   }
 
-  /** A single count row by label fragment, e.g. consequence('Subtasks deleted with it'). */
+  /** A single count row by label fragment, e.g. consequence('Checklist items deleted with it'). */
   consequence(label: string | RegExp): Locator {
     return this.consequencesList.getByRole('listitem').filter({ hasText: label });
   }

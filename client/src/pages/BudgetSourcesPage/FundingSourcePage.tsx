@@ -239,6 +239,7 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
     onActivate: () => tabs.select('cost', { focusPanel: true }),
     label,
     value: formatCurrency(amount),
+    ...(factId === 'submitted' ? { termHint: 'submitted' as const } : {}),
     ...(factId === 'paid' ? { figureKind: 'paid' as const } : {}),
   });
 
@@ -253,6 +254,7 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
     id: 'allocated',
     kind: 'static',
     label: t('financing.figures.allocated'),
+    termHint: 'allocated',
     value: formatCurrency(money.allocated),
   });
   facts.push(costFact('paid', t('financing.figures.paid'), money.paid));
@@ -261,6 +263,7 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
     id: 'unallocated',
     kind: 'static',
     label: t('financing.figures.unallocated'),
+    termHint: 'unallocated',
     value: over ? (
       <span className={styles.danger}>{formatSignedCurrency(-money.overAllocated)}</span>
     ) : (
@@ -388,6 +391,7 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
                         })
                       : undefined
                   }
+                  overflowNoteHint="overAllocated"
                   height="md"
                   formatValue={formatCurrency}
                 />

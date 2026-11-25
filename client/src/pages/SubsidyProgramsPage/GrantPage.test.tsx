@@ -454,11 +454,11 @@ describe('GrantPage', () => {
       ],
       [
         { reductionType: 'fixed', reductionValue: 500, maximumAmount: 2000 },
-        'Expected is €500.00 per covered item, up to €2,000.00.',
+        'Expected is €500.00 per covered task or purchase, up to €2,000.00.',
       ],
       [
         { reductionType: 'fixed', reductionValue: 500, maximumAmount: null },
-        'Expected is €500.00 per covered item.',
+        'Expected is €500.00 per covered task or purchase.',
       ],
     ] as const)('%j', async (over, sentence) => {
       mockFetchGrant.mockResolvedValue(record(over as Partial<SubsidyProgram>));

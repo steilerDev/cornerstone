@@ -2157,9 +2157,9 @@ test.describe('Scenario 27 — Save without category on a create-new row shows v
       await autoItemizePage.saveButton.click();
 
       // ── Error message should appear ───────────────────────────────────────────
-      // t('autoItemize.categoryRequiredError') = "Please select a category for all included line items"
+      // t('autoItemize.categoryRequiredError') = "Choose a category for every included line"
       const errorBanner = page.locator('[role="alert"]').filter({
-        hasText: /Please select a category for all included line items/i,
+        hasText: /Choose a category for every included line/i,
       });
       await expect(errorBanner).toBeVisible();
 

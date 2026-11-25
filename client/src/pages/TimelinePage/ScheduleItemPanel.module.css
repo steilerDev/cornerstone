@@ -42,6 +42,12 @@
   color: var(--color-text-secondary);
 }
 
+.sectionHeadingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
 .line {
   margin: 0;
   font-size: var(--font-size-sm);

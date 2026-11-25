@@ -37,6 +37,22 @@
   margin-bottom: var(--spacing-4);
 }
 
+.useCaseItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.useCaseItem > .useCaseCard {
+  flex: 1;
+}
+
+.useCaseHint {
+  position: absolute;
+  top: var(--spacing-3);
+  right: var(--spacing-3);
+}
+
 .useCaseCard {
   display: flex;
   flex-direction: column;
