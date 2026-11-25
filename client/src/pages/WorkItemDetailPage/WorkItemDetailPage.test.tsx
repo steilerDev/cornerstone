@@ -5,7 +5,7 @@
  * shortcuts. The panels are covered per module; here they are stubs that expose their props.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -188,7 +188,7 @@ function Probe() {
   seen.search = location.search;
   seen.hash = location.hash;
   seen.state = location.state;
-  useEffect(() => {
+  useLayoutEffect(() => {
     seen.keys.push(location.key);
   }, [location.key]);
   return (
