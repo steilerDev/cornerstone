@@ -14,6 +14,7 @@ Use this for "what did the last release change in the docs". For current behavio
 - **Merge lines (#1797)**: documented in `auto-itemize.md` as a subsection before step 6. Still true.
 - **Diary default filter (#1782)**: default is Manual, not All (`diary/index.md`).
 - **PR #2041**: new `guides/budget/bank-reports.md` closed a total gap for the Bank Report Wizard. Subsidies page got multi-category, "No Category" and the five-status enum. `.env.example` gained AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW and VAT_RATE (all commented out).
+- **v2.18.1 (patch, PR #2183)**: security fix GHSA-xjh9-v7x6-24jw (@fastify/busboy) in RELEASE_SUMMARY.md; `quality-gates.md` clarifies that the trailer check applies only to Claude-trailered commits and skips human-authored and merge commits.
 - **#2235 (P4.3 cost lines)**: move rule, grid columns and invoice status words corrected to the rendered English. See [invoice-status-words](invoice-status-words.md).
 
 Lessons:
