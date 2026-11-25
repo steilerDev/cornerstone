@@ -35,7 +35,6 @@
 .searchInput {
   width: 100%;
   height: 36px;
-  min-height: var(--touch-target-min);
   padding: var(--spacing-2) var(--spacing-3);
   border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
@@ -714,6 +713,10 @@
 
 /* Responsive Design */
 @media (max-width: 767px) {
+  .searchInput {
+    min-height: var(--touch-target-min);
+  }
+
   .tableContainer {
     display: none;
   }
