@@ -615,16 +615,29 @@ test.describe('Funding source page: quick-create schema parity (#2255)', () => {
         name: `${testPrefix} E6c Zero`,
         totalAmount: 5000,
       });
+      let patchCount = 0;
+      page.on('request', (r) => {
+        if (
+          r.method() === 'PATCH' &&
+          new URL(r.url()).pathname === `${API.budgetSources}/${sourceId}`
+        )
+          patchCount++;
+      });
       await source.goto(sourceId);
       await source.openDetailsEdit();
       await source.amountInput.fill('0');
       await source.detailsSave.click();
       await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toBeVisible();
+      await expect(source.amountInput).toHaveValue('0');
+      expect(patchCount).toBe(0);
 
       // A sub-cent amount is refused with the same message and nothing is sent
       await source.amountInput.fill('0.001');
       await source.detailsSave.click();
       await expect(source.detailsCard.getByText('Enter an amount of at least 0.01.')).toBeVisible();
+      // The card stayed in edit mode and no PATCH was sent
+      await expect(source.amountInput).toHaveValue('0.001');
+      expect(patchCount).toBe(0);
       const stored = await page.request.get(`${API.budgetSources}/${sourceId}`);
       expect(
         ((await stored.json()) as { budgetSource: { totalAmount: number } }).budgetSource

@@ -93,9 +93,9 @@ describe('fundingSourceForm', () => {
       expect(min({ scope: 'edit', isDiscretionary: true })).toBe(0);
     });
 
-    it('the value messages resolve amountInvalid to the amountMinimum text', () => {
+    it('the value messages resolve amountMinimum to the amountMinimum text', () => {
       const m = renderHook(() => Form.useFundingSourceValueMessages()).result.current;
-      expect(m.amountInvalid).toBe('Enter an amount of at least 0.01.');
+      expect(m.amountMinimum).toBe('Enter an amount of at least 0.01.');
     });
 
     it('create scope has Status; edit scope does not', () => {
@@ -134,7 +134,7 @@ describe('fundingSourceForm', () => {
   describe('validateFundingSourceValues (AC2a)', () => {
     const messages = {
       nameRequired: 'N',
-      amountInvalid: 'POSITIVE',
+      amountMinimum: 'MINIMUM',
       amountNotNegative: 'NONNEG',
       interestInvalid: 'RATE',
     };
@@ -143,24 +143,24 @@ describe('fundingSourceForm', () => {
         .totalAmount;
 
     it('amount 0: error by default, none for Own funds', () => {
-      expect(run('0')).toBe('POSITIVE');
+      expect(run('0')).toBe('MINIMUM');
       expect(run('0', true)).toBeUndefined();
     });
 
     it('amounts below 0.01 are errors by default; 0.01 passes; Own funds accepts them', () => {
-      expect(run('0.001')).toBe('POSITIVE');
-      expect(run('0.009')).toBe('POSITIVE');
+      expect(run('0.001')).toBe('MINIMUM');
+      expect(run('0.009')).toBe('MINIMUM');
       expect(run('0.01')).toBeUndefined();
       expect(run('0.001', true)).toBeUndefined();
     });
 
-    it('amount -1: amountNotNegative for Own funds, amountInvalid otherwise', () => {
+    it('amount -1: amountNotNegative for Own funds, amountMinimum otherwise', () => {
       expect(run('-1', true)).toBe('NONNEG');
-      expect(run('-1')).toBe('POSITIVE');
+      expect(run('-1')).toBe('MINIMUM');
     });
 
     it('blank amount is an error in both modes, with each mode message', () => {
-      expect(run('')).toBe('POSITIVE');
+      expect(run('')).toBe('MINIMUM');
       expect(run('', true)).toBe('NONNEG');
     });
 
@@ -176,7 +176,7 @@ describe('fundingSourceForm', () => {
     it('works with no options and missing keys', () => {
       expect(Form.validateFundingSourceValues({}, messages)).toEqual({
         name: 'N',
-        totalAmount: 'POSITIVE',
+        totalAmount: 'MINIMUM',
       });
     });
   });

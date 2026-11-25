@@ -261,6 +261,10 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
   test('F6b: the types exclude Own funds and validation names the fields', async ({ page }) => {
     const financing = new FinancingPage(page);
     const dialog = new FinancingFormDialog(page, 'source');
+    let postCount = 0;
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && new URL(r.url()).pathname === API.budgetSources) postCount++;
+    });
     await financing.goto();
     await financing.addSource.click();
     await dialog.waitForOpen();
@@ -291,10 +295,15 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
     await dialog.save();
     await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount of at least 0.01.');
 
+    await dialog.amount.fill('0.001');
+    await dialog.save();
+    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount of at least 0.01.');
     await dialog.amount.fill('1000');
     await dialog.interestRate.fill('150');
     await dialog.save();
     await expect(dialog.fieldError('interestRate')).toHaveText('Enter a rate between 0 and 100.');
+    // The client rule refused every attempt: no create request was sent
+    expect(postCount).toBe(0);
     await dialog.cancel();
   });
 

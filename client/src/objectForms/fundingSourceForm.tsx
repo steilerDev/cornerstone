@@ -34,7 +34,7 @@ export interface FundingSourceFormOptions {
 
 export interface FundingSourceValueMessages {
   readonly nameRequired: string;
-  readonly amountInvalid: string;
+  readonly amountMinimum: string;
   readonly amountNotNegative: string;
   readonly interestInvalid: string;
 }
@@ -44,7 +44,7 @@ export function useFundingSourceValueMessages(): FundingSourceValueMessages {
   const { t } = useTranslation('budget');
   return {
     nameRequired: t('financing.errors.nameRequired'),
-    amountInvalid: t('financing.errors.amountMinimum'),
+    amountMinimum: t('financing.errors.amountMinimum'),
     amountNotNegative: t('financing.errors.amountNotNegative'),
     interestInvalid: t('financing.errors.interestInvalid'),
   };
@@ -72,7 +72,7 @@ export function validateFundingSourceValues(
     Number.isFinite(amount) &&
     (own ? amount >= 0 : amount >= AMOUNT_MIN)
   )) {
-    errors.totalAmount = own ? messages.amountNotNegative : messages.amountInvalid;
+    errors.totalAmount = own ? messages.amountNotNegative : messages.amountMinimum;
   }
   const rawRate = text(values.interestRate).trim();
   if (rawRate !== '') {

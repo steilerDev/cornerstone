@@ -412,7 +412,7 @@ describe('FundingSourceDetailsSection on the schema (#2255)', () => {
     expect(body).not.toHaveProperty('sourceType');
   });
 
-  it('a loan with amount 0 shows the amountInvalid message', async () => {
+  it('a loan with amount 0 shows the amountMinimum message', async () => {
     const user = userEvent.setup();
     render(<Section source={source()} onSaved={onSaved} />);
     await open(user);

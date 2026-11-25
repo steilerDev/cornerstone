@@ -944,6 +944,33 @@ describe('Budget Source Service', () => {
       }).toThrow('Total amount must be a positive number');
     });
 
+    it('throws ValidationError for a sub-cent totalAmount (0.001)', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'Sub Cent',
+        sourceType: 'bank_loan',
+        totalAmount: 0.001,
+      };
+
+      expect(() => {
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      }).toThrow(ValidationError);
+      expect(() => {
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      }).toThrow('Total amount must be a positive number');
+    });
+
+    it('accepts the boundary totalAmount of 0.01', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'One Cent',
+        sourceType: 'bank_loan',
+        totalAmount: 0.01,
+      };
+
+      const created = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+
+      expect(created.totalAmount).toBe(0.01);
+    });
+
     it('throws ValidationError for negative totalAmount', () => {
       const data: CreateBudgetSourceRequest = {
         name: 'Negative Amount',

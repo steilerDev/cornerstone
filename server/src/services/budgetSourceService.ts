@@ -654,7 +654,7 @@ export function createBudgetSource(
   }
 
   // Validate totalAmount
-  if (typeof data.totalAmount !== 'number' || data.totalAmount <= 0) {
+  if (typeof data.totalAmount !== 'number' || data.totalAmount < 0.01) {
     throw new ValidationError('Total amount must be a positive number');
   }
 
