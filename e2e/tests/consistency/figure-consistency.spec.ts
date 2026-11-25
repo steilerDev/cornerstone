@@ -4,7 +4,8 @@
  * server's answer; a figure with one name has one number everywhere.
  *
  * Real data: the shared E2E database is written by other specs, so shared project figures are
- * compared with the read-API / read-page / read-API retry (as home.spec H8d does); exact checks use
+ * compared page-first, then the API, and must agree on two consecutive passes (a sibling worker's
+ * create-then-delete cannot pass); exact checks use
  * records this test creates (a company with an invoice, a chain of three tasks). Synthetic names
  * and invented amounts only.
  *
@@ -153,33 +154,42 @@ test.describe('Figure consistency', () => {
       (page.viewportSize()?.width ?? 1440) < 1024,
       'desktop only (FC4 covers all viewports)',
     );
-    const mismatches = async (): Promise<{ stable: boolean; problems: string[] }> => {
-      const before = await readMoney(page);
-      const expected = expectedFigures(before);
-      const problems: string[] = [];
+    test.slow();
+    // Page reads first, API read last: a sibling worker's write between them shows up as a mismatch
+    const pass = async (): Promise<string[]> => {
+      const reads: Array<{ surfaceId: string; figure: ProjectFigure; actual: number | null }> = [];
       for (const surface of PROJECT_SURFACES) {
         await surface.open(page);
         if (surface.isAvailable && !(await surface.isAvailable(page))) continue;
         for (const [figure, reader] of Object.entries(surface.read) as Array<
           [ProjectFigure, (p: Page) => Promise<number | null>]
         >) {
-          const actual = await reader(page);
-          if (actual !== expected[figure]) {
-            problems.push(`${surface.id} ${figure}: page ${actual}, API ${expected[figure]}`);
-          }
+          reads.push({ surfaceId: surface.id, figure, actual: await reader(page) });
         }
       }
-      const after = await readMoney(page);
-      return { stable: JSON.stringify(before) === JSON.stringify(after), problems };
+      const expected = expectedFigures(await readMoney(page));
+      return reads
+        .filter(({ figure, actual }) => actual !== expected[figure])
+        .map(
+          ({ surfaceId, figure, actual }) =>
+            `${surfaceId} ${figure}: page ${actual}, API ${expected[figure]}`,
+        );
     };
-    let last: { stable: boolean; problems: string[] } = { stable: false, problems: ['not run'] };
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      last = await mismatches();
-      // Another worker wrote while the pages were read: the comparison proves nothing, retry
-      if (last.stable) break;
+    const MAX_PASSES = 8;
+    const REQUIRED_CLEAN = 2;
+    let clean = 0;
+    let lastDirty: string[] = [];
+    for (let attempt = 0; attempt < MAX_PASSES && clean < REQUIRED_CLEAN; attempt += 1) {
+      const problems = await pass();
+      if (problems.length > 0) lastDirty = problems;
+      // A sibling worker can write between a page read and the API read: retry, but only
+      // two consecutive clean passes prove the pages show the API's answer
+      clean = problems.length === 0 ? clean + 1 : 0;
     }
-    expect(last.stable, 'the money figures kept changing under the read').toBe(true);
-    expect(last.problems).toEqual([]);
+    expect(
+      clean,
+      `no ${REQUIRED_CLEAN} consecutive clean passes in ${MAX_PASSES}; last problems: ${lastDirty.join('; ') || 'none'}`,
+    ).toBe(REQUIRED_CLEAN);
   });
 
   test('FC2: a company Still to pay is the same on both markers, the list and the API; Paid too (AC1)', async ({
