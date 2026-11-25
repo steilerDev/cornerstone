@@ -91,3 +91,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Quick-create schema specs](quick-create-schema-specs.md) — hooks fetch on mount, name=DOM id, card vs schema keys, Add another drops errors, App provider nesting hides inline create, provider create in cards
 - [Keyboard registry specs](keyboard-registry-specs.md) — overlay in 5 render sites, reserved sample keys in tests, `route` not `to`, doc-only rows, derived single-key rule, kbd aria-label
 - [Vocabulary pass specs](vocabulary-pass-specs.md) — canon-stripped plural-aware ban scans, money-label script on rewordings, Trans tags rise, labelledby hint leaks, helper-file components
+- [Dead-key cleanup specs](dead-key-specs.md) — naive scan overcounts 7x: union registry eval, DB translation_key, context/plural suffixes, t( heads; moneyLabels drop

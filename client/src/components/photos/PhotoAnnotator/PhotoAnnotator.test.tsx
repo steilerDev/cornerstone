@@ -881,9 +881,8 @@ describe('PhotoAnnotator', () => {
     expect(getLiveRegion().textContent).toMatch(/redo performed/i);
   });
 
-  it('announces shapeSelected when SELECT_SHAPE dispatches a non-null shape id', async () => {
-    // The live region is initially empty and updates via keydown handlers.
-    // Full shape-selection announcement is covered by E2E tests.
+  it('live region starts empty and announces undoPerformed after Meta+Z', async () => {
+    // Live region is empty on mount and updates after an undo shortcut.
     await renderAnnotator({ width: 800, height: 600 });
 
     const liveRegion = getLiveRegion();

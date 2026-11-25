@@ -1,6 +1,5 @@
 {
   "browser": {
-    "title": "Document Browser",
     "checkingConnection": "Checking Paperless-ngx connection...",
     "notConfigured": "Paperless is not connected",
     "notConfiguredMessage": "Documents come from Paperless, which is not connected right now.",
@@ -11,7 +10,6 @@
       "loadingMore": "Loading more documents…",
       "loadingMoreAriaLabel": "Loading more documents",
       "loadMoreButton": "Load more",
-      "retryButton": "Retry",
       "errorMessage": "Failed to load more documents.",
       "endOfList": "You've reached the end — no more documents to load.",
       "initialLoadAnnouncement_one": "{{count}} document loaded",
@@ -33,11 +31,7 @@
     "documentsCount": "{{count}} documents",
     "filterBannerLabel": "Active document filter",
     "showingOnlyTag": "Showing only documents tagged",
-    "documentsGridLabel": "Documents",
-    "correspondentLabel": "Correspondent",
-    "correspondentPlaceholder": "Filter by correspondent…",
-    "correspondentEmptyHint": "Type to search correspondents",
-    "correspondentNoResults": "No correspondents found"
+    "documentsGridLabel": "Documents"
   },
   "panel": {
     "title": "Documents ({{count}})",

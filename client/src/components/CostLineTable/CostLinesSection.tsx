@@ -427,7 +427,7 @@ function CostLinesView({
       <div className={styles.failure}>
         <FormError message={error} />
         <button type="button" className={styles.secondary} onClick={() => void onRetry()}>
-          {t('section.retry')}
+          {t('common:button.retry')}
         </button>
       </div>
     );

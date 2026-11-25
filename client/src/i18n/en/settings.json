@@ -37,10 +37,7 @@
     "theme": "Theme"
   },
   "userManagement": {
-    "loading": "Loading users...",
-    "errorTitle": "Error",
     "loadError": "Failed to load users. Please try again.",
-    "searchPlaceholder": "Search by name or email...",
     "emptyState": "No users found.",
     "emptyStateSearch": "No users found matching your search.",
     "tableHeaders": {
@@ -49,7 +46,6 @@
       "role": "Role",
       "authProvider": "Auth Provider",
       "status": "Status",
-      "actions": "Actions",
       "memberSince": "Member Since"
     },
     "roles": {
@@ -108,7 +104,6 @@
     },
     "deactivateModal": {
       "title": "Deactivate {{name}}?",
-      "closeAriaLabel": "Close",
       "message": "Their sessions are terminated immediately.",
       "confirm": "Deactivate",
       "confirming": "Deactivating...",
@@ -323,9 +318,7 @@
     "rename": "Rename",
     "renameLabel": "New name for {{name}}",
     "renameHint": "Renaming replaces the built-in translation.",
-    "save": "Save",
     "saving": "Saving…",
-    "cancel": "Cancel",
     "mergeDuplicates": "Merge duplicates…",
     "duplicateName": "A trade with this name exists already.",
     "nameRequired": "Enter a name.",

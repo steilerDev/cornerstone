@@ -32,8 +32,7 @@
     "empty": "All caught up.",
     "left_one": "{{count}} late task left",
     "left_other": "{{count}} late tasks left",
-    "none": "No late tasks left",
-    "close": "Close"
+    "none": "No late tasks left"
   },
   "week": {
     "kind": {

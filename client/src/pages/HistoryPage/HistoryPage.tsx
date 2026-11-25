@@ -386,7 +386,7 @@ export default function HistoryPage() {
             loadingLabel={t('infiniteScroll.loadingMore')}
             loadingAriaLabel={t('infiniteScroll.loadingMore')}
             loadMoreLabel={t('infiniteScroll.loadMore')}
-            retryLabel={t('infiniteScroll.retry')}
+            retryLabel={t('common:button.retry')}
             errorMessage={t('infiniteScroll.loadMoreError')}
             endOfListMessage={t('infiniteScroll.endOfList')}
             sentinelRef={sentinelRef}

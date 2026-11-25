@@ -95,9 +95,7 @@
     "annotateWait": "Warte, bis der Upload abgeschlossen ist.",
     "removePhoto": "Foto entfernen",
     "removed": "Foto entfernt.",
-    "done": "Fertig",
-    "area": "Bereich",
-    "orientation": "Ausrichtung"
+    "done": "Fertig"
   },
   "tags": {
     "area": "Bereich",
@@ -142,7 +140,6 @@
     "flashOff": "Blitz aus.",
     "usingFront": "Frontkamera wird verwendet.",
     "usingBack": "Rückkamera wird verwendet.",
-    "previewLabel": "Neueste Fotos",
     "review": "Prüfen ({{n}})",
     "close": "Schließen",
     "saving": "Fotos werden gespeichert…",

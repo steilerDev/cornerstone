@@ -286,7 +286,7 @@ export function useAutoItemizeLines({
                     text: tRef.current('autoItemize.mergeErrorMessage'),
                     actions: [
                       { id: 'undo', label: tRef.current('autoItemize.mergeUndoButton') },
-                      { id: 'retry', label: tRef.current('autoItemize.mergeRetryButton') },
+                      { id: 'retry', label: tRef.current('common:button.retry') },
                     ],
                   },
                 }

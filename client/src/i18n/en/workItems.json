@@ -90,14 +90,12 @@
       "descriptionPlaceholder": "Describe the work to be done",
       "status": "Status",
       "assignedTo": "Who",
-      "unassigned": "Unassigned",
       "area": "Area",
       "durationDays": "Duration (days)",
       "durationError": "Duration must be 0 or more days.",
       "startAfter": "Not before",
       "startBefore": "Start by",
       "constraintsError": "Start by can't be before Not before.",
-      "tags": "Tags",
       "dependencies": "Waits for",
       "plannedCost": "Planned cost",
       "plannedCostHint": "Creates the first cost line. Add more on the task page."
@@ -130,7 +128,6 @@
       "grantsMore_one": "{{name}} and {{count}} more",
       "grantsMore_other": "{{name}} and {{count}} more"
     },
-    "retry": "Retry",
     "loading": "Loading the task…",
     "overview": {
       "details": "Details",

@@ -79,7 +79,7 @@ describe('SetupPage', () => {
   it('shows the loading text while checking whether setup is required', () => {
     mockGetAuthMe.mockReturnValue(new Promise(() => {}));
     renderPage();
-    expect(screen.getByText(enAuth.setup.loading)).toBeInTheDocument();
+    expect(screen.getByText(enCommon.loading)).toBeInTheDocument();
   });
 
   it('has exactly one level-1 heading while checking, so the page is never headingless', () => {
@@ -132,7 +132,7 @@ describe('SetupPage', () => {
   it('shows the loading copy, never the form, while the session check is pending', () => {
     mockGetAuthMe.mockReturnValue(new Promise(() => {}));
     renderPage();
-    expect(screen.getByText(enAuth.setup.loading)).toBeInTheDocument();
+    expect(screen.getByText(enCommon.loading)).toBeInTheDocument();
     expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
   });
 

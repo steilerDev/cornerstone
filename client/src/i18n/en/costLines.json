@@ -17,7 +17,6 @@
       "invoice": "Split this invoice into cost lines on tasks and purchases."
     },
     "loadError": "The cost lines could not be loaded.",
-    "retry": "Retry",
     "saved": "Saved.",
     "savedCount_one": "{{count}} line saved.",
     "savedCount_other": "{{count}} lines saved.",
@@ -159,7 +158,6 @@
     "removeLastReason": "A grid needs at least one row.",
     "enteredToggle": "{{value}}, entered as, row {{row}}",
     "scrollRegion": "Lines table, scrolls sideways",
-    "rowActions": "Actions for row {{row}}",
     "rowRemoved": "Row {{row}} removed.",
     "status_one": "{{count}} line",
     "status_other": "{{count}} lines",
@@ -178,7 +176,6 @@
     "discardLead": "The lines you added are not saved.",
     "saving": "Saving…",
     "optionsLoading": "Funding sources are still loading.",
-    "orphanHint": "Lines without a task or purchase are saved as not assigned.",
     "existingLabel": "Links {{description}}",
     "clearExisting": "Use a new line instead"
   },

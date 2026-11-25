@@ -146,7 +146,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 60,
+      "count": 59,
       "values": [
         "(refund)",
         "add refund",
@@ -180,7 +180,6 @@
         "left to spend",
         "mark paid",
         "net",
-        "no more tags available",
         "not invoiced",
         "not yet paid",
         "on budget",

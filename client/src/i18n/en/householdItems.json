@@ -138,7 +138,6 @@
   "purchasePage": {
     "typeLabel": "Purchase",
     "loading": "Loading the purchase…",
-    "retry": "Retry",
     "deleted": "Purchase deleted.",
     "deleteError": "Couldn't delete the purchase.",
     "strip": {

@@ -3,7 +3,6 @@
     "loading": "Loading Money",
     "error": "Error",
     "errorMessage": "Money could not be loaded. Please try again.",
-    "retry": "Retry",
     "bankOverview": "Budget overview for the bank",
     "headline": {
       "label": "Left to spend",
@@ -100,29 +99,22 @@
   },
   "sources": {
     "lines": {
-      "expand": "Show lines",
-      "collapse": "Hide lines",
       "loadingLabel": "Loading lines…",
       "empty": "No cost lines use this funding source",
       "emptyDescription": "Cost lines of tasks and purchases appear here when this funding source pays for them.",
       "unassignedArea": "No Area",
-      "retry": "Retry",
       "areaLineCount_one": "{{count}} line",
       "areaLineCount_other": "{{count}} lines",
       "panelAriaLabel": "Cost lines that {{name}} pays for",
-      "categoryVendorSeparator": " · ",
       "confidence": {
         "own_estimate": "Own estimate",
         "professional_estimate": "Professional estimate",
         "quote": "Offer",
         "invoice": "Invoice"
       },
-      "invoiceLinked": "Invoiced",
       "invoiceStatus": {
         "none": "Not invoiced"
-      },
-      "typeColumnHeader": "Type",
-      "statusColumnHeader": "Status"
+      }
     },
     "budgetLines": {
       "move": {
@@ -150,8 +142,6 @@
     }
   },
   "invoices": {
-    "error": "Error",
-    "errorMessage": "Failed to load invoices. Please try again.",
     "list": {
       "new": "New invoice",
       "newOffer": "New offer",
@@ -265,7 +255,6 @@
   "invoiceDetail": {
     "loading": "Loading invoice...",
     "error": "Error",
-    "retry": "Retry",
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
     "buttons": {
       "convertToFinal": "Convert to final invoice"
@@ -434,7 +423,6 @@
     "loadError": "Failed to load invoice data. Please try again.",
     "saveError": "Failed to save auto-itemized invoice. Please try again.",
     "unexpectedResponse": "Unexpected response from LLM. Please try again.",
-    "retry": "Retry",
     "skipToForm": "Skip to form",
     "invoiceMetadata": "Invoice Metadata",
     "invoiceNumber": "Invoice Number",
@@ -463,9 +451,7 @@
     "pdfPreviewTitle": "Invoice PDF preview",
     "previewUnavailable": "PDF preview unavailable",
     "openInPaperless": "Open in Paperless ↗",
-    "save": "Save",
     "saving": "Saving...",
-    "cancel": "Cancel",
     "cancelConfirmBody": "You have unsaved changes. Are you sure you want to discard them?",
     "invalidDocumentId": "Invalid document ID",
     "vendor": "Company",
@@ -492,7 +478,6 @@
     "mergeAnnounceStart": "Merging {{count}} lines…",
     "mergeAnnounceSuccess": "Lines merged",
     "mergeErrorMessage": "Couldn't merge these lines.",
-    "mergeRetryButton": "Retry",
     "mergeUndoButton": "Restore original lines",
     "invoiceNumberPlaceholder": "e.g., INV-001",
     "notesPlaceholder": "Optional notes"
@@ -526,7 +511,6 @@
     },
     "discretionary": "Own funds",
     "selectAllInvoices": "Select all invoices ({{count}})",
-    "toggleInvoice": "Toggle invoice {{vendor}} #{{number}}",
     "unallocatedGroupTitle": "Not split to this funding source ({{count}})",
     "unallocatedExplained": "These invoices are not split to this funding source.",
     "emptyInvoices": "No invoices to include",
@@ -655,7 +639,6 @@
       "closingLabel": "Closing",
       "attachmentsNoteLabel": "Attachments note",
       "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
-      "attachmentsNoteAriaLabel": "Attachments note for {{vendor}}, {{invoiceNumber}}",
       "editedSuffix": " (edited)",
       "resetFieldAriaLabel": "Reset {{field}} to generated text",
       "maxLengthHint": "Maximum {{max}} characters.",
@@ -798,19 +781,6 @@
     "openHistory": "Open History"
   },
   "common": {
-    "loading": "Loading...",
-    "error": "Error",
-    "retry": "Retry",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "create": "Create",
-    "update": "Update",
-    "remove": "Remove",
-    "close": "Close",
-    "submit": "Submit",
     "required": "*"
   },
   "companies": {
@@ -915,7 +885,6 @@
       "empty": "No contact persons yet. Add the people you talk to at this company.",
       "noPhone": "No phone number",
       "nameRequired": "Enter a first or last name.",
-      "saveError": "The contact person could not be saved. Try again.",
       "form": {
         "newTitle": "New contact person",
         "editTitle": "Edit contact person",
@@ -1063,7 +1032,6 @@
       "description": "Refund for the offer conversion"
     },
     "actions": {
-      "cancel": "Cancel",
       "convert": "Convert to final invoice",
       "converting": "Converting…",
       "saving": "Converting the offer…",
@@ -1139,7 +1107,6 @@
       "coveredCount_other": "{{count}} tasks and purchases",
       "deadline": "Deadline",
       "overdue": "Overdue",
-      "fixedReduction": "Fixed reduction {{amount}}",
       "fixedReductionField": "Fixed reduction",
       "explanationTitle": "How the expected grant is calculated",
       "explanation": "Expected is {{rate}} of {{covered}} covered costs, up to {{cap}}.",

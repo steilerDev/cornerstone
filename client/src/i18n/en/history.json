@@ -46,7 +46,6 @@
   "infiniteScroll": {
     "loadingMore": "Loading more changes",
     "loadMore": "Load more",
-    "retry": "Retry",
     "loadMoreError": "Couldn't load more changes.",
     "endOfList": "You've reached the start of the history.",
     "batchAppended_one": "{{count}} more change loaded",

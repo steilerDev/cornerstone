@@ -3,7 +3,6 @@
     "loading": "Finanzen werden geladen...",
     "error": "Fehler",
     "errorMessage": "Finanzen konnten nicht geladen werden. Bitte versuche es erneut.",
-    "retry": "Erneut versuchen",
     "bankOverview": "Kostenaufstellung für die Bank",
     "headline": {
       "label": "Noch verfügbar",
@@ -100,13 +99,10 @@
   },
   "sources": {
     "lines": {
-      "expand": "Positionen einblenden",
-      "collapse": "Positionen ausblenden",
       "loadingLabel": "Kostenpositionen werden geladen…",
       "empty": "Keine Kostenposition nutzt diese Finanzierungsquelle",
       "emptyDescription": "Kostenpositionen von Aufgaben und Anschaffungen erscheinen hier, wenn diese Finanzierungsquelle sie bezahlt.",
       "unassignedArea": "Kein Bereich",
-      "retry": "Erneut versuchen",
       "areaLineCount_one": "{{count}} Position",
       "areaLineCount_other": "{{count}} Positionen",
       "panelAriaLabel": "Kostenpositionen, für die {{name}} aufkommt",
@@ -116,13 +112,9 @@
         "quote": "Angebot",
         "invoice": "Rechnung"
       },
-      "invoiceLinked": "Verrechnet",
       "invoiceStatus": {
         "none": "Nicht abgerechnet"
-      },
-      "categoryVendorSeparator": " · ",
-      "typeColumnHeader": "Typ",
-      "statusColumnHeader": "Status"
+      }
     },
     "budgetLines": {
       "move": {
@@ -152,7 +144,6 @@
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
     "error": "Fehler",
-    "retry": "Erneut versuchen",
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
     "buttons": {
       "convertToFinal": "In Endrechnung umwandeln"
@@ -314,8 +305,6 @@
     "ariaNoData": "Aufschlüsselung der Zahlen: noch keine"
   },
   "invoices": {
-    "error": "Fehler",
-    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
     "list": {
       "new": "Neue Rechnung",
       "newOffer": "Neues Angebot",
@@ -434,7 +423,6 @@
     "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuche es erneut.",
     "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "unexpectedResponse": "Unerwartete Antwort vom Sprachmodell. Bitte versuche es erneut.",
-    "retry": "Erneut versuchen",
     "skipToForm": "Zum Formular springen",
     "invoiceMetadata": "Rechnungsmetadaten",
     "invoiceNumber": "Rechnungsnummer",
@@ -461,9 +449,7 @@
     "pdfPreviewTitle": "Rechnungs-PDF-Vorschau",
     "previewUnavailable": "PDF-Vorschau nicht verfügbar",
     "openInPaperless": "In Paperless öffnen ↗",
-    "save": "Speichern",
     "saving": "Wird gespeichert...",
-    "cancel": "Abbrechen",
     "cancelConfirmBody": "Du hast nicht gespeicherte Änderungen. Bist du sicher, dass du diese verwerfen möchtest?",
     "invalidDocumentId": "Ungültige Dokument-ID",
     "vendor": "Firma",
@@ -490,7 +476,6 @@
     "mergeAnnounceStart": "{{count}} Positionen werden zusammengeführt…",
     "mergeAnnounceSuccess": "Positionen zusammengeführt",
     "mergeErrorMessage": "Diese Positionen konnten nicht zusammengeführt werden.",
-    "mergeRetryButton": "Erneut versuchen",
     "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen",
     "invoiceNumberPlaceholder": "z. B. RE-001",
     "notesPlaceholder": "Optionale Notizen",
@@ -539,7 +524,6 @@
     },
     "discretionary": "Eigenmittel",
     "selectAllInvoices": "Alle Rechnungen auswählen ({{count}})",
-    "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
     "unallocatedGroupTitle": "Nicht auf diese Finanzierungsquelle aufgeteilt ({{count}})",
     "unallocatedExplained": "Diese Rechnungen sind nicht auf diese Finanzierungsquelle aufgeteilt.",
     "emptyInvoices": "Keine Rechnungen zum Einbeziehen",
@@ -655,7 +639,6 @@
       "closingLabel": "Grußformel",
       "attachmentsNoteLabel": "Anhangshinweis",
       "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
-      "attachmentsNoteAriaLabel": "Anhangshinweis für {{vendor}}, {{invoiceNumber}}",
       "editedSuffix": " (bearbeitet)",
       "resetFieldAriaLabel": "{{field}} auf generierten Text zurücksetzen",
       "maxLengthHint": "Maximal {{max}} Zeichen.",
@@ -798,19 +781,6 @@
     "openHistory": "Verlauf öffnen"
   },
   "common": {
-    "loading": "Wird geladen...",
-    "error": "Fehler",
-    "retry": "Erneut versuchen",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "delete": "Löschen",
-    "edit": "Bearbeiten",
-    "add": "Hinzufügen",
-    "create": "Erstellen",
-    "update": "Aktualisieren",
-    "remove": "Entfernen",
-    "close": "Schließen",
-    "submit": "Absenden",
     "required": "*"
   },
   "companies": {
@@ -915,7 +885,6 @@
       "empty": "Noch keine Ansprechpartner. Füge die Personen hinzu, mit denen du bei dieser Firma sprichst.",
       "noPhone": "Keine Telefonnummer",
       "nameRequired": "Gib einen Vor- oder Nachnamen ein.",
-      "saveError": "Der Ansprechpartner konnte nicht gespeichert werden. Versuche es erneut.",
       "form": {
         "newTitle": "Neuer Ansprechpartner",
         "editTitle": "Ansprechpartner bearbeiten",
@@ -1063,7 +1032,6 @@
       "description": "Rückerstattung für die Angebotsumwandlung"
     },
     "actions": {
-      "cancel": "Abbrechen",
       "convert": "In Endrechnung umwandeln",
       "converting": "Wird umgewandelt…",
       "saving": "Angebot wird umgewandelt…",
@@ -1139,7 +1107,6 @@
       "coveredCount_other": "{{count}} Aufgaben und Anschaffungen",
       "deadline": "Frist",
       "overdue": "Überfällig",
-      "fixedReduction": "Feste Minderung {{amount}}",
       "fixedReductionField": "Feste Minderung",
       "explanationTitle": "So wird die erwartete Förderung berechnet",
       "explanation": "Erwartet sind {{rate}} von {{covered}} abgedeckten Kosten, höchstens {{cap}}.",

@@ -95,9 +95,7 @@
     "annotateWait": "Wait for the upload to finish.",
     "removePhoto": "Remove photo",
     "removed": "Photo removed.",
-    "done": "Done",
-    "area": "Area",
-    "orientation": "Orientation"
+    "done": "Done"
   },
   "tags": {
     "area": "Area",
@@ -148,8 +146,7 @@
     "flashOn": "Flash on.",
     "flashOff": "Flash off.",
     "usingFront": "Using the front camera.",
-    "usingBack": "Using the back camera.",
-    "previewLabel": "Latest photos"
+    "usingBack": "Using the back camera."
   },
   "select": {
     "start": "Select photos",

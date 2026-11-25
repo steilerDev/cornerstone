@@ -354,7 +354,7 @@ function DiaryListPage() {
             onClick={handleRetry}
             data-testid="diary-retry"
           >
-            {t('infiniteScroll.retryButton')}
+            {t('common:button.retry')}
           </button>
         </div>
       )}
@@ -423,7 +423,7 @@ function DiaryListPage() {
           loadingLabel={t('infiniteScroll.loadingMore')}
           loadingAriaLabel={t('infiniteScroll.loadingMoreAriaLabel')}
           loadMoreLabel={t('infiniteScroll.loadMoreButton')}
-          retryLabel={t('infiniteScroll.retryButton')}
+          retryLabel={t('common:button.retry')}
           errorMessage={t('infiniteScroll.errorMessage')}
           endOfListMessage={t('infiniteScroll.endOfList')}
           sentinelRef={sentinelRef}

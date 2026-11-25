@@ -235,7 +235,7 @@ export function BudgetOverviewPage() {
           <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
           <p>{error}</p>
           <button type="button" className={styles.retryButton} onClick={() => void loadAll()}>
-            {t('overview.retry')}
+            {t('common:button.retry')}
           </button>
         </div>
       </PageLayout>

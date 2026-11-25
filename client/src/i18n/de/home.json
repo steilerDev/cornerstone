@@ -32,8 +32,7 @@
     "empty": "Alles aufgeholt.",
     "left_one": "{{count}} verspätete Aufgabe übrig",
     "left_other": "{{count}} verspätete Aufgaben übrig",
-    "none": "Keine verspäteten Aufgaben mehr",
-    "close": "Schließen"
+    "none": "Keine verspäteten Aufgaben mehr"
   },
   "week": {
     "kind": {
