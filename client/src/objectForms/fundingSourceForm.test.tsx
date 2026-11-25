@@ -83,6 +83,21 @@ describe('fundingSourceForm', () => {
       }
     });
 
+    it('the amount field min is 0.01 in create scope and 0 for Own funds in edit scope', () => {
+      const min = (opts?: Parameters<typeof Form.useFundingSourceFormSchema>[0]) =>
+        renderHook(() => Form.useFundingSourceFormSchema(opts)).result.current.fields.find(
+          (f) => f.name === 'totalAmount',
+        )?.min;
+      expect(min()).toBe(0.01);
+      expect(min({ scope: 'edit' })).toBe(0.01);
+      expect(min({ scope: 'edit', isDiscretionary: true })).toBe(0);
+    });
+
+    it('the value messages resolve amountInvalid to the amountMinimum text', () => {
+      const m = renderHook(() => Form.useFundingSourceValueMessages()).result.current;
+      expect(m.amountInvalid).toBe('Enter an amount of at least 0.01.');
+    });
+
     it('create scope has Status; edit scope does not', () => {
       expect(fieldNames()).toContain('status');
       expect(fieldNames({ scope: 'edit' })).not.toContain('status');
@@ -101,7 +116,7 @@ describe('fundingSourceForm', () => {
       const s = renderHook(() => Form.useFundingSourceFormSchema({ isDiscretionary: true })).result
         .current;
       expect(s.validate({ ...s.initialValues, name: 'x', totalAmount: '0' })).toEqual({
-        totalAmount: enBudget.financing.errors.amountInvalid,
+        totalAmount: enBudget.financing.errors.amountMinimum,
       });
     });
 
@@ -130,6 +145,13 @@ describe('fundingSourceForm', () => {
     it('amount 0: error by default, none for Own funds', () => {
       expect(run('0')).toBe('POSITIVE');
       expect(run('0', true)).toBeUndefined();
+    });
+
+    it('amounts below 0.01 are errors by default; 0.01 passes; Own funds accepts them', () => {
+      expect(run('0.001')).toBe('POSITIVE');
+      expect(run('0.009')).toBe('POSITIVE');
+      expect(run('0.01')).toBeUndefined();
+      expect(run('0.001', true)).toBeUndefined();
     });
 
     it('amount -1: amountNotNegative for Own funds, amountInvalid otherwise', () => {
@@ -168,16 +190,16 @@ describe('fundingSourceForm', () => {
       expect(schema().validate(filled({ name: '   ' }))).toEqual({ name: 'Enter a name.' });
     });
 
-    it.each(['', '0', '-5', 'abc'])('rejects the amount %j', (amount) => {
+    it.each(['', '0', '0.001', '0.009', '-5', 'abc'])('rejects the amount %j', (amount) => {
       expect(schema().validate(filled({ totalAmount: amount }))).toEqual({
-        totalAmount: 'Enter an amount greater than 0.',
+        totalAmount: 'Enter an amount of at least 0.01.',
       });
     });
 
     it('treats a non-string value as empty', () => {
       expect(schema().validate(filled({ name: undefined, totalAmount: 5 }))).toEqual({
         name: 'Enter a name.',
-        totalAmount: 'Enter an amount greater than 0.',
+        totalAmount: 'Enter an amount of at least 0.01.',
       });
     });
 

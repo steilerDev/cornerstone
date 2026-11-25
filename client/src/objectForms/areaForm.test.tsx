@@ -31,6 +31,7 @@ jest.unstable_mockModule('../components/EntityPicker/EntityPicker.js', () => ({
     noneLabel,
     excludeIds,
     create,
+    inputTestId,
   }: {
     kind: string;
     areas: Array<{ id: string; name: string }>;
@@ -41,6 +42,7 @@ jest.unstable_mockModule('../components/EntityPicker/EntityPicker.js', () => ({
     noneLabel?: string;
     excludeIds?: readonly string[];
     create?: string;
+    inputTestId?: string;
   }) => (
     <select
       id={id}
@@ -48,6 +50,7 @@ jest.unstable_mockModule('../components/EntityPicker/EntityPicker.js', () => ({
       data-kind={kind}
       data-nullable={String(noneLabel !== undefined)}
       data-create={create}
+      data-input-testid={inputTestId}
       data-exclude={(excludeIds ?? []).join(',')}
       value={value}
       disabled={disabled}
@@ -201,6 +204,11 @@ describe('areaForm', () => {
       renderForm();
       expect(parentSelect()).toHaveAttribute('data-kind', 'area');
       expect(parentSelect()).toHaveAttribute('data-create', 'off');
+    });
+
+    it('forwards the area-parent-input test id to the picker input', () => {
+      renderForm();
+      expect(parentSelect()).toHaveAttribute('data-input-testid', 'area-parent-input');
     });
 
     it('offers "Top level (no parent)" as the empty parent option', () => {

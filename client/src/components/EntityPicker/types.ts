@@ -83,6 +83,8 @@ interface EntityPickerCommonProps {
   readonly autoFocus?: boolean;
   readonly emptyHint?: string;
   readonly getOptionTestId?: (option: EntityOption) => string;
+  /** data-testid of the search input. */
+  readonly inputTestId?: string;
 }
 
 export type EntityPickerProps = EntityPickerCommonProps &

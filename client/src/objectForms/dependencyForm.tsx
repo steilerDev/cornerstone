@@ -62,6 +62,7 @@ export function useDependencyFormSchema(options: DependencyFormOptions): ObjectF
     render: (ctx) => (
       <EntityPicker
         kind="task"
+        inputTestId={ctx.testId}
         id={ctx.id}
         value={ctx.value as string}
         onChange={ctx.setValue}

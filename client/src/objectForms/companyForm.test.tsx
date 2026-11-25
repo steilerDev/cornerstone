@@ -406,6 +406,13 @@ describe('companyForm (ObjectForm schema)', () => {
       });
     });
 
+    it('puts the trade test id on the trade picker input', () => {
+      renderForm();
+      const input = screen.getByTestId('company-trade-input');
+      expect(input.tagName).toBe('INPUT');
+      expect(input).toHaveAttribute('id', 'tradeId');
+    });
+
     it('requires a name before it posts', async () => {
       const user = userEvent.setup();
       renderForm();

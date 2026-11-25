@@ -235,7 +235,7 @@ describe('FundingSourceDetailsSection', () => {
       await save(user);
 
       expect(await screen.findByText('Enter a name.')).toBeInTheDocument();
-      expect(screen.getByText('Enter an amount greater than 0.')).toBeInTheDocument();
+      expect(screen.getByText('Enter an amount of at least 0.01.')).toBeInTheDocument();
       expect(field('source-field-name')).toHaveAttribute('aria-invalid', 'true');
       expect(field('source-field-name').getAttribute('aria-describedby')).toBeTruthy();
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -247,7 +247,7 @@ describe('FundingSourceDetailsSection', () => {
       await startEdit(user);
       await user.clear(field('source-field-amount'));
       await save(user);
-      expect(await screen.findByText('Enter an amount greater than 0.')).toBeInTheDocument();
+      expect(await screen.findByText('Enter an amount of at least 0.01.')).toBeInTheDocument();
       unmount();
 
       renderSection({ sourceType: 'discretionary', isDiscretionary: true });
@@ -422,7 +422,7 @@ describe('FundingSourceDetailsSection on the schema (#2255)', () => {
     await user.type(amount, '0');
     await user.click(screen.getByTestId('source-details-save'));
 
-    expect(await screen.findByText(enBudget.financing.errors.amountInvalid)).toBeVisible();
+    expect(await screen.findByText(enBudget.financing.errors.amountMinimum)).toBeVisible();
     expect(amount).toHaveAttribute('aria-invalid', 'true');
     expect(mockUpdate).not.toHaveBeenCalled();
   });

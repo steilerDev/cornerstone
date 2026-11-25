@@ -56,6 +56,7 @@ export function useMilestoneLinkFormSchema(options: MilestoneLinkFormOptions): O
         render: (ctx) => (
           <EntityPicker
             kind="milestone"
+            inputTestId={ctx.testId}
             id={ctx.id}
             value={ctx.value as string}
             onChange={ctx.setValue}

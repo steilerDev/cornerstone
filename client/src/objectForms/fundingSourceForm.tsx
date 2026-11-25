@@ -44,15 +44,18 @@ export function useFundingSourceValueMessages(): FundingSourceValueMessages {
   const { t } = useTranslation('budget');
   return {
     nameRequired: t('financing.errors.nameRequired'),
-    amountInvalid: t('financing.errors.amountInvalid'),
+    amountInvalid: t('financing.errors.amountMinimum'),
     amountNotNegative: t('financing.errors.amountNotNegative'),
     interestInvalid: t('financing.errors.interestInvalid'),
   };
 }
 
+/** The smallest regular funding source amount (mirrors updateBudgetSource: >= 0.01). */
+const AMOUNT_MIN = 0.01;
+
 /**
- * Every funding source rule, dialog and card alike. The amount must be above 0, except the Own
- * funds source (`isDiscretionary`), which accepts 0 or more (mirrors `updateBudgetSource`).
+ * Every funding source rule, dialog and card alike. The amount must be at least 0.01, except the
+ * Own funds source (`isDiscretionary`), which accepts 0 or more (mirrors `updateBudgetSource`).
  */
 export function validateFundingSourceValues(
   values: ObjectFormValues,
@@ -64,7 +67,11 @@ export function validateFundingSourceValues(
   if (!text(values.name).trim()) errors.name = messages.nameRequired;
   const rawAmount = text(values.totalAmount).trim();
   const amount = Number(rawAmount);
-  if (!(rawAmount !== '' && Number.isFinite(amount) && (own ? amount >= 0 : amount > 0))) {
+  if (!(
+    rawAmount !== '' &&
+    Number.isFinite(amount) &&
+    (own ? amount >= 0 : amount >= AMOUNT_MIN)
+  )) {
     errors.totalAmount = own ? messages.amountNotNegative : messages.amountInvalid;
   }
   const rawRate = text(values.interestRate).trim();
@@ -119,7 +126,7 @@ export function useFundingSourceFormSchema(
       essential: true,
       required: true,
       width: 'half',
-      min: 0,
+      min: own ? 0 : AMOUNT_MIN,
       step: 0.01,
       inputMode: 'decimal',
     },

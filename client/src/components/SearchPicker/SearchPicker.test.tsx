@@ -73,6 +73,26 @@ describe('SearchPicker', () => {
       expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
     });
 
+    it('puts inputTestId on the search input as its data-testid', () => {
+      renderPicker({ placeholder: 'Search...', inputTestId: 'x-input' });
+      const input = screen.getByTestId('x-input');
+      expect(input).toBe(screen.getByPlaceholderText('Search...'));
+      expect(input.tagName).toBe('INPUT');
+    });
+
+    it('renders no data-testid on the input without inputTestId', () => {
+      renderPicker({ placeholder: 'Search...' });
+      expect(screen.getByPlaceholderText('Search...')).not.toHaveAttribute('data-testid');
+    });
+
+    it('inputTestId is absent while a selection is shown instead of the input', async () => {
+      renderPicker({ showItemsOnFocus: true, placeholder: 'Search...', inputTestId: 'x-input' });
+      await user.click(screen.getByTestId('x-input'));
+      await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
+      await user.click(screen.getByText('Alpha Widget'));
+      await waitFor(() => expect(screen.queryByTestId('x-input')).not.toBeInTheDocument());
+    });
+
     it('renders as a div container wrapping the input', () => {
       renderPicker({ placeholder: 'Test placeholder' });
       const input = screen.getByPlaceholderText('Test placeholder');

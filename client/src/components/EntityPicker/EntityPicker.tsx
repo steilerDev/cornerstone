@@ -72,6 +72,7 @@ export function EntityPicker(props: EntityPickerProps) {
     autoFocus,
     emptyHint,
     getOptionTestId,
+    inputTestId,
   } = props;
   const users = props.kind === 'who' ? props.users : NO_USERS;
   const areas = props.kind === 'area' ? props.areas : NO_AREAS;
@@ -413,6 +414,7 @@ export function EntityPicker(props: EntityPickerProps) {
       createAction={buildCreateAction()}
       inputAriaProps={inputAriaProps}
       getOptionTestId={getOptionTestId}
+      inputTestId={inputTestId}
       clearOnSelect={clearOnSelect}
       autoFocus={autoFocus}
     />

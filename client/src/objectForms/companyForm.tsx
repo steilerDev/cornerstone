@@ -108,6 +108,7 @@ export function useCompanyFormSchema(options: CompanyFormOptions = {}): ObjectFo
             return (
               <EntityPicker
                 kind="trade"
+                inputTestId={ctx.testId}
                 id={ctx.id}
                 value={tradeId}
                 selectedLabel={

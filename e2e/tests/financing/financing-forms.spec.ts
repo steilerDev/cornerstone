@@ -282,14 +282,14 @@ test.describe('New funding source dialog', { tag: '@responsive' }, () => {
 
     await dialog.save();
     await expect(dialog.fieldError('name')).toHaveText('Enter a name.');
-    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount greater than 0.');
+    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount of at least 0.01.');
     await expect(dialog.name).toBeFocused();
 
-    // The amount must be above 0
+    // The amount must be at least 0.01
     await dialog.name.fill('F6b Bad Rate');
     await dialog.amount.fill('0');
     await dialog.save();
-    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount greater than 0.');
+    await expect(dialog.fieldError('totalAmount')).toHaveText('Enter an amount of at least 0.01.');
 
     await dialog.amount.fill('1000');
     await dialog.interestRate.fill('150');

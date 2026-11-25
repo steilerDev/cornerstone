@@ -84,6 +84,8 @@ export interface SearchPickerProps<T> {
   renderTrailing?: (item: T) => ReactNode;
   /** data-testid of a result option row. */
   getOptionTestId?: (item: T) => string;
+  /** data-testid of the search input (absent while a selection is shown instead of the input). */
+  inputTestId?: string;
   /**
    * Add mode: a selection (or a created item) calls onChange/onSelectItem but never shows a
    * selected display — the input stays, empties and keeps focus (quietly; no reopen).
@@ -123,6 +125,7 @@ export function SearchPicker<T>({
   inputAriaProps,
   renderTrailing,
   getOptionTestId,
+  inputTestId,
   clearOnSelect = false,
   autoFocus = false,
 }: SearchPickerProps<T>) {
@@ -688,6 +691,7 @@ export function SearchPicker<T>({
       <input
         id={id}
         ref={setInputRef}
+        data-testid={inputTestId}
         type="text"
         className={styles.input}
         placeholder={resolvedPlaceholder}
