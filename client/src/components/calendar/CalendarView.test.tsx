@@ -93,36 +93,15 @@ function makeMilestone(id: number, targetDate: string): TimelineMilestone {
 // Helper: parse human-readable aria-label back to a UTC midnight Date
 // ---------------------------------------------------------------------------
 
-const MONTH_NAME_TO_NUMBER: Record<string, number> = {
-  January: 1,
-  February: 2,
-  March: 3,
-  April: 4,
-  May: 5,
-  June: 6,
-  July: 7,
-  August: 8,
-  September: 9,
-  October: 10,
-  November: 11,
-  December: 12,
-};
-
 /**
- * Parses a gridcell aria-label in format "Weekday, Month D, YYYY" to a UTC midnight Date.
- * E.g. "Sunday, March 10, 2024" → new Date(Date.UTC(2024, 2, 10))
+ * Parses a gridcell data-date ("YYYY-MM-DD") to a UTC midnight Date.
  */
-function parseCellAriaLabel(label: string): Date {
-  // Format: "Weekday, Month D, YYYY"
-  // Remove the weekday prefix: "Month D, YYYY"
-  const withoutWeekday = label.replace(/^[A-Za-z]+, /, '');
-  // Now: "March 10, 2024"
-  const match = withoutWeekday.match(/^([A-Za-z]+) (\d+), (\d+)$/);
-  if (!match) throw new Error(`Cannot parse aria-label: "${label}"`);
-  const [, monthName, dayStr, yearStr] = match as [string, string, string, string];
-  const month = MONTH_NAME_TO_NUMBER[monthName];
-  if (!month) throw new Error(`Unknown month name: "${monthName}"`);
-  return new Date(Date.UTC(Number(yearStr), month - 1, Number(dayStr)));
+function parseCellDate(dateStr: string): Date {
+  // Gridcells expose their ISO date in data-date (the accessible name is the srOnly full date)
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error(`Cannot parse data-date: "${dateStr}"`);
+  const [, y, m, d] = match as [string, string, string, string];
+  return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
 }
 
 // ---------------------------------------------------------------------------
@@ -385,42 +364,42 @@ describe('CalendarView', () => {
 
     it('navigates to previous week when Previous button is clicked', () => {
       const cells = screen.getAllByRole('gridcell');
-      const firstDayLabel = cells[0]!.getAttribute('aria-label')!;
+      const firstDayLabel = cells[0]!.getAttribute('data-date')!;
 
       fireEvent.click(screen.getByRole('button', { name: /previous week/i }));
 
       const newCells = screen.getAllByRole('gridcell');
-      const newFirstDayLabel = newCells[0]!.getAttribute('aria-label')!;
+      const newFirstDayLabel = newCells[0]!.getAttribute('data-date')!;
       expect(newFirstDayLabel).not.toBe(firstDayLabel);
       // The previous Sunday should be 7 days earlier
-      const original = parseCellAriaLabel(firstDayLabel);
-      const expected = parseCellAriaLabel(newFirstDayLabel);
+      const original = parseCellDate(firstDayLabel);
+      const expected = parseCellDate(newFirstDayLabel);
       expect(original.getTime() - expected.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
     });
 
     it('navigates to next week when Next button is clicked', () => {
       const cells = screen.getAllByRole('gridcell');
-      const firstDayLabel = cells[0]!.getAttribute('aria-label')!;
+      const firstDayLabel = cells[0]!.getAttribute('data-date')!;
 
       fireEvent.click(screen.getByRole('button', { name: /next week/i }));
 
       const newCells = screen.getAllByRole('gridcell');
-      const newFirstDayLabel = newCells[0]!.getAttribute('aria-label')!;
-      const original = parseCellAriaLabel(firstDayLabel);
-      const expected = parseCellAriaLabel(newFirstDayLabel);
+      const newFirstDayLabel = newCells[0]!.getAttribute('data-date')!;
+      const original = parseCellDate(firstDayLabel);
+      const expected = parseCellDate(newFirstDayLabel);
       expect(expected.getTime() - original.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
     });
 
     it('returns to current week when Today button is clicked', () => {
       const originalCells = screen
         .getAllByRole('gridcell')
-        .map((c) => c.getAttribute('aria-label')!);
+        .map((c) => c.getAttribute('data-date')!);
 
       // Navigate away two weeks
       fireEvent.click(screen.getByRole('button', { name: /next week/i }));
       fireEvent.click(screen.getByRole('button', { name: /next week/i }));
 
-      const movedCells = screen.getAllByRole('gridcell').map((c) => c.getAttribute('aria-label')!);
+      const movedCells = screen.getAllByRole('gridcell').map((c) => c.getAttribute('data-date')!);
       expect(movedCells).not.toEqual(originalCells);
 
       // Return
@@ -428,7 +407,7 @@ describe('CalendarView', () => {
 
       const returnedCells = screen
         .getAllByRole('gridcell')
-        .map((c) => c.getAttribute('aria-label')!);
+        .map((c) => c.getAttribute('data-date')!);
       expect(returnedCells).toEqual(originalCells);
     });
 
@@ -461,8 +440,8 @@ describe('CalendarView', () => {
     it('week label is the formatDayRange of the displayed Sunday-Saturday cells', () => {
       renderCalendar({ initialSearchParams: 'calendarMode=week' });
       const cells = screen.getAllByRole('gridcell');
-      const first = parseCellAriaLabel(cells[0]!.getAttribute('aria-label')!);
-      const last = parseCellAriaLabel(cells[6]!.getAttribute('aria-label')!);
+      const first = parseCellDate(cells[0]!.getAttribute('data-date')!);
+      const last = parseCellDate(cells[6]!.getAttribute('data-date')!);
       expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(
         formatDayRange(first, last, 'en-US'),
       );

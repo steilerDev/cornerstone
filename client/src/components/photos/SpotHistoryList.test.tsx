@@ -73,16 +73,22 @@ describe('SpotHistoryList', () => {
     expect(screen.getByText('Site visit')).toBeInTheDocument();
   });
 
-  it('builds the accessible name with long date, type and title (or without title)', () => {
+  it('builds the accessible name with short date, type and title (or without title)', () => {
     render(<SpotHistoryList photos={PHOTOS} currentIndex={0} onSelect={() => {}} />);
     expect(screen.getByTestId('spot-history-item-p1')).toHaveAttribute(
       'aria-label',
-      'September 11, 2026, Daily log: Plastering done',
+      'Sep 11, 2026, Daily log: Plastering done',
     );
     expect(screen.getByTestId('spot-history-item-p2')).toHaveAttribute(
       'aria-label',
-      'September 11, 2026, Defect',
+      'Sep 11, 2026, Defect',
     );
+  });
+
+  it('keeps a space between the date and the secondary text in the visible content', () => {
+    render(<SpotHistoryList photos={PHOTOS} currentIndex={0} onSelect={() => {}} />);
+    const text = screen.getByTestId('spot-history-item-p1').textContent ?? '';
+    expect(text).toContain('Sep 11, 2026 Daily log – Plastering done');
   });
 
   it('localizes the entry type and the date in German', async () => {
@@ -92,7 +98,7 @@ describe('SpotHistoryList', () => {
       render(<SpotHistoryList photos={[PHOTOS[1]!]} currentIndex={0} onSelect={() => {}} />);
       expect(screen.getByTestId('spot-history-item-p2')).toHaveAttribute(
         'aria-label',
-        '11. September 2026, Mangel',
+        '11. Sept. 2026, Mangel',
       );
       expect(screen.queryByText('Defect')).not.toBeInTheDocument();
     } finally {

@@ -200,8 +200,10 @@ export async function expectVisibleFocusWhileTabbing(
     const out: string[] = [];
     let node: Element | null = el;
     for (let depth = 0; depth < 3 && node; depth += 1, node = node.parentElement) {
-      const style = getComputedStyle(node);
-      for (const prop of props) out.push(style[prop]);
+      for (const pseudo of [null, '::after', '::before'] as const) {
+        const style = pseudo ? getComputedStyle(node, pseudo) : getComputedStyle(node);
+        for (const prop of props) out.push(style[prop]);
+      }
     }
     return out.join('|');
   };

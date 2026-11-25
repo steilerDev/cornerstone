@@ -55,7 +55,7 @@ describe('BottomBar', () => {
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(nav).toBe(screen.getByTestId('bottom-bar'));
     const items = within(nav).getAllByRole('listitem');
-    expect(items.map((li) => li.textContent)).toEqual([
+    expect(items.map((li) => (li.textContent ?? '').trim())).toEqual([
       'Home',
       'Site diary',
       'New',
@@ -222,6 +222,14 @@ describe('BottomBar', () => {
       expect(badge).toHaveAttribute('aria-hidden', 'true');
       expect(home).toHaveAttribute('aria-label', 'Home, 1 needs attention');
       expect(screen.getByTestId('bottom-bar-home-badge')).toBe(badge);
+    });
+
+    it('keeps the label and the count as separate words in the slot text', () => {
+      renderBar('/', { homeBadge: 3 });
+      const text = (screen.getByTestId('bottom-bar-home').textContent ?? '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      expect(text).toBe('Home 3');
     });
 
     it('has no badge element at 0 and keeps the exact count in the name above the cap', () => {

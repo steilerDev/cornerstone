@@ -106,7 +106,11 @@ export function Sidebar({ sections, active }: SidebarProps) {
 
   return (
     <aside className={styles.sidebar}>
-      <Link to={navHref('home')} className={styles.logoArea} aria-label={t('aria.goToHome')}>
+      <Link
+        to={navHref('home')}
+        className={styles.logoArea}
+        aria-label={t('aria.logoHome', { appName: t('appName') })}
+      >
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>{t('appName')}</span>
       </Link>

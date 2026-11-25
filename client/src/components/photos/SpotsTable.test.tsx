@@ -90,17 +90,15 @@ describe('SpotsTable', () => {
 
   it('builds the plural-aware accessible label for 3 photos', () => {
     renderTable();
-    expect(screen.getByTestId('spot-cell-a1:o1')).toHaveAttribute(
-      'aria-label',
-      'Kitchen, Ceiling: 3 photos, latest September 11, 2026',
+    expect(screen.getByTestId('spot-cell-a1:o1')).toHaveAccessibleName(
+      'Kitchen, Ceiling: 3 photos, latest Sep 11, 2026',
     );
   });
 
   it('builds the singular accessible label for 1 photo, using "No orientation" for the null column', () => {
     renderTable([makeArea('a1', 'Kitchen')], [makeSpot('a1', null, { photoCount: 1 })]);
-    expect(screen.getByTestId('spot-cell-a1:none')).toHaveAttribute(
-      'aria-label',
-      'Kitchen, No orientation: 1 photo, latest September 11, 2026',
+    expect(screen.getByTestId('spot-cell-a1:none')).toHaveAccessibleName(
+      'Kitchen, No orientation: 1 photo, latest Sep 11, 2026',
     );
   });
 

@@ -33,6 +33,8 @@ describe('SpotThumbnail', () => {
         name: 'Kitchen, North: 3 photos, latest September 11, 2026',
       });
       expect(link).toHaveAttribute('href', '/photos/spot/a/o?photo=p1');
+      expect(link).not.toHaveAttribute('aria-label');
+      expect(link).toHaveAccessibleName('Kitchen, North: 3 photos, latest September 11, 2026');
       expect(link).toHaveAttribute('id', 'spot-a:o');
       expect(screen.getByText('3')).toBeInTheDocument();
       expect(screen.getByText('Sep 11, 2026')).toBeInTheDocument();

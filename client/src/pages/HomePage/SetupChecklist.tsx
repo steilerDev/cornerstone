@@ -145,7 +145,7 @@ export function SetupChecklist({ setup, onRefetch, onSkip }: SetupChecklistProps
       <div className={styles.skipRow}>
         <button
           type="button"
-          className={shared.btnSecondaryCompact}
+          className={styles.skipButton}
           onClick={() => {
             onSkip();
             focusPageHeading();

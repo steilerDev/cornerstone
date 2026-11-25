@@ -136,7 +136,10 @@ test.describe('Sidebar Navigation', () => {
     await page.goto(ROUTES.photos);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
-    const logo = appShell.sidebar.getByRole('link', { name: 'Go to Home', exact: true });
+    const logo = appShell.sidebar.getByRole('link', {
+      name: 'Cornerstone, Go to Home',
+      exact: true,
+    });
     await expect(logo).toHaveAttribute('href', '/');
     await logo.click();
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));

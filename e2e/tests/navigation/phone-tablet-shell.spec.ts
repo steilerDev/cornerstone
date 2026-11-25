@@ -117,7 +117,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       // its digits are part of the slot's text
       await expect(
         appShell.bottomBar.locator('[data-testid^="bottom-bar-"]:not([data-testid$="-badge"])'),
-      ).toHaveText([/^(\d+\+?)?Home$/, 'Site diary', 'New', 'Photos', 'More']);
+      ).toHaveText([/^Home( \d+\+?)?$/, 'Site diary', 'New', 'Photos', 'More']);
 
       // Every label is visible at 12px and every slot is a 44px touch target
       for (const [id, label] of [

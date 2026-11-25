@@ -169,8 +169,9 @@ export function BottomBar({
               >
                 {/* Label first in the DOM so the visible text ('Home 3') appears in order inside
                     the accessible name 'Home, 3 needs attention' (WCAG 2.5.3, axe
-                    label-content-name-mismatch); CSS order puts the icon back on top. */}
-                <span className={styles.label}>{t(section.labelKey)}</span>
+                    label-content-name-mismatch); CSS order puts the icon back on top. The
+                    whitespace text node keeps the label and the count separate words for axe. */}
+                <span className={styles.label}>{t(section.labelKey)}</span>{' '}
                 <span className={styles.icon}>
                   {ICONS[slot]}
                   <CountBadge

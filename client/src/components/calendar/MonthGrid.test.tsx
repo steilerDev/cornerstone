@@ -190,14 +190,15 @@ describe('MonthGrid', () => {
       expect(screen.getAllByRole('gridcell')).toHaveLength(42);
     });
 
-    it('each gridcell has aria-label matching its human-readable date', () => {
+    it('each gridcell is named by its full date through content, not an aria-label', () => {
       renderGrid({ year: 2024, month: 3 });
       // March 1, 2024 is a Friday
       const cells = screen.getAllByRole('gridcell');
-      const march1Cell = cells.find(
-        (c) => c.getAttribute('aria-label') === 'Friday, March 1, 2024',
-      );
+      const march1Cell = cells.find((c) => c.getAttribute('data-date') === '2024-03-01');
       expect(march1Cell).toBeDefined();
+      expect(march1Cell).not.toHaveAttribute('aria-label');
+      expect(march1Cell!.textContent).toContain('Friday, March 1, 2024');
+      cells.forEach((c) => expect(c).not.toHaveAttribute('aria-label'));
     });
 
     it('aria-label on grid matches year and month', () => {
@@ -223,7 +224,9 @@ describe('MonthGrid', () => {
       renderGrid({ year: 2024, month: 9 });
       const cells = screen.getAllByRole('gridcell');
       // First cell should be Sunday, September 1, 2024
-      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, September 1, 2024');
+      expect(cells[0]!).toHaveAttribute('data-date', '2024-09-01');
+      expect(cells[0]!).not.toHaveAttribute('aria-label');
+      expect(cells[0]!).toHaveAccessibleName(/^Sunday, September 1, 2024/);
     });
   });
 

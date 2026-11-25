@@ -44,12 +44,12 @@ export function SpotHistoryList({ photos, currentIndex, onSelect }: SpotHistoryL
               aria-label={
                 title
                   ? t('viewer.historyItemLabel', {
-                      date: formatDate(entry.entryDate, undefined, 'long'),
+                      date: formatDate(entry.entryDate),
                       type,
                       title,
                     })
                   : t('viewer.historyItemLabelUntitled', {
-                      date: formatDate(entry.entryDate, undefined, 'long'),
+                      date: formatDate(entry.entryDate),
                       type,
                     })
               }
@@ -60,7 +60,7 @@ export function SpotHistoryList({ photos, currentIndex, onSelect }: SpotHistoryL
                 <img className={styles.thumbImage} src={photo.thumbnailUrl} alt="" loading="lazy" />
               </span>
               <span className={styles.text}>
-                <span className={styles.date}>{formatDate(entry.entryDate)}</span>
+                <span className={styles.date}>{formatDate(entry.entryDate)}</span>{' '}
                 <span className={styles.secondary} title={secondary}>
                   {secondary}
                 </span>

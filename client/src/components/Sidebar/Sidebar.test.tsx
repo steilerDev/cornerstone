@@ -171,13 +171,13 @@ describe('Sidebar', () => {
       const outside = within(screen.getByRole('complementary'))
         .getAllByRole('link')
         .filter((l) => !main.contains(l) && !settings.contains(l));
-      expect(outside.map((l) => l.getAttribute('aria-label'))).toEqual(['Go to Home']);
+      expect(outside.map((l) => l.getAttribute('aria-label'))).toEqual(['Cornerstone, Go to Home']);
     });
 
     it('opens Home with a labelled logo link to the root path', () => {
       renderAt('/project/work-items');
 
-      const logo = screen.getByRole('link', { name: 'Go to Home' });
+      const logo = screen.getByRole('link', { name: 'Cornerstone, Go to Home' });
       expect(logo).toHaveAttribute('href', '/');
     });
 

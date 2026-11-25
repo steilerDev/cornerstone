@@ -31,6 +31,7 @@ import {
   getMonthName,
   formatDateForAria,
 } from './calendarUtils.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './WeekGrid.module.css';
 
 // ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ export function WeekGrid({
               role="columnheader"
               aria-label={`${dayName} ${day.dayOfMonth} ${monthName}`}
             >
-              <span className={styles.dayName}>{dayName}</span>
+              <span className={styles.dayName}>{dayName}</span>{' '}
               <span
                 className={[styles.dayNumber, day.isToday ? styles.dayNumberToday : ''].join(' ')}
               >
@@ -156,8 +157,11 @@ export function WeekGrid({
                   : { position: 'relative' }
               }
               role="gridcell"
-              aria-label={formatDateForAria(day.dateStr, localeString)}
+              data-date={day.dateStr}
             >
+              <span className={sharedStyles.srOnly}>
+                {formatDateForAria(day.dateStr, localeString)}
+              </span>
               {/* Work item blocks */}
               {segments
                 .filter((sg) => sg.startCol === dayCol)
