@@ -254,6 +254,15 @@ describe('BottomBar', () => {
       ).toBe('99+');
     });
 
+    it('places the visible label before the badge so the accessible name starts with the label', () => {
+      renderBar('/', { homeBadge: 3 });
+      const home = screen.getByTestId('bottom-bar-home');
+      const badge = screen.getByTestId('bottom-bar-home-badge');
+      const label = within(home).getByText('Home');
+      expect(label.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect((home.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith('Home')).toBe(true);
+    });
+
     it('shows 99 as is', () => {
       renderBar('/', { homeBadge: 99 });
       expect(

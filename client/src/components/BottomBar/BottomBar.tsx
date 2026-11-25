@@ -167,6 +167,10 @@ export function BottomBar({
                 }
                 data-testid={`bottom-bar-${slot}`}
               >
+                {/* Label first in the DOM so the visible text ('Home 3') appears in order inside
+                    the accessible name 'Home, 3 needs attention' (WCAG 2.5.3, axe
+                    label-content-name-mismatch); CSS order puts the icon back on top. */}
+                <span className={styles.label}>{t(section.labelKey)}</span>
                 <span className={styles.icon}>
                   {ICONS[slot]}
                   <CountBadge
@@ -175,7 +179,6 @@ export function BottomBar({
                     testId="bottom-bar-home-badge"
                   />
                 </span>
-                <span className={styles.label}>{t(section.labelKey)}</span>
               </NavAnchor>
             </li>
           );
