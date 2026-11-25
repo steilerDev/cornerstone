@@ -2293,3 +2293,11 @@ every reference-data fetch: `useAreas()`, categories, users. So editing four dat
 and check them against the `names` each edit card renders. The same PR copied a page-private banner
 across pages through `composes: … from '../OtherPage/…module.css'`. Grep CSS for that pattern too,
 alongside the TS sibling-page check above.
+
+## Touch-target checks fooled by pseudo overlays (PR #2372, #2261)
+
+A size check that reads `getComputedStyle(el, '::after').height` accepts an overlay that
+cannot be tapped: `pointer-events: none` on the pseudo, or a host with `overflow: hidden`
+that clips it (BudgetBar `.bar::after`, bar 16–32 px). **How to apply:** when a fix adds a
+`::before`/`::after` "hit area", check `pointer-events` and the host's `overflow`; ask the
+fixture to skip such pseudos so the check measures what a finger can hit.

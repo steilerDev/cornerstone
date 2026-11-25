@@ -86,6 +86,7 @@ export function BudgetBar({
   const bar = (
     <div
       role="img"
+      data-testid="budget-bar"
       aria-label={ariaLabel}
       tabIndex={0}
       className={`${styles.bar} ${heightClass}`}

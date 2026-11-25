@@ -24,6 +24,14 @@ describe('BudgetBar', () => {
     expect(screen.getByRole('img')).toBeInTheDocument();
   });
 
+  it('exposes the img element with the budget-bar test id and keyboard focus', () => {
+    render(<BudgetBar segments={baseSegments} maxValue={100000} />);
+
+    const bar = screen.getByTestId('budget-bar');
+    expect(bar).toHaveAttribute('role', 'img');
+    expect(bar.tabIndex).toBe(0);
+  });
+
   it('builds aria-label describing all non-zero segments', () => {
     render(
       <BudgetBar

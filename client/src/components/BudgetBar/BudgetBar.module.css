@@ -7,19 +7,6 @@
   background: var(--color-budget-track);
 }
 
-/* Focus/touch hit area up to the 44 px minimum without growing the bar; it does not intercept
-   clicks meant for the segments */
-.bar::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: var(--touch-target-min);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
 .bar:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);

@@ -82,7 +82,17 @@
 
 @media (max-width: 767px) {
   .term {
-    padding-block: var(--spacing-3);
-    margin-block: calc(-1 * var(--spacing-3));
+    position: relative;
+  }
+
+  /* 44 px tap target around the term on phones; it takes the tap for the term */
+  .term::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, var(--touch-target-min));
+    height: max(100%, var(--touch-target-min));
+    transform: translate(-50%, -50%);
   }
 }
