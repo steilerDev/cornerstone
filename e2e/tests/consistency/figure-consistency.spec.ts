@@ -178,17 +178,18 @@ test.describe('Figure consistency', () => {
     const MAX_PASSES = 8;
     const REQUIRED_CLEAN = 2;
     let clean = 0;
-    let lastProblems: string[] = ['not run'];
+    let lastDirty: string[] = [];
     for (let attempt = 0; attempt < MAX_PASSES && clean < REQUIRED_CLEAN; attempt += 1) {
-      lastProblems = await pass();
+      const problems = await pass();
+      if (problems.length > 0) lastDirty = problems;
       // A sibling worker can write between a page read and the API read: retry, but only
       // two consecutive clean passes prove the pages show the API's answer
-      clean = lastProblems.length === 0 ? clean + 1 : 0;
+      clean = problems.length === 0 ? clean + 1 : 0;
     }
-    expect(lastProblems, `no ${REQUIRED_CLEAN} consecutive clean passes in ${MAX_PASSES}`).toEqual(
-      [],
-    );
-    expect(clean).toBe(REQUIRED_CLEAN);
+    expect(
+      clean,
+      `no ${REQUIRED_CLEAN} consecutive clean passes in ${MAX_PASSES}; last problems: ${lastDirty.join('; ') || 'none'}`,
+    ).toBe(REQUIRED_CLEAN);
   });
 
   test('FC2: a company Still to pay is the same on both markers, the list and the API; Paid too (AC1)', async ({
