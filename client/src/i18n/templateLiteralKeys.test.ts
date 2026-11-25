@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Guard for #2136: a union-derived i18n key must come from `I18N_UNION_KEYS` (unionKeys.ts), never
+ * Guard for #2136/#2260: no template-literal i18n key remains; ESLint (#2260) now also bans them
+ * at lint time. A union-derived i18n key must come from `I18N_UNION_KEYS` (unionKeys.ts), never
  * from a template literal. This walks the production client sources and pins the exact set of
  * remaining template-literal `t()` keys / key-variable assignments to an explicit allow-list of
  * NON-union sites. Adding a template-literal key anywhere else fails the test.
@@ -30,20 +31,8 @@ function collectSourceFiles(dir: string): string[] {
   });
 }
 
-/** Non-union sites: dynamic suffixes that are not members of a shared `as const` tuple. */
+/** Non-union sites: the only remaining template literal is not an i18n key. */
 const ALLOW_LIST: readonly { file: string; snippet: string }[] = [
-  // `_one` / `_other` plural suffix ternaries
-  {
-    file: 'lib/reportContent/buildReportContent.ts',
-    snippet: 't(`sourceReports.table.attachmentsNoteNoType_${',
-  },
-  {
-    file: 'lib/reportContent/buildReportContent.ts',
-    snippet: 't(`sourceReports.table.attachmentsNote_${',
-  },
-  // Local copy-key tables / title keys, not shared unions
-  // Capitalised palette colour key
-  { file: 'components/photos/PhotoAnnotator/ToolPalette.tsx', snippet: 't(`color${' },
   // Not an i18n key: a user-preference storage key
   { file: 'hooks/useColumnPreferences.ts', snippet: '= `table.${' },
 ];

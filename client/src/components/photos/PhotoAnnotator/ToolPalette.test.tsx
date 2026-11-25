@@ -111,6 +111,38 @@ describe('ToolPalette', () => {
     });
   });
 
+  describe('Colour swatches (#2260)', () => {
+    const NAMES = ['red', 'yellow', 'green', 'blue', 'black', 'white'];
+
+    it('renders the six swatches in order with their colour keys as accessible names', () => {
+      renderPalette();
+      const radios = screen
+        .getAllByRole('radio')
+        .filter((r) => NAMES.some((n) => r.getAttribute('aria-label') === `color.${n}`));
+      expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual(
+        NAMES.map((n) => `color.${n}`),
+      );
+    });
+
+    it('selects the swatch hex when a colour is clicked', () => {
+      const { props } = renderPalette();
+      fireEvent.click(screen.getByRole('radio', { name: 'color.blue' }));
+      expect(props.onSelectColor).toHaveBeenCalledWith('#3b82f6');
+    });
+
+    it('marks only the active colour as checked', () => {
+      renderPalette({ activeColor: '#3b82f6' });
+      expect(screen.getByRole('radio', { name: 'color.blue' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+      expect(screen.getByRole('radio', { name: 'color.red' })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      );
+    });
+  });
+
   describe('Font-size selector visibility', () => {
     it('font-size selector is NOT visible when selectedTool is "select"', () => {
       renderPalette({ selectedTool: 'select' });

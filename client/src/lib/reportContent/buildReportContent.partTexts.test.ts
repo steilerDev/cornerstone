@@ -336,3 +336,52 @@ describe('buildReportContent — partTexts rendered with the real bundles', () =
     });
   });
 });
+
+describe('buildReportContent — attachment note native plurals through a real i18next (#2260)', () => {
+  let tEn: TFunction;
+  let tDe: TFunction;
+
+  beforeAll(async () => {
+    const instance = i18next.createInstance();
+    await instance.init({
+      resources: { en: { budget: enBudget }, de: { budget: deBudget } },
+      lng: 'en',
+      fallbackLng: 'en',
+      defaultNS: 'budget',
+      ns: ['budget'],
+      interpolation: { escapeValue: false },
+    });
+    tEn = instance.getFixedT('en', 'budget');
+    tDe = instance.getFixedT('de', 'budget');
+  });
+
+  function noteFor(t: TFunction, locale: 'en-US' | 'de-DE', types: (string | null)[]) {
+    const documents = types.map((attachmentType, i) => ({
+      documentId: i + 1,
+      archiveSerialNumber: null,
+      title: null,
+      attachmentType: attachmentType as 'invoice' | 'quotation' | null,
+    }));
+    const r: SourceReportResponse = { ...report, invoices: [makeInvoice({ documents })] };
+    return buildReportContent(r, included, 'claim', t, formattersFor(locale)).rows[0]!
+      .attachmentsNote;
+  }
+
+  it('selects the count-only note by plural form in both locales', () => {
+    expect(noteFor(tEn, 'en-US', [null])).toBe('1 attachment');
+    expect(noteFor(tEn, 'en-US', [null, null])).toBe('2 attachments');
+    expect(noteFor(tDe, 'de-DE', [null])).toBe(
+      deBudget.sourceReports.table.attachmentsNoteNoType_one.replace('{{count}}', '1'),
+    );
+    expect(noteFor(tDe, 'de-DE', [null, null])).toBe(
+      deBudget.sourceReports.table.attachmentsNoteNoType_other.replace('{{count}}', '2'),
+    );
+  });
+
+  it('selects the typed note by plural form in both locales', () => {
+    expect(noteFor(tEn, 'en-US', ['invoice'])).toBe('1 attachment: Invoice');
+    expect(noteFor(tEn, 'en-US', ['invoice', 'quotation'])).toMatch(/^2 attachments: /);
+    expect(noteFor(tDe, 'de-DE', ['invoice'])).toMatch(/^1 Anhang: /);
+    expect(noteFor(tDe, 'de-DE', ['invoice', 'quotation'])).toMatch(/^2 Anhänge: /);
+  });
+});

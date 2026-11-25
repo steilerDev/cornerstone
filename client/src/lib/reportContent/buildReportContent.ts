@@ -95,9 +95,7 @@ function getAttachmentNote(
   if (attachmentTypes.length === 0) {
     // All null types
     const count = documents.length;
-    return t(`sourceReports.table.attachmentsNoteNoType_${count === 1 ? 'one' : 'other'}`, {
-      count,
-    });
+    return t('sourceReports.table.attachmentsNoteNoType', { count });
   }
 
   // Deduplicate types and translate
@@ -105,7 +103,7 @@ function getAttachmentNote(
   const typeLabels = dedupedTypes.map((type) => t(I18N_UNION_KEYS.reportAttachmentType.key(type)));
 
   const count = documents.length;
-  return t(`sourceReports.table.attachmentsNote_${count === 1 ? 'one' : 'other'}`, {
+  return t('sourceReports.table.attachmentsNote', {
     count,
     types: typeLabels.join(', '),
   });

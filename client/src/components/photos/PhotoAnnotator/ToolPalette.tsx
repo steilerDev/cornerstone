@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ToolName, StrokeWidthKey } from './useAnnotator.js';
-import { ANNOTATION_COLORS } from './annotationConstants.js';
+import { ANNOTATION_COLORS, ANNOTATION_COLOR_NAMES } from './annotationConstants.js';
+import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
 import styles from './ToolPalette.module.css';
 
 interface ToolPaletteProps {
@@ -160,20 +161,23 @@ export function ToolPalette({
 
       {/* Color swatches */}
       <div role="radiogroup" aria-label={t('colorPalette')} className={styles.swatchGroup}>
-        {Object.entries(ANNOTATION_COLORS).map(([key, hex]) => (
-          <button
-            key={key}
-            type="button"
-            role="radio"
-            aria-checked={activeColor === hex}
-            aria-label={t(`color${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-            className={`${styles.swatchButton} ${
-              activeColor === hex ? styles.swatchButtonActive : ''
-            }`}
-            style={{ backgroundColor: hex }}
-            onClick={() => onSelectColor(hex)}
-          />
-        ))}
+        {ANNOTATION_COLOR_NAMES.map((name) => {
+          const hex = ANNOTATION_COLORS[name];
+          return (
+            <button
+              key={name}
+              type="button"
+              role="radio"
+              aria-checked={activeColor === hex}
+              aria-label={t(I18N_UNION_KEYS.annotationColor.key(name))}
+              className={`${styles.swatchButton} ${
+                activeColor === hex ? styles.swatchButtonActive : ''
+              }`}
+              style={{ backgroundColor: hex }}
+              onClick={() => onSelectColor(hex)}
+            />
+          );
+        })}
       </div>
 
       {selectedTool !== 'text' && (
@@ -346,11 +350,14 @@ function EllipseIcon() {
   );
 }
 
+/** The text tool's icon glyph: a letterform, not a word, so it is not translated. */
+const TEXT_TOOL_GLYPH = 'T';
+
 function TextIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <text x="4" y="18" fontSize="16" fontWeight="700" fill="currentColor" fontFamily="serif">
-        T
+        {TEXT_TOOL_GLYPH}
       </text>
     </svg>
   );

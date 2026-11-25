@@ -30,6 +30,7 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { ANNOTATION_COLOR_NAMES } from '../components/photos/PhotoAnnotator/annotationConstants.js';
 import { TERM_HINT_TERMS } from '../lib/termHints.js';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
 import { INVOICE_FORM_KINDS } from '../objectForms/invoiceCreateContext.js';
@@ -45,6 +46,7 @@ import enHome from './en/home.json';
 import enCostLines from './en/costLines.json';
 import enWorkItems from './en/workItems.json';
 import enSchedule from './en/schedule.json';
+import enPhotoAnnotator from './en/photoAnnotator.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
@@ -56,6 +58,7 @@ import deHome from './de/home.json';
 import deCostLines from './de/costLines.json';
 import deWorkItems from './de/workItems.json';
 import deSchedule from './de/schedule.json';
+import dePhotoAnnotator from './de/photoAnnotator.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -72,6 +75,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   workItems: { en: enWorkItems, de: deWorkItems },
   costLines: { en: enCostLines, de: deCostLines },
   schedule: { en: enSchedule, de: deSchedule },
+  photoAnnotator: { en: enPhotoAnnotator, de: dePhotoAnnotator },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -100,8 +104,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 82 registered sets', () => {
-    expect(SETS).toHaveLength(82);
+  it('iterates all 83 registered sets', () => {
+    expect(SETS).toHaveLength(83);
   });
 });
 
@@ -273,7 +277,15 @@ describe('I18N_UNION_KEYS registry', () => {
       'scheduleOpenSubject',
       'scheduleWaitsForRelation',
       'scheduleHoldsUpRelation',
+      'annotationColor',
     ]);
+  });
+
+  it('builds the #2260 annotation colour keys from the colour name tuple', () => {
+    const set = I18N_UNION_KEYS.annotationColor;
+    expect(set.members).toBe(ANNOTATION_COLOR_NAMES);
+    expect(set.ns).toBe('photoAnnotator');
+    expect(set.key('red')).toBe('color.red');
   });
 
   it('builds the #2235 cost line keys from their tuples', () => {

@@ -1,7 +1,8 @@
-import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, jest, afterEach } from '@jest/globals';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EnumOption, EnumHierarchyItem } from '../DataTable.js';
+import i18n from '../../../i18n/index.js';
 import { EnumFilter } from './EnumFilter.js';
 
 /**
@@ -493,5 +494,28 @@ describe('EnumFilter — arbitrary-depth hierarchy', () => {
     expect(document.querySelector('label[for="enum-orphan-2"]')).not.toBeNull();
     expect(getLabelDepth('orphan-1')).toBe('0');
     expect(getLabelDepth('orphan-2')).toBe('0');
+  });
+});
+
+describe('EnumFilter — localized parent option name', () => {
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
+  it('German: parent checkbox is named "Root (Gruppe)" and a leaf keeps its plain label', async () => {
+    await i18n.changeLanguage('de');
+    render(
+      <EnumFilter
+        value=""
+        onChange={jest.fn()}
+        options={OPTIONS_3_LEVEL}
+        hierarchy={HIERARCHY_3_LEVEL}
+      />,
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0]!).toHaveAttribute('aria-label', 'Root (Gruppe)');
+    expect(checkboxes[2]!).toHaveAttribute('aria-label', 'Grandchild AA');
   });
 });

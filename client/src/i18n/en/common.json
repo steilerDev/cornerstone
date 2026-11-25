@@ -426,7 +426,8 @@
       "booleanAriaLabel": "Boolean filter",
       "selectAll": "Select All",
       "selectNone": "Select None",
-      "dateRangeAriaLabel": "Date range picker"
+      "dateRangeAriaLabel": "Date range picker",
+      "groupOption": "{{label}} (group)"
     },
     "columnSettings": {
       "ariaLabel": "Column settings",
