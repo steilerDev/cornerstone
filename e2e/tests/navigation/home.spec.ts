@@ -311,8 +311,8 @@ test.describe('Needs attention (H2 - H5)', { tag: '@responsive' }, () => {
     // The term hint: visible name stays "Not now", the hint is its description
     const notNow = home.rowNotNow(b.key);
     await expect(notNow).toHaveText('Not now');
-    await expect(notNow).toHaveAttribute('title', 'Hides this row for 7 days.');
-    await expect(notNow).toHaveAccessibleDescription('Hides this row for 7 days.');
+    await expect(notNow).toHaveAttribute('title', 'Hides a row on Home for 7 days.');
+    await expect(notNow).toHaveAccessibleDescription('Hides a row on Home for 7 days.');
 
     await notNow.click();
     await expect(home.row(b.key)).toHaveCount(0);
@@ -700,7 +700,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
 
     const toPay = home.pulseTile('still-to-pay');
     await expect(toPay).toContainText('3,400.50');
-    await expect(toPay).toContainText('4 open invoices');
+    await expect(toPay).toContainText('4 invoices are still to pay');
     await expect(toPay).toHaveAttribute('href', routeUrl('invoices'));
 
     const progress = home.pulseTile('progress');

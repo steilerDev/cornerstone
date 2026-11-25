@@ -96,7 +96,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
-  it('shows "Login with SSO" button when oidcEnabled is true', async () => {
+  it('shows "Sign in with single sign-on" button when oidcEnabled is true', async () => {
     mockGetAuthMe.mockResolvedValue({
       user: null,
       setupRequired: false,
@@ -105,21 +105,23 @@ describe('LoginPage', () => {
 
     renderWithAuth(<LoginPage />);
 
-    const ssoButton = await screen.findByRole('button', { name: /login with sso/i });
+    const ssoButton = await screen.findByRole('button', { name: /sign in with single sign-on/i });
     expect(ssoButton).toBeInTheDocument();
 
     // Divider with "or" text is shown (use exact text to avoid matching "Password" etc.)
     expect(screen.getByText('or')).toBeInTheDocument();
   });
 
-  it('hides "Login with SSO" button when oidcEnabled is false', async () => {
+  it('hides "Sign in with single sign-on" button when oidcEnabled is false', async () => {
     renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
     });
 
-    expect(screen.queryByRole('button', { name: /login with sso/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /sign in with single sign-on/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows OIDC error message from URL query parameter (oidc_error)', async () => {
@@ -229,7 +231,7 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     renderWithAuth(<LoginPage />);
 
-    const ssoButton = await screen.findByRole('button', { name: /login with sso/i });
+    const ssoButton = await screen.findByRole('button', { name: /sign in with single sign-on/i });
 
     // Verify button is enabled and not disabled
     expect(ssoButton).toBeEnabled();
@@ -252,7 +254,9 @@ describe('LoginPage', () => {
 
     renderWithAuth(<LoginPage />);
 
-    expect(screen.queryByRole('button', { name: /login with sso/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /sign in with single sign-on/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows error message in alert role for accessibility', async () => {
@@ -500,7 +504,7 @@ describe('LoginPage', () => {
       const user = userEvent.setup();
       await user.type(screen.getByLabelText(/email/i), 'user@example.com');
       await user.type(screen.getByLabelText(/password/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
     }
 
     beforeEach(() => {
@@ -619,7 +623,9 @@ describe('LoginPage', () => {
       await screen.findByRole('button', { name: /sign in/i });
       await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalledTimes(1));
       expect(log.actions).toEqual([]);
-      expect(screen.queryByRole('button', { name: /login with sso/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /sign in with single sign-on/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('starts SSO with the deep link as the redirect parameter', async () => {
@@ -627,7 +633,7 @@ describe('LoginPage', () => {
       renderRecorded('/login?next=%2Fdiary');
 
       const user = userEvent.setup();
-      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+      await user.click(await screen.findByRole('button', { name: /sign in with single sign-on/i }));
 
       expect(mockOidcLoginUrl).toHaveBeenLastCalledWith('/diary');
       expect(window.location.hash).toBe('#sso-start:/diary');
@@ -638,7 +644,7 @@ describe('LoginPage', () => {
       renderRecorded('/login');
 
       const user = userEvent.setup();
-      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+      await user.click(await screen.findByRole('button', { name: /sign in with single sign-on/i }));
 
       expect(mockOidcLoginUrl).toHaveBeenLastCalledWith(null);
       expect(window.location.hash).toBe('#sso-start:none');
@@ -650,7 +656,7 @@ describe('LoginPage', () => {
       const log = renderRecorded('/login?next=%2F%2Fevil');
 
       const user = userEvent.setup();
-      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+      await user.click(await screen.findByRole('button', { name: /sign in with single sign-on/i }));
       expect(mockOidcLoginUrl).toHaveBeenLastCalledWith(null);
       expect(window.location.hash).toBe('#sso-start:none');
 

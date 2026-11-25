@@ -171,6 +171,8 @@ const DIARY_SEVERITY_CLASS: Record<DiaryIssueSeverity, string> = {
   critical: badgeStyles.critical!,
 };
 
+const termSet = I18N_UNION_KEYS.termHintDefinition;
+
 export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatus, BadgeVariant> {
   const set = I18N_UNION_KEYS.statusVocabularyInvoice;
   const result = {} as Record<InvoiceStatus, BadgeVariant>;
@@ -181,7 +183,7 @@ export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatu
     };
     if (status === 'claimed') {
       variant.icon = <CheckIcon />;
-      variant.title = t('statusHints.submitted', { ns: 'common' });
+      variant.title = t(termSet.key('submitted'), { ns: termSet.ns });
     }
     result[status] = variant;
   }
@@ -198,7 +200,7 @@ export function buildCostLineStateVariants(t: StatusLabelT): Record<CostLineStat
     };
     if (state === 'submitted') {
       variant.icon = <CheckIcon />;
-      variant.title = t('statusHints.submitted', { ns: 'common' });
+      variant.title = t(termSet.key('submitted'), { ns: termSet.ns });
     }
     result[state] = variant;
   }
@@ -217,7 +219,7 @@ export function buildProgressPaymentStatusVariants(
     };
     if (status === 'claimed') {
       variant.icon = <CheckIcon />;
-      variant.title = t('statusHints.submitted', { ns: 'common' });
+      variant.title = t(termSet.key('submitted'), { ns: termSet.ns });
     }
     result[status] = variant;
   }
@@ -303,6 +305,7 @@ export function buildMilestoneStatusVariants(
     result[status] = {
       label: t(set.key(status), { ns: set.ns, days: 0 }),
       className: MILESTONE_STATUS_CLASS[status],
+      ...(status === 'late' ? { title: t(termSet.key('late'), { ns: termSet.ns }) } : {}),
     };
   }
   return result;
@@ -318,10 +321,12 @@ export function buildScheduleSignalVariants(
     late: {
       label: t(set.key('late'), { ns: set.ns, days: lateDays }),
       className: badgeStyles.scheduleAtRisk!,
+      title: t(termSet.key('late'), { ns: termSet.ns }),
     },
     held_up: {
       label: t(set.key('held_up'), { ns: set.ns }),
       className: badgeStyles.scheduleWarning!,
+      title: t(termSet.key('heldUp'), { ns: termSet.ns }),
     },
   };
 }
@@ -603,6 +608,7 @@ export function buildCriticalSignalVariant(t: StatusLabelT): { critical: BadgeVa
     critical: {
       label: t(set.key('critical'), { ns: set.ns }),
       className: badgeStyles.scheduleCritical!,
+      title: t(termSet.key('critical'), { ns: termSet.ns }),
     },
   };
 }

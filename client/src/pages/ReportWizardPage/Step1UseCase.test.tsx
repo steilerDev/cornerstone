@@ -28,6 +28,30 @@ describe('Step1UseCase', () => {
     expect(screen.getByText('sourceReports.useCaseHelper.proof-of-funds')).toBeInTheDocument();
   });
 
+  it('explains Draw-down request on the claim card only, outside the label (#2258)', () => {
+    render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
+    const buttons = screen.getAllByRole('button', { name: /Explain/ });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAccessibleName('Explain “Draw-down request”');
+    expect(buttons[0]!.closest('label')).toBeNull();
+    const claimRadio = (screen.getAllByRole('radio') as HTMLInputElement[]).find(
+      (r) => r.value === 'claim',
+    )!;
+    // Same card wrapper: the radio's label and the info button share one parent.
+    expect(claimRadio.closest('label')!.parentElement).toBe(
+      buttons[0]!.parentElement!.parentElement,
+    );
+  });
+
+  it('only the claim card label carries the with-hint class', () => {
+    render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
+    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+    for (const r of radios) {
+      const hasClass = r.closest('label')!.className.includes('useCaseCardWithHint');
+      expect(hasClass).toBe(r.value === 'claim');
+    }
+  });
+
   it('none of the radios are checked when value is null', () => {
     render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];

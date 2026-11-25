@@ -9,6 +9,8 @@ interface TooltipProps {
   toggleOnClick?: boolean;
   /** `end` right-aligns the bubble to the trigger (triggers at a right edge, e.g. amounts). */
   align?: 'center' | 'end';
+  /** Wrap long text (definitions) instead of one line; the open bubble stays hoverable. */
+  multiline?: boolean;
 }
 
 export function Tooltip({
@@ -17,6 +19,7 @@ export function Tooltip({
   id,
   toggleOnClick = false,
   align = 'center',
+  multiline = false,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const autoId = useId();
@@ -79,7 +82,7 @@ export function Tooltip({
       <span
         id={tooltipId}
         role="tooltip"
-        className={`${styles.tooltip} ${align === 'end' ? styles.alignEnd : ''} ${isVisible ? styles.visible : ''}`}
+        className={`${styles.tooltip} ${align === 'end' ? styles.alignEnd : ''} ${multiline ? styles.multiline : ''} ${isVisible ? styles.visible : ''}`}
       >
         {content}
       </span>

@@ -59,6 +59,7 @@ export function useInvoiceSummaryFacts({
         id: 'remainingOnOffer',
         kind: 'static',
         label: t('invoicePage.facts.remainingOnOffer'),
+        termHint: 'remainingOnOffer',
         value: formatCurrency(invoice.remainingOnOffer ?? 0),
       });
     } else {
@@ -98,6 +99,7 @@ export function useInvoiceSummaryFacts({
       href: tabs.hrefFor('cost'),
       onActivate: () => tabs.select('cost', { focusPanel: true }),
       label: t('invoicePage.facts.split'),
+      termHint: 'split',
       value: loading ? null : (
         <>
           {formatPercent(share * 100, 0)}

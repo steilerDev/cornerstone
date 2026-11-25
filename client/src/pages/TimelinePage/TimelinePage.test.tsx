@@ -421,7 +421,7 @@ describe('TimelinePage view state', () => {
     expect(screen.queryByTestId('gantt-sidebar-row-wi-done')).toBeNull();
     fireEvent.click(screen.getByTestId('schedule-legend-toggle'));
     expect(await screen.findByTestId('schedule-legend-done-hidden')).toHaveTextContent(
-      '1 done item',
+      '1 done row hidden',
     );
     fireEvent.click(screen.getByTestId('schedule-show-trigger'));
     fireEvent.click(screen.getByTestId('schedule-show-done'));

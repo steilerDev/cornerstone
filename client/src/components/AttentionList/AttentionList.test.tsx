@@ -211,11 +211,11 @@ describe('AttentionList: Show all', () => {
     fireEvent.click(button);
     expect(button).toHaveTextContent('Show fewer');
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent('Showing all 10 items');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing all 10 rows');
     expect(button).toHaveFocus();
     fireEvent.click(button);
     expect(button).toHaveTextContent('Show all (10)');
-    expect(screen.getByRole('status')).toHaveTextContent('Showing the first 8 items');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing the first 8 rows');
     expect(
       within(screen.getByTestId('needs-attention-list')).getAllByRole('listitem'),
     ).toHaveLength(8);

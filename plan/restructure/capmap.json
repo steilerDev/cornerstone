@@ -3396,10 +3396,10 @@
   "PLT-023": {
     "name": "Sign in with single sign-on (SSO / OpenID Connect)",
     "from": "/login > \"Login with SSO\" button above an \"or\" divider (only when OIDC is configured)",
-    "to": "Auth > Login > 'Sign in with SSO' (OIDC only)",
+    "to": "Auth > Login > 'Sign in with single sign-on' (OIDC only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (weekly use). #2204: the SSO start passes ?redirect=<next>; after SSO the user lands on the deep link (D-13)."
+    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (weekly use). #2204: the SSO start passes ?redirect=<next>; after SSO the user lands on the deep link (D-13). #2258: button reads 'Sign in with single sign-on' (glossary canon; was 'Sign in with SSO')."
   },
   "PLT-024": {
     "name": "Have an existing account linked to the identity provider automatically on first SSO sign-in",
@@ -3496,7 +3496,7 @@
     "to": "Settings > Account > Preferences > Language; Global > User menu > Language (toggled in place)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch). #2207: below 1024 px toggled in place in the More sheet's user block. #2214: Settings › Account › Preferences › Language (a select; the last option is \"System (browser language)\")."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch). #2207: below 1024 px toggled in place in the More sheet's user block. #2214: Settings › Account › Preferences › Language (a select; the last option is \"System (browser language)\"). #2258: first open uses the first supported language of the browser's language list (navigator.languages); still changeable in Settings › Account › Preferences and the user menu."
   },
   "PLT-036": {
     "name": "See dates, numbers and money formatted for the chosen language",
@@ -4050,7 +4050,7 @@
     "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > ⋯ > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language. #2256: the unchanged-name guard is `referenceChanges` in `objectForms/referenceForm.ts`, shared by the cost category, purchase category and orientation schemas."
+    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language. #2256: the unchanged-name guard is `referenceChanges` in `objectForms/referenceForm.ts`, shared by the cost category, purchase category and orientation schemas. #2258: the default cost category for purchases is named 'Purchases' (was 'Household Items')."
   },
   "PLT-102": {
     "name": "Create a photo orientation (viewing direction) with description and sort order",

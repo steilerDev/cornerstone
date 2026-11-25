@@ -321,6 +321,26 @@ describe('ScheduleItemPanel task', () => {
     );
   });
 
+  it('explains Waits for and Holds up with an info button beside each heading (#2258)', () => {
+    setup('task:a');
+    const waits = screen.getByTestId('schedule-panel-waits-for');
+    const holds = screen.getByTestId('schedule-panel-holds-up');
+    for (const [section, name] of [
+      [waits, 'Explain “Waits for”'],
+      [holds, 'Explain “Holds up”'],
+    ] as const) {
+      const button = within(section).getByRole('button', { name });
+      expect(within(section).getByRole('heading', { level: 3 })).not.toContainElement(button);
+    }
+    expect(screen.getByTestId('schedule-panel-holds-up-figure').closest('button')).toBeNull();
+  });
+
+  it('shows only the Waits for info button on a purchase (#2258)', () => {
+    setup('purchase:sofa');
+    expect(screen.getAllByRole('button', { name: /Explain/ })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Explain “Waits for”' })).toBeInTheDocument();
+  });
+
   it('marks the holds-up count with data-figure only when above zero', () => {
     const { unmount } = setup('task:a');
     const figure = screen.getByTestId('schedule-panel-holds-up-figure');

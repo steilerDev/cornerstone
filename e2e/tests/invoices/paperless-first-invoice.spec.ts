@@ -865,7 +865,7 @@ test.describe('Scenario 10 — PDF iframe in preview column (Story #1704)', () =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 11 — Silent-failure fix: vendor error on submit without vendor (Story #1703)', () => {
-  test('Clicking Create Invoice & Itemize with no vendor shows inline vendor error and keeps URL unchanged', async ({
+  test('Clicking Create invoice and split with no vendor shows inline vendor error and keeps URL unchanged', async ({
     page,
     testPrefix,
   }) => {
@@ -890,7 +890,7 @@ test.describe('Scenario 11 — Silent-failure fix: vendor error on submit withou
       // (behavior change in Story #1703 — old code had disabled={!vendorId || saving})
       await expect(reviewPage.confirmButton).not.toBeDisabled();
 
-      // Click "Create Invoice & Itemize" without setting a vendor
+      // Click "Create invoice and split" without setting a vendor
       await reviewPage.confirmButton.click();
 
       // A visible vendor FormError should appear
@@ -1080,7 +1080,7 @@ test.describe(
 //
 // Story #1764 / #2235: PaperlessInvoiceReviewPage uses the same queued-on-save flow as
 // AutoItemizePage. A row that has a task or purchase under "Belongs to" (and a cost category)
-// will CREATE a new cost line on it - but only when "Create Invoice & Itemize" is clicked:
+// will CREATE a new cost line on it - but only when "Create invoice and split" is clicked:
 //   - the row shows the chosen task in its Belongs to cell
 //   - no budget-line API is called until then
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1147,7 +1147,7 @@ test.describe(
 //
 // After a row is marked as a new cost line, the user edits the cost-line grid
 // row (description), sets a vendor on the page, and clicks
-// "Create Invoice & Itemize". This triggers:
+// "Create invoice and split". This triggers:
 //   1. POST /api/work-items/:id/budgets — creates the WI budget line
 //   2. POST /api/invoices/auto-itemize/commit — creates the invoice
 //   3. Navigation to the invoice detail page
@@ -1287,7 +1287,7 @@ test.describe('Scenario 17 — Editing the row and saving creates the cost line 
       // ── Set vendor on the page ──────────────────────────────────────────────
       await reviewPage.setVendor(`${testPrefix} PF-S17 Vendor`);
 
-      // ── Click "Create Invoice & Itemize" ────────────────────────────────────
+      // ── Click "Create invoice and split" ────────────────────────────────────
       await reviewPage.confirmButton.click();
 
       // ── Wait for WI budget creation and commit (parallel) ───────────────────
@@ -1322,7 +1322,7 @@ test.describe('Scenario 17 — Editing the row and saving creates the cost line 
 // Scenario 18 — Row validation: a missing amount shows a cell error
 //
 // When the cost-line grid row has an invalid/empty amount and the user
-// clicks "Create Invoice & Itemize", handleSave should:
+// clicks "Create invoice and split", handleSave should:
 //   - Show the t('autoItemize.inlineDraftInvalid') page-level error banner
 //   - Stay on the review page (no navigation)
 //   - NOT call any API (WI budget or commit)
@@ -1384,7 +1384,7 @@ test.describe('Scenario 18 — Row validation: a missing amount shows a cell err
       // ── Set vendor so vendor validation passes ──────────────────────────────
       await reviewPage.setVendor(`${testPrefix} PF-S18 Vendor`);
 
-      // ── Click "Create Invoice & Itemize" ────────────────────────────────────
+      // ── Click "Create invoice and split" ────────────────────────────────────
       await reviewPage.confirmButton.click();
 
       // ── Assert: the row shows the unit price error, nothing is saved ────────

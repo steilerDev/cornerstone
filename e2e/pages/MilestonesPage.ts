@@ -116,6 +116,11 @@ export class MilestonesPage {
     return this.olist.columnHeader(label);
   }
 
+  /** The ⓘ button inside a column header (Waits for, Holds up), #2258. */
+  columnTermHint(label: string | RegExp): Locator {
+    return this.columnHeader(label).getByRole('button', { name: /^Explain/ });
+  }
+
   openFilters(): Promise<void> {
     return this.olist.openFilters();
   }

@@ -1231,7 +1231,9 @@ test.describe('Documents and Delete (T13, AC8)', { tag: '@responsive' }, () => {
     await task.goto(id);
     await task.openDeleteModal();
 
-    await expect(task.deleteDialog.consequence(/Subtasks deleted with it/)).toContainText('2');
+    await expect(task.deleteDialog.consequence(/Checklist items deleted with it/)).toContainText(
+      '2',
+    );
     await expect(task.deleteDialog.consequence(/Notes deleted with it/)).toContainText('1');
     await expect(task.deleteDialog.consequence(/Cost lines deleted with it/)).toContainText('1');
     await expect(task.deleteDialog.consequence(/Dependencies removed with it/)).toContainText('1');

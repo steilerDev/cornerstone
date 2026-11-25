@@ -29,7 +29,7 @@
  *         Vendor error (FormError variant="field") at #vendor-error inside vendorCard
  *       - div.metadataCard (class*="metadataCard") — invoice number, amount, date fields
  *       - AutoItemizeLines: the shared lines grid with the Merge bar and the total
- *       - div.actions — "Create Invoice & Itemize" button + Cancel
+ *       - div.actions — "Create invoice and split" button + Cancel
  *         NOTE: Button is ONLY disabled when pageStatus='saving', NOT when vendorId is empty.
  *         Clicking without a vendor shows the inline vendor FormError (silent-failure fix).
  *   - RIGHT: div.previewColumn (class*="previewColumn") — contains:
@@ -39,10 +39,10 @@
  * Lines (#2235): the shared cost line grid (`grid`, prefix `auto-itemize-grid`) replaces the old
  * line cards, the "Assign…" picker modal and the inline "Create Budget Line" draft. A row creates a
  * NEW cost line on its "Belongs to" task or purchase (else "Assign all to"), or links an EXISTING
- * one with "Use an existing cost line…". Nothing is created until "Create Invoice & Itemize".
+ * one with "Use an existing cost line…". Nothing is created until "Create invoice and split".
  *
  * Saving state (pageStatus='saving'):
- *   - "Create Invoice & Itemize" → "Saving..." (autoItemize.saving)
+ *   - "Create invoice and split" → "Saving..." (autoItemize.saving)
  *   - Cancel button is disabled
  *   - formColumn aria-busy="true"
  */
@@ -64,7 +64,7 @@ export class PaperlessInvoiceReviewPage {
 
   /**
    * Status line under the h1: "Analyzing document with AI…" while loading,
-   * "Extraction complete. Please review the suggested line items." when ready.
+   * "Extraction complete. Check the suggested lines." when ready.
    */
   readonly statusLine: Locator;
 
@@ -129,7 +129,7 @@ export class PaperlessInvoiceReviewPage {
   /** Invoice Status <select id="invoice-status"> (pending/paid/claimed/quotation) */
   readonly statusSelect: Locator;
 
-  /** "Create Invoice & Itemize" confirm button (text-based locator — works in all layout variants) */
+  /** "Create invoice and split" confirm button (text-based locator — works in all layout variants) */
   readonly confirmButton: Locator;
 
   /** "Cancel" button in the page action area */
@@ -250,7 +250,7 @@ export class PaperlessInvoiceReviewPage {
 
     // Action buttons — text-based locators work regardless of layout changes
     this.confirmButton = page.getByRole('button', {
-      name: /Create Invoice & Itemize|Saving\.\.\./i,
+      name: /Create invoice and split|Saving\.\.\./i,
     });
     this.cancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
@@ -275,7 +275,7 @@ export class PaperlessInvoiceReviewPage {
     this.pageErrorBanner = page.locator('[class*="formColumn"]').locator('[role="alert"]').first();
 
     // Merge: the Merge button of the SelectionActionBar and the grid's notice rows
-    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
+    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected lines$/i });
     this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
     this.mergingRow = this.grid.grid.locator('[role="status"]').filter({ hasText: /^Merging / });
     this.mergeErrorRow = this.grid.grid.locator('[role="alert"]');
@@ -363,7 +363,7 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
-   * Click the "Create Invoice & Itemize" confirm button.
+   * Click the "Create invoice and split" confirm button.
    * Registers a waitForResponse before clicking to avoid race conditions.
    * Returns the navigated invoice ID from the response.
    */
@@ -471,7 +471,7 @@ export class PaperlessInvoiceReviewPage {
   /**
    * Mark a row as "create a NEW cost line on this task" (#2235): choose the task under Belongs to
    * and a cost category (a row that creates a line needs one); optionally the Funding source.
-   * Nothing is created until "Create Invoice & Itemize".
+   * Nothing is created until "Create invoice and split".
    *
    * @param options.lineIndex - 0-based row (default 0)
    * @param options.budgetSourceId - Funding source to select. Pass it for any flow that saves:

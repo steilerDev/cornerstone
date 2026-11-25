@@ -100,6 +100,13 @@ describe('title and secondary line', () => {
   });
 });
 
+describe('column term hints (#2258)', () => {
+  it('explains Waits for and Holds up together on the Relations header only', () => {
+    const hinted = out.columns!.filter((c) => c.termHints).map((c) => [c.key, c.termHints]);
+    expect(hinted).toEqual([['relations', ['waitsFor', 'holdsUp']]]);
+  });
+});
+
 describe('columns', () => {
   const cell = (key: string, row = makeTaskRow()) =>
     show(<div data-testid="cell">{column(key).render(row)}</div>);

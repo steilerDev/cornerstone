@@ -26,6 +26,8 @@ export interface MoneyFigureProps {
   readonly verdict?: ReactNode;
   /** Line under the figure. */
   readonly range?: string | null;
+  /** Rendered after the range text (an info button explaining "Range"). */
+  readonly rangeHint?: ReactNode;
   /** Line under the range. */
   readonly detail?: ReactNode;
   readonly explanation?: MoneyFigureExplanation;
@@ -46,6 +48,7 @@ export function MoneyFigure({
   figureKind,
   verdict,
   range,
+  rangeHint,
   detail,
   explanation,
   testId = 'money-figure',
@@ -91,6 +94,7 @@ export function MoneyFigure({
       {range ? (
         <p className={styles.range} data-testid={`${testId}-range`}>
           {range}
+          {rangeHint}
         </p>
       ) : null}
       {detail ? <p className={styles.detail}>{detail}</p> : null}

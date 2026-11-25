@@ -1,5 +1,7 @@
 import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TermHintTerm } from '../../lib/termHints.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './RelatedList.module.css';
 
 export interface RelatedListHeaderProps {
@@ -14,6 +16,8 @@ export interface RelatedListHeaderProps {
   readonly children?: ReactNode;
   /** Drops the bottom margin when the host already spaces its children (a flex gap). */
   readonly flush?: boolean;
+  /** Explains the heading's term with an info button beside the heading (outside it). */
+  readonly titleTermHint?: TermHintTerm;
 }
 
 /** The heading with its count and the action slot; shared by RelatedList and CostLinesSection. */
@@ -25,14 +29,25 @@ export function RelatedListHeader({
   headingRef,
   children,
   flush = false,
+  titleTermHint,
 }: RelatedListHeaderProps) {
   const { t } = useTranslation('common');
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
+  const heading = (
+    <Heading id={headingId} ref={headingRef} tabIndex={-1} className={styles.title}>
+      {count === undefined ? title : t('relatedList.titleWithCount', { title, count })}
+    </Heading>
+  );
   return (
     <div className={flush ? `${styles.header} ${styles.headerFlush}` : styles.header}>
-      <Heading id={headingId} ref={headingRef} tabIndex={-1} className={styles.title}>
-        {count === undefined ? title : t('relatedList.titleWithCount', { title, count })}
-      </Heading>
+      {titleTermHint ? (
+        <div className={styles.titleGroup}>
+          {heading}
+          <TermHintPopover terms={[titleTermHint]} />
+        </div>
+      ) : (
+        heading
+      )}
       {children ? <div className={styles.actions}>{children}</div> : null}
     </div>
   );

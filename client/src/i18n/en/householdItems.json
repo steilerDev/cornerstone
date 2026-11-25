@@ -81,12 +81,12 @@
     "form": {
       "name": {
         "label": "Name",
-        "placeholder": "Enter item name",
+        "placeholder": "Name of the purchase",
         "error": "Enter a name."
       },
       "description": {
         "label": "Description",
-        "placeholder": "Describe the item"
+        "placeholder": "Describe the purchase"
       },
       "category": {
         "label": "Category",

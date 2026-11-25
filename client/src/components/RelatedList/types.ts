@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { UndoToken } from '@cornerstone/shared';
 import type { OverflowMenuItem } from '../OverflowMenu/OverflowMenu.js';
 import type { OriginState } from '../../navigation/origin.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
 
 export interface RelatedListRow {
   readonly id: string;
@@ -45,6 +46,8 @@ export interface RelatedListProps {
   /** Glossary word from the host, e.g. "Dependencies". */
   readonly title: string;
   readonly headingLevel?: 2 | 3;
+  /** Explains the title's term with an info button beside the heading. */
+  readonly titleTermHint?: TermHintTerm;
   /** null = loading. */
   readonly rows: readonly RelatedListRow[] | null;
   /** Heading count when it differs from `rows.length` (a derived row that is not an item). */

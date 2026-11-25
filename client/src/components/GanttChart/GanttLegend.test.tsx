@@ -40,8 +40,11 @@ function setup(props: Partial<Parameters<typeof GanttLegend>[0]> = {}) {
   return { ...utils, onClose };
 }
 
+// The label span only: the Late entry also holds the term-hint info button.
 const labels = () =>
-  Array.from(document.querySelectorAll('li')).map((li) => li.textContent?.trim());
+  Array.from(document.querySelectorAll('li')).map((li) =>
+    li.querySelector('span:not([aria-hidden])')?.textContent?.trim(),
+  );
 
 describe('GanttLegend strip (768 px and wider)', () => {
   it('renders nothing while closed', () => {
@@ -66,6 +69,17 @@ describe('GanttLegend strip (768 px and wider)', () => {
     ]);
   });
 
+  it('explains Late and Held up with an info button on the Late entry only (#2258)', () => {
+    setup();
+    const buttons = screen.getAllByRole('button', { name: 'Explain these terms' });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]!.closest('li')).toHaveTextContent('Late or held up');
+    fireEvent.click(buttons[0]!);
+    const dialog = screen.getByRole('dialog', { name: 'What these terms mean' });
+    expect(dialog).toHaveTextContent('Late');
+    expect(dialog).toHaveTextContent('Held up');
+  });
+
   it('hides the swatches from assistive technology', () => {
     setup();
     const swatches = document.querySelectorAll('svg');
@@ -76,7 +90,7 @@ describe('GanttLegend strip (768 px and wider)', () => {
   it('notes how many done items the Done toggle hides', () => {
     setup({ doneHidden: 4, showDone: false });
     expect(screen.getByTestId('schedule-legend-done-hidden')).toHaveTextContent(
-      '4 done items hidden',
+      '4 done rows hidden',
     );
   });
 

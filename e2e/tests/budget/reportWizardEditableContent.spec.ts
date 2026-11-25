@@ -1151,7 +1151,7 @@ test.describe('Report wizard editable content — mark-claimed warning regressio
 
       await wizard.clickMarkClaimed();
       await expect(wizard.markClaimedWarningBlock).toBeVisible();
-      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded line items/);
+      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded lines/);
       await wizard.confirmClaim();
 
       // Fixture has no deposits and the only invoice has an excluded line, so both invoiceIds

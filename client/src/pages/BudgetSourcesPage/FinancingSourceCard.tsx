@@ -5,6 +5,7 @@ import type { FinancingSource } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
+import { TermHint } from '../../components/Tooltip/TermHint.js';
 import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
@@ -100,7 +101,9 @@ export function FinancingSourceCard({ source, originState }: FinancingSourceCard
           <dd>{formatCurrency(source.amount)}</dd>
         </div>
         <div className={styles.figure}>
-          <dt>{t('financing.figures.allocated')}</dt>
+          <dt>
+            <TermHint term="allocated">{t('financing.figures.allocated')}</TermHint>
+          </dt>
           <dd>{formatCurrency(source.allocated)}</dd>
         </div>
         <div className={styles.figure}>
@@ -110,11 +113,15 @@ export function FinancingSourceCard({ source, originState }: FinancingSourceCard
           </dd>
         </div>
         <div className={styles.figure}>
-          <dt>{t('financing.figures.submitted')}</dt>
+          <dt>
+            <TermHint term="submitted">{t('financing.figures.submitted')}</TermHint>
+          </dt>
           <dd>{formatCurrency(source.submitted)}</dd>
         </div>
         <div className={styles.figure}>
-          <dt>{t('financing.figures.unallocated')}</dt>
+          <dt>
+            <TermHint term="unallocated">{t('financing.figures.unallocated')}</TermHint>
+          </dt>
           <dd
             className={over ? styles.danger : undefined}
             data-testid={`financing-source-unallocated-${id}`}
@@ -135,6 +142,7 @@ export function FinancingSourceCard({ source, originState }: FinancingSourceCard
             ? t('financing.overAllocatedBy', { amount: formatCurrency(source.overAllocated) })
             : undefined
         }
+        overflowNoteHint="overAllocated"
         height="sm"
         formatValue={formatCurrency}
       />
@@ -146,7 +154,7 @@ export function FinancingSourceCard({ source, originState }: FinancingSourceCard
               source.readyToSubmit.count === 0 ? `${styles.ready} ${styles.muted}` : styles.ready
             }
           >
-            <span>{t('financing.readyToSubmit')}</span>{' '}
+            <TermHint term="readyToSubmit">{t('financing.readyToSubmit')}</TermHint>{' '}
             <span data-testid={`financing-source-ready-count-${id}`}>
               {source.readyToSubmit.count}
             </span>

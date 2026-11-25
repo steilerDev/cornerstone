@@ -71,6 +71,8 @@ export class TimelinePage {
   /** Legend strip (desktop/tablet) or bottom sheet (phone). */
   readonly legend: Locator;
   readonly legendDoneHidden: Locator;
+  /** The ⓘ beside "Late or held up" in the legend (accessible name "Explain these terms", #2258). */
+  readonly legendExplainButton: Locator;
   /** Phone-only Agenda / Chart switch. */
   readonly phoneViewAgenda: Locator;
   readonly phoneViewChart: Locator;
@@ -214,6 +216,7 @@ export class TimelinePage {
     this.legendToggle = page.getByTestId('schedule-legend-toggle');
     this.legend = page.getByTestId('schedule-legend');
     this.legendDoneHidden = page.getByTestId('schedule-legend-done-hidden');
+    this.legendExplainButton = this.legend.getByRole('button', { name: 'Explain these terms' });
     this.phoneViewAgenda = page.getByTestId('schedule-phone-view-agenda');
     this.phoneViewChart = page.getByTestId('schedule-phone-view-chart');
 

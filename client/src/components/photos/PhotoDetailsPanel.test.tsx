@@ -190,13 +190,13 @@ describe('PhotoDetailsPanel read mode', () => {
 
   it('shows the diary date in long form', () => {
     setup();
-    expect(screen.getByText('Diary date')).toBeInTheDocument();
+    expect(screen.getByText('Diary entry date')).toBeInTheDocument();
     expect(screen.getByTestId('photo-details-date')).toHaveTextContent('September 11, 2026');
   });
 
   it('omits the diary date row when there is no date', () => {
     setup({ diaryDate: null });
-    expect(screen.queryByText('Diary date')).not.toBeInTheDocument();
+    expect(screen.queryByText('Diary entry date')).not.toBeInTheDocument();
     expect(screen.queryByTestId('photo-details-date')).not.toBeInTheDocument();
   });
 

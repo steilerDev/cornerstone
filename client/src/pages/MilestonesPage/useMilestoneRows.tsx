@@ -73,6 +73,7 @@ export function useMilestoneRows({ onDelete }: UseMilestoneRowsOptions): RowProp
       {
         key: 'waitsFor',
         label: t('milestones.list.columns.waitsFor'),
+        termHints: ['waitsFor'],
         sortValue: 'waits_for',
         align: 'end',
         render: (item) =>
@@ -85,6 +86,7 @@ export function useMilestoneRows({ onDelete }: UseMilestoneRowsOptions): RowProp
       {
         key: 'holdsUp',
         label: t('milestones.list.columns.holdsUp'),
+        termHints: ['holdsUp'],
         align: 'end',
         render: (item) =>
           item.holdsUp === null ? (

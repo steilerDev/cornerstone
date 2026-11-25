@@ -9,6 +9,7 @@ import type { ObjectTabsController } from '../../components/ObjectTabs/useObject
 import type { ObjectTabId } from '../../components/ObjectTabs/objectTabIds.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import type { OriginState } from '../../navigation/origin.js';
@@ -41,7 +42,11 @@ export function useTaskSummaryFacts({
     tab: ObjectTabId,
     label: string,
     value: SummaryFact['value'],
-    extra: { readonly wide?: boolean; readonly onActivate?: () => void } = {},
+    extra: {
+      readonly wide?: boolean;
+      readonly onActivate?: () => void;
+      readonly termHint?: TermHintTerm;
+    } = {},
   ): SummaryFact => ({
     id,
     kind: 'tab',
@@ -50,6 +55,7 @@ export function useTaskSummaryFacts({
     label,
     value,
     ...(extra.wide ? { wide: true } : {}),
+    ...(extra.termHint ? { termHint: extra.termHint } : {}),
   });
 
   const { start, end } = barDates(task);
@@ -167,6 +173,7 @@ export function useTaskSummaryFacts({
       ) : (
         t('taskPage.strip.nothing')
       ),
+      { termHint: 'waitsFor' },
     ),
   );
 
@@ -178,6 +185,7 @@ export function useTaskSummaryFacts({
       task.holdsUp
         ? t('taskPage.strip.taskCount', { count: task.holdsUp.count })
         : t('taskPage.strip.nothing'),
+      { termHint: 'holdsUp' },
     ),
     ...(task.holdsUp ? { figureKind: 'holds-up' as const } : {}),
   });

@@ -68,7 +68,7 @@ const cell = (key: string, column: string) => screen.getByTestId(`breakdown-cell
 describe('BreakdownTableView', () => {
   it('has a caption naming the view and a header row with Name and each column', () => {
     renderTable({ view: 'type' });
-    const table = screen.getByRole('table', { name: 'Breakdown of the project by Type' });
+    const table = screen.getByRole('table', { name: 'Breakdown of the build by Type' });
     const headers = within(table.querySelector('thead')!).getAllByRole('columnheader');
     expect(headers.map((h) => h.textContent)).toEqual([
       'Name',
@@ -80,7 +80,7 @@ describe('BreakdownTableView', () => {
 
   it('is a focusable region named by the table caption', () => {
     renderTable({ view: 'type' });
-    const region = screen.getByRole('region', { name: 'Breakdown of the project by Type' });
+    const region = screen.getByRole('region', { name: 'Breakdown of the build by Type' });
     expect(region).toBe(screen.getByTestId('breakdown-table'));
     expect(region).toHaveAttribute('tabindex', '0');
     const caption = region.querySelector('caption')!;
@@ -245,6 +245,16 @@ describe('BreakdownTableView', () => {
       renderTable({ view: 'category', nodes: treeFor('category') });
       expect(within(row('line:l-3')).getByText('Paid')).toBeInTheDocument();
       expect(within(row('line:l-5')).getByText('Submitted')).toBeInTheDocument();
+    });
+
+    it('underlines Not yet split with its definition and no other row label (#2258)', () => {
+      renderTable();
+      const label = within(row('not-yet-split')).getByText('Not yet split');
+      expect(label.className).toContain('term');
+      expect(within(row('not-yet-split')).getByRole('tooltip')).toHaveTextContent(
+        'The part of an offer or invoice not divided into cost lines yet.',
+      );
+      expect(within(row('area:a-1')).queryByRole('tooltip')).toBeNull();
     });
 
     it('renders group names and the Not yet split row as plain text without a link', () => {

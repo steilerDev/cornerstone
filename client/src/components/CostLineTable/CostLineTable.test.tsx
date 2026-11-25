@@ -382,6 +382,19 @@ describe('CostLineTable document mode', () => {
     expect(findDuplicateTestIds(container)).toEqual([]);
   });
 
+  it('explains Not yet split with an info button per surface and titles Split (#2258)', () => {
+    const { container } = renderDoc({ remainingAmount: 40, onSplit: jest.fn() });
+    const table = screen.getByTestId('cost-lines-not-yet-split-hint');
+    const card = screen.getByTestId('cost-lines-mobile-not-yet-split-hint');
+    expect(table).toHaveAccessibleName('Explain “Not yet split”');
+    expect(card).toHaveAccessibleName('Explain “Not yet split”');
+    expect(screen.getByTestId('cost-lines-split')).toHaveAttribute(
+      'title',
+      'Divide an offer or invoice into cost lines.',
+    );
+    expect(findDuplicateTestIds(container)).toEqual([]);
+  });
+
   it('names the offer in the Split label', () => {
     renderDoc({ remainingAmount: 40, onSplit: jest.fn(), documentKind: 'offer' });
     expect(screen.getByTestId('cost-lines-split')).toHaveAccessibleName(

@@ -550,7 +550,7 @@ describe('DiaryEntryDetailPage', () => {
     mockGetDiaryEntry.mockResolvedValueOnce(entryNoTitle);
     renderDetailPage('de-src-notitle');
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Work Item' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Task' })).toBeInTheDocument();
     });
   });
 
@@ -796,7 +796,7 @@ describe('DiaryEntryDetailPage', () => {
     renderDetailPage('de-auto-link');
     await waitFor(() => {
       expect(screen.getByText(/related to/i)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Work Item' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Task' })).toHaveAttribute(
         'href',
         '/project/work-items/wi-kitchen',
       );

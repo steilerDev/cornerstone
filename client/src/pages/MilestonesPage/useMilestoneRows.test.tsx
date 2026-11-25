@@ -93,6 +93,16 @@ describe('title and secondary line', () => {
   });
 });
 
+describe('column term hints (#2258)', () => {
+  it('hints Waits for and Holds up on their headers and no other column', () => {
+    const hinted = out.columns!.filter((c) => c.termHints).map((c) => [c.key, c.termHints]);
+    expect(hinted).toEqual([
+      ['waitsFor', ['waitsFor']],
+      ['holdsUp', ['holdsUp']],
+    ]);
+  });
+});
+
 describe('columns', () => {
   it('shows Target, Projected, Waits for and Holds up by default; Description and Reached on are hidden', () => {
     const visible = out.columns!.filter((c) => c.defaultVisible !== false).map((c) => c.key);

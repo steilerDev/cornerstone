@@ -365,7 +365,7 @@
  * - Claim confirm dialog warning block: `bannerWarning` (no alert role since #2243) rendered
  *   inside the modal ONLY when at least one included (non invoice-excluded) invoice has one
  *   or more excluded lines — text is `sourceReports.confirmClaimExcludedItemsWarning`
- *   ("{{count}} invoice(s) have excluded line items and will keep their current claim status —
+ *   ("{{count}} invoice(s) have excluded lines and will keep their current claim status —
  *   the excluded portion stays claimable in a future report."). Note this is orthogonal to
  *   whether confirming actually submits anything: `handleMarkClaimed` excludes any invoice with
  *   an excluded line from `invoiceIds` entirely (see the claim-scope note below), so an

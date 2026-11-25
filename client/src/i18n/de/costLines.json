@@ -117,7 +117,7 @@
     "errorAmount": "Gib einen Betrag von 0 oder mehr ein.",
     "errorAmountPositive": "Gib einen Betrag über 0 ein.",
     "errorBelongsTo": "Wähle eine Aufgabe oder Anschaffung.",
-    "errorMoveType": "Eine Position ohne Angebot oder Rechnung kann nur zu einem Element derselben Art verschoben werden.",
+    "errorMoveType": "Eine Position ohne Angebot oder Rechnung kann nur zu einer Aufgabe oder Anschaffung derselben Art verschoben werden: Aufgabe zu Aufgabe, Anschaffung zu Anschaffung.",
     "errorOverInvoice": "Die Kostenpositionen würden den Wert dieses Angebots oder dieser Rechnung übersteigen."
   },
   "linkInvoice": {

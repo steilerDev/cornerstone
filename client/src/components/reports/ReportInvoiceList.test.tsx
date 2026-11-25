@@ -945,6 +945,43 @@ describe('ReportInvoiceList', () => {
       expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
     });
 
+    it('explains the Allocated column header of the expansion with a popover, not an underline (#2258)', async () => {
+      const onToggle = jest.fn();
+      const onToggleLine = jest.fn();
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
+      const { container } = await renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={onToggle}
+          onToggleLine={onToggleLine}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const expandButton = findExpandButton(container, 'inv-1');
+      fireEvent.click(expandButton);
+      expect(expandButton).toHaveAttribute('aria-expanded', 'true');
+      const header = (
+        await screen.findByText(/sourceReports\.expand\.allocatedColumnHeader/)
+      ).closest('th')!;
+      expect(header).not.toBeNull();
+      expect(header.querySelector('[class*="term"]')).toBeNull();
+      const hint = within(header).getByRole('button', { name: 'Explain \u201CAllocated\u201D' });
+      expect(hint).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(hint);
+      expect(hint).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('dialog')).toHaveTextContent(
+        'The cost of the cost lines a funding source pays for.',
+      );
+      expect(expandButton).toHaveAttribute('aria-expanded', 'true');
+      expect(onToggle).not.toHaveBeenCalled();
+      expect(onToggleLine).not.toHaveBeenCalled();
+    });
+
     it('aria-expanded starts false, and the expansion panel is not rendered before clicking', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),

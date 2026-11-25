@@ -168,7 +168,7 @@ describe('DataTable', () => {
 
     it('renders default empty message when emptyState not provided', () => {
       renderDataTable({ items: [], isLoading: false });
-      expect(screen.getByText(/no items found/i)).toBeInTheDocument();
+      expect(screen.getByText(/nothing here yet/i)).toBeInTheDocument();
     });
 
     it('renders empty state description when provided', () => {

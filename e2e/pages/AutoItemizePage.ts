@@ -22,7 +22,7 @@
  * - Error: FormError banner (role="alert") + Retry
  * - Cancel with edits: the shared ConfirmDialog (prefix `auto-itemize-discard`)
  * - Merge: select two rows, "Merge" in the SelectionActionBar; a merging row is a notice row
- *   ("Merging 2 items…"), a failed one an alert row with "Restore original lines" and "Retry"
+ *   ("Merging 2 lines…"), a failed one an alert row with "Restore original lines" and "Retry"
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -83,7 +83,7 @@ export class AutoItemizePage {
    */
   readonly discretionaryNote: Locator;
 
-  /** The "Merge" button of the SelectionActionBar (accessible name "Merge n selected line items"). */
+  /** The "Merge" button of the SelectionActionBar (accessible name "Merge n selected lines"). */
   readonly mergeButton: Locator;
   readonly clearSelectionButton: Locator;
   /** Grid notice rows (a merging or failed merge). */
@@ -134,7 +134,7 @@ export class AutoItemizePage {
     this.grid = new CostLineGrid(page, 'auto-itemize-grid');
     this.discretionaryNote = page.locator('[role="note"][class*="discretionaryNote"]');
 
-    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
+    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected lines$/i });
     this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
     this.mergingRow = this.grid.grid.locator('[role="status"]').filter({ hasText: /^Merging / });
     this.mergeErrorRow = this.grid.grid.locator('[role="alert"]');

@@ -57,10 +57,10 @@
       "member": "Mitglied"
     },
     "authProviders": {
-      "local": "Lokal",
-      "oidc": "OIDC",
-      "localAndOidc": "Lokal + OIDC",
-      "oidcPending": "OIDC (wartet auf erste Anmeldung)"
+      "local": "Passwort",
+      "oidc": "Single Sign-on",
+      "localAndOidc": "Passwort und Single Sign-on",
+      "oidcPending": "Single Sign-on (wartet auf erste Anmeldung)"
     },
     "lockedUntil": "Bis {{when}}",
     "actions": {
@@ -248,7 +248,7 @@
     "labor": "Arbeit",
     "permits": "Genehmigungen",
     "design": "Planung",
-    "householdItems": "Haushaltsartikel",
+    "householdItems": "Anschaffungen",
     "waste": "Entsorgung",
     "other": "Sonstige",
     "equipment": "Geräte",
@@ -421,7 +421,7 @@
     },
     "automaticBackups": {
       "title": "Automatische Sicherungen",
-      "purpose": "Speichert nach einem Zeitplan eine Sicherung deines Projekts.",
+      "purpose": "Speichert nach einem Zeitplan eine Sicherung deiner Daten.",
       "hint": "Lege einen Zeitplan fest, um automatische Sicherungen einzuschalten, und starte Cornerstone danach neu.",
       "schedule": "Zeitplan",
       "invalidSchedule": "Dieser Zeitplan ist ungültig, daher sind automatische Sicherungen aus.",
@@ -436,7 +436,7 @@
     },
     "history": {
       "title": "Verlauf",
-      "purpose": "Hält Änderungen an deinem Projekt automatisch im Verlauf fest.",
+      "purpose": "Hält Änderungen automatisch im Verlauf fest.",
       "hint": "Der Verlauf ist immer eingeschaltet. Du kannst ihn nicht ausschalten."
     },
     "money": {

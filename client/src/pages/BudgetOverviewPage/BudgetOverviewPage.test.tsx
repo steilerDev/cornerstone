@@ -325,7 +325,9 @@ describe('BudgetOverviewPage', () => {
         'left-to-spend',
       );
       expect(screen.getByTestId('money-headline-verdict-badge')).toHaveTextContent(/on budget/i);
-      expect(text('money-headline-range')).toBe('Range +€900.00 to +€1,500.00');
+      // The range line also holds the Range info button (glyph ⓘ).
+      expect(text('money-headline-range')).toBe('Range +€900.00 to +€1,500.00ⓘ');
+      expect(screen.getByRole('button', { name: 'Explain “Range”' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 2, name: 'Left to spend' })).toBeInTheDocument();
     });
 
@@ -345,7 +347,7 @@ describe('BudgetOverviewPage', () => {
       await renderLoaded();
       expect(screen.getByTestId('money-headline-figure')).toHaveAttribute('data-negative', 'true');
       expect(text('money-headline-figure')).toMatch(/^[-−]€300\.00$/);
-      expect(text('money-headline-range')).toMatch(/to \+€100\.00$/);
+      expect(text('money-headline-range')).toMatch(/to \+€100\.00/);
     });
 
     it('does not mark a positive or zero figure as negative', async () => {
@@ -371,19 +373,19 @@ describe('BudgetOverviewPage', () => {
       expect(screen.queryByTestId('money-headline-verdict')).toBeNull();
     });
 
-    it('adds "Whole project" to the label only while the breakdown settings are not the default', async () => {
+    it('adds "Whole build" to the label only while the breakdown settings are not the default', async () => {
       await renderLoaded();
       expect(screen.getByRole('heading', { name: 'Left to spend' })).not.toHaveTextContent(
-        'Whole project',
+        'Whole build',
       );
       const user = userEvent.setup();
       await user.click(screen.getByTestId('breakdown-payment-paid'));
       expect(screen.getByRole('heading', { name: /Left to spend/ })).toHaveTextContent(
-        'Left to spend Whole project',
+        'Left to spend Whole build',
       );
       await user.click(screen.getByTestId('breakdown-payment-all'));
       expect(screen.getByRole('heading', { name: 'Left to spend' })).not.toHaveTextContent(
-        'Whole project',
+        'Whole build',
       );
     });
 
@@ -406,7 +408,7 @@ describe('BudgetOverviewPage', () => {
       const panel = screen.getByTestId('money-headline-explain');
       expect(panel).not.toHaveAttribute('hidden');
       expect(panel).toHaveTextContent('Funding total plus Expected grants minus Expected cost.');
-      expect(panel).toHaveTextContent('The range runs from the lowest to the highest estimate.');
+      expect(panel).toHaveTextContent('The best and the worst case around a money figure.');
     });
 
     it('names the grants that count only up to their cap, and only those', async () => {
@@ -530,7 +532,8 @@ describe('BudgetOverviewPage', () => {
       await renderLoaded();
       const savings = screen.getByTestId('money-funding-row-bs-a');
       expect(savings).toHaveTextContent('Savings');
-      expect(savings).toHaveTextContent('Allocated €1,400.00 of €6,000.00');
+      expect(within(savings).getByText('Allocated').className).toContain('term');
+      expect(savings).toHaveTextContent('€1,400.00 of €6,000.00');
       expect(within(savings).queryByTestId('budget-bar-overflow-note')).toBeNull();
       const loan = screen.getByTestId('money-funding-row-bs-b');
       expect(loan).toHaveTextContent('€500.00 of €400.00');
@@ -557,7 +560,7 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByTestId('breakdown-payment-paid')).toHaveAttribute('aria-pressed', 'true');
       expect(screen.getByTestId('breakdown-estimate-high')).toHaveAttribute('aria-pressed', 'true');
       expect(screen.getByRole('heading', { level: 2, name: /Left to spend/ })).toHaveTextContent(
-        'Whole project',
+        'Whole build',
       );
     });
 

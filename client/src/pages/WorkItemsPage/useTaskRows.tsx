@@ -116,6 +116,7 @@ export function useTaskRows({ actions }: UseTaskRowsOptions): RowProps {
       {
         key: 'relations',
         label: t('list.columns.relations'),
+        termHints: ['waitsFor', 'holdsUp'],
         render: (item) => {
           const { waitsFor, holdsUp } = item;
           if (waitsFor === null && holdsUp === null) return null;

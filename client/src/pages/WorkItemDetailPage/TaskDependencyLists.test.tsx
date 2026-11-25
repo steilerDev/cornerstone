@@ -109,6 +109,14 @@ describe('TaskDependencyLists', () => {
     expect(screen.queryByText(/^Holds up/)).toBeNull();
   });
 
+  it('explains "Waits for" with an info button and gives the other list none (#2258)', () => {
+    renderLists();
+    const waits = screen.getByTestId('task-waits-for');
+    expect(within(waits).getByRole('button', { name: 'Explain “Waits for”' })).toBeInTheDocument();
+    const waiting = screen.getByTestId('task-waiting');
+    expect(within(waiting).queryByRole('button', { name: /Explain/ })).toBeNull();
+  });
+
   it('lists each task with its relation wording and its lag or lead', () => {
     renderLists();
     const first = screen.getByTestId('task-waits-for-row-p1');

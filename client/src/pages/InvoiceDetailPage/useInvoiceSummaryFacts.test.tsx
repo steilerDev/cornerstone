@@ -95,6 +95,20 @@ beforeEach(async () => {
 });
 
 describe('useInvoiceSummaryFacts (S12)', () => {
+  it('hints Split on an invoice and Remaining on offer plus Split on an offer (#2258)', () => {
+    const hintsOf = (list: SummaryFact[]) =>
+      list
+        .filter((f) => (f as { termHint?: string }).termHint !== undefined)
+        .map((f) => [f.id, (f as { termHint?: string }).termHint]);
+    expect(hintsOf(facts(makeInvoiceDetail()))).toEqual([['split', 'split']]);
+    expect(
+      hintsOf(facts(makeInvoiceDetail({ status: 'quotation', remainingOnOffer: 650 }))),
+    ).toEqual([
+      ['remainingOnOffer', 'remainingOnOffer'],
+      ['split', 'split'],
+    ]);
+  });
+
   it('lists amount, paid, still to pay, due, split and funding source for an invoice', () => {
     const list = facts(makeInvoiceDetail({ paid: 200, openAmount: 800 }));
     expect(list.map((f) => f.id)).toEqual([

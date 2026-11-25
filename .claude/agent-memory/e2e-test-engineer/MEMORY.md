@@ -79,3 +79,4 @@
 - [story-2242-financing.md](story-2242-financing.md) — #2242 Financing/source/grant POMs, seed helpers, grant-delete cleanup trap, strip fact order.
 - [story-2248-task-page.md](story-2248-task-page.md) — #2248 Task page POM/specs, cost-tab-only rule, Documents fact, Who card editing, static-only.
 - [story-2249-purchase-page.md](story-2249-purchase-page.md) — #2249 Purchase page POM/specs, edit-URL redirects, scheduler-dependent facts, static-only.
+- [story-2258-term-hints.md](story-2258-term-hints.md) — #2258 term hints/first-open language: TermHintControl POM, opacity-based tooltip assert, spec deviations, string re-scan method.

@@ -100,7 +100,7 @@ test.describe('Toolbar height alignment', () => {
   }) => {
     // Given: Users page is loaded with an active search (to show the clear-filters button)
     await gotoListAndWait(page);
-    const searchInput = page.getByRole('searchbox', { name: /search items/i });
+    const searchInput = page.getByRole('searchbox', { name: 'Search this list' });
     await searchInput.fill('zzz-no-such-user');
 
     // Then: The search input is 36px tall

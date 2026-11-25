@@ -77,6 +77,7 @@ import {
 import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
 import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
+import { TERM_HINT_TERMS } from '../lib/termHints.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
@@ -117,6 +118,10 @@ function unionKeySet<U extends string>(
 }
 
 export const I18N_UNION_KEYS = {
+  /** common — term-hint term name (#2258). */
+  termHintTerm: unionKeySet('common', 'termHint.term', TERM_HINT_TERMS),
+  /** common — term-hint definition, one per term (#2258). */
+  termHintDefinition: unionKeySet('common', 'termHint.definition', TERM_HINT_TERMS),
   /** budget — PDF table title per report use case. */
   reportTitle: unionKeySet('budget', 'sourceReports.table.title', SOURCE_REPORT_TYPES),
   /** budget — PDF cover-letter subject per use case. */

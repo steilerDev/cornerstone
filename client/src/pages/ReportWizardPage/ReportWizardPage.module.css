@@ -37,6 +37,31 @@
   margin-bottom: var(--spacing-4);
 }
 
+.useCaseItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.useCaseItem > .useCaseCard {
+  flex: 1;
+}
+
+.useCaseHint {
+  position: absolute;
+  top: var(--spacing-2);
+  inset-inline-end: var(--spacing-2);
+  display: flex;
+}
+
+.useCaseHint button {
+  margin: 0;
+}
+
+.useCaseCard.useCaseCardWithHint {
+  padding-inline-end: calc(var(--spacing-2) + var(--touch-target-min));
+}
+
 .useCaseCard {
   display: flex;
   flex-direction: column;

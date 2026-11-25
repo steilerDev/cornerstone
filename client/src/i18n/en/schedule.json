@@ -7,7 +7,7 @@
     }
   },
   "ganttSidebar": {
-    "header": "Items",
+    "header": "Tasks, milestones and purchases",
     "ariaLabel": "Tasks, milestones and purchases"
   },
   "gantt": {
@@ -53,7 +53,7 @@
         "doneLabel": "Done",
         "contributing": "Contributing",
         "blockedByThis": "Holds up",
-        "linkedItems": "Linked items",
+        "linkedItems": "Linked tasks",
         "none": "None",
         "contributingAriaLabel": "Tasks contributing to this milestone",
         "blockedByThisAriaLabel": "Tasks this milestone holds up"
@@ -65,16 +65,13 @@
         "latestLabel": "Latest",
         "actualLabel": "Actual",
         "late": "Late",
-        "linkedItems": "Linked items"
+        "linkedItems": "Linked tasks and milestones"
       },
       "dependency": {
         "finishToStart": "Finish-to-Start",
         "startToStart": "Start-to-Start",
         "finishToFinish": "Finish-to-Finish",
         "startToFinish": "Start-to-Finish"
-      },
-      "navigation": {
-        "viewItem": "View item"
       }
     },
     "skeleton": {
@@ -284,8 +281,8 @@
       "milestone": "Milestone",
       "delivery": "Delivery",
       "today": "Today",
-      "doneHidden_one": "{{count}} done item hidden",
-      "doneHidden_other": "{{count}} done items hidden"
+      "doneHidden_one": "{{count}} done row hidden",
+      "doneHidden_other": "{{count}} done rows hidden"
     },
     "empty": {
       "title": "Nothing is scheduled yet",

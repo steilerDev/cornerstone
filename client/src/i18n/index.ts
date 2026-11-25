@@ -1,4 +1,5 @@
 import i18n from 'i18next';
+import { detectBrowserLocale } from './detectLocale.js';
 import { initReactI18next } from 'react-i18next';
 
 // Import all translation files statically
@@ -78,12 +79,6 @@ const resources = {
     photos: dePhotos,
   },
 };
-
-function detectBrowserLocale(): string {
-  const lang = navigator.language ?? navigator.languages?.[0] ?? 'en';
-  if (lang.startsWith('de')) return 'de';
-  return 'en';
-}
 
 function readStoredLocale(): string | null {
   try {

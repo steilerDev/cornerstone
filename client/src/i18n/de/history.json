@@ -1,5 +1,5 @@
 {
-  "description": "Alles, was sich in deinem Projekt geändert hat, neueste zuerst.",
+  "description": "Alles, was sich in deinem Bau geändert hat, neueste zuerst.",
   "filters": {
     "toggle": "Filter",
     "typeGroup": "Nach Typ filtern",

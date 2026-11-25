@@ -158,9 +158,13 @@ describe('attentionRowText sentences (en)', () => {
     );
   });
 
-  it('N8: items ready to submit', () => {
-    expect(text(makeRow('N8')).sentence).toBe('3 items ready to submit.');
-    expect(text(makeRow('N8', { params: { count: 1 } })).sentence).toBe('1 item ready to submit.');
+  it('N8: invoices and progress payments ready to submit', () => {
+    expect(text(makeRow('N8')).sentence).toBe(
+      '3 invoices and progress payments are ready to submit.',
+    );
+    expect(text(makeRow('N8', { params: { count: 1 } })).sentence).toBe(
+      '1 invoice or progress payment is ready to submit.',
+    );
   });
 
   it('N9: due soon and the passed variant', () => {

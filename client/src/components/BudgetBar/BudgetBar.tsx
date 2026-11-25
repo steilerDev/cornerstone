@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import type { TermHintTerm } from '../../lib/termHints.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './BudgetBar.module.css';
 
 export interface BudgetBarSegment {
@@ -18,6 +20,8 @@ interface BudgetBarProps {
   overflow?: number; // Amount beyond capacity, drawn as a striped danger segment
   /** Visible text stated under the bar when overflow > 0, e.g. "Over-allocated by 250.00". */
   overflowNote?: string;
+  /** Term explained by an info button after the overflow note. */
+  overflowNoteHint?: TermHintTerm;
   height?: 'sm' | 'md' | 'lg'; // sm=16px, md=24px, lg=32px — default md
   onSegmentHover?: (segment: BudgetBarSegment | null) => void;
   onSegmentClick?: (segment: BudgetBarSegment | null) => void;
@@ -35,6 +39,7 @@ export function BudgetBar({
   maxValue,
   overflow = 0,
   overflowNote,
+  overflowNoteHint,
   height = 'md',
   onSegmentHover,
   onSegmentClick,
@@ -133,6 +138,7 @@ export function BudgetBar({
         {bar}
         <p className={styles.overflowNote} data-testid="budget-bar-overflow-note">
           <span aria-hidden="true">⚠</span> {overflowNote}
+          {overflowNoteHint ? <TermHintPopover terms={[overflowNoteHint]} /> : null}
         </p>
       </>
     );

@@ -403,7 +403,7 @@ async function waitForReady() {
 
 /** The save button. */
 function getCreateBtn(): HTMLElement {
-  return screen.getByRole('button', { name: 'Create Invoice & Itemize' });
+  return screen.getByRole('button', { name: 'Create invoice and split' });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -841,9 +841,7 @@ describe('PaperlessInvoiceReviewPage — save guards of the cost line grid', () 
       'Bathroom job',
     );
     await waitFor(() =>
-      expect(document.querySelector('[role="status"]')?.textContent).toMatch(
-        /Merging 2 line items/,
-      ),
+      expect(document.querySelector('[role="status"]')?.textContent).toMatch(/Merging 2 lines/),
     );
   });
 });

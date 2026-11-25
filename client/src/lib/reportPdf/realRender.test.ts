@@ -4316,8 +4316,8 @@ describe('#2159: cover-letter opening and German copy (real bundles, real pdfmak
 
   it('de budget-overview and proof-of-funds letters: real subjects, real opening, lowercase-start default bodies', async () => {
     const overview = await letterFor('budget-overview', 'de-DE');
-    expect(overview.baseline.coverLetter!.subject).toBe('Budgetübersicht unseres Bauprojekts');
-    expect(overview.strings).toContain('Betreff: Budgetübersicht unseres Bauprojekts');
+    expect(overview.baseline.coverLetter!.subject).toBe('Kostenaufstellung unseres Bauprojekts');
+    expect(overview.strings).toContain('Betreff: Kostenaufstellung unseres Bauprojekts');
     expect(overview.strings).toContain('Sehr geehrte Damen und Herren,');
     expect(overview.baseline.coverLetter!.body.startsWith('anbei ')).toBe(true);
 

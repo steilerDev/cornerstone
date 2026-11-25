@@ -989,7 +989,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
   it('milestone tooltip with both lists empty shows a single "No linked items" row (None label)', () => {
     render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
     // When both lists are empty, hasBothEmpty = true — shows single "Linked / None" row
-    expect(screen.getByText('Linked items')).toBeInTheDocument();
+    expect(screen.getByText('Linked tasks')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
   });
 
@@ -1283,46 +1283,46 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
     expect(screen.queryByText('View item')).not.toBeInTheDocument();
   });
 
-  it('renders "View item" link on work item tooltip when isTouchDevice is true and workItemId provided', () => {
+  it('renders "Open task" link on work item tooltip when isTouchDevice is true and workItemId provided', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
-    expect(screen.getByText('View item')).toBeInTheDocument();
+    expect(screen.getByText('Open task')).toBeInTheDocument();
   });
 
-  it('"View item" link points to /project/work-items/:workItemId', () => {
+  it('"Open task" link points to /project/work-items/:workItemId', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
-    const link = screen.getByText('View item');
+    const link = screen.getByText('Open task');
     expect(link).toHaveAttribute('href', '/project/work-items/wi-abc-123');
   });
 
-  it('"View item" link has aria-label describing the work item title', () => {
+  it('"Open task" link has aria-label describing the work item title', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
-    const link = screen.getByText('View item');
-    expect(link).toHaveAttribute('aria-label', `View item ${WORK_ITEM_DATA.title}`);
+    const link = screen.getByText('Open task');
+    expect(link).toHaveAttribute('aria-label', `Open task ${WORK_ITEM_DATA.title}`);
   });
 
-  it('does not render "View item" when isTouchDevice is true but workItemId is absent', () => {
+  it('does not render "Open task" when isTouchDevice is true but workItemId is absent', () => {
     const dataWithoutId: GanttTooltipWorkItemData = { ...WORK_ITEM_DATA, workItemId: undefined };
     render(
       <MemoryRouter>
         <GanttTooltip data={dataWithoutId} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
-    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open task')).not.toBeInTheDocument();
   });
 
-  it('renders "View item" button on milestone tooltip when isTouchDevice is true and milestoneId provided', () => {
+  it('renders "Open milestone" button on milestone tooltip when isTouchDevice is true and milestoneId provided', () => {
     const mockNavigate = jest.fn<(id: number) => void>();
     render(
       <MemoryRouter>
@@ -1334,10 +1334,10 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByText('View item')).toBeInTheDocument();
+    expect(screen.getByText('Open milestone')).toBeInTheDocument();
   });
 
-  it('"View item" button calls onMilestoneNavigate with milestoneId on click', async () => {
+  it('"Open milestone" button calls onMilestoneNavigate with milestoneId on click', async () => {
     const user = userEvent.setup();
     const mockNavigate = jest.fn<(id: number) => void>();
     render(
@@ -1350,21 +1350,21 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
         />
       </MemoryRouter>,
     );
-    const btn = screen.getByText('View item');
+    const btn = screen.getByText('Open milestone');
     await user.click(btn);
     expect(mockNavigate).toHaveBeenCalledWith(42);
   });
 
-  it('does not render "View item" button when isTouchDevice is false on milestone', () => {
+  it('does not render "Open milestone" button when isTouchDevice is false on milestone', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} isTouchDevice={false} />
       </MemoryRouter>,
     );
-    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open milestone')).not.toBeInTheDocument();
   });
 
-  it('does not render "View item" button when milestoneId is absent', () => {
+  it('does not render "Open milestone" button when milestoneId is absent', () => {
     const dataWithoutId: GanttTooltipMilestoneData = { ...MILESTONE_DATA, milestoneId: undefined };
     const mockNavigate = jest.fn<(id: number) => void>();
     render(
@@ -1377,16 +1377,16 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open milestone')).not.toBeInTheDocument();
   });
 
-  it('does not render "View item" button when onMilestoneNavigate is absent', () => {
+  it('does not render "Open milestone" button when onMilestoneNavigate is absent', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
-    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open milestone')).not.toBeInTheDocument();
   });
 });
 
@@ -1604,7 +1604,7 @@ describe('GanttTooltip — purchase header and rows (#2198)', () => {
     expect(screen.queryByText('Late')).not.toBeInTheDocument();
   });
 
-  it('shows a View item button on touch devices that navigates through the callback', async () => {
+  it('shows a Open purchase button on touch devices that navigates through the callback', async () => {
     const onHiNavigate = jest.fn();
     render(
       <GanttTooltip
@@ -1614,7 +1614,7 @@ describe('GanttTooltip — purchase header and rows (#2198)', () => {
         onHiNavigate={onHiNavigate}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'View item' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open purchase' }));
     expect(onHiNavigate).toHaveBeenCalledWith('hi-1');
   });
 });
@@ -1666,7 +1666,7 @@ describe('GanttTooltip — milestone chip and labels (#2198)', () => {
     expect(screen.getByText('+2 more')).toBeInTheDocument();
   });
 
-  it('shows a View item button on touch devices that calls onMilestoneNavigate', async () => {
+  it('shows a Open milestone button on touch devices that calls onMilestoneNavigate', async () => {
     const onMilestoneNavigate = jest.fn();
     render(
       <GanttTooltip
@@ -1676,7 +1676,7 @@ describe('GanttTooltip — milestone chip and labels (#2198)', () => {
         onMilestoneNavigate={onMilestoneNavigate}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: /View item/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Open milestone/ }));
     expect(onMilestoneNavigate).toHaveBeenCalledWith(7);
   });
 });
@@ -1794,7 +1794,7 @@ describe('GanttTooltip — schedule signal and planned row (#2199)', () => {
 // Origin (#2202): the touch "View item" link carries the schedule URL
 // ---------------------------------------------------------------------------
 
-describe('GanttTooltip — origin on the "View item" link (#2202)', () => {
+describe('GanttTooltip — origin on the "Open task" link (#2202)', () => {
   const DATA: GanttTooltipWorkItemData = {
     kind: 'work-item',
     title: 'Foundation Work',
@@ -1818,7 +1818,7 @@ describe('GanttTooltip — origin on the "View item" link (#2202)', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByText('View item'));
+    await user.click(screen.getByText('Open task'));
 
     expect(probedPath()).toBe('/project/work-items/wi-origin');
     expect(probedOrigin()).toEqual({ to: '/schedule/gantt?filter=tasks' });

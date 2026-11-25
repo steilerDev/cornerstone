@@ -7,7 +7,7 @@
     }
   },
   "ganttSidebar": {
-    "header": "Elemente",
+    "header": "Aufgaben, Meilensteine und Anschaffungen",
     "ariaLabel": "Aufgaben, Meilensteine und Anschaffungen"
   },
   "gantt": {
@@ -53,7 +53,7 @@
         "doneLabel": "Fertig",
         "contributing": "Beitrag",
         "blockedByThis": "Hält auf",
-        "linkedItems": "Verknüpfte Elemente",
+        "linkedItems": "Verknüpfte Aufgaben",
         "none": "Keine",
         "contributingAriaLabel": "Aufgaben, die zu diesem Meilenstein beitragen",
         "blockedByThisAriaLabel": "Aufgaben, die dieser Meilenstein aufhält"
@@ -65,16 +65,13 @@
         "latestLabel": "Späteste",
         "actualLabel": "Tatsächlich",
         "late": "Verspätet",
-        "linkedItems": "Verknüpfte Elemente"
+        "linkedItems": "Verknüpfte Aufgaben und Meilensteine"
       },
       "dependency": {
         "finishToStart": "Finish-to-Start",
         "startToStart": "Start-to-Start",
         "finishToFinish": "Finish-to-Finish",
         "startToFinish": "Start-to-Finish"
-      },
-      "navigation": {
-        "viewItem": "Artikel ansehen"
       }
     },
     "skeleton": {
@@ -284,8 +281,8 @@
       "milestone": "Meilenstein",
       "delivery": "Lieferung",
       "today": "Heute",
-      "doneHidden_one": "{{count}} abgeschlossenes Element ausgeblendet",
-      "doneHidden_other": "{{count}} abgeschlossene Elemente ausgeblendet"
+      "doneHidden_one": "{{count}} abgeschlossene Zeile ausgeblendet",
+      "doneHidden_other": "{{count}} abgeschlossene Zeilen ausgeblendet"
     },
     "empty": {
       "title": "Noch nichts eingeplant",

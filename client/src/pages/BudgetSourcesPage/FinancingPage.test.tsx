@@ -332,7 +332,10 @@ describe('FinancingPage', () => {
       const figures = Object.fromEntries(
         card
           .getAllByRole('term')
-          .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+          .map((term) => [
+            (term.querySelector('[class*="term"]') ?? term).textContent,
+            term.nextElementSibling?.textContent,
+          ]),
       );
       expect(figures).toEqual({
         Amount: '€50,000.00',
@@ -383,6 +386,35 @@ describe('FinancingPage', () => {
       expect(unallocated.textContent).toMatch(/^[-−]\s?€12,000\.00$/);
       expect(unallocated.className).toContain('danger');
       expect(screen.getByText('Over-allocated by €12,000.00')).toBeInTheDocument();
+    });
+
+    it('underlines the Allocated, Submitted, Unallocated and Ready to submit labels (#2258)', async () => {
+      renderPage();
+      const card = await loaded();
+      for (const label of ['Allocated', 'Submitted', 'Unallocated', 'Ready to submit']) {
+        const term = within(card).getByText(label);
+        expect(term.className).toContain('term');
+      }
+      const definitions = within(card)
+        .getAllByRole('tooltip')
+        .map((tip) => tip.textContent);
+      expect(definitions).toContain('The cost of the cost lines a funding source pays for.');
+      expect(definitions).toContain(
+        'Paid or due, and included in a draw-down request to the bank.',
+      );
+    });
+
+    it('explains Over-allocated with an info button after the bar note only when over-allocated (#2258)', async () => {
+      mockFetchFinancing.mockResolvedValue(
+        response({ sources: [source({ allocated: 62000, unallocated: 0, overAllocated: 12000 })] }),
+      );
+      renderPage();
+      await loaded();
+      expect(
+        within(screen.getByTestId('budget-bar-overflow-note')).getByRole('button', {
+          name: 'Explain “Over-allocated”',
+        }),
+      ).toBeInTheDocument();
     });
 
     it('a source within its amount has a plain Unallocated and no over-allocation note', async () => {
@@ -505,7 +537,7 @@ describe('FinancingPage', () => {
       expect(card.getByText('€12,000.00')).toBeInTheDocument();
       expect(screen.getByTestId('financing-grant-expected-sp-1')).toHaveTextContent('€3,600.00');
       const covered = screen.getByTestId('financing-grant-covered-sp-1');
-      expect(covered).toHaveTextContent('2 items');
+      expect(covered).toHaveTextContent('2 tasks and purchases');
       expect(covered).toHaveAttribute('href', '/budget/financing/grants/sp-1?tab=work');
       expect(screen.getByTestId('financing-grant-deadline-sp-1')).toHaveTextContent('Jan');
       expect(screen.queryByText('Overdue')).toBeNull();
@@ -521,7 +553,9 @@ describe('FinancingPage', () => {
       await screen.findByTestId('financing-grant-sp-1');
 
       expect(screen.getByText('No cap')).toBeInTheDocument();
-      expect(screen.getByTestId('financing-grant-covered-sp-1')).toHaveTextContent('1 item');
+      expect(screen.getByTestId('financing-grant-covered-sp-1')).toHaveTextContent(
+        '1 task or purchase',
+      );
       expect(screen.getByTestId('financing-grant-deadline-sp-1')).toHaveTextContent('–');
     });
 

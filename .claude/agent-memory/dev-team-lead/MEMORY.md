@@ -90,3 +90,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Milestone page specs](milestone-page-specs.md) — backward primary = "Back to", uncounted Work tab, slim detail payloads, page-side projections, startEdit focus, stale-date fixtures, capmap from-surfaces, undated=today projection, read toast copy from locale
 - [Quick-create schema specs](quick-create-schema-specs.md) — hooks fetch on mount, name=DOM id, card vs schema keys, Add another drops errors, App provider nesting hides inline create, provider create in cards
 - [Keyboard registry specs](keyboard-registry-specs.md) — overlay in 5 render sites, reserved sample keys in tests, `route` not `to`, doc-only rows, derived single-key rule, kbd aria-label
+- [Vocabulary pass specs](vocabulary-pass-specs.md) — canon-stripped plural-aware ban scans, money-label script on rewordings, Trans tags rise, labelledby hint leaks, helper-file components

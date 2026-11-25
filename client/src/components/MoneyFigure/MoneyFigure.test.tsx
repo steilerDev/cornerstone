@@ -154,4 +154,19 @@ describe('MoneyFigure', () => {
     const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it('renders rangeHint after the range text, and not without a range (#2258)', () => {
+    const { unmount } = renderFigure({
+      range: '€ 1 to € 2',
+      rangeHint: <button type="button">Explain Range</button>,
+    });
+    const range = screen.getByTestId('money-figure-range');
+    expect(range).toHaveTextContent('€ 1 to € 2Explain Range');
+    expect(screen.getByTestId('money-figure-figure')).not.toContainElement(
+      screen.getByRole('button', { name: 'Explain Range' }),
+    );
+    unmount();
+    renderFigure({ range: null, rangeHint: <button type="button">Explain Range</button> });
+    expect(screen.queryByRole('button', { name: 'Explain Range' })).toBeNull();
+  });
 });

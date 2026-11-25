@@ -334,6 +334,22 @@ describe('LocaleProvider', () => {
       expect(screen.getByTestId('resolved-locale').textContent).toBe('en');
     });
 
+    it('resolves "system" through the first supported browser language (#2258)', () => {
+      const original = Object.getOwnPropertyDescriptor(window.navigator, 'languages');
+      Object.defineProperty(window.navigator, 'languages', {
+        value: ['fr-FR', 'de-DE'],
+        configurable: true,
+      });
+      try {
+        renderWithProvider();
+        expect(screen.getByTestId('locale').textContent).toBe('system');
+        expect(screen.getByTestId('resolved-locale').textContent).toBe('de');
+      } finally {
+        if (original) Object.defineProperty(window.navigator, 'languages', original);
+        else delete (window.navigator as unknown as { languages?: unknown }).languages;
+      }
+    });
+
     it('updates html lang attribute when locale changes', () => {
       renderWithProvider();
 

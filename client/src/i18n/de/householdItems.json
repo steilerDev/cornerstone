@@ -81,12 +81,12 @@
     "form": {
       "name": {
         "label": "Name",
-        "placeholder": "Artikelnamen eingeben",
+        "placeholder": "Name der Anschaffung eingeben",
         "error": "Gib einen Namen ein."
       },
       "description": {
         "label": "Beschreibung",
-        "placeholder": "Artikel beschreiben"
+        "placeholder": "Anschaffung beschreiben"
       },
       "category": {
         "label": "Kategorie",
@@ -167,8 +167,8 @@
       "delivery": "Lieferung",
       "targetDelivery": "Ziellieferdatum",
       "saveError": "Die Termine konnten nicht gespeichert werden.",
-      "lateLatest": "Die späteste Lieferung ({{date}}) ist vorbei, und es ist noch nichts angekommen.",
-      "lateTarget": "Das Ziellieferdatum ({{date}}) ist vorbei, und es ist noch nichts angekommen.",
+      "lateLatest": "Die späteste Lieferung ({{date}}) ist vorbei, und es ist noch nichts geliefert.",
+      "lateTarget": "Das Ziellieferdatum ({{date}}) ist vorbei, und es ist noch nichts geliefert.",
       "lateGeneric": "Verspätet: Die Lieferung wird jetzt nach dem geplanten Zeitfenster erwartet.",
       "waitsFor": "Wartet auf",
       "depError": "Diese Abhängigkeiten konnten nicht hinzugefügt werden: {{titles}}",

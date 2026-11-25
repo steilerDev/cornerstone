@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { TermHintTerm } from '../../lib/termHints.js';
 import type { DataTableSurface } from '../DataTable/dataTableTestId.js';
 
 // types.ts holds types only. OBJECT_LIST_PAGE_SIZE = 100 lives in objectListUrl.ts.
@@ -144,6 +145,8 @@ export interface ObjectListColumn<T> {
   readonly align?: 'start' | 'end';
   readonly width?: 'narrow' | 'medium' | 'wide';
   readonly defaultVisible?: boolean;
+  /** Terms the header explains: an info button after the label (never inside the sort button). */
+  readonly termHints?: readonly [TermHintTerm, ...TermHintTerm[]];
 }
 
 export interface ObjectListExpandable<T, C> {

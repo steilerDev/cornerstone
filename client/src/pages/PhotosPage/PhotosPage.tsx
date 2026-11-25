@@ -24,6 +24,7 @@ import type { BulkTagResult } from '../../photos/photoDialogsContext.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import { TermHintPopover } from '../../components/Tooltip/TermHintPopover.js';
 import styles from './PhotosPage.module.css';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -293,7 +294,9 @@ export default function PhotosPage() {
 
   return (
     <PageLayout title={pageTitle} testId="photos-page" headingRef={headingRef}>
-      <p className={styles.subtitle}>{t('page.subtitle')}</p>
+      <p className={styles.subtitle}>
+        {t('page.subtitle')} <TermHintPopover terms={['spot']} />
+      </p>
       {filterAreaId ? (
         <div className={styles.filterRow}>
           <FilterChipGroup

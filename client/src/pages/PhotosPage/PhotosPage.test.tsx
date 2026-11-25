@@ -116,6 +116,13 @@ describe('PhotosPage', () => {
     );
   });
 
+  it('explains Spot with an info button under the page title (#2258)', async () => {
+    mockGetPhotoSpots.mockResolvedValue(DATA);
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Explain “Spot”' })).toBeInTheDocument();
+  });
+
   it('renders the card grid and no table on a mobile viewport', async () => {
     mockViewport(true);
     mockGetPhotoSpots.mockResolvedValue(DATA);
@@ -129,7 +136,7 @@ describe('PhotosPage', () => {
     mockGetPhotoSpots.mockResolvedValue({ ...DATA, spots: [] });
     renderPage();
 
-    expect(await screen.findByText('No diary photos yet')).toBeInTheDocument();
+    expect(await screen.findByText('No photos in the site diary yet')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
@@ -218,7 +225,7 @@ describe('PhotosPage', () => {
   it('focuses the page heading when returning to an empty list with a focus target', async () => {
     mockGetPhotoSpots.mockResolvedValue({ ...DATA, spots: [] });
     renderPage({ pathname: '/photos', state: { focusSpotId: 'spot-a1:o1' } });
-    await screen.findByText('No diary photos yet');
+    await screen.findByText('No photos in the site diary yet');
 
     await waitFor(() => expect(currentLocation?.state).toBeNull());
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
@@ -882,7 +889,7 @@ describe('PhotosPage area filter (#2251)', () => {
     });
     renderPage('/photos?areaId=attic');
 
-    expect(await screen.findByText('No diary photos yet')).toBeInTheDocument();
+    expect(await screen.findByText('No photos in the site diary yet')).toBeInTheDocument();
     expect(screen.getByTestId('photos-filter-attic')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });

@@ -823,13 +823,13 @@ test.describe(
 
         await select.selectOption('quotation');
 
-        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Quotation');
+        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Offer');
 
         await page.reload();
         await invoicePage.openDocuments();
 
         await expect(invoicePage.getAttachmentTypeSelect(linkId)).toHaveValue('quotation');
-        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Quotation');
+        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Offer');
       } finally {
         await page.request.delete(`${API.vendors}/${ids.vendorId}`);
       }

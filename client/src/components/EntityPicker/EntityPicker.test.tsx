@@ -407,7 +407,7 @@ describe('EntityPicker', () => {
 
       await user.click(input());
 
-      expect(await screen.findByText('Failed to load items')).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't load the list.")).toBeInTheDocument();
     });
   });
 
@@ -1126,7 +1126,7 @@ describe('EntityPicker', () => {
 
       await user.type(input(), 'hal');
 
-      expect(await screen.findByText('Failed to search items')).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't search. Try again.")).toBeInTheDocument();
     });
 
     it('uses the select-an-area placeholder', () => {
@@ -1363,7 +1363,7 @@ describe('EntityPicker', () => {
       render(<Harness kind="trade" />);
 
       await user.click(input());
-      expect(await screen.findByText('Failed to load items')).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't load the list.")).toBeInTheDocument();
 
       await user.type(input(), 'r');
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));

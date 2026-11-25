@@ -4,16 +4,15 @@
     "error": "Fehler",
     "errorMessage": "Finanzen konnten nicht geladen werden. Bitte versuche es erneut.",
     "retry": "Erneut versuchen",
-    "bankOverview": "Budgetübersicht für die Bank",
+    "bankOverview": "Kostenaufstellung für die Bank",
     "headline": {
       "label": "Noch verfügbar",
-      "wholeProject": "Gesamtes Projekt",
+      "wholeProject": "Gesamter Bau",
       "noFigure": "Noch keine Angabe",
       "needsSetup": "Füge eine Finanzierungsquelle und Kosten hinzu, um dies zu sehen.",
       "range": "Spanne {{from}} bis {{to}}",
       "howCalculated": "Wie wird das berechnet?",
       "formula": "Finanzierung gesamt plus erwartete Förderung minus erwartete Kosten.",
-      "rangeExplained": "Die Spanne reicht von der niedrigsten bis zur höchsten Schätzung.",
       "cappedLead": "Diese Förderungen zählen nur bis zu ihrer Obergrenze für förderfähige Kosten:"
     },
     "facts": {
@@ -83,7 +82,7 @@
       "back": "Zurück zu {{name}}",
       "backToAll": "die Aufschlüsselung",
       "drilledIn": "{{name}} wird angezeigt",
-      "caption": "Aufschlüsselung des Projekts nach {{view}}",
+      "caption": "Aufschlüsselung des Baus nach {{view}}",
       "emptyNoLines": "Kosten erscheinen hier, sobald Aufgaben oder Anschaffungen Kostenpositionen haben.",
       "empty": "Nichts passt zu diesen Einstellungen.",
       "resetSettings": "Aufschlüsselungseinstellungen zurücksetzen",
@@ -103,17 +102,14 @@
     "lines": {
       "expand": "Positionen einblenden",
       "collapse": "Positionen ausblenden",
-      "loadingLabel": "Budgetpositionen werden geladen…",
-      "empty": "Keine Budgetpositionen zugeordnet",
-      "emptyDescription": "Budgetpositionen aus Arbeitspaketen und Haushaltsartikeln erscheinen hier, wenn sie dieser Quelle zugeordnet sind.",
+      "loadingLabel": "Kostenpositionen werden geladen…",
+      "empty": "Keine Kostenposition nutzt diese Finanzierungsquelle",
+      "emptyDescription": "Kostenpositionen von Aufgaben und Anschaffungen erscheinen hier, wenn diese Finanzierungsquelle sie bezahlt.",
       "unassignedArea": "Kein Bereich",
-      "fetchError": "Budgetpositionen konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "areaLineCount_one": "{{count}} Position",
       "areaLineCount_other": "{{count}} Positionen",
-      "expandAriaLabel": "Budgetpositionen für {{name}} einblenden",
-      "collapseAriaLabel": "Budgetpositionen für {{name}} ausblenden",
-      "panelAriaLabel": "Budgetpositionen für {{name}}",
+      "panelAriaLabel": "Kostenpositionen, für die {{name}} aufkommt",
       "confidence": {
         "own_estimate": "Eigene Schätzung",
         "professional_estimate": "Fachschätzung",
@@ -136,54 +132,21 @@
         "navigateToItem": "{{name}} öffnen",
         "selectedCount_one": "{{count}} Position ausgewählt",
         "selectedCount_other": "{{count}} Positionen ausgewählt",
-        "modalTitle": "Positionen in andere Quelle verschieben",
+        "modalTitle": "Kostenpositionen auf eine andere Finanzierungsquelle verschieben",
         "movingCount_one": "{{count}} Position von {{sourceName}} wird verschoben",
         "movingCount_other": "{{count}} Positionen von {{sourceName}} werden verschoben",
-        "targetLabel": "Zielquelle",
-        "pickerPlaceholder": "Quellen suchen…",
-        "pickerEmpty": "Keine weiteren Quellen gefunden",
+        "targetLabel": "Ziel der Positionen",
+        "pickerPlaceholder": "Finanzierungsquelle nach Namen suchen…",
+        "pickerEmpty": "Keine andere Finanzierungsquelle gefunden",
         "claimedWarningHeading_one": "{{count}} Position hat eine eingereichte Rechnung",
         "claimedWarningHeading_other": "{{count}} Positionen haben eine eingereichte Rechnung",
-        "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfe die Auswirkungen mit deinem Steuerberater, bevor du fortfährst.",
+        "claimedWarningBody": "Das Verschieben dieser Positionen ändert nicht, was bereits bei der Bank eingereicht wurde. Kläre das mit deinem Steuerberater, bevor du fortfährst.",
         "understoodLabel": "Ich verstehe, dass hierdurch Positionen mit einer eingereichten Rechnung neu zugeordnet werden",
         "confirmButton": "Positionen verschieben",
         "confirmDisabledHint": "Aktiviere das Kontrollkästchen „Ich verstehe“, um die Bestätigung zu ermöglichen",
-        "confirmDisabledNoTarget": "Wähle eine Zielquelle aus, um die Bestätigung zu ermöglichen",
+        "confirmDisabledNoTarget": "Wähle zuerst die neue Finanzierungsquelle aus",
         "genericError": "Positionen konnten nicht verschoben werden. Bitte versuche es erneut."
       }
-    }
-  },
-  "vendors": {
-    "sectionTitle": "Auftragnehmer",
-    "loading": "Auftragnehmer werden geladen...",
-    "error": "Fehler",
-    "retry": "Erneut versuchen",
-    "searchPlaceholder": "Auftragnehmer nach Name oder Fachrichtung suchen...",
-    "sortBy": "Sortieren nach:",
-    "sortAsc": "↑ Aufsteigend",
-    "sortDesc": "↓ Absteigend",
-    "dateAdded": "Hinzugefügt am",
-    "lastUpdated": "Zuletzt aktualisiert",
-    "noSearchResults": "Keine Auftragnehmer stimmen deiner Suche überein",
-    "tryDifferentSearch": "Versuche unterschiedliche Suchbegriffe oder lösche die Suche, um alle Auftragnehmer zu sehen.",
-    "clearSearch": "Suche löschen",
-    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Auftragnehmern",
-    "previous": "Zurück",
-    "next": "Weiter",
-    "validation": {
-      "nameRequired": "Name des Auftragnehmers ist erforderlich.",
-      "nameTooLong": "Name des Auftragnehmers darf maximal 200 Zeichen lang sein."
-    },
-    "buttons": {
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "edit": "Bearbeiten",
-      "viewDetails": "Details anzeigen",
-      "retry": "Erneut versuchen"
-    },
-    "searchAriaLabel": "Auftragnehmer durchsuchen",
-    "messages": {
-      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut."
     }
   },
   "invoiceDetail": {
@@ -233,7 +196,7 @@
         "refund": "Rückerstattung"
       },
       "errors": {
-        "refundExceedsTotal": "Rückerstattungen würden das Maximum aus Rechnungsbetrag und erfassten Abschlagszahlungen übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "refundExceedsTotal": "Rückerstattungen würden das größere von Rechnungsbetrag und erfassten Abschlagszahlungen übersteigen. Du kannst höchstens noch {{availableHeadroom}} erstatten.",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuche es erneut.",
@@ -345,25 +308,14 @@
       "reductionFixed": "{{amount}} Reduktion"
     }
   },
-  "health": {
-    "overBudget": "Über Budget",
-    "atRisk": "Gefährdet",
-    "onBudget": "Im Budget"
-  },
   "bar": {
     "overflowLabel": "Überzogen",
-    "ariaBreakdown": "Budgetaufschlüsselung: {{details}}",
-    "ariaNoData": "Budgetaufschlüsselung: keine Daten"
+    "ariaBreakdown": "Aufschlüsselung der Zahlen: {{details}}",
+    "ariaNoData": "Aufschlüsselung der Zahlen: noch keine"
   },
   "invoices": {
     "error": "Fehler",
     "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
-    "tableHeaders": {},
-    "actions": {},
-    "attribution": {},
-    "openItems": {
-      "empty": {}
-    },
     "list": {
       "new": "Neue Rechnung",
       "newOffer": "Neues Angebot",
@@ -477,7 +429,7 @@
   "autoItemize": {
     "analyzing": "Analysiere… ({{seconds}}s)",
     "spinnerLabel": "Rechnung wird analysiert",
-    "error": "Fehler beim Laden der Aufschlüsselung",
+    "error": "„Mit KI aufschlüsseln“ konnte nicht geladen werden.",
     "missingDocument": "Kehre zu den Rechnungen zurück und wähle ein Dokument aus, um daraus eine neue Rechnung zu erstellen.",
     "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuche es erneut.",
     "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuche es erneut.",
@@ -499,9 +451,9 @@
     "modeAppend": "Zu bestehenden Positionen hinzufügen",
     "modeReplace": "Bestehende Positionen ersetzen",
     "extractedLines": "Extrahierte Positionen",
-    "discretionaryFundingNote": "Neue Kostenpositionen werden aus deiner Finanzierungsquelle Eigenmittel finanziert. Du kannst die Finanzierungsquelle jeder Kostenposition unten neu zuordnen.",
+    "discretionaryFundingNote": "Neue Kostenpositionen werden aus Eigenmitteln finanziert. Du kannst unten für jede Position eine andere Finanzierungsquelle wählen.",
     "amount": "Betrag",
-    "categoryRequiredError": "Bitte wähle für alle einbezogenen Positionen eine Kategorie aus",
+    "categoryRequiredError": "Wähle für jede einbezogene Position eine Kategorie",
     "total": "Gesamt",
     "varianceMatch": "✓ Betrag stimmt mit Rechnungsgesamtbetrag überein",
     "varianceWarning": "⚠ {{amount}} Abweichung (innerhalb der Toleranz)",
@@ -514,20 +466,20 @@
     "cancel": "Abbrechen",
     "cancelConfirmBody": "Du hast nicht gespeicherte Änderungen. Bist du sicher, dass du diese verwerfen möchtest?",
     "invalidDocumentId": "Ungültige Dokument-ID",
-    "vendor": "Auftragnehmer",
-    "vendorPlaceholder": "Auftragnehmer suchen…",
-    "vendorRequired": "Auftragnehmer ist erforderlich",
+    "vendor": "Firma",
+    "vendorPlaceholder": "Firmen suchen…",
+    "vendorRequired": "Firma ist erforderlich",
     "budgetSource": "Finanzierungsquelle",
     "budgetSourceNone": "Kein Standard",
     "budgetSourceApplied_one": "Finanzierungsquelle „{{name}}“ auf {{count}} Position angewendet",
     "budgetSourceApplied_other": "Finanzierungsquelle „{{name}}“ auf {{count}} Positionen angewendet",
-    "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
-    "createAndItemize": "Rechnung erstellen & aufschlüsseln",
+    "vendorCreatedAnnounce": "Firma „{{name}}“ erstellt und ausgewählt",
+    "createAndItemize": "Rechnung erstellen und aufschlüsseln",
     "extractionStarted": "Dokument wird mit KI analysiert…",
-    "extractionComplete": "Extraktion abgeschlossen. Bitte prüfe die vorgeschlagenen Positionen.",
-    "noLineItems": "Keine Positionen extrahiert",
-    "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigiere dies vor dem Speichern.",
-    "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuche es erneut.",
+    "extractionComplete": "Extraktion abgeschlossen. Prüfe die vorgeschlagenen Positionen.",
+    "noLineItems": "Keine Positionen gefunden",
+    "inlineDraftInvalid": "Ungültiger Betrag in einer wartenden Kostenposition. Korrigiere ihn vor dem Speichern.",
+    "inlineDraftCreateFailed": "Die Kostenposition konnte nicht erstellt werden. Versuche es erneut.",
     "mergeSelectedCount_one": "{{count}} ausgewählt",
     "mergeSelectedCount_other": "{{count}} ausgewählt",
     "clearSelection": "Auswahl aufheben",
@@ -546,7 +498,6 @@
     "selectLinkedReason": "Eine Position, die mit einer bestehenden Kostenposition verknüpft ist, kann nicht zusammengeführt werden."
   },
   "sourceReports": {
-    "subtitle": "Finanzberichte für Finanzierungsquellen erstellen",
     "stepper": {
       "useCase": "Berichtsart",
       "source": "Finanzierungsquelle",
@@ -571,7 +522,7 @@
     },
     "useCaseLabel": "Welchen Bericht benötigst du?",
     "useCase": {
-      "budget-overview": "Budgetübersicht",
+      "budget-overview": "Kostenaufstellung",
       "claim": "Mittelabruf",
       "proof-of-funds": "Verwendungsnachweis"
     },
@@ -589,13 +540,13 @@
     "discretionary": "Eigenmittel",
     "selectAllInvoices": "Alle Rechnungen auswählen ({{count}})",
     "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
-    "unallocatedGroupTitle": "Nicht auf diese Quelle aufgeteilt ({{count}})",
+    "unallocatedGroupTitle": "Nicht auf diese Finanzierungsquelle aufgeteilt ({{count}})",
     "unallocatedExplained": "Diese Rechnungen sind nicht auf diese Finanzierungsquelle aufgeteilt.",
     "emptyInvoices": "Keine Rechnungen zum Einbeziehen",
     "emptyInvoicesDescription": "Keine Rechnung dieser Finanzierungsquelle passt zu diesem Berichtstyp.",
     "selectAtLeastOne": "Wähle mindestens eine Rechnung aus, um fortzufahren",
     "attachDocuments": "Rechnungs-PDFs anhängen",
-    "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
+    "attachDocumentsHelper": "Hängt das Original-PDF jeder ausgewählten Rechnung als Anhang an",
     "includeCoverLetter": "Anschreiben einfügen",
     "includeCoverLetterHelper": "Fügt dem Bericht ein formelles Anschreiben hinzu",
     "coverLetterDisabledReason": "Diese Finanzierungsquelle hat weder eine Kontaktadresse noch eine Referenz – ein Anschreiben ist nicht verfügbar",
@@ -622,7 +573,7 @@
     "attachmentsNote": "Die angezeigten Anhänge umfassen die für die Berichtsart {{reportType}} verfügbaren Dokumente.",
     "refund": "Rückerstattung",
     "splitBadge": "anteilig {{allocated}} von {{total}}",
-    "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
+    "splitTooltip": "Diese Rechnung ist auf mehrere Finanzierungsquellen aufgeteilt",
     "openInvoiceAriaLabel": "Rechnung {{vendor}}, {{invoiceNumber}} in neuem Tab öffnen",
     "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
     "selectedCount": "{{count}} von {{totalCount}} Rechnungen ausgewählt · Gesamt {{totalAmount}}",
@@ -634,8 +585,8 @@
         "continuationBody": "Diese Datei ist Teil {{part}} von {{total}} des Berichts {{report}} und enthält nur die unten aufgelisteten Anhänge von Rechnungen.",
         "continuationInvoicesHeading": "Rechnungen in dieser Datei:",
         "continuationInvoiceLine": "{{vendor}}, Nr. {{invoiceNumber}}, {{date}}",
-        "multiPartNotice_one": "Dieser Bericht besteht aus {{total}} Dateien. Die verbleibenden Anhänge von Rechnungen folgen in einer weiteren Datei mit ihrem eigenen Anhangsbrief.",
-        "multiPartNotice_other": "Dieser Bericht besteht aus {{total}} Dateien. Die verbleibenden Anhänge von Rechnungen folgen in {{count}} weiteren Dateien mit jeweils eigenem Anhangsbrief.",
+        "multiPartNotice_one": "Dieser Bericht besteht aus {{total}} Dateien. Die übrigen Rechnungsanhänge folgen in einer weiteren Datei mit eigenem Anhangsbuchstaben.",
+        "multiPartNotice_other": "Dieser Bericht besteht aus {{total}} Dateien. Die übrigen Rechnungsanhänge folgen in {{count}} weiteren Dateien mit jeweils eigenem Anhangsbuchstaben.",
         "multiPartNoticeNoLetter_one": "Teil 1 von {{total}}. Die Anhänge der Rechnungen folgen in einer weiteren Datei.",
         "multiPartNoticeNoLetter_other": "Teil 1 von {{total}}. Die Anhänge der Rechnungen folgen in {{count}} weiteren Dateien.",
         "paperlessTitle": "{{title}} ({{part}} von {{total}})"
@@ -681,12 +632,12 @@
       "dateLabel": "Datum",
       "reference": "Referenz",
       "subject": {
-        "budget-overview": "Budgetübersicht unseres Bauprojekts",
+        "budget-overview": "Kostenaufstellung unseres Bauprojekts",
         "claim": "Mittelabruf",
         "proof-of-funds": "Verwendungsnachweis"
       },
       "body": {
-        "budget-overview": "anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
+        "budget-overview": "anbei erhalten Sie die Kostenaufstellung unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
         "claim": "hiermit beantragen wir einen Mittelabruf über Rechnungen in Höhe von insgesamt {{total}}.",
         "proof-of-funds": "anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       },
@@ -737,7 +688,7 @@
     },
     "table": {
       "title": {
-        "budget-overview": "Budgetübersicht",
+        "budget-overview": "Kostenaufstellung",
         "claim": "Mittelabruf",
         "proof-of-funds": "Verwendungsnachweis"
       },
@@ -788,7 +739,7 @@
       "excludeItemAriaLabel": "{{name}} vom Bericht ausschließen",
       "unnamedLine": "Kostenposition ohne Namen",
       "linkedColumnHeader": "Verknüpft mit",
-      "itemColumnHeader": "Position",
+      "itemColumnHeader": "Kostenposition",
       "allocatedColumnHeader": "Zugeordnet",
       "includeColumnHeader": "Einbeziehen",
       "amountColumnHeader": "Betrag",
@@ -1166,9 +1117,9 @@
     "rateValue": "Satz {{rate}}",
     "readyToSubmit": "Einreichbar",
     "overAllocatedBy": "Überzogen um {{amount}}",
-    "overAllocatedWarning": "Überzogen um {{amount}}. Diese Quelle wird über ihren Betrag hinaus genutzt.",
+    "overAllocatedWarning": "Überzogen um {{amount}}. Diese Finanzierungsquelle wird über ihren Betrag hinaus genutzt.",
     "moveLines": "Positionen verschieben…",
-    "moveToAnotherSource": "Auf eine andere Quelle verschieben",
+    "moveToAnotherSource": "Auf eine andere Finanzierungsquelle verschieben",
     "moved_one": "{{count}} Position nach {{name}} verschoben.",
     "moved_other": "{{count}} Positionen nach {{name}} verschoben.",
     "cardActions": "Aktionen für {{name}}",
@@ -1184,8 +1135,8 @@
       "noCap": "Ohne Obergrenze",
       "expected": "Erwartet",
       "covered": "Abgedeckte Posten",
-      "coveredCount_one": "{{count}} Posten",
-      "coveredCount_other": "{{count}} Posten",
+      "coveredCount_one": "{{count}} Aufgabe oder Anschaffung",
+      "coveredCount_other": "{{count}} Aufgaben und Anschaffungen",
       "deadline": "Frist",
       "overdue": "Überfällig",
       "fixedReduction": "Feste Minderung {{amount}}",
@@ -1193,8 +1144,8 @@
       "explanationTitle": "So wird die erwartete Förderung berechnet",
       "explanation": "Erwartet sind {{rate}} von {{covered}} abgedeckten Kosten, höchstens {{cap}}.",
       "explanationNoCap": "Erwartet sind {{rate}} von {{covered}} abgedeckten Kosten.",
-      "explanationFixed": "Erwartet sind {{amount}} je abgedecktem Posten, höchstens {{cap}}.",
-      "explanationFixedNoCap": "Erwartet sind {{amount}} je abgedecktem Posten."
+      "explanationFixed": "Erwartet sind {{amount}} je abgedeckter Aufgabe oder Anschaffung, höchstens {{cap}}.",
+      "explanationFixedNoCap": "Erwartet sind {{amount}} je abgedeckter Aufgabe oder Anschaffung."
     },
     "grantChips": {
       "more": "Förderprogramme: {{names}}"
@@ -1205,10 +1156,10 @@
     },
     "work": {
       "link": "Aufgaben / Anschaffungen verknüpfen",
-      "linkCount_one": "{{count}} Posten verknüpfen",
-      "linkCount_other": "{{count}} Posten verknüpfen",
-      "linked_one": "{{count}} Posten verknüpft.",
-      "linked_other": "{{count}} Posten verknüpft.",
+      "linkCount_one": "{{count}} Aufgabe oder Anschaffung verknüpfen",
+      "linkCount_other": "{{count}} Aufgaben und Anschaffungen verknüpfen",
+      "linked_one": "{{count}} Aufgabe oder Anschaffung verknüpft.",
+      "linked_other": "{{count}} Aufgaben und Anschaffungen verknüpft.",
       "empty": "Noch keine abgedeckten Posten.",
       "emptyDetail": "Die erwartete Förderung beträgt {{amount}}, bis du Aufgaben oder Anschaffungen verknüpfst.",
       "removeChip": "{{name}} entfernen",

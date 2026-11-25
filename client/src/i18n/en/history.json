@@ -1,5 +1,5 @@
 {
-  "description": "Everything that changed in your project, newest first.",
+  "description": "Everything that changed in your build, newest first.",
   "filters": {
     "toggle": "Filters",
     "typeGroup": "Filter by type",
@@ -34,7 +34,10 @@
     "includeDiaryHint": "Shows your own entries as well. Type filters apply to automatic changes only.",
     "clear": "Clear filters"
   },
-  "day": { "today": "Today", "yesterday": "Yesterday" },
+  "day": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
   "resultCount_one": "{{count}} change",
   "resultCount_other": "{{count}} changes",
   "loading": "Loading History",

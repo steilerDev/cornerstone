@@ -33,7 +33,7 @@
  *   deposit's "Allocated Source" column showing a tagged badge in the expansion panel, and an
  *   empty items sub-table (proving it really is a zero-line source for this invoice).
  * - Scenario 6: The claim-confirmation modal's warning block reports the correct count
- *   ("1 invoice(s) have excluded line items...") when an included invoice has a
+ *   ("1 invoice(s) have excluded lines...") when an included invoice has a
  *   partially-excluded line set (TriState indeterminate case).
  * - Scenario 7: Regression sweep — the pre-existing `reportWizard.spec.ts` locators
  *   (`selectAllCheckbox`, `regularInvoiceRow`, `refundRow`, `invoiceRowCheckbox`,
@@ -751,7 +751,7 @@ test.describe('Report wizard expansion — claim warning count (Scenario 6)', ()
       // `sourceReports.confirmClaimExcludedItemsWarning` in `client/src/i18n/en/budget.json`).
       // Matched on a resilient prefix so a further copy tweak downstream of "have excluded line
       // items" doesn't need this test to change again.
-      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded line items/);
+      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded lines/);
 
       await wizard.cancelClaimConfirm();
     } finally {

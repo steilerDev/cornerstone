@@ -70,8 +70,8 @@
     "range": "Spanne {{from}} bis {{to}}",
     "stillToPay": {
       "label": "Noch zu zahlen",
-      "count_one": "{{count}} offene Rechnung",
-      "count_other": "{{count}} offene Rechnungen"
+      "count_one": "{{count}} Rechnung ist noch zu zahlen.",
+      "count_other": "{{count}} Rechnungen sind noch zu zahlen."
     },
     "progress": {
       "label": "Fortschritt",
@@ -104,7 +104,7 @@
       "funding": "Füge deine erste Finanzierungsquelle hinzu",
       "companies": "Füge deine ersten Firmen hinzu",
       "tasks": "Plane deine ersten Aufgaben",
-      "household": "Lade deinen Haushalt ein",
+      "household": "Lade deine Haushaltsmitglieder ein",
       "backups": "Prüfe die Sicherungen",
       "firstLog": "Erfasse deinen ersten Tag auf der Baustelle"
     },

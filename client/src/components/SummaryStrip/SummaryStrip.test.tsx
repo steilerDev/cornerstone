@@ -377,4 +377,24 @@ describe('SummaryStrip', () => {
       expect(screen.getByTestId('summary-fact-who').parentElement!.childElementCount).toBe(1);
     });
   });
+
+  it('with termHint underlines the label, names the target "label value" and keeps the id on the term (#2258)', () => {
+    renderStrip([{ ...link('wait', 'Waits for', 'Tile hallway'), termHint: 'waitsFor' }]);
+    const target = screen.getByTestId('summary-fact-wait');
+    expect(screen.getByRole('link', { name: 'Waits for Tile hallway' })).toBe(target);
+    const term = screen.getByText('Waits for');
+    expect(term.className).toContain('term');
+    expect(term.id).not.toBe('');
+    expect(target.getAttribute('aria-labelledby')).toContain(term.id);
+    expect(term.closest('dt')).not.toHaveAttribute('id');
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'The tasks or milestones this one cannot start before.',
+    );
+  });
+
+  it('without termHint renders the label in the dt with its id and no tooltip', () => {
+    renderStrip([link('area', 'Area', 'Kitchen')]);
+    expect(screen.getByText('Area').closest('dt')).toHaveAttribute('id');
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
 });

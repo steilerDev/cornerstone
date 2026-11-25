@@ -871,7 +871,7 @@ describe('DocumentsPanel — invoices', () => {
     await waitFor(() => expect(updateAttachmentType).toHaveBeenCalledWith('l7', 'deposit'));
     await waitFor(() =>
       expect(screen.getByRole('status', { hidden: true })).toHaveTextContent(
-        'Sample offer.pdf tagged as Deposit',
+        'Sample offer.pdf tagged as Progress payment',
       ),
     );
   });
@@ -931,13 +931,13 @@ describe('DocumentsPanel — invoices', () => {
       await act(async () => {
         await Promise.resolve();
       });
-      expect(status()).toHaveTextContent('tagged as Deposit');
+      expect(status()).toHaveTextContent('tagged as Progress payment');
 
       // 2 s after the second announcement the first timer would already have fired.
       act(() => {
         jest.advanceTimersByTime(2000);
       });
-      expect(status()).toHaveTextContent('tagged as Deposit');
+      expect(status()).toHaveTextContent('tagged as Progress payment');
 
       act(() => {
         jest.advanceTimersByTime(1000);

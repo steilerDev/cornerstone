@@ -68,9 +68,9 @@ describe('SearchPicker', () => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
-    it('uses "Search items..." as default placeholder', () => {
+    it('uses "Search…" as default placeholder', () => {
       renderPicker();
-      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
     });
 
     it('puts inputTestId on the search input as its data-testid', () => {
@@ -374,7 +374,7 @@ describe('SearchPicker', () => {
       });
     });
 
-    it('uses default loadErrorMessage "Failed to load items" when not specified', async () => {
+    it('uses the default loadErrorMessage when not specified', async () => {
       mockSearchFn.mockRejectedValue(new Error('Network failure'));
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
@@ -382,7 +382,7 @@ describe('SearchPicker', () => {
       await user.click(input);
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to load items')).toBeInTheDocument();
+        expect(screen.getByText("Couldn't load the list.")).toBeInTheDocument();
       });
     });
 
@@ -415,7 +415,7 @@ describe('SearchPicker', () => {
       });
     });
 
-    it('uses default searchErrorMessage "Failed to search items" when not specified', async () => {
+    it('uses the default searchErrorMessage when not specified', async () => {
       mockSearchFn.mockResolvedValueOnce([]);
       mockSearchFn.mockRejectedValueOnce(new Error('Search error'));
 
@@ -432,7 +432,7 @@ describe('SearchPicker', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to search items')).toBeInTheDocument();
+        expect(screen.getByText("Couldn't search. Try again.")).toBeInTheDocument();
       });
     });
   });

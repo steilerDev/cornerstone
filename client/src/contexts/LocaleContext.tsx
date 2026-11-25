@@ -8,11 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import i18n from '../i18n/index.js';
+import { detectBrowserLocale, SUPPORTED_LOCALES } from '../i18n/detectLocale.js';
 import { listPreferences, upsertPreference } from '../lib/preferencesApi.js';
 import { fetchConfig } from '../lib/configApi.js';
 
 export type LocalePreference = 'en' | 'de' | 'system';
-export const RESOLVED_LOCALES = ['en', 'de'] as const;
+export const RESOLVED_LOCALES = SUPPORTED_LOCALES;
 export type ResolvedLocale = (typeof RESOLVED_LOCALES)[number];
 
 export interface LocaleContextValue {
@@ -33,12 +34,6 @@ export interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'locale';
-
-function detectBrowserLocale(): ResolvedLocale {
-  const lang = navigator.language ?? navigator.languages?.[0] ?? 'en';
-  if (lang.startsWith('de')) return 'de';
-  return 'en';
-}
 
 function resolveLocale(preference: LocalePreference): ResolvedLocale {
   if (preference === 'system') return detectBrowserLocale();

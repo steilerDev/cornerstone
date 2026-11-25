@@ -21,6 +21,13 @@
   margin-bottom: 0;
 }
 
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
 .title {
   margin: 0;
   min-width: 0;

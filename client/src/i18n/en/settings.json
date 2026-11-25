@@ -57,10 +57,10 @@
       "member": "Member"
     },
     "authProviders": {
-      "local": "Local",
-      "oidc": "OIDC",
-      "localAndOidc": "Local + OIDC",
-      "oidcPending": "OIDC (awaiting first sign-in)"
+      "local": "Password",
+      "oidc": "Single sign-on",
+      "localAndOidc": "Password and single sign-on",
+      "oidcPending": "Single sign-on (awaiting first sign-in)"
     },
     "lockedUntil": "Until {{when}}",
     "actions": {
@@ -248,7 +248,7 @@
     "labor": "Labor",
     "permits": "Permits",
     "design": "Design",
-    "householdItems": "Household Items",
+    "householdItems": "Purchases",
     "waste": "Waste",
     "other": "Other",
     "equipment": "Equipment",
@@ -421,7 +421,7 @@
     },
     "automaticBackups": {
       "title": "Automatic backups",
-      "purpose": "Saves a backup of your project on a schedule.",
+      "purpose": "Saves a backup of your data on a schedule.",
       "hint": "Set a schedule to turn automatic backups on, then restart Cornerstone.",
       "schedule": "Schedule",
       "invalidSchedule": "This schedule isn't valid, so automatic backups are off.",
@@ -436,7 +436,7 @@
     },
     "history": {
       "title": "History",
-      "purpose": "Records changes to your project automatically in History.",
+      "purpose": "Records changes automatically in History.",
       "hint": "History is always on. It can't be turned off."
     },
     "money": {

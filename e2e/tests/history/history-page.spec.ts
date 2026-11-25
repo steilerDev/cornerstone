@@ -212,7 +212,7 @@ test.describe('History: reach and order (H1)', { tag: '@responsive' }, () => {
         await expect(page).toHaveURL((url) => url.pathname === routeUrl('history'));
         await expect(history.heading).toBeVisible();
         await expect(
-          page.getByText('Everything that changed in your project, newest first.'),
+          page.getByText('Everything that changed in your build, newest first.'),
         ).toBeVisible();
 
         // This test's events only
@@ -841,7 +841,7 @@ test.describe('History: German (H10)', { tag: '@responsive' }, () => {
       await expect(history.typeChip('submission')).toHaveText('Einreichung');
       await expect(history.typeChip('auto_reschedule')).toHaveText('Zeitplanänderung');
       await expect(
-        german.page.getByText('Alles, was sich in deinem Projekt geändert hat, neueste zuerst.'),
+        german.page.getByText('Alles, was sich in deinem Bau geändert hat, neueste zuerst.'),
       ).toBeVisible();
 
       // No raw translation keys anywhere on the page

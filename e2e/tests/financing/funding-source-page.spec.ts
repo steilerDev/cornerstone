@@ -321,7 +321,9 @@ test.describe('Funding source page: Cost tab', { tag: '@responsive' }, () => {
       });
       await source.goto(sourceId, { tab: 'cost' });
       await expect(source.tabs.tab('cost')).toHaveText('Cost (0)');
-      await expect(source.linesPanel(sourceId)).toContainText('No budget lines assigned');
+      await expect(source.linesPanel(sourceId)).toContainText(
+        'No cost lines use this funding source',
+      );
       await expect(source.selectionBar(sourceId)).toHaveCount(0);
     } finally {
       await runCleanup(cleanup);
@@ -358,7 +360,7 @@ test.describe('Funding source page: Cost tab', { tag: '@responsive' }, () => {
       await expect(panel.getByRole('alert')).toBeVisible();
       failing = false;
       await panel.getByRole('button', { name: 'Retry' }).click();
-      await expect(panel).toContainText('No budget lines assigned');
+      await expect(panel).toContainText('No cost lines use this funding source');
     } finally {
       await runCleanup(cleanup);
     }

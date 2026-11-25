@@ -185,10 +185,10 @@ describe('MassMoveModal', () => {
   // ─── Title & context line ────────────────────────────────────────────────
 
   describe('static content', () => {
-    it('renders modal title "Move lines to another source"', () => {
+    it('renders modal title "Move lines to another funding source"', () => {
       render(<MassMoveModal {...buildProps()} />);
 
-      expect(screen.getByText('Move lines to another source')).toBeInTheDocument();
+      expect(screen.getByText('Move lines to another funding source')).toBeInTheDocument();
     });
 
     it('renders context line showing count and sourceName for 2 lines', () => {
@@ -222,7 +222,7 @@ describe('MassMoveModal', () => {
 
       const picker = screen.getByTestId('mock-search-picker');
       expect(picker).toBeInTheDocument();
-      expect(picker).toHaveAttribute('placeholder', 'Search sources…');
+      expect(picker).toHaveAttribute('placeholder', 'Find a funding source by name…');
     });
   });
 

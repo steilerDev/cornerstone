@@ -27,6 +27,7 @@ import type {
   CostLineRow,
   CostLineTableMode,
 } from './types.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import styles from './CostLineTable.module.css';
 
 export interface CostLineTableProps {
@@ -84,6 +85,7 @@ export function CostLineTable({
   testIdPrefix = 'cost-lines',
 }: CostLineTableProps) {
   const { t } = useTranslation('costLines');
+  const { t: tCommon } = useTranslation('common');
   const { formatCurrency } = useFormatters();
   const tableSplitRef = useRef<HTMLButtonElement | null>(null);
   const cardSplitRef = useRef<HTMLButtonElement | null>(null);
@@ -111,12 +113,17 @@ export function CostLineTable({
         <span data-testid={dataTableTestId(testIdPrefix, 'not-yet-split', surface)}>
           {t('table.notYetSplit', { amount: formatCurrency(remaining) })}
         </span>
+        <TermHintPopover
+          terms={['notYetSplit']}
+          testId={dataTableTestId(testIdPrefix, 'not-yet-split-hint', surface)}
+        />
         {onSplit && (
           <button
             type="button"
             ref={surface === 'card' ? cardSplitRef : tableSplitRef}
             className={styles.splitButton}
             aria-label={t(I18N_UNION_KEYS.costLineSplitLabel.key(documentKind))}
+            title={tCommon(I18N_UNION_KEYS.termHintDefinition.key('split'))}
             data-testid={dataTableTestId(testIdPrefix, 'split', surface)}
             onClick={onSplit}
           >

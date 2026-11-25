@@ -12,6 +12,7 @@ import { SpotHistoryList } from './SpotHistoryList.js';
 import type { OriginState } from '../../navigation/origin.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { formatAreaPath } from '../../lib/photoSpots.js';
+import { TermHintPopover } from '../Tooltip/TermHintPopover.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './SpotViewer.module.css';
 
@@ -308,9 +309,12 @@ export function SpotViewer({
       onEditingChange={setEditing}
       testIdPrefix="spot-viewer-details-panel"
     >
-      <h2 className={styles.sectionHeading}>
-        {isNoAreaGroup ? t('photos:viewer.noAreaOverTime') : t('photos:viewer.sameSpotOverTime')}
-      </h2>
+      <div className={styles.sectionHeadingRow}>
+        <h2 className={styles.sectionHeading}>
+          {isNoAreaGroup ? t('photos:viewer.noAreaOverTime') : t('photos:viewer.sameSpotOverTime')}
+        </h2>
+        {isNoAreaGroup ? null : <TermHintPopover terms={['spot']} />}
+      </div>
       <SpotHistoryList photos={photos} currentIndex={index} onSelect={onSelect} />
     </PhotoDetailsPanel>
   );

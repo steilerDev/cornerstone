@@ -2229,7 +2229,7 @@ describe('ReportWizardPage', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Nothing can be marked as submitted: all selected invoices have excluded line items and no progress payments are left to submit.',
+            'Nothing can be marked as submitted: all selected invoices have excluded lines and no progress payments are left to submit.',
           ),
         ).toBeInTheDocument();
       });
@@ -2500,7 +2500,7 @@ describe('ReportWizardPage', () => {
 
       expect(
         screen.getByText(
-          '1 invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.',
+          '1 invoice has excluded lines and keeps its current status. The excluded part can be submitted in a later report.',
         ),
       ).toBeInTheDocument();
     });

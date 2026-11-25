@@ -87,6 +87,7 @@ export function PurchaseWaitsForList({
     <RelatedList
       title={t('purchasePage.timing.waitsFor')}
       headingLevel={2}
+      titleTermHint="waitsFor"
       rows={rows}
       emptyMessage={t('purchasePage.timing.waitsForEmpty')}
       action={{

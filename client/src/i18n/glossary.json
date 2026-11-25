@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-11-16",
+    "lastUpdated": "2026-11-25",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -12,11 +12,11 @@
       },
       "translatorSignOff": {
         "agent": "translator",
-        "date": "2026-10-09",
-        "statement": "Every German form was checked against the owner-approved glossary v1; terms marked shipped match the current German UI."
+        "date": "2026-11-25",
+        "statement": "Full German pass for #2258 (P6.1a): every German string was reviewed against glossary v1; report types use the bank's words."
       }
     },
-    "transition": "Words under formerly and doNotUse may remain in existing strings until the EPIC-21 story that renames that label replaces them; every new or changed string uses the canon. Former names stay search aliases permanently and are never removed.",
+    "transition": "EPIC-21 transition completed in #2258 (P6.1a): former names and doNotUse words no longer appear as labels in en or de; they stay permanent search aliases. Words under doNotUse that are also canon forms (Open, Overview, Overdue, Net) remain allowed in their permitted context.",
     "addressForm": {
       "de": {
         "form": "du",
@@ -578,6 +578,24 @@
       "definition": "The step-by-step report for the bank: a draw-down request, a budget overview or a proof of funds.",
       "doNotUse": [],
       "formerly": ["Reports", "Berichte"]
+    },
+    "Proof of funds": {
+      "groups": ["supportingNoun"],
+      "en": { "singular": "Proof of funds" },
+      "de": { "singular": "Verwendungsnachweis" },
+      "deSource": "shipped",
+      "definition": "A bank report that proves what the funds were spent on: invoices already submitted to the bank.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Budget overview": {
+      "groups": ["supportingNoun"],
+      "en": { "singular": "Budget overview" },
+      "de": { "singular": "Kostenaufstellung" },
+      "deSource": "approved",
+      "definition": "A bank report listing the offers and invoices of the build: to pay, paid or submitted.",
+      "doNotUse": [],
+      "formerly": ["Budgetübersicht"]
     },
     "Trade": {
       "groups": ["supportingNoun"],
@@ -2291,7 +2309,8 @@
         "verb": "Add"
       },
       "de": {
-        "verb": "Hinzufügen"
+        "verb": "Hinzufügen",
+        "note": "In compound labels the verb is lowercase: Rechnung hinzufügen, Kostenposition hinzufügen."
       },
       "deSource": "shipped",
       "definition": "Add a sub-record: a cost line, progress payment, contact person or checklist item.",

@@ -139,7 +139,7 @@ describe('CostBreakdownTable', () => {
       expect(hasRow('type:household_items')).toBe(true);
       expect(hasRow('area:a-1')).toBe(false);
       expect(cell('type:work_items', 'expectedCost')).toHaveTextContent('€1,900.00');
-      expect(screen.getByRole('table')).toHaveAccessibleName('Breakdown of the project by Type');
+      expect(screen.getByRole('table')).toHaveAccessibleName('Breakdown of the build by Type');
     });
 
     it('switches to By cost category', async () => {

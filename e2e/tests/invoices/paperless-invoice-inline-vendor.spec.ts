@@ -204,9 +204,7 @@ test.describe('Scenario 2 — Typed query fallback, keyboard only', () => {
       await reviewPage.vendorInput.fill(typed);
       await expect(reviewPage.vendorPortalDropdown).toBeVisible();
       // With no result the create row replaces the "No results" line
-      await expect(
-        reviewPage.vendorPortalDropdown.getByText('No matching items found'),
-      ).toHaveCount(0);
+      await expect(reviewPage.vendorPortalDropdown.getByText('Nothing matches')).toHaveCount(0);
       await expect(
         reviewPage.vendorPortalDropdown.getByRole('option', {
           name: `New company ${typed}`,

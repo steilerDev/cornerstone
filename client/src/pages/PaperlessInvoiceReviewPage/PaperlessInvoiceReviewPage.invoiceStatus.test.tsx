@@ -357,7 +357,7 @@ async function waitForReady() {
 
 /** The save button. */
 function getCreateBtn(): HTMLElement {
-  return screen.getByRole('button', { name: 'Create Invoice & Itemize' });
+  return screen.getByRole('button', { name: 'Create invoice and split' });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -512,7 +512,7 @@ describe('PaperlessInvoiceReviewPage — invoice Status select (Story #2154)', (
       await clickCreate();
 
       expect(
-        await screen.findByText('Please select a category for all included line items'),
+        await screen.findByText('Choose a category for every included line'),
       ).toBeInTheDocument();
       expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
       expect(getStatusSelect().value).toBe('quotation');

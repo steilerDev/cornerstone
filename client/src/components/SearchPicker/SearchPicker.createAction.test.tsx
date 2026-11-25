@@ -183,7 +183,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       await user.type(input, 'Zzz');
 
       await waitFor(() => {
-        expect(screen.getByText('No matching items found')).toBeInTheDocument();
+        expect(screen.getByText('Nothing matches')).toBeInTheDocument();
       });
       const options = await screen.findAllByRole('option');
       expect(options).toHaveLength(1);
@@ -556,7 +556,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       await waitFor(() =>
         expect(mockSearchFn).toHaveBeenCalledWith('Gamma', [], expect.any(AbortSignal)),
       );
-      expect(await screen.findByText('Failed to search items')).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't search. Try again.")).toBeInTheDocument();
       expect(createRow()).not.toBeInTheDocument();
     });
 
@@ -685,7 +685,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       await user.type(screen.getByPlaceholderText('Search...'), 'Zzz');
 
       expect(await screen.findByRole('option', { name: 'Add "Zzz"' })).toBeInTheDocument();
-      expect(screen.queryByText('No matching items found')).not.toBeInTheDocument();
+      expect(screen.queryByText('Nothing matches')).not.toBeInTheDocument();
     });
 
     it('shows the full label as the row tooltip', async () => {
@@ -716,7 +716,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       await user.type(screen.getByPlaceholderText('Search...'), 'Zzz');
 
-      expect(await screen.findByText('No matching items found')).toBeInTheDocument();
+      expect(await screen.findByText('Nothing matches')).toBeInTheDocument();
       expect(await screen.findByRole('option', { name: 'Add "Zzz"' })).toBeInTheDocument();
     });
   });
@@ -779,7 +779,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       await user.click(screen.getByPlaceholderText('Search...'));
 
-      expect(await screen.findByText('Failed to load items')).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't load the list.")).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'Add new' })).not.toBeInTheDocument();
     });
 

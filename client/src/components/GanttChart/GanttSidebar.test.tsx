@@ -72,7 +72,7 @@ describe('GanttSidebar structure', () => {
     const header = document.getElementById('gantt-sidebar-header')!;
     expect(header).toHaveAttribute('aria-hidden', 'true');
     expect(header).toHaveStyle({ height: `${HEADER_HEIGHT}px` });
-    expect(header).toHaveTextContent('Items');
+    expect(header).toHaveTextContent('Tasks, milestones and purchases');
   });
 
   it('is a labelled list with one listitem per row, each ROW_HEIGHT tall', () => {

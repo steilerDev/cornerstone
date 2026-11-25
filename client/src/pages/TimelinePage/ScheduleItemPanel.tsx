@@ -10,6 +10,8 @@ import type {
   WorkItemStatus,
 } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
+import { TermHintPopover } from '../../components/Tooltip/TermHintPopover.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
 import type { GanttPreviewGhost } from '../../components/GanttChart/GanttChart.js';
 import { CallButton } from '../../components/CallButton/CallButton.js';
@@ -214,15 +216,25 @@ function SignalBadges({
 function Section({
   testId,
   heading,
+  termHint,
   children,
 }: {
   readonly testId: string;
   readonly heading: string;
+  readonly termHint?: TermHintTerm;
   readonly children: ReactNode;
 }) {
+  const headingElement = <h3 className={styles.sectionHeading}>{heading}</h3>;
   return (
     <section className={styles.section} data-testid={testId}>
-      <h3 className={styles.sectionHeading}>{heading}</h3>
+      {termHint ? (
+        <div className={styles.sectionHeadingRow}>
+          {headingElement}
+          <TermHintPopover terms={[termHint]} />
+        </div>
+      ) : (
+        headingElement
+      )}
       {children}
     </section>
   );
@@ -408,10 +420,12 @@ function RelationSection({
   rows,
   glyph,
   originState,
+  termHint,
   children,
 }: {
   readonly testId: string;
   readonly heading: string;
+  readonly termHint?: TermHintTerm;
   readonly emptyText: string;
   readonly rows: readonly ScheduleRelationRow[];
   readonly glyph: string;
@@ -419,7 +433,7 @@ function RelationSection({
   readonly children?: ReactNode;
 }) {
   return (
-    <Section testId={testId} heading={heading}>
+    <Section testId={testId} heading={heading} {...(termHint ? { termHint } : {})}>
       {children}
       {rows.length > 0 ? (
         <ul className={styles.relations}>
@@ -484,6 +498,7 @@ function InfoView({ subject, data, onChanged }: InfoViewProps) {
         rows={relations.waitsFor}
         glyph="←"
         originState={originState}
+        termHint="waitsFor"
       />
       {subject.kind === 'purchase' ? null : (
         <RelationSection
@@ -493,6 +508,7 @@ function InfoView({ subject, data, onChanged }: InfoViewProps) {
           rows={relations.holdsUp}
           glyph="→"
           originState={originState}
+          termHint="holdsUp"
         >
           {holdsUpCount ? (
             <p className={styles.line}>

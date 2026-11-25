@@ -9,6 +9,7 @@ import type { ObjectTabsController } from '../../components/ObjectTabs/useObject
 import type { ObjectTabId } from '../../components/ObjectTabs/objectTabIds.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import type { TermHintTerm } from '../../lib/termHints.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { todayLocalIsoDate } from '../../lib/localDate.js';
 import { purchaseLateDays } from '../../lib/scheduleDates.js';
@@ -48,6 +49,7 @@ export function usePurchaseSummaryFacts({
       readonly wide?: boolean;
       readonly onActivate?: () => void;
       readonly emptyText?: string;
+      readonly termHint?: TermHintTerm;
     } = {},
   ): SummaryFact => ({
     id,
@@ -58,6 +60,7 @@ export function usePurchaseSummaryFacts({
     value,
     ...(extra.wide ? { wide: true } : {}),
     ...(extra.emptyText ? { emptyText: extra.emptyText } : {}),
+    ...(extra.termHint ? { termHint: extra.termHint } : {}),
   });
 
   const wordDelivery = (shown: DeliveryShown): string | null => {
@@ -209,6 +212,7 @@ export function usePurchaseSummaryFacts({
       ) : (
         t('purchasePage.strip.nothing')
       ),
+      { termHint: 'waitsFor' },
     ),
   );
 

@@ -963,7 +963,7 @@ describe('ReportContentEditor — table rows', () => {
     });
     const chip = within(getDesktopTable(container)).getByText('TEXT_claimed');
     expect(chip.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
-    expect(chip).toHaveAttribute('title', enCommon.statusHints.submitted);
+    expect(chip).toHaveAttribute('title', enCommon.termHint.definition.submitted);
     unmount();
     const second = renderEditor({
       content: makeContent({

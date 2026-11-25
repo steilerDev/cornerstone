@@ -86,7 +86,7 @@ test.describe('OIDC SSO Flow', () => {
     await loginPage.goto();
     await expect(loginPage.ssoButton).toBeVisible();
 
-    // When: User clicks "Login with SSO"
+    // When: User clicks "Sign in with single sign-on"
     await loginPage.clickSSO();
 
     // Then: Browser should be redirected through the OIDC flow
@@ -235,7 +235,7 @@ test.describe('OIDC SSO Flow', () => {
     // Status and Auth Provider are located by header text, not position
     await expect(await userManagementPage.getStatusCell(TEST_MEMBER.email)).toHaveText('Active');
     await expect(await userManagementPage.getAuthProviderCell(TEST_MEMBER.email)).toHaveText(
-      'Local + OIDC',
+      'Password and single sign-on',
     );
 
     await adminContext.close();

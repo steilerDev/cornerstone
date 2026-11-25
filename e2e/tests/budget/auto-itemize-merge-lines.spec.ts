@@ -532,7 +532,7 @@ test.describe('Scenario 2 — Successful merge', () => {
       // ── Source rows removed immediately; one new (loading) row takes their place ──
       await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
       await expect(autoItemizePage.mergingRow).toBeVisible();
-      await expect(autoItemizePage.mergingRow).toContainText('Merging 2 items');
+      await expect(autoItemizePage.mergingRow).toContainText('Merging 2 lines');
 
       // ── Merge bar is dismissed once merge starts (selection cleared) ──────
       expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');
@@ -599,7 +599,7 @@ test.describe('Scenario 3 — Merge failure + Retry', () => {
 
       // ── First attempt fails: error card with Retry + Undo ────────────────
       await expect(autoItemizePage.mergeErrorRow).toBeVisible();
-      await expect(autoItemizePage.mergeErrorRow).toContainText("Couldn't merge these line items.");
+      await expect(autoItemizePage.mergeErrorRow).toContainText("Couldn't merge these lines.");
       await expect(autoItemizePage.mergeRetryButton).toBeVisible();
       await expect(autoItemizePage.mergeUndoButton).toBeVisible();
 

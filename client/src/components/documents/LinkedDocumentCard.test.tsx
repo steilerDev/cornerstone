@@ -214,7 +214,7 @@ describe('LinkedDocumentCard', () => {
       expect(open).toHaveAttribute('href', `${BASE}/documents/42/details`);
       expect(open).toHaveAttribute('target', '_blank');
       expect(open).toHaveTextContent('(opens in a new tab)');
-      expect(screen.getByTestId('document-itemize-link-1')).toHaveTextContent('Itemize');
+      expect(screen.getByTestId('document-itemize-link-1')).toHaveTextContent('Split with AI');
       expect(screen.getByTestId('document-unlink-link-1')).toHaveTextContent('Unlink');
       expect(screen.getByRole('separator')).toBeInTheDocument();
     });
@@ -353,7 +353,9 @@ describe('LinkedDocumentCard', () => {
         />,
       );
 
-      expect(screen.getByTestId('attachment-type-badge-link-1')).toHaveTextContent('Deposit');
+      expect(screen.getByTestId('attachment-type-badge-link-1')).toHaveTextContent(
+        'Progress payment',
+      );
       expect(screen.getByLabelText('Tag document type: Sample offer.pdf')).toHaveValue('deposit');
     });
 

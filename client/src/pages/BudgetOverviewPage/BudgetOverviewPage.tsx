@@ -16,6 +16,7 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { MoneyFigure } from '../../components/MoneyFigure/MoneyFigure.js';
+import { TermHintPopover } from '../../components/Tooltip/TermHintPopover.js';
 import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
@@ -350,13 +351,14 @@ export function BudgetOverviewPage() {
                 })
               : null
           }
+          rangeHint={<TermHintPopover terms={['range']} />}
           detail={hasFigure ? undefined : t('overview.headline.needsSetup')}
           explanation={{
             toggleLabel: t('overview.headline.howCalculated'),
             content: (
               <>
                 <p>{t('overview.headline.formula')}</p>
-                <p>{t('overview.headline.rangeExplained')}</p>
+                <p>{tCommon(I18N_UNION_KEYS.termHintDefinition.key('range'))}</p>
                 {cappedGrants.length > 0 ? (
                   <>
                     <p>{t('overview.headline.cappedLead')}</p>

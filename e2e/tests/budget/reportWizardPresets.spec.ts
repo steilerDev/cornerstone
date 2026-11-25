@@ -476,7 +476,7 @@ test.describe('Bank report: German (A7)', { tag: '@responsive' }, () => {
       await expect(wizard.stepHeading).toHaveText('Berichtsart');
       await expect(wizard.useCaseTitles).toHaveText([
         'Mittelabruf',
-        'Budgetübersicht',
+        'Kostenaufstellung',
         'Verwendungsnachweis',
       ]);
       await expect(german.page.getByText(/sourceReports\./)).toHaveCount(0);

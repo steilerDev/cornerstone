@@ -609,7 +609,7 @@ describe('CostLinesSection item host delete and unlink', () => {
     const dialog = await screen.findByRole('alertdialog');
     await waitFor(() =>
       expect(dialog).toHaveTextContent(
-        'This budget line is linked to an invoice and cannot be deleted.',
+        'This cost line is linked to an invoice and cannot be deleted.',
       ),
     );
     expect(dialog).not.toHaveTextContent('server prose');

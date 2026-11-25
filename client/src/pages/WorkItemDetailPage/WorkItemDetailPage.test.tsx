@@ -786,7 +786,7 @@ describe('WorkItemDetailPage', () => {
         within(items)
           .getAllByRole('listitem')
           .map((li) => li.textContent),
-      ).toEqual(['Subtasks deleted with it: 1', 'Notes deleted with it: 1']);
+      ).toEqual(['Checklist items deleted with it: 1', 'Notes deleted with it: 1']);
     });
 
     it('names an untitled task "Untitled task", as the Tasks list does', async () => {

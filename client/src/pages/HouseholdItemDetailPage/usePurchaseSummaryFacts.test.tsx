@@ -97,6 +97,15 @@ describe('usePurchaseSummaryFacts', () => {
     ]);
   });
 
+  it('hints Waits for and no other fact (#2258)', () => {
+    const { facts } = renderFacts(makePurchasePage());
+    const hinted = facts()
+      .filter((f) => (f as { termHint?: string }).termHint !== undefined)
+      .map((f) => [f.id, (f as { termHint?: string }).termHint]);
+    expect(hinted).toEqual([['waitsFor', 'waitsFor']]);
+    expect(screen.getByText('Waits for').className).toContain('term');
+  });
+
   it('adds the Documents fact last, and only when there is one', () => {
     const { facts, unmount } = renderFacts(makePurchasePage(), DOCUMENTS_FACT);
     expect(facts().at(-1)?.id).toBe('documents');

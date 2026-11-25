@@ -30,6 +30,7 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { TERM_HINT_TERMS } from '../lib/termHints.js';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
 import { INVOICE_FORM_KINDS } from '../objectForms/invoiceCreateContext.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
@@ -99,8 +100,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 80 registered sets', () => {
-    expect(SETS).toHaveLength(80);
+  it('iterates all 82 registered sets', () => {
+    expect(SETS).toHaveLength(82);
   });
 });
 
@@ -180,8 +181,18 @@ describe('I18N_UNION_KEYS registry', () => {
     );
   });
 
+  it('pins the term-hint sets (#2258)', () => {
+    expect(I18N_UNION_KEYS.termHintTerm.ns).toBe('common');
+    expect(I18N_UNION_KEYS.termHintTerm.members).toBe(TERM_HINT_TERMS);
+    expect(I18N_UNION_KEYS.termHintDefinition.members).toBe(TERM_HINT_TERMS);
+    expect(I18N_UNION_KEYS.termHintTerm.key('late')).toBe('termHint.term.late');
+    expect(I18N_UNION_KEYS.termHintDefinition.key('heldUp')).toBe('termHint.definition.heldUp');
+  });
+
   it('registers the sets in declaration order', () => {
     expect(Object.keys(I18N_UNION_KEYS)).toEqual([
+      'termHintTerm',
+      'termHintDefinition',
       'reportTitle',
       'reportCoverLetterSubject',
       'reportCoverLetterBody',

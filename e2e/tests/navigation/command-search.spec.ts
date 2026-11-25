@@ -510,7 +510,7 @@ test.describe('Command search', () => {
     // The users list is not searchable from the palette: no row
     await page.goto(ROUTES.userManagement);
     await pageHeading(page);
-    const usersField = page.getByLabel('Search items');
+    const usersField = page.getByLabel('Search this list');
     await usersField.fill('ab');
     await expect(usersField).toHaveValue('ab');
     await expect(search.everywhereRow).toHaveCount(0);

@@ -82,10 +82,14 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
       await expect(card).toContainText('Bank loan');
       await expect(card).toContainText('Active');
       await expect(card).toContainText('3.50%');
-      for (const label of ['Amount', 'Allocated', 'Paid', 'Submitted', 'Unallocated']) {
+      for (const label of ['Amount', 'Paid']) {
         await expect(
           card.locator('dt').filter({ hasText: new RegExp(`^${label}$`) }),
         ).toBeVisible();
+      }
+      // Hinted labels hold an always-in-DOM tooltip bubble, so their <dt> text is not just the label.
+      for (const label of ['Allocated', 'Submitted', 'Unallocated']) {
+        await expect(financing.termHint(sourceId, label)).toBeVisible();
       }
 
       // Ready to submit n · amount: the money service's answer
@@ -244,7 +248,7 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
       await expect(card).toContainText('No cap');
       await expect(financing.grantExpected(grantId)).toContainText(/[\d.,]+/);
       // Covered items link to the Work tab of the grant
-      await expect(financing.grantCovered(grantId)).toHaveText('1 item');
+      await expect(financing.grantCovered(grantId)).toHaveText('1 task or purchase');
       await expect(financing.grantCovered(grantId)).toHaveAttribute(
         'href',
         routeUrl('grant', { id: grantId }, { tab: 'work' }),
@@ -298,7 +302,7 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
         ],
       });
       await financing.goto();
-      await expect(financing.grantCovered(grantId)).toHaveText('2 items');
+      await expect(financing.grantCovered(grantId)).toHaveText('2 tasks and purchases');
     } finally {
       await runCleanup(cleanup);
     }

@@ -880,7 +880,7 @@ test.describe('Group by area and the area chip (Scenario 15, AC3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Legend (Scenario 16)', () => {
-  test('The legend opens from the toolbar and notes how many done items are hidden', async ({
+  test('The legend opens from the toolbar and notes how many done rows are hidden', async ({
     page,
   }) => {
     const timelinePage = new TimelinePage(page);
@@ -898,7 +898,7 @@ test.describe('Legend (Scenario 16)', () => {
       await expect(timelinePage.legend).toBeVisible();
       await expect(timelinePage.legend).toContainText('Late or held up');
       await expect(timelinePage.legend).toContainText('critical path');
-      await expect(timelinePage.legendDoneHidden).toHaveText('1 done item hidden');
+      await expect(timelinePage.legendDoneHidden).toHaveText('1 done row hidden');
     } finally {
       await timelinePage.unmockTimeline();
     }

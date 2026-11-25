@@ -122,7 +122,7 @@ test.describe('Grant page: overview and header', { tag: '@responsive' }, () => {
       // The card
       await financing.goto();
       await expect(financing.grantExpected(grantId)).toContainText(/0\.00/);
-      await expect(financing.grantCovered(grantId)).toHaveText('0 items');
+      await expect(financing.grantCovered(grantId)).toHaveText('0 tasks and purchases');
 
       // The strip: Expected is zero and nothing is flagged
       await grant.goto(grantId);
@@ -179,7 +179,7 @@ test.describe('Grant page: Work tab', { tag: '@responsive' }, () => {
 
       await grant.linkItems([taskTitle, purchaseName]);
       await expect(
-        page.getByTestId('toast-success').filter({ hasText: 'Linked 2 items.' }),
+        page.getByTestId('toast-success').filter({ hasText: 'Linked 2 tasks and purchases.' }),
       ).toBeVisible();
 
       const taskRow = GrantPage.rowId('work_item', taskId);
