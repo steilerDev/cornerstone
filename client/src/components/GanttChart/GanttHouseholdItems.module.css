@@ -13,6 +13,11 @@
   opacity: 1;
 }
 
+.hiMarker:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
 .hiHighlighted {
   opacity: 1;
 }

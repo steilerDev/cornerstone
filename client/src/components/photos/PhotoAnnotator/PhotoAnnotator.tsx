@@ -1041,7 +1041,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
       {saveError && <FormError message={saveError} />}
 
-      <div ref={liveRegionRef} role="status" aria-live="polite" aria-atomic />
+      <div ref={liveRegionRef} role="status" aria-atomic />
     </section>
   );
 }

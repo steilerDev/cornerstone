@@ -149,7 +149,7 @@ describe('InvoiceEditDialog', () => {
     fireEvent.change(field(/^Due date/), { target: { value: '2026-03-03' } });
     await user.selectOptions(screen.getByLabelText('Status'), 'claimed');
     await user.type(screen.getByLabelText('Notes'), '  fresh note  ');
-    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
     await user.type(screen.getByLabelText(/^Company/), 'Oth');
     await user.click(await screen.findByRole('option', { name: /Other Tiling Co/ }));
 
@@ -217,7 +217,7 @@ describe('InvoiceEditDialog', () => {
   it('clearing the company shows the company message and sends nothing', async () => {
     const user = userEvent.setup();
     renderDialog();
-    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
     await user.click(save());
 

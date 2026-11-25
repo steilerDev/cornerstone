@@ -30,10 +30,10 @@ export function AuthGuard() {
 
   if (status === 'loading' || status === 'signingOut') {
     return (
-      <div className={styles.loading}>
+      <main className={styles.loading}>
         <div className={styles.spinner}></div>
         <p>{t('loading')}</p>
-      </div>
+      </main>
     );
   }
 

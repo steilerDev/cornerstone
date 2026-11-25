@@ -96,6 +96,18 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
+  it('renders exactly one main landmark around the form (#2261)', async () => {
+    renderWithAuth(<LoginPage />);
+
+    await waitFor(() => {
+      expect(mockGetAuthMe).toHaveBeenCalled();
+    });
+
+    const mains = screen.getAllByRole('main');
+    expect(mains).toHaveLength(1);
+    expect(mains[0]).toContainElement(screen.getByRole('heading', { name: /sign in/i }));
+  });
+
   it('shows "Sign in with single sign-on" button when oidcEnabled is true', async () => {
     mockGetAuthMe.mockResolvedValue({
       user: null,

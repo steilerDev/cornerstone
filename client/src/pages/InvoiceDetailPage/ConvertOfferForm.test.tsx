@@ -604,7 +604,7 @@ describe('converting', () => {
     expect(convertButton()).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByTestId('convert-page')).toHaveAttribute('aria-busy', 'true');
     expect(amountInput()).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeDisabled();
     expect(screen.getByTestId('convert-actions-status')).toHaveTextContent('Converting the offer…');
     expect(mockConvertQuotation.mock.calls[0]![1]).toMatchObject({ paperlessDocumentId: 7 });
     await act(async () => {

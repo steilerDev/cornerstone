@@ -291,14 +291,14 @@ describe('SearchPicker groups and rendering hooks (#2236)', () => {
       });
       expect(screen.getByText('Saved Co').nextElementSibling).toHaveAttribute(
         'aria-label',
-        'Clear selection',
+        'Clear selection: Saved Co',
       );
       unmount();
 
       renderPicker({ value: 'c-9', initialTitle: 'Saved Co', getSelectedSuffix: () => '' });
       expect(screen.getByText('Saved Co').nextElementSibling).toHaveAttribute(
         'aria-label',
-        'Clear selection',
+        'Clear selection: Saved Co',
       );
     });
 
@@ -310,7 +310,7 @@ describe('SearchPicker groups and rendering hooks (#2236)', () => {
 
       expect(screen.getByText('Acme Roofing').nextElementSibling).toHaveAttribute(
         'aria-label',
-        'Clear selection',
+        'Clear selection: Acme Roofing',
       );
     });
 

@@ -93,3 +93,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Vocabulary pass specs](vocabulary-pass-specs.md) — canon-stripped plural-aware ban scans, money-label script on rewordings, Trans tags rise, labelledby hint leaks, helper-file components
 - [Dead-key cleanup specs](dead-key-specs.md) — naive scan overcounts 7x: union registry eval, DB translation_key, context/plural suffixes, t( heads; moneyLabels drop
 - [Lint rule specs](lint-rule-specs.md) — probe selectors on the tree first, flat-config array replacement, message-tagged probe tests, × in À-ÿ, Refs for closed issues
+- [Accessibility pass specs](accessibility-pass-specs.md) — translucent focus variants, drop-shadow spread, output=status, a11y-name churn, no fragment skip link, control-border token

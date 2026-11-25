@@ -1,0 +1,25 @@
+/* Visually hidden until focused; never display:none, which would remove it from the Tab order. */
+.skipLink {
+  position: fixed;
+  left: var(--spacing-2);
+  top: var(--spacing-2);
+  transform: translateY(-200%);
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.skipLink:focus,
+.skipLink:focus-visible {
+  transform: none;
+  z-index: var(--z-modal);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+  font-weight: var(--font-weight-semibold);
+}

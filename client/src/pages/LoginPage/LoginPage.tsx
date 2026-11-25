@@ -114,7 +114,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className={sharedStyles.container}>
+    <main className={sharedStyles.container}>
       <div className={sharedStyles.card}>
         <Logo size={72} variant="full" className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>{t('login.title')}</h1>
@@ -200,7 +200,7 @@ export function LoginPage() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
 

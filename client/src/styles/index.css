@@ -55,3 +55,12 @@ button {
 #root {
   min-height: 100vh;
 }
+
+/* Windows high contrast / forced colours: components replace the outline with a box-shadow,
+   which forced-colors mode removes. Restore a system-colour outline on keyboard focus (#2261). */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px;
+  }
+}

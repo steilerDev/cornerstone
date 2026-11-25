@@ -105,7 +105,7 @@ describe('SearchPicker autoFocus', () => {
     it('focuses the Clear button and opens nothing', () => {
       renderPicker({ autoFocus: true, value: 'item-1', initialTitle: 'Alpha Widget' });
 
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).toHaveFocus();
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(mockSearchFn).not.toHaveBeenCalled();
     });
@@ -113,7 +113,7 @@ describe('SearchPicker autoFocus', () => {
     it('does not swallow the next real focus: after Clear, focusing the input opens normally', async () => {
       renderPicker({ autoFocus: true, value: 'item-1', initialTitle: 'Alpha Widget' });
 
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       const input = await screen.findByPlaceholderText('Search...');
       act(() => input.blur());
       await user.click(input);
@@ -131,7 +131,7 @@ describe('SearchPicker autoFocus', () => {
 
     it('does not focus the Clear button of a shown selection', () => {
       renderPicker({ value: 'item-1', initialTitle: 'Alpha Widget' });
-      expect(screen.getByRole('button', { name: 'Clear selection' })).not.toHaveFocus();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).not.toHaveFocus();
     });
 
     it('focusing the input still opens the dropdown with showItemsOnFocus', async () => {

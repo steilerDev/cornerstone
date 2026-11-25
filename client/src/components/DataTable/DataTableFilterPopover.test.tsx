@@ -292,7 +292,7 @@ describe('DataTableFilterPopover', () => {
       });
 
       expect(screen.getByText('Acme Roofing')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
     });
 
     it('shows the search input when no value is active', () => {
@@ -308,7 +308,7 @@ describe('DataTableFilterPopover', () => {
         }),
       });
 
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
       expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
   });

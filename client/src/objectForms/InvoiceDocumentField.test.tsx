@@ -258,7 +258,7 @@ describe('InvoiceDocumentField', () => {
       await waitFor(() => expect(values().notes).toBe('Roof quote'));
 
       rerender(<Host label="Roof quote" initial={{ ...values() }} />);
-      await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+      await user.click(await screen.findByRole('button', { name: /^Clear selection/ }));
 
       await waitFor(() => expect(values().paperlessDocumentId).toBe(''));
       expect(onPicked).toHaveBeenLastCalledWith('');
@@ -273,7 +273,7 @@ describe('InvoiceDocumentField', () => {
       await pick(user);
       await waitFor(() => expect(values().paperlessDocumentId).toBe('7'));
 
-      await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+      await user.click(await screen.findByRole('button', { name: /^Clear selection/ }));
       await waitFor(() => expect(values().paperlessDocumentId).toBe(''));
       await act(async () => {
         resolveCompanies([{ id: 'v-1', name: 'Acme Roofing' }] as never);
@@ -296,7 +296,7 @@ describe('InvoiceDocumentField', () => {
       await pick(user, /Roof quote/);
       await waitFor(() => expect(mockSearchCompanies).toHaveBeenCalledTimes(1));
 
-      await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+      await user.click(await screen.findByRole('button', { name: /^Clear selection/ }));
       await pick(user, /Second doc/);
       await waitFor(() => expect(announcements).toHaveLength(1));
       await act(async () => {

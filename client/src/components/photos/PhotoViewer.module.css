@@ -63,7 +63,7 @@
 
 .closeButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
 }
 
 .navButton {
@@ -100,7 +100,7 @@
 
 .navButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
 }
 
 .infoBar {

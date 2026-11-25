@@ -314,7 +314,7 @@ describe('EntityPicker', () => {
       await user.click(input());
       await user.click(await screen.findByRole('option', { name: /Birch Tiling/ }));
 
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       expect(onChange).toHaveBeenLastCalledWith('', null);
       expect(await screen.findByRole('textbox')).toBeInTheDocument();
@@ -849,7 +849,7 @@ describe('EntityPicker', () => {
 
       await user.click(input());
       await user.click(await screen.findByRole('option', { name: /Birch Tiling/ }));
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await user.click(await screen.findByRole('textbox'));
       await user.click(await screen.findByRole('option', { name: 'Ben Albrecht' }));
 
@@ -867,7 +867,7 @@ describe('EntityPicker', () => {
 
       await user.click(input());
       await user.click(await screen.findByRole('option', { name: 'Zoë Keller' }));
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await user.click(await screen.findByRole('textbox'));
       await user.click(await screen.findByRole('option', { name: /Acme Roofing/ }));
 
@@ -888,7 +888,7 @@ describe('EntityPicker', () => {
       for (const name of [/Acme Roofing/, 'Zoë Keller', /Birch Tiling/, 'Ben Albrecht']) {
         await user.click(await screen.findByRole('textbox'));
         await user.click(await screen.findByRole('option', { name }));
-        await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+        await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       }
 
       const picked = values.filter((value) => value !== '');
@@ -1384,7 +1384,7 @@ describe('EntityPicker', () => {
       await screen.findByText('Glazing');
 
       // The cache was dropped: the next search asks the server again, so the new trade is listed.
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await user.click(await screen.findByRole('textbox'));
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
     });
@@ -1414,7 +1414,7 @@ describe('EntityPicker', () => {
       await act(async () => {
         finishCreate[0]!({ id: 't-1', name: 'Glazing' });
       });
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await user.type(input(), 'x');
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
       await act(async () => {

@@ -38,7 +38,7 @@
 
 .applyButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: var(--shadow-focus);
 }
 
 @media (prefers-reduced-motion: reduce) {

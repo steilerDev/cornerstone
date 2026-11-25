@@ -29,8 +29,7 @@ export class SearchPickerControl {
     this.input = typeof inputId === 'string' ? (scope ?? page).locator(`#${inputId}`) : inputId;
     this.dropdown = page.locator('[data-search-picker-dropdown]');
     this.clearButton = (scope ?? page).getByRole('button', {
-      name: 'Clear selection',
-      exact: true,
+      name: /^Clear selection/,
     });
   }
 

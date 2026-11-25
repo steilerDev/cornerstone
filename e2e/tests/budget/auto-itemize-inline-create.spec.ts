@@ -512,7 +512,7 @@ test('Scenario 3: clearing Belongs to restores the empty picker without creating
     // ── Clear the choice ──────────────────────────────────────────────────────
     await autoItemizePage.grid
       .row(1)
-      .getByRole('button', { name: 'Clear selection', exact: true })
+      .getByRole('button', { name: /^Clear selection/ })
       .click();
 
     // ── Assert: the empty Belongs to picker is back ───────────────────────────

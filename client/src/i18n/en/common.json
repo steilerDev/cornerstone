@@ -77,7 +77,9 @@
     "selectTrade": "Select a trade",
     "selectOrientation": "Select an orientation",
     "mainNavigation": "Main navigation",
-    "settingsNavigation": "Settings"
+    "settingsNavigation": "Settings",
+    "skipToContent": "Skip to content",
+    "clearSelectionOf": "Clear selection: {{title}}"
   },
   "loading": "Loading...",
   "searching": "Searching...",

@@ -10,8 +10,8 @@
 }
 
 .bar:focus-visible {
-  outline: none;
-  filter: drop-shadow(0 0 3px var(--color-focus-ring)) drop-shadow(0 0 6px var(--color-focus-ring));
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* Arrow hover interaction states */
@@ -39,8 +39,9 @@
 /* When a bar is both highlighted and keyboard-focused, combine both visual states:
    the highlight glow persists and the focus ring is layered on top. */
 .highlighted:focus-visible {
-  filter: brightness(1.2) drop-shadow(0 0 4px var(--color-primary))
-    drop-shadow(0 0 3px var(--color-focus-ring)) drop-shadow(0 0 6px var(--color-focus-ring));
+  filter: brightness(1.2) drop-shadow(0 0 4px var(--color-primary));
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* Respect user preference for reduced motion */

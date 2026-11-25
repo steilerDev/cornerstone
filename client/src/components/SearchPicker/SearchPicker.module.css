@@ -6,7 +6,7 @@
 .input {
   width: 100%;
   padding: var(--spacing-2-5);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-family: inherit;
@@ -36,7 +36,7 @@
   align-items: center;
   gap: var(--spacing-2);
   padding: var(--spacing-2) var(--spacing-2-5);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   background: var(--color-bg-primary);
   min-height: var(--touch-target-min);

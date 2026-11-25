@@ -77,7 +77,9 @@
     "selectTrade": "Gewerk auswählen",
     "selectOrientation": "Ausrichtung auswählen",
     "mainNavigation": "Hauptnavigation",
-    "settingsNavigation": "Einstellungen"
+    "settingsNavigation": "Einstellungen",
+    "skipToContent": "Zum Inhalt springen",
+    "clearSelectionOf": "Auswahl aufheben: {{title}}"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",

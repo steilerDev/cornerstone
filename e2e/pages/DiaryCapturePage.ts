@@ -828,7 +828,7 @@ class PhotoSheetControls {
   /** Choose an area in the sheet's picker. */
   async setArea(name: string): Promise<void> {
     // A chosen area replaces the input with a chip: clear it first.
-    const clear = this.dialog.getByRole('button', { name: 'Clear selection', exact: true });
+    const clear = this.dialog.getByRole('button', { name: /^Clear selection/ });
     if ((await clear.count()) > 0) await clear.first().click();
     // Empty first: filling the text the field already holds fires no input event.
     await this.areaInput.fill('');

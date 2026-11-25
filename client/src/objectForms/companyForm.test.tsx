@@ -457,7 +457,9 @@ describe('companyForm (ObjectForm schema)', () => {
       renderForm({ tradeId: 't-elec' });
 
       expect(screen.getByText('Electrical')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Trade')).toBeNull();
+      // The field label now names the selection group (#2261); the search input is gone.
+      expect(screen.queryByRole('textbox', { name: 'Trade' })).toBeNull();
+      expect(screen.getByRole('group', { name: 'Trade' })).toHaveTextContent('Electrical');
     });
 
     it('shows a prefilled trade without a translation under its stored name, and clears it again', async () => {
@@ -465,7 +467,7 @@ describe('companyForm (ObjectForm schema)', () => {
       renderForm({ tradeId: 't-roof' });
 
       expect(screen.getByText('Roofing')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       expect(await screen.findByLabelText('Trade')).toBeInTheDocument();
     });

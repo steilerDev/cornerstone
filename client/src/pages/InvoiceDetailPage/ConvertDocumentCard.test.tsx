@@ -78,7 +78,7 @@ describe('without a document', () => {
     expect(screen.getByText('Pre-fill the final invoice from a document.')).toBeVisible();
     expect(picker()).toBeEnabled();
     expect(picker()).toHaveAttribute('id', 'convert-document-picker');
-    expect(screen.queryByRole('button', { name: 'Clear selection' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Clear selection/ })).toBeNull();
     expect(screen.queryByTestId('convert-ai-prefill')).toBeNull();
     expect(screen.queryByText(/linked to the final invoice/)).toBeNull();
   });
@@ -123,20 +123,20 @@ describe('with a document', () => {
   it('has no Read amounts without the AI reader', () => {
     render(ui(makeDoc({ document: PICKED, llmEnabled: false })));
     expect(screen.queryByTestId('convert-ai-prefill')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
   });
 
   it("the picker's clear button removes the document and puts focus in the picker", async () => {
     const doc = makeDoc({ document: PICKED });
     render(ui(doc));
-    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
     expect(doc.remove).toHaveBeenCalledTimes(1);
     expect(doc.select).not.toHaveBeenCalled();
   });
 
   it('after the document is cleared, focus lands in the picker input, not on the body', async () => {
     const { rerender } = render(ui(makeDoc({ document: PICKED })));
-    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
     rerender(ui(makeDoc({ document: null })));
     await waitFor(() => expect(picker()).toHaveFocus());
     expect(document.body).not.toHaveFocus();
@@ -144,7 +144,7 @@ describe('with a document', () => {
 
   it('disables the picker and Read amounts while the page is saving', () => {
     render(ui(makeDoc({ document: PICKED }), jest.fn(), true));
-    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeDisabled();
     expect(screen.getByTestId('convert-ai-prefill')).toBeDisabled();
   });
 

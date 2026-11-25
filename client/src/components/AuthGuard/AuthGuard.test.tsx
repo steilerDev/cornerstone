@@ -150,6 +150,23 @@ describe('AuthGuard', () => {
     expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
   });
 
+  it('renders exactly one main landmark while loading (#2261)', () => {
+    mockGetAuthMe.mockImplementation(() => new Promise(() => {}));
+
+    renderWithRouter();
+
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('renders exactly one main landmark in the failed-check state (#2261)', async () => {
+    mockGetAuthMe.mockRejectedValue(abortError());
+
+    renderWithRouter();
+
+    await screen.findByRole('heading', { level: 1, name: enCommon.authGuard.errorHeading });
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
   it('loading state shows spinner', () => {
     mockGetAuthMe.mockImplementation(() => new Promise(() => {}));
 

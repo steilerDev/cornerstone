@@ -19,7 +19,8 @@
 }
 
 .diamond:focus-visible {
-  filter: drop-shadow(0 0 0 3px var(--color-focus-ring));
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* Late milestone state — fill/stroke set via inline props; class used for CSS targeting */
@@ -68,8 +69,9 @@
 
 /* When a milestone is both highlighted and keyboard-focused, combine both visual states. */
 .milestoneHighlighted:focus-visible {
-  filter: brightness(1.25) drop-shadow(0 0 5px var(--color-primary))
-    drop-shadow(0 0 0 3px var(--color-focus-ring));
+  filter: brightness(1.25) drop-shadow(0 0 5px var(--color-primary));
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* Respect user preference for reduced motion */

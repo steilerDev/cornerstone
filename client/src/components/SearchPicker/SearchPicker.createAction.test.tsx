@@ -254,7 +254,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       });
       expect(mockOnChange).toHaveBeenCalledWith('new-1');
       expect(mockOnSelectItem).toHaveBeenCalledWith({ id: 'new-1', label: 'Acme Corp' });
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Clear selection' }));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Clear selection/ }));
     });
 
     it('selects nothing and refocuses the input without reopening when onCreate resolves null', async () => {
@@ -298,7 +298,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       renderPicker({ value: 'old-id', initialTitle: 'Old Vendor' });
 
       expect(screen.getByText('Old Vendor')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await user.type(screen.getByPlaceholderText('Search...'), 'Fresh');
       await user.click(await screen.findByRole('option', { name: 'Add "Fresh"' }));
 

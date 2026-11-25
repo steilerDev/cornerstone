@@ -40,8 +40,8 @@ test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
     ];
 
     const foundLinks = new Set<string>();
-    for (let i = 0; i < 20; i++) {
-      // Tab up to 20 times to traverse the nav
+    for (let i = 0; i < 25; i++) {
+      // Tab up to 25 times to traverse the nav (the first stop is the skip link, #2261)
       await page.keyboard.press('Tab');
       focusedElement = await page.evaluate(() => document.activeElement?.textContent?.trim());
 

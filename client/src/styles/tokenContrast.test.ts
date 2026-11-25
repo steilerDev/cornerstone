@@ -196,6 +196,20 @@ const rows: Row[] = [
   ['both', '--color-warning-badge-text', '--color-bg-secondary', 4.5],
   ['both', '--color-warning-badge-text', '--color-bg-primary', 4.5],
   ['both', '--color-text-secondary', '--color-bg-tertiary', 4.5], // inactive slot label while pressed
+  // Accessibility pass (#2261): focus indicator, control borders and sidebar ring, 3:1 non-text
+  ...[
+    '--color-bg-page',
+    '--color-bg-primary',
+    '--color-bg-secondary',
+    '--color-bg-tertiary',
+    '--color-bg-hover',
+  ].flatMap((bg): Row[] => [
+    ['both', '--color-border-focus', bg, 3],
+    ['both', '--color-border-control', bg, 3],
+  ]),
+  ['both', '--color-danger', '--color-bg-primary', 3],
+  ['both', '--color-danger', '--color-bg-secondary', 3],
+  ['both', '--color-sidebar-focus-ring', '--color-sidebar-bg', 3],
 ];
 
 const expanded = rows.flatMap(([theme, fg, bg, min]) =>
@@ -391,11 +405,26 @@ describe('removed tokens', () => {
     '--color-slate-800',
     '--color-slate-700',
     '--color-slate-250',
+    '--color-focus-ring',
+    '--color-focus-ring-subtle',
+    '--color-focus-ring-danger',
+    '--color-focus-ring-primary-alt',
+    '--shadow-focus-primary-alt',
   ])('no CSS file references %s', (token) => {
     const offenders = cssFiles
       .filter((file) => new RegExp(`${token}(?![\\w-])`).test(fs.readFileSync(file, 'utf8')))
       .map((file) => path.relative(srcDir, file));
     expect(offenders).toEqual([]);
+  });
+
+  it.each([
+    '--color-focus-ring',
+    '--color-focus-ring-subtle',
+    '--color-focus-ring-danger',
+    '--color-focus-ring-primary-alt',
+    '--shadow-focus-primary-alt',
+  ])('tokens.css does not define %s', (token) => {
+    expect(tokensCss).not.toMatch(new RegExp(`${token}\\s*:`));
   });
 
   it('scans a meaningful number of CSS files', () => {
@@ -1328,4 +1357,66 @@ describe('ObjectForm "added" confirmation (#2212)', () => {
       ).toBeGreaterThanOrEqual(4.5);
     },
   );
+});
+
+// ── Accessibility pass (#2261) ──────────────────────────────────────────────
+
+describe('focus ring tokens (#2261)', () => {
+  const TWO_RING = (ring: string) => `0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(${ring})`;
+
+  it.each(['light', 'dark'] as const)(
+    '%s: --shadow-focus is the solid var-based two-ring value',
+    (theme) => {
+      expect(tokens[theme].get('--shadow-focus')).toBe(TWO_RING('--color-border-focus'));
+      expect(tokens[theme].get('--shadow-focus')).not.toContain('rgba(');
+    },
+  );
+
+  it.each(['light', 'dark'] as const)(
+    '%s: --shadow-focus-danger is the solid var-based two-ring value',
+    (theme) => {
+      expect(tokens[theme].get('--shadow-focus-danger')).toBe(TWO_RING('--color-danger'));
+      expect(tokens[theme].get('--shadow-focus-danger')).not.toContain('rgba(');
+    },
+  );
+
+  it('the dark block repeats both shadows so a dark subtree recomputes the ring', () => {
+    const darkBlock = tokensCss.slice(tokensCss.indexOf("[data-theme='dark']"));
+    expect(darkBlock).toMatch(/--shadow-focus\s*:/);
+    expect(darkBlock).toMatch(/--shadow-focus-danger\s*:/);
+  });
+
+  it('keeps --shadow-focus-subtle (a halo that needs a paired border) and drops the primary-alt ring', () => {
+    expect(tokens.light.has('--shadow-focus-subtle')).toBe(true);
+    expect(tokens.dark.has('--shadow-focus-subtle')).toBe(true);
+    expect(tokens.light.has('--shadow-focus-primary-alt')).toBe(false);
+    expect(tokens.dark.has('--shadow-focus-primary-alt')).toBe(false);
+  });
+
+  it.each(['--color-photo-stage-bg', '--color-photo-panel-bg'])(
+    'the photo focus ring composited over %s is at least 3:1 (light block; the photo tokens are theme-independent)',
+    (base) => {
+      const ring = compositeOver('light', '--color-photo-focus-ring', base);
+      expect(ratio(ring, resolve('light', base))).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it('the photo tokens resolve identically in dark', () => {
+    expect(tokens.dark.get('--color-photo-focus-ring')).toBe(
+      tokens.light.get('--color-photo-focus-ring'),
+    );
+    expect(resolve('dark', '--color-photo-stage-bg')).toBe(
+      resolve('light', '--color-photo-stage-bg'),
+    );
+  });
+
+  // Mutation proof: dark --color-border-control -> var(--color-slate-300) drops the bg-tertiary
+  // row to 2.18 and fails the rows above. This test pins that the guard detects it.
+  it('a dark control border of slate-300 fails the 3:1 bar on bg-tertiary (2.18)', () => {
+    const mutated = parseTokens(tokensCss);
+    mutated.dark.set('--color-border-control', 'var(--color-slate-300)');
+    const value = tokenRatio('dark', '--color-border-control', '--color-bg-tertiary', mutated);
+    expect(value).toBeLessThan(3);
+    expect(value).toBeCloseTo(2.18, 1);
+  });
 });

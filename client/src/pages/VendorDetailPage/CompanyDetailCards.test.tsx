@@ -379,7 +379,7 @@ describe('About card', () => {
       within(screen.getByTestId('company-about-form')).getByText('Roofing'),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
     await user.type(await screen.findByLabelText('Trade'), 'Til');
     await user.click(await screen.findByRole('option', { name: 'Tiling' }));
     await user.click(save());
@@ -392,7 +392,7 @@ describe('About card', () => {
     renderCards(FULL);
     await open(user);
 
-    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
     await user.click(save());
 
     await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalledWith('v1', { tradeId: null }));

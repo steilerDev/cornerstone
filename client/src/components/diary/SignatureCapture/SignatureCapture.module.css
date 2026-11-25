@@ -38,7 +38,7 @@
 
 .input {
   padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
@@ -195,7 +195,7 @@
 
 .clearButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: var(--shadow-focus);
 }
 
 .clearButton:disabled {
@@ -238,7 +238,7 @@
 
 .removeButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: var(--shadow-focus);
 }
 
 .removeButton:disabled {

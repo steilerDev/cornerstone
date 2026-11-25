@@ -24,6 +24,7 @@ import { CreateSheet } from '../CreateMenu/CreateSheet.js';
 import { ShortcutsHelpProvider } from '../KeyboardShortcutsHelp/ShortcutsHelpProvider.js';
 import { MoreSheet } from '../MoreSheet/MoreSheet.js';
 import { Sidebar } from '../Sidebar/Sidebar.js';
+import { SkipLink, MAIN_CONTENT_ID } from './SkipLink.js';
 import { TopBar } from '../TopBar/TopBar.js';
 import styles from './AppShell.module.css';
 
@@ -127,6 +128,7 @@ function AppShellFrame() {
                       }
                       inert={searchOpen || undefined}
                     >
+                      <SkipLink />
                       {wide && <Sidebar sections={sections} active={active} />}
                       <div className={styles.shellColumn} inert={moreOpen || createOpen}>
                         {!hideBars && (
@@ -146,7 +148,7 @@ function AppShellFrame() {
                           />
                         )}
                         <div className={styles.mainContent}>
-                          <main className={styles.pageContent}>
+                          <main id={MAIN_CONTENT_ID} className={styles.pageContent}>
                             <Suspense
                               fallback={<div className={styles.loading}>{t('loading')}</div>}
                             >
