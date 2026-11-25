@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableHeader } from './DataTableHeader.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 interface TestItem {
   id: string;
@@ -733,5 +734,73 @@ describe('DataTableHeader', () => {
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+  });
+
+  describe('keyboard open moves focus into the filter panel (#2257)', () => {
+    const KEYBOARD_COLUMNS: Array<[string, ColumnDef<TestItem>]> = [
+      [
+        'enum',
+        {
+          key: 'status',
+          label: 'Status',
+          filterable: true,
+          filterType: 'enum',
+          filterParamKey: 'status',
+          enumOptions: [
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ],
+          render: () => null,
+        },
+      ],
+      [
+        'boolean',
+        {
+          key: 'flag',
+          label: 'Flag',
+          filterable: true,
+          filterType: 'boolean',
+          filterParamKey: 'flag',
+          render: () => null,
+        },
+      ],
+      [
+        'date',
+        {
+          key: 'due',
+          label: 'Due',
+          filterable: true,
+          filterType: 'date',
+          filterParamKey: 'due',
+          render: () => null,
+        },
+      ],
+    ];
+
+    it.each(KEYBOARD_COLUMNS)(
+      'Enter on the %s filter trigger focuses inside the panel',
+      async (_t, column) => {
+        render(
+          <LocaleProvider>
+            <table>
+              <DataTableHeader<TestItem>
+                columns={[column]}
+                visibleColumns={new Set([column.key])}
+                tableState={makeTableState()}
+                onSort={jest.fn()}
+                onFilter={jest.fn()}
+              />
+            </table>
+          </LocaleProvider>,
+        );
+        const trigger = screen.getByRole('button', {
+          name: new RegExp(`filter by ${column.label}`, 'i'),
+        });
+        trigger.focus();
+        await userEvent.keyboard('{Enter}');
+        const dialog = await screen.findByRole('dialog');
+        await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      },
+    );
   });
 });

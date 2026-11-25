@@ -550,6 +550,28 @@ test.describe('DataTable popovers — anchored panels', () => {
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
+  test('The Status filter is keyboard reachable: Enter moves focus into the dialog, Escape returns it', async ({
+    page,
+  }) => {
+    const users = new UserManagementPage(page);
+    await users.goto();
+    await expect(page.getByRole('table')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    const trigger = page.getByRole('button', { name: 'Filter by Status' });
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    const panel = page.getByRole('dialog', { name: /Status/ });
+    await expect(panel).toBeVisible();
+    await expect(panel.locator(':focus')).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test('Column settings opens a dialog; a press outside closes it', async ({ page }) => {
     const users = new UserManagementPage(page);
     await users.goto();

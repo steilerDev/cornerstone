@@ -112,6 +112,7 @@ export function DataTableFilterPopover<T>({
       id={id}
       ariaLabel={t('dataTable.filter.filterByColumn', { column: column.label })}
       trapFocus
+      focusFirstOnOpen
       onDismiss={onDismiss}
       testId={`data-table-filter-panel-${column.key}`}
     >

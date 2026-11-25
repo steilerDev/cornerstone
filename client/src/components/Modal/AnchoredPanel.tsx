@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import {
   autoUpdate,
@@ -11,7 +11,7 @@ import {
 } from '@floating-ui/react';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
 import { useDialogLevel } from './dialogLayer.js';
-import { markEscapeHandled, useFocusTrap } from './useFocusTrap.js';
+import { getFocusableElements, markEscapeHandled, useFocusTrap } from './useFocusTrap.js';
 import styles from './AnchoredPanel.module.css';
 
 export type AnchoredPanelDismissReason = 'escape' | 'outside' | 'route';
@@ -37,6 +37,8 @@ export interface AnchoredPanelProps {
    * instead, so a dialog opened from inside the panel renders above it.
    */
   readonly layer?: 'popover' | 'dialog';
+  /** Move focus to the panel's first focusable control once its content mounts, unless focus is already inside (an autoFocus field). Off by default: hosts such as StatusMenu set focus themselves. */
+  readonly focusFirstOnOpen?: boolean;
   readonly children: ReactNode;
 }
 
@@ -62,6 +64,7 @@ export function AnchoredPanel({
   testId,
   placement = 'bottom-start',
   layer = 'popover',
+  focusFirstOnOpen = false,
   children,
 }: AnchoredPanelProps) {
   // Dialogs opened later (a row's ConfirmDialog) stack above a `dialog`-layer panel.
@@ -85,6 +88,23 @@ export function AnchoredPanel({
   });
 
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // FloatingPortal mounts its node one pass after `open`, so the node is tracked in state.
+  const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
+  const setFloating = refs.setFloating;
+  // Stable: an inline callback would re-run on every commit (null, then the node).
+  const setPanelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      panelRef.current = node;
+      setFloating(node);
+      setPanelNode(node);
+    },
+    [setFloating],
+  );
+  useLayoutEffect(() => {
+    if (!open || !focusFirstOnOpen || !panelNode) return;
+    if (panelNode.contains(document.activeElement)) return;
+    getFocusableElements(panelNode)[0]?.focus();
+  }, [open, focusFirstOnOpen, panelNode]);
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
     onDismissRef.current = onDismiss;
@@ -142,10 +162,7 @@ export function AnchoredPanel({
     <FloatingPortal>
       <div
         id={id}
-        ref={(node) => {
-          panelRef.current = node;
-          refs.setFloating(node);
-        }}
+        ref={setPanelRef}
         style={{
           ...(isPositioned ? floatingStyles : { ...floatingStyles, opacity: 0 }),
           ...(layer === 'dialog' ? { zIndex: `calc(var(--z-modal) + ${level * 2})` } : {}),

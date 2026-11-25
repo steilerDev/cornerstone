@@ -1,7 +1,6 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnchoredPanel } from '../Modal/AnchoredPanel.js';
-import { getFocusableElements } from '../Modal/useFocusTrap.js';
 import type { ColumnDef } from './DataTable.js';
 import { ColumnSettingsList } from './ColumnSettingsList.js';
 import styles from './DataTable.module.css';
@@ -30,14 +29,6 @@ export function DataTableColumnSettings<T>({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
   const [isOpen, setIsOpen] = useState(false);
-  // The anchored panel mounts its children a pass after `open`, so the node is tracked in state.
-  const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
-
-  // The anchored panel does not focus itself: move focus to its first control after it opens.
-  useLayoutEffect(() => {
-    if (!isOpen || !contentNode) return;
-    getFocusableElements(contentNode)[0]?.focus();
-  }, [isOpen, contentNode]);
 
   return (
     <>
@@ -72,6 +63,7 @@ export function DataTableColumnSettings<T>({
         id={panelId}
         ariaLabel={t('dataTable.columnSettings.title')}
         trapFocus
+        focusFirstOnOpen
         placement="bottom-end"
         onDismiss={(reason) => {
           setIsOpen(false);
@@ -79,7 +71,7 @@ export function DataTableColumnSettings<T>({
         }}
         testId="data-table-column-settings-panel"
       >
-        <div ref={setContentNode} className={styles.columnSettingsPopover}>
+        <div className={styles.columnSettingsPopover}>
           <ColumnSettingsList
             title={t('dataTable.columnSettings.title')}
             columns={columns}

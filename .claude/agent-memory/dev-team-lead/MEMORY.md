@@ -66,7 +66,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Capture screen specs](capture-screen-specs.md) — planned allowedAdditions names, no in-app leave blocker, WebKit no fake camera, existing shell/formatter helpers, insecure context, draft URL remount, plan tap budgets miss the sheet tap, post-unmount navigate
 - [Home page specs](home-page-specs.md) — defects.json pins deleted tests, action ids rows lack, plurals vs union sets, FeedGroup ul, last interim alias, capmap vs UX
 - [Attention service specs](attention-service-specs.md) — "identical to page X" w/o X, money-layer rule, toEqual-pinned shapes, contract gaps (link/standing), ADR vs plan, one UTC today
-- [Shell popover specs](shell-popover-specs.md) — AnchoredPanel outside-press vs portaled children, nested Escape, popover z over dialogs, provider result literals, live counts vs exact titles
+- [Shell popover specs](shell-popover-specs.md) — AnchoredPanel outside-press vs portaled children, nested Escape, popover z over dialogs, provider result literals, live counts vs exact titles, panel never focuses itself (portal skips Tab)
 - [Consistency test specs](consistency-test-specs.md) — "tests only" hides real gaps: former-name figures, same label/different count, 2nd definitions; API-bracketed E2E retry; registry
 - [Object list specs](object-list-specs.md) — analyzer follows `import type` (DataTable closure +5 primaries), searchFields 0→1 rule, PO rulings vs adopter scope, overlapping facets
 - [Cost line specs](cost-line-specs.md) — "Layers C" needing an atomic batch endpoint, ObjectForm cross-field limits, money-label pre-check script, capmap vs UX, retirement order
