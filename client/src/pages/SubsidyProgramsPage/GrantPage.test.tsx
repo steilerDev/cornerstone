@@ -542,7 +542,9 @@ describe('GrantPage', () => {
       await loaded();
       await openDelete(user);
 
-      expect(await screen.findByText('Delete grant?')).toBeInTheDocument();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Energy grant?' }),
+      ).toBeInTheDocument();
       expect(mockFetchDeleteImpact).toHaveBeenCalledWith('subsidy_program', ID);
       await user.click(screen.getByTestId('grant-delete-cancel'));
 

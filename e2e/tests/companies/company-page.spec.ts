@@ -807,7 +807,9 @@ test.describe('Company page - deleting a record (AC10)', { tag: '@responsive' },
 
     // Escape: nothing is deleted, focus returns to the row menu trigger
     await company.openRecordDelete(seed.paidId);
-    await expect(company.invoiceDeleteDialog.dialog).toContainText(`Delete ${seed.paidNumber}?`);
+    await expect(company.invoiceDeleteDialog.dialog).toContainText(
+      `Delete ${seed.name} · ${seed.paidNumber}?`,
+    );
     await expect(company.invoiceDeleteDialog.cancelButton).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(company.invoiceDeleteDialog.dialog).toBeHidden();

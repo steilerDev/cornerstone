@@ -5,7 +5,7 @@ import { routeUrl } from '@cornerstone/shared';
 import type { InvoiceDetail, InvoiceStatus } from '@cornerstone/shared';
 import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { useInvoiceCostLines } from '../../components/CostLineTable/useInvoiceCostLines.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { ObjectHeader } from '../../components/ObjectHeader/index.js';
@@ -18,7 +18,6 @@ import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { invoiceTransitions } from '../../components/StatusMenu/statusVocabularies.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
 import { useQueryTargetHighlight } from '../../hooks/useQueryTargetHighlight.js';
@@ -167,7 +166,6 @@ function InvoiceDetailLoaded({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('invoice', showDeleteModal ? id : null);
 
   const isOffer = invoice.status === 'quotation';
 
@@ -417,15 +415,13 @@ function InvoiceDetailLoaded({
       )}
 
       {showDeleteModal && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', { name: invoiceName })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="invoice"
+          id={id}
+          name={invoiceName}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDeleteModal}
           testIdPrefix="invoice-delete"

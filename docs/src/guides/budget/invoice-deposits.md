@@ -20,11 +20,15 @@ Each deposit is one of three statuses, mirroring the parent invoice status model
 
 | Status | Meaning |
 |--------|---------|
-| **Pending** | Deposit is scheduled (or due) but not yet paid |
+| **To pay** | Deposit is scheduled (or due) but not yet paid |
 | **Paid** | Deposit has been paid to the company |
-| **Claimed** | Deposit has been claimed back from / reimbursed by a financing source |
+| **Submitted** | Deposit has been claimed back from / reimbursed by a financing source |
 
-Allowed transitions: `pending → paid`, `paid → claimed`, and the reverse path (`claimed → paid → pending`) to correct mistakes.
+The status chip on each row shows only the moves allowed from its current status:
+
+- **To pay** can move to **Paid** or **Submitted**.
+- **Paid** can move to **Submitted**, or back to **To pay**.
+- **Submitted** can move back to **Paid**.
 
 ## Adding a Deposit
 
@@ -40,23 +44,23 @@ Click **Add deposit** to open the form:
 |-------|-------------|
 | **Amount** | Deposit amount. Must be positive. The form warns if net deposits (deposits minus refunds) would exceed the invoice total, but does not block the save. |
 | **Due date** | When the deposit is owed -- used for the schedule and for the overdue indicator. |
-| **Status** | Pending (default), Paid, or Claimed. |
-| **Paid date** | Shown when status is Paid or Claimed -- defaults to today, change if it was paid earlier. |
-| **Claimed date** | Shown when status is Claimed -- defaults to today, change if it was claimed earlier. |
+| **Status** | To pay (default), Paid, or Submitted. |
+| **Paid date** | Shown when status is Paid or Submitted -- defaults to today, change if it was paid earlier. |
+| **Submitted date** | Shown when status is Submitted -- defaults to today, change if it was submitted earlier. |
 | **Description** | Optional free-text label (e.g., "30% on contract signing", "Milestone payment after framing"). |
 
 Save the form to record the deposit. The Deposits list re-renders with the new entry, and the budget rollups across linked tasks and purchases update immediately to reflect the contribution.
 
 ## Editing and Deleting Deposits
 
-Each deposit row has an overflow menu with **Edit** and **Delete**.
+Each deposit row has an **Edit** (pencil) button and a **⋯** menu with **Remove**.
 
-- **Edit** opens the same form with the deposit's current values. Status changes are restricted to the allowed transitions above; for example, you cannot move directly from Pending to Claimed -- mark it Paid first.
-- **Delete** removes the deposit. If the deposit is Paid or Claimed, the modal warns you that deleting will reduce the paid/claimed amount rolled up against cost lines.
+- **Edit** opens the form with the deposit's current values. The form does not change the status. Use the status chip for that.
+- **Remove** deletes the deposit at once. It does not ask first. An **Undo** message appears for 6 seconds. Select **Undo** to restore the deposit. If the deposit was Paid or Submitted, the cost line's paid total drops by its amount.
 
-You can also mark a deposit as Paid or Claimed without editing it: the **mark paid** and **mark claimed** quick actions in the overflow menu open a small confirmation modal where you can set the paid or claimed date.
+To mark a deposit Paid or Submitted, select its status chip, then choose **Mark paid** or **Mark submitted**. Choose **Today** or **Pick a date** for the date. The change applies at once, and an **Undo** message appears for 6 seconds.
 
-If you mark a deposit Paid or Claimed by mistake, use the same menu to revert it -- the action is allowed and shows a transient error banner if the revert fails (for example, due to a network glitch).
+To correct a mistake, select the status chip and choose **Back to “To pay”** or **Back to “Paid”**. This applies at once too, with the same **Undo** message.
 
 ## How Deposits Affect Budget Rollups
 
@@ -72,7 +76,7 @@ The **Still to pay** footer on the Invoices list and the per-source budget overv
 
 ## Offers and Deposits
 
-Offer invoices accept deposits the same way as regular invoices. On **Money > Overview** an offer counts at its face value, with no range added. A deposit counts toward Paid only once its own status is Paid or Claimed.
+Offer invoices accept deposits the same way as regular invoices. On **Money > Overview** an offer counts at its face value, with no range added. A deposit counts toward Paid only once its own status is Paid or Submitted.
 
 ## Cascade Behaviour
 

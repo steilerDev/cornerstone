@@ -94,6 +94,13 @@
   animation: paletteIn var(--transition-medium) both;
 }
 
+.viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
 .paletteBody {
   display: flex;
   flex-direction: column;

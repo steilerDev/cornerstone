@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoAnnotator } from './PhotoAnnotator/PhotoAnnotator.js';
 import { PhotoDetailsPanel } from './PhotoDetailsPanel.js';
+import { Modal } from '../Modal/Modal.js';
 import { Sheet } from '../Modal/Sheet.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -50,7 +50,7 @@ export function PhotoViewer({
   const [deletePhotoError, setDeletePhotoError] = useState<string | null>(null);
   const [currentPhoto, setCurrentPhoto] = useState(photos[initialIndex]!);
 
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
   const annotateReasonId = useId();
   const detailsBtnRef = useRef<HTMLButtonElement>(null);
@@ -65,16 +65,15 @@ export function PhotoViewer({
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [currentIndex, photos]);
 
-  // Store previous focus and restore on close
-  useEffect(() => {
-    previousFocusRef.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = '';
-      previousFocusRef.current!.focus();
-    };
-  }, []);
+  // Modal's focus trap owns Escape: while annotating it cancels the annotator, otherwise it closes.
+  const handleModalClose = useCallback(() => {
+    if (isAnnotating) {
+      setIsAnnotating(false);
+      annotateBtnRef.current?.focus();
+      return;
+    }
+    onClose();
+  }, [isAnnotating, onClose]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -85,14 +84,6 @@ export function PhotoViewer({
       if (showClearConfirm || showDeleteConfirm) return;
       // The tag editor and the details sheet own the keyboard
       if (editing || detailsOpen) return;
-
-      // When annotating, Escape cancels the annotator (does NOT close the viewer)
-      if (isAnnotating && e.key === 'Escape') {
-        e.preventDefault();
-        setIsAnnotating(false);
-        annotateBtnRef.current!.focus();
-        return;
-      }
 
       switch (e.key) {
         case 'ArrowLeft':
@@ -107,24 +98,12 @@ export function PhotoViewer({
             setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
           }
           break;
-        case 'Escape':
-          e.preventDefault();
-          onClose();
-          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    photos.length,
-    onClose,
-    isAnnotating,
-    showClearConfirm,
-    showDeleteConfirm,
-    editing,
-    detailsOpen,
-  ]);
+  }, [photos.length, isAnnotating, showClearConfirm, showDeleteConfirm, editing, detailsOpen]);
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
@@ -212,13 +191,17 @@ export function PhotoViewer({
       : null;
 
   const viewer = (
-    <div className={styles.modal} data-testid="photo-viewer">
-      <div className={styles.backdrop} onClick={onClose} />
-
-      <div className={styles.container}>
+    <Modal
+      variant="viewer"
+      title={t('photoViewer:viewerTitle')}
+      onClose={handleModalClose}
+      initialFocusRef={closeBtnRef}
+    >
+      <div className={styles.container} data-testid="photo-viewer">
         <div className={styles.mainViewer}>
           {/* Close button */}
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={onClose}
             className={styles.closeButton}
@@ -436,10 +419,10 @@ export function PhotoViewer({
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 
-  return createPortal(viewer, document.body);
+  return viewer;
 }
 
 function PencilIcon() {

@@ -838,7 +838,9 @@ describe('FundingSourcePage', () => {
       await openMenu(user);
       await user.click(await screen.findByRole('menuitem', { name: /Delete/ }));
 
-      expect(await screen.findByText('Delete funding source?')).toBeInTheDocument();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Loan Alpha?' }),
+      ).toBeInTheDocument();
       expect(mockFetchDeleteImpact).toHaveBeenCalledWith('budget_source', ID);
       await user.click(screen.getByTestId('source-delete-cancel'));
 

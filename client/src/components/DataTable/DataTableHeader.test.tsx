@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableHeader } from './DataTableHeader.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 interface TestItem {
   id: string;
@@ -328,20 +329,6 @@ describe('DataTableHeader', () => {
       // Before click: no dialog
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-      // Click to open — note: getBoundingClientRect returns zeros in jsdom
-      // so we need a mock
-      jest.spyOn(filterBtn, 'getBoundingClientRect').mockReturnValue({
-        bottom: 40,
-        top: 20,
-        left: 100,
-        right: 200,
-        width: 100,
-        height: 20,
-        x: 100,
-        y: 20,
-        toJSON: () => ({}),
-      } as DOMRect);
-
       await user.click(filterBtn);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
@@ -367,6 +354,132 @@ describe('DataTableHeader', () => {
       const filterBtn = screen.getByRole('button', { name: /filter by title/i });
       // The class name uses CSS modules (identity-obj-proxy returns class name as-is)
       expect(filterBtn.className).toContain('tableHeaderFilterButtonActive');
+    });
+  });
+
+  describe('filter panel as an anchored panel (#2257)', () => {
+    const TWO_FILTERABLE: ColumnDef<TestItem>[] = [
+      { ...DEFAULT_COLUMNS[0]!, sortable: true },
+      {
+        key: 'amount',
+        label: 'Amount',
+        sortable: true,
+        filterable: true,
+        filterType: 'string',
+        filterParamKey: 'amount',
+        render: (item) => item.amount,
+      },
+    ];
+    const open = (name: RegExp = /filter by title/i) =>
+      userEvent.click(screen.getByRole('button', { name }));
+
+    it('opens as a role="dialog" panel portaled to the body, outside the table', async () => {
+      const { container } = renderHeader();
+      await open();
+      const dialog = screen.getByRole('dialog', { name: /filter by title/i });
+      expect(dialog).toHaveAttribute('data-anchored-panel');
+      expect(dialog).toHaveAttribute('data-testid', 'data-table-filter-panel-title');
+      expect(container.contains(dialog)).toBe(false);
+    });
+
+    it('carries no inline z-index of its own', async () => {
+      renderHeader();
+      await open();
+      expect(screen.getByRole('dialog').style.zIndex).toBe('');
+    });
+
+    it('exposes the open state on the trigger with aria-expanded and aria-controls', async () => {
+      renderHeader();
+      const trigger = screen.getByRole('button', { name: /filter by title/i });
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+      await open();
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('dialog').id).toBe(trigger.getAttribute('aria-controls'));
+    });
+
+    it('Escape closes the panel and focuses the trigger', async () => {
+      renderHeader();
+      await open();
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByRole('button', { name: /filter by title/i })).toHaveFocus();
+    });
+
+    it('an outside press closes the panel', async () => {
+      renderHeader();
+      await open();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByRole('button', { name: /filter by title/i })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
+
+    it('a press inside a SearchPicker dropdown does not close the panel', async () => {
+      renderHeader();
+      await open();
+      const dropdown = document.createElement('div');
+      dropdown.setAttribute('data-search-picker-dropdown', '');
+      const option = document.createElement('button');
+      dropdown.appendChild(option);
+      document.body.appendChild(dropdown);
+      fireEvent.mouseDown(option);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      dropdown.remove();
+    });
+
+    it('a click inside the panel does not sort the column', async () => {
+      const onSort = jest.fn();
+      renderHeader({ onSort });
+      await open();
+      await userEvent.click(screen.getByRole('textbox'));
+      fireEvent.mouseDown(screen.getByRole('textbox'));
+      expect(onSort).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('applies typing inside the panel through onFilter', async () => {
+      const onFilter = jest.fn();
+      renderHeader({ onFilter });
+      await open();
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'roof' } });
+      expect(onFilter).toHaveBeenCalledWith('title', 'roof');
+    });
+
+    it('switching columns closes the open panel and opens the other one', async () => {
+      renderHeader({
+        columns: TWO_FILTERABLE,
+        visibleColumns: new Set(['title', 'amount']),
+      });
+      await open(/filter by title/i);
+      expect(screen.getByRole('dialog', { name: /filter by title/i })).toBeInTheDocument();
+
+      await open(/filter by amount/i);
+
+      expect(screen.queryByRole('dialog', { name: /filter by title/i })).toBeNull();
+      expect(screen.getByRole('dialog', { name: /filter by amount/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by amount/i })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(screen.getByRole('button', { name: /filter by title/i })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
+
+    it('Escape after switching columns focuses the newly opened column trigger', async () => {
+      renderHeader({
+        columns: TWO_FILTERABLE,
+        visibleColumns: new Set(['title', 'amount']),
+      });
+      await open(/filter by title/i);
+      await open(/filter by amount/i);
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByRole('button', { name: /filter by amount/i })).toHaveFocus();
     });
   });
 
@@ -599,8 +712,9 @@ describe('DataTableHeader', () => {
       expect(document.activeElement).toBe(filterBtn);
     });
 
-    it('Escape with focus outside the popover closes it without moving focus', async () => {
-      const { user } = await openEntityFilter();
+    it('Escape closes the popover and focuses the filter button even when focus had left it', async () => {
+      // The panel owns Escape (#2257): the trigger always regains focus, so it never lands on <body>
+      const { user, filterBtn } = await openEntityFilter();
       const outside = document.createElement('button');
       document.body.appendChild(outside);
       outside.focus();
@@ -608,7 +722,7 @@ describe('DataTableHeader', () => {
       await user.keyboard('{Escape}');
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(document.activeElement).toBe(outside);
+      expect(document.activeElement).toBe(filterBtn);
       outside.remove();
     });
 
@@ -620,5 +734,73 @@ describe('DataTableHeader', () => {
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+  });
+
+  describe('keyboard open moves focus into the filter panel (#2257)', () => {
+    const KEYBOARD_COLUMNS: Array<[string, ColumnDef<TestItem>]> = [
+      [
+        'enum',
+        {
+          key: 'status',
+          label: 'Status',
+          filterable: true,
+          filterType: 'enum',
+          filterParamKey: 'status',
+          enumOptions: [
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ],
+          render: () => null,
+        },
+      ],
+      [
+        'boolean',
+        {
+          key: 'flag',
+          label: 'Flag',
+          filterable: true,
+          filterType: 'boolean',
+          filterParamKey: 'flag',
+          render: () => null,
+        },
+      ],
+      [
+        'date',
+        {
+          key: 'due',
+          label: 'Due',
+          filterable: true,
+          filterType: 'date',
+          filterParamKey: 'due',
+          render: () => null,
+        },
+      ],
+    ];
+
+    it.each(KEYBOARD_COLUMNS)(
+      'Enter on the %s filter trigger focuses inside the panel',
+      async (_t, column) => {
+        render(
+          <LocaleProvider>
+            <table>
+              <DataTableHeader<TestItem>
+                columns={[column]}
+                visibleColumns={new Set([column.key])}
+                tableState={makeTableState()}
+                onSort={jest.fn()}
+                onFilter={jest.fn()}
+              />
+            </table>
+          </LocaleProvider>,
+        );
+        const trigger = screen.getByRole('button', {
+          name: new RegExp(`filter by ${column.label}`, 'i'),
+        });
+        trigger.focus();
+        await userEvent.keyboard('{Enter}');
+        const dialog = await screen.findByRole('dialog');
+        await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      },
+    );
   });
 });

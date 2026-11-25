@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { BudgetSourceDetailResponse, BudgetSourceStatus } from '@cornerstone/shared';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { useRevertSubmission } from '../../components/FeedRow/useRevertSubmission.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
@@ -27,7 +27,6 @@ import { fundingSourceTransitions } from '../../components/StatusMenu/statusVoca
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
@@ -147,7 +146,6 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('budget_source', showDelete ? id : null);
 
   // "Move lines…" selects the Cost tab first; its panel exists once the tab is active.
   useEffect(() => {
@@ -465,15 +463,13 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
       )}
 
       {showDelete && (
-        <ConfirmDialog
-          title={t('financing.delete.titleSource', { object: t('financing.nouns.source') })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="budget_source"
+          id={id}
+          name={source.name}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}

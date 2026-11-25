@@ -25,8 +25,7 @@ import { PhotosWaitingNotice } from '../../components/photos/PhotoStrip/PhotosWa
 import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { defectTransitions } from '../../components/StatusMenu/statusVocabularies.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
@@ -72,7 +71,6 @@ export default function DiaryEntryDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('diary_entry', showDeleteModal ? entry!.id : null);
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -456,22 +454,18 @@ export default function DiaryEntryDetailPage() {
 
       {/* Delete confirmation */}
       {showDeleteModal && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', {
-            name: displayTitle!,
-          })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="diary_entry"
+          id={entry.id}
+          name={displayTitle!}
           busy={isDeleting}
           error={deleteError || null}
           blocked={deleteBlocked}
-          returnFocusRef={menuTriggerRef}
           onConfirm={() => void handleDelete(entry)}
           onCancel={() => {
             closeDeleteModal();
           }}
+          returnFocusRef={menuTriggerRef}
           testIdPrefix="diary-delete"
         />
       )}

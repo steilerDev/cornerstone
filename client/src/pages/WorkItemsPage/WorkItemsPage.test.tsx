@@ -406,6 +406,49 @@ describe('delete', () => {
     await waitFor(() => expect(heading()).toHaveFocus());
   });
 
+  // AC1 (#2257): the dialog is "Delete <title>?" with the server's counts, identical to the Task
+  // page's dialog (WorkItemDetailPage.test.tsx asserts the same shape for the same impact).
+  it('titles the dialog "Delete <title>?" and lists the server counts for that task', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'work_item',
+      id: 'wi-soon',
+      effects: [
+        { kind: 'subtasks', count: 1 },
+        { kind: 'notes', count: 1 },
+        { kind: 'photos', count: 0 },
+      ],
+    });
+    renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('tasks-row-menu-wi-soon'));
+    await userEvent.click(await screen.findByTestId('tasks-delete-wi-soon'));
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Frame the walls?' }),
+    ).toBeInTheDocument();
+    expect(mockFetchDeleteImpact).toHaveBeenCalledWith('work_item', 'wi-soon');
+    const items = await screen.findByTestId('work-item-list-delete-consequences');
+    expect(
+      within(items)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Subtasks deleted with it: 1', 'Notes deleted with it: 1']);
+  });
+
+  it('names an untitled task "Untitled task", as the Task page does', async () => {
+    mockListWorkItemRows.mockResolvedValue(
+      makeTaskResponse([makeTaskRow({ id: 'wi-blank', title: '   ', timeWindow: 'this_week' })]),
+    );
+    renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('tasks-row-menu-wi-blank'));
+    await userEvent.click(await screen.findByTestId('tasks-delete-wi-blank'));
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Untitled task?' }),
+    ).toBeInTheDocument();
+  });
+
   it('keeps the dialog and shows the error when the delete fails', async () => {
     mockDeleteWorkItem.mockRejectedValue(
       new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),

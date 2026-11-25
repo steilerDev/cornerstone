@@ -677,6 +677,69 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       expect(within(desktopTable()).getByDisplayValue('Manual edit to keep')).toBeInTheDocument();
     });
 
+    it('the overwrite confirmation is a ConfirmDialog: an alertdialog with Keep editing focused first (#2257)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      fireEvent.change(within(desktopTable()).getByDisplayValue('Original Usage Text'), {
+        target: { value: 'Manual edit before AI' },
+      });
+
+      // The wizard moves focus to the step heading after a step change: let it settle first
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
+
+      const dialog = await screen.findByRole('alertdialog', { name: 'Overwrite your edits?' });
+      expect(dialog).toBeInTheDocument();
+      expect(screen.getByTestId('report-ai-overwrite-cancel')).toHaveTextContent('Keep editing');
+      expect(screen.getByTestId('report-ai-overwrite-confirm')).toHaveTextContent(
+        'Overwrite and generate',
+      );
+      expect(screen.getByTestId('report-ai-overwrite-cancel')).toHaveFocus();
+    });
+
+    it('cancelling the overwrite confirmation clears the pending generation: a second attempt asks again and nothing ran', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      fireEvent.change(within(desktopTable()).getByDisplayValue('Original Usage Text'), {
+        target: { value: 'Manual edit kept' },
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
+      await user.click(await screen.findByTestId('report-ai-overwrite-cancel'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(mockGenerateReportContent).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Overwrite your edits?' }),
+      ).toBeInTheDocument();
+      expect(mockGenerateReportContent).not.toHaveBeenCalled();
+    });
+
+    it('confirming the overwrite runs the pending generation exactly once', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockResolvedValue(defaultAiResult());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      fireEvent.change(within(desktopTable()).getByDisplayValue('Original Usage Text'), {
+        target: { value: 'Manual edit replaced' },
+      });
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
+
+      await user.click(await screen.findByTestId('report-ai-overwrite-confirm'));
+
+      await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
     it('closing the overwrite-confirmation modal via Escape leaves the manual edit intact and does not generate', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());

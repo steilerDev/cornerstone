@@ -32,10 +32,12 @@ export interface ModalProps {
   /** Rendered before the title inside the header (e.g. a back link). */
   headerStart?: React.ReactNode;
   /**
-   * `palette`: the command-search surface. No header row and no close button, no padding, a
-   * wide panel in the upper third of the viewport; the title stays as the accessible name.
+   * - `palette`: the command-search surface. No header row and no close button, no padding, a
+   *   wide panel in the upper third of the viewport; the title stays as the accessible name.
+   * - `viewer`: full-viewport media viewer (PhotoViewer). No header row and no close button (the
+   *   content renders its own), no padding, no radius; the title stays as the accessible name.
    */
-  variant?: 'default' | 'palette';
+  variant?: 'default' | 'palette' | 'viewer';
   /** Keeps the title as the accessible name but hides it visually. */
   hideTitle?: boolean;
 }
@@ -88,7 +90,9 @@ export function Modal({
   }, []);
 
   const palette = variant === 'palette';
-  const titleClass = hideTitle || palette ? sharedStyles.srOnly : styles.title;
+  const viewer = variant === 'viewer';
+  const headerless = palette || viewer;
+  const titleClass = hideTitle || headerless ? sharedStyles.srOnly : styles.title;
   const heading = (
     <h2 id={titleId} className={titleClass}>
       {title}
@@ -108,13 +112,20 @@ export function Modal({
       <div
         className={(palette
           ? [styles.palette, className]
-          : [sharedStyles.modalContent, styles.content, className]
+          : viewer
+            ? [styles.viewer, className]
+            : [sharedStyles.modalContent, styles.content, className]
         )
           .filter(Boolean)
           .join(' ')}
         ref={contentRef}
       >
-        {palette ? (
+        {viewer ? (
+          <>
+            {heading}
+            {children}
+          </>
+        ) : palette ? (
           <>
             {heading}
             <div className={styles.paletteBody}>{children}</div>

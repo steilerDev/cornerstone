@@ -29,7 +29,7 @@
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PhotoSpotViewerPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "ProfilePage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
-      "ReportWizardPage": { "destinations": 3, "primaryButtons": 9, "searchFields": 0 },
+      "ReportWizardPage": { "destinations": 3, "primaryButtons": 7, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
@@ -220,7 +220,7 @@
       ]
     },
     "windowConfirm": 0,
-    "handRolledDialogs": 2
+    "handRolledDialogs": 0
   },
   "allowedAdditions": { "sharedComponents": ["UndoToast"] },
   "audited": {
@@ -327,25 +327,38 @@
       ]
     },
     "confirmationMechanisms": {
-      "count": 5,
-      "doubleConfirmations": 1,
+      "count": 2,
+      "doubleConfirmations": 0,
       "variants": [
-        { "code": "M", "description": "shared Modal", "examples": [] },
-        { "code": "Mh", "description": "hand-rolled modal", "examples": [] },
+        {
+          "code": "M",
+          "description": "ConfirmDialog (alertdialog on the shared Modal)",
+          "examples": []
+        },
+        { "code": "Mh", "description": "hand-rolled modal — retired by #2257", "examples": [] },
         {
           "code": "CI",
-          "description": "inline Confirm/Cancel swap (household-item budget line)",
+          "description": "inline Confirm/Cancel swap (household-item budget line) — retired by #2257",
           "examples": []
         },
         {
           "code": "WC",
-          "description": "window.confirm (vendor contacts section, calendar access card)",
+          "description": "window.confirm (vendor contacts section, calendar access card) — retired by #2257",
           "examples": []
         },
-        { "code": "none", "description": "immediate removal (milestone unlink)", "examples": [] },
+        {
+          "code": "none",
+          "description": "immediate removal — replaced by Undo toast (#2209/#2257)",
+          "examples": []
+        },
         {
           "code": "double",
-          "description": "modal plus inline confirm (work-item budget line)",
+          "description": "modal plus inline confirm (work-item budget line) — retired by #2257",
+          "examples": []
+        },
+        {
+          "code": "undo",
+          "description": "acts at once with an Undo toast (status changes, unlinks, removes)",
           "examples": []
         }
       ]

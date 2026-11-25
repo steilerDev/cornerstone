@@ -132,12 +132,12 @@
  *     `sourceReports.table.<reason>`) render as a `[class*="skippedNote"]` block on the STEP 5
  *     PAGE ITSELF (below `ReportContentEditor`, above `Step5Actions`) once any action has run —
  *     NOT inside the PDF preview modal, which has no skip-note rendering of its own.
- * - Discard-edits confirmation modal (Story #1900): `role="dialog"` (name
- *   `sourceReports.editable.discardConfirmTitle` = "Discard your edits?"), shown whenever a
+ * - Discard-edits confirmation (Story #1900, a ConfirmDialog since #2257): `role="alertdialog"`
+ *   (name `sourceReports.editable.discardConfirmTitle` = "Discard your edits?"), shown whenever a
  *   guarded step 1-4 mutation (use case, source, any invoice/line toggle, settings toggle) is
  *   attempted while `overrides` is non-empty (`isDirty`). "Keep editing"
- *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and continue"
- *   (`[class*="btnPrimary"]`) clears `overrides` THEN applies the originally-attempted change.
+ *   (`report-discard-cancel`, focused first) closes without discarding; "Discard and continue"
+ *   (`report-discard-confirm`) clears `overrides` THEN applies the originally-attempted change.
  * - Claim confirmation dialog: `role="alertdialog"` (name "Mark n invoice(s) as submitted?", #2243). Structurally
  *   never concurrent with the PDF preview modal or the discard-confirm modal (all three are
  *   independent `showX` booleans, only one user action path opens any given one at a time) —
@@ -187,12 +187,12 @@
  * - Regenerating: `handleGenerateWithAiClick` checks ONLY `Object.keys(overrides).length > 0`
  *   (manual edits), NOT whether `aiContent` already exists — so regenerating a second time with
  *   no manual edits since the first generation runs immediately, no overwrite modal. With a
- *   manual edit present, it shows the SAME `Modal` component family as the discard-confirm modal
- *   (`role="dialog"`, name `sourceReports.editable.aiOverwriteConfirmTitle` = "Overwrite your
- *   edits?"): "Overwrite and generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
+ *   manual edit present, it shows a ConfirmDialog like the discard-confirm one
+ *   (`role="alertdialog"`, name `sourceReports.editable.aiOverwriteConfirmTitle` = "Overwrite your
+ *   edits?"): "Overwrite and generate" (`report-ai-overwrite-confirm`) runs the
  *   generation immediately (clearing `overrides` as a side effect of `runAiGeneration` succeeding
- *   — see `applyAiContent`'s docstring); "Keep editing" (`btnSecondary`, same translation key/
- *   button as the discard modal) closes without ever calling the generate-content endpoint.
+ *   — see `applyAiContent`'s docstring); "Keep editing" (`report-ai-overwrite-cancel`, same translation key
+ *   as the discard dialog) closes without ever calling the generate-content endpoint.
  * - A confirmed step 1-4 mutation via the discard-confirm modal (`guardedUpdate`) clears BOTH
  *   `overrides` AND `aiContent` (`isDirty = overrides.length > 0 || aiContent !== null`) —
  *   generated content does not survive a discarded/confirmed upstream change any more than a
@@ -736,10 +736,12 @@ export class ReportWizardPage {
     this.pdfPreviewModalErrorBanner = this.pdfPreviewModal.locator('[role="alert"]');
 
     // Story #1900: discard-edits confirmation modal.
-    this.discardConfirmModal = page.getByRole('dialog', { name: 'Discard your edits?' });
+    // #2257: a ConfirmDialog (role="alertdialog", testIdPrefix `report-discard`).
+    this.discardConfirmModal = page.getByRole('alertdialog', { name: 'Discard your edits?' });
     this.discardConfirmKeepEditingButton =
-      this.discardConfirmModal.locator('[class*="btnSecondary"]');
-    this.discardConfirmDiscardButton = this.discardConfirmModal.locator('[class*="btnPrimary"]');
+      this.discardConfirmModal.getByTestId('report-discard-cancel');
+    this.discardConfirmDiscardButton =
+      this.discardConfirmModal.getByTestId('report-discard-confirm');
 
     // Story #1900: editable report content.
     this.coverLetterCard = page.locator('[class*="coverLetterCard"]');
@@ -791,11 +793,14 @@ export class ReportWizardPage {
     this.aiErrorBanner = this.aiGenerateRow.locator('[role="alert"]');
     this.aiGeneratedNote = this.aiGenerateRow.locator('[class*="aiGeneratedNote"]');
 
-    this.aiOverwriteConfirmModal = page.getByRole('dialog', { name: 'Overwrite your edits?' });
-    this.aiOverwriteAndGenerateButton =
-      this.aiOverwriteConfirmModal.locator('[class*="btnPrimary"]');
-    this.aiOverwriteKeepEditingButton =
-      this.aiOverwriteConfirmModal.locator('[class*="btnSecondary"]');
+    // #2257: a ConfirmDialog (role="alertdialog", testIdPrefix `report-ai-overwrite`).
+    this.aiOverwriteConfirmModal = page.getByRole('alertdialog', { name: 'Overwrite your edits?' });
+    this.aiOverwriteAndGenerateButton = this.aiOverwriteConfirmModal.getByTestId(
+      'report-ai-overwrite-confirm',
+    );
+    this.aiOverwriteKeepEditingButton = this.aiOverwriteConfirmModal.getByTestId(
+      'report-ai-overwrite-cancel',
+    );
   }
 
   async goto(sourceId?: string): Promise<void> {

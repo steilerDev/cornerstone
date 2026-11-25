@@ -299,6 +299,32 @@ describe('delete', () => {
     await waitFor(() => expect(heading()).toHaveFocus());
   });
 
+  // AC1 (#2257): "Delete <title>?" plus the server counts, identical to the Milestone page dialog.
+  it('titles the dialog "Delete <title>?" and lists the server counts for that milestone', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'milestone',
+      id: '2',
+      effects: [
+        { kind: 'milestoneLinks', count: 1 },
+        { kind: 'photos', count: 0 },
+      ],
+    });
+    renderPage();
+    await loaded();
+    await openDelete();
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Walls up?' }),
+    ).toBeInTheDocument();
+    expect(mockFetchDeleteImpact).toHaveBeenCalledWith('milestone', 2);
+    const items = await screen.findByTestId('milestone-list-delete-consequences');
+    expect(
+      within(items)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Milestones it no longer counts toward: 1']);
+  });
+
   it('keeps the dialog in its blocked state on a 409', async () => {
     mockDeleteMilestone.mockRejectedValue(
       new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),

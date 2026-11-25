@@ -575,3 +575,65 @@ describe('AnchoredPanel nested Escape (#2231)', () => {
     expect(onDismiss).toHaveBeenCalledWith('escape');
   });
 });
+
+describe('focusFirstOnOpen', () => {
+  function FocusHost({
+    focusFirstOnOpen,
+    autoFocusInput = false,
+  }: {
+    focusFirstOnOpen?: boolean;
+    autoFocusInput?: boolean;
+  }) {
+    const anchorRef = useRef<HTMLButtonElement>(null);
+    const [open, setOpen] = useState(false);
+    return (
+      <div>
+        <button ref={anchorRef} type="button" data-testid="anchor" onClick={() => setOpen(true)}>
+          anchor
+        </button>
+        <AnchoredPanel
+          open={open}
+          anchorRef={anchorRef}
+          role="dialog"
+          id="focus-panel"
+          ariaLabel="Focus panel"
+          onDismiss={() => setOpen(false)}
+          trapFocus
+          focusFirstOnOpen={focusFirstOnOpen}
+          testId="focus-panel"
+        >
+          <button type="button" data-testid="first-button">
+            first
+          </button>
+          <input data-testid="field" aria-label="Field" autoFocus={autoFocusInput} />
+        </AnchoredPanel>
+      </div>
+    );
+  }
+
+  it('moves focus from the anchor to the first control in the panel when it opens', async () => {
+    render(<FocusHost focusFirstOnOpen />);
+    const anchor = screen.getByTestId('anchor');
+    anchor.focus();
+    fireEvent.click(anchor);
+    await waitFor(() => expect(screen.getByTestId('first-button')).toHaveFocus());
+  });
+
+  it('keeps focus on a child autoFocus field that is not the first focusable control', async () => {
+    render(<FocusHost focusFirstOnOpen autoFocusInput />);
+    const anchor = screen.getByTestId('anchor');
+    anchor.focus();
+    fireEvent.click(anchor);
+    await waitFor(() => expect(screen.getByTestId('field')).toHaveFocus());
+    expect(screen.getByTestId('first-button')).not.toHaveFocus();
+  });
+
+  it('leaves focus on the anchor when the prop is not set', async () => {
+    render(<FocusHost />);
+    const anchor = screen.getByTestId('anchor');
+    anchor.focus();
+    fireEvent.click(anchor);
+    await waitFor(() => expect(screen.getByTestId('focus-panel')).toBeInTheDocument());
+    expect(anchor).toHaveFocus();
+  });
+});

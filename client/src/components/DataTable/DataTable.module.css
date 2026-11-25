@@ -110,11 +110,7 @@
 }
 
 .columnSettingsPopover {
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  z-index: var(--z-modal);
+  max-width: calc(var(--spacing-16) * 4);
 }
 
 .columnSettingsContent {
@@ -270,11 +266,7 @@
 
 /* Filter Popover */
 .filterPopover {
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  z-index: calc(var(--z-modal) + 1);
+  max-width: min(calc(var(--spacing-16) * 5), calc(100vw - 2 * var(--spacing-4)));
 }
 
 /* Table Container */

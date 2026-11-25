@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HouseholdItemListRow } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useListRowDelete } from '../../hooks/useListRowDelete.js';
@@ -54,7 +53,6 @@ export function HouseholdItemsPage() {
     onDeleted: refresh,
   });
   const rows = usePurchaseRows({ categories, requestDelete: request });
-  const deleteConsequences = useDeleteImpact('household_item', deletion.item?.id ?? null);
 
   const narrowed = list.filtersActive || list.query.chip !== 'all';
   const summary =
@@ -110,13 +108,10 @@ export function HouseholdItemsPage() {
       headingRef={headingRef}
     >
       {deletion.item ? (
-        <ConfirmDialog
-          title={tCommon('confirmDialog.deleteTitle', { name: deletion.item.name })}
-          consequences={deleteConsequences}
-          irreversible
-          tone="danger"
-          confirmLabel={tCommon('button.delete')}
-          busyLabel={tCommon('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="household_item"
+          id={deletion.item.id}
+          name={deletion.item.name.trim() || tCommon('navigation.untitledPurchase')}
           busy={deletion.busy}
           error={deletion.error}
           blocked={deletion.blocked}

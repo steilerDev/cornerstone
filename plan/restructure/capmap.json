@@ -114,7 +114,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > row ⋯ > Delete (modal listing consequences)",
     "change": "same",
     "gate": "none",
-    "note": "One delete rule for list and detail (PAT-03). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2245: Tasks list row ⋯ › Delete opens the ConfirmDialog with the delete impact counts."
+    "note": "One delete rule for list and detail (PAT-03). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2245: Tasks list row ⋯ › Delete opens the ConfirmDialog with the delete impact counts. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "WRK-016": {
     "name": "See each work item's location as an area breadcrumb (House > Ground Floor > Kitchen)",
@@ -439,7 +439,7 @@
     "to": "Tasks > Task page > header ⋯ > Delete (modal with consequences); key Del",
     "change": "same",
     "gate": "none",
-    "note": "Moved from page footer to the header ⋯ menu (one delete placement). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2248: header ⋯ › Delete (ConfirmDialog with delete-impact counts), key Delete or Backspace; returns to the Tasks list and focuses its heading."
+    "note": "Moved from page footer to the header ⋯ menu (one delete placement). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2248: header ⋯ › Delete (ConfirmDialog with delete-impact counts), key Delete or Backspace; returns to the Tasks list and focuses its heading. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "WRK-069": {
     "name": "Use keyboard shortcuts on list pages and open the shortcut help overlay",
@@ -519,7 +519,7 @@
     "to": "Tasks > Milestones > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestones › row Delete (ConfirmDialog with counts). #2246: row ⋯ › Delete through the shared useListRowDelete (ConfirmDialog)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestones › row Delete (ConfirmDialog with counts). #2246: row ⋯ › Delete through the shared useListRowDelete (ConfirmDialog). #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "WRK-079": {
     "name": "Start creating a milestone from any of five entry points",
@@ -617,7 +617,7 @@
     "to": "Tasks > Milestone page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestone page › Delete (ConfirmDialog with counts). #2250: header ⋯ › Delete opens ConfirmDialog with the counts; Delete and Backspace open it from the keyboard; a refused delete (409) shows the blocked state."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestone page › Delete (ConfirmDialog with counts). #2250: header ⋯ › Delete opens ConfirmDialog with the counts; Delete and Backspace open it from the keyboard; a refused delete (409) shows the blocked state. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "WRK-091": {
     "name": "Return to the milestone list or the schedule from a milestone",
@@ -1071,7 +1071,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Funding sources › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete opens a ConfirmDialog with the delete impact counts; a 409 shows the translated error in the dialog. Own funds has no Delete. After delete the Financing page opens and takes focus."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Funding sources › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete opens a ConfirmDialog with the delete impact counts; a 409 shows the translated error in the dialog. Own funds has no Delete. After delete the Financing page opens and takes focus. #2257: one DeleteConfirmDialog with the server counts; the title names the record (\"Delete ‹name›?\")."
   },
   "MNY-029": {
     "name": "Park not-yet-allocated costs on the built-in Discretionary Funding source",
@@ -1167,7 +1167,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Grants › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete with impact counts; while tasks are linked the server answers 409 and the dialog says to remove them on the Work tab first. Linked purchases are unlinked."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Grants › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete with impact counts; while tasks are linked the server answers 409 and the dialog says to remove them on the Work tab first. Linked purchases are unlinked. #2257: one DeleteConfirmDialog with the server counts; the title names the record (\"Delete ‹name›?\")."
   },
   "MNY-041": {
     "name": "Scope a subsidy program to budget categories (incl. 'No Category', select/deselect all)",
@@ -1501,7 +1501,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Delete (modal); Companies > Company page > Payments tab > row ⋯ > Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2244: Companies › Company page › Payments › Invoices and Offers rows › ⋯ › Delete (ConfirmDialog with counts; the invoice DELETE answers 204, so no Undo)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2244: Companies › Company page › Payments › Invoices and Offers rows › ⋯ › Delete (ConfirmDialog with counts; the invoice DELETE answers 204, so no Undo). #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state. Both surfaces use the one title \"Delete ‹company› · ‹number›?\"."
   },
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
@@ -1702,10 +1702,10 @@
   "MNY-111": {
     "name": "Edit or delete an un-invoiced budget line",
     "from": "/project/work-items/:id > Budget > line card 'Edit' (inline form) / delete (inline confirm) | /project/household-items/:id > Budget > same | /project/work-items/:id > Budget > line card \"Edit\" > inline form | /project/work-items/:id > Budget > line card \"Delete\" > inline Confirm/Cancel AND page-level modal | /project/household-items/:id > line card \"Edit\" > inline form > \"Save Changes\" | /project/household-items/:id > line card \"Delete\" > \"Confirm\"",
-    "to": "Task / Purchase page > Cost tab > row ⋯ > Edit (Cost line dialog) / Delete (Undo)",
+    "to": "Task / Purchase page > Cost tab > row ⋯ > Edit (Cost line dialog) / Delete (ConfirmDialog)",
     "change": "same",
     "gate": "none",
-    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Edit opens CostLineForm; row ⋯ › Delete confirms with ConfirmDialog, blocked state on 409 (D4: Undo comes with P4.4 #2236). #2248: the task page's Cost tab is built (the purchase page follows in P5.5)."
+    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Edit opens CostLineForm; row ⋯ › Delete confirms with ConfirmDialog, blocked state on 409 (D4: Undo comes with P4.4 #2236). #2248: the task page's Cost tab is built (the purchase page follows in P5.5). #2257: `to` corrected from \"Delete (Undo)\" to \"Delete (ConfirmDialog)\" — the cost-line DELETE answers 204 without a snapshot, so there is no Undo and the ConfirmDialog stays."
   },
   "MNY-112": {
     "name": "Move an un-invoiced budget line to another item of the same type (work item to work item, household item to household item)",
@@ -1826,7 +1826,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Cover letter fields (sender from Settings > Project setup > House, linked)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Sender helper under the field links Project setup › House in a new tab (the wizard state lives in memory only); an empty sender shows a stronger hint."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Sender helper under the field links Project setup › House in a new tab (the wizard state lives in memory only); an empty sender shows a stronger hint. #2257: leaving step 5 with edited texts asks \"Discard your edits?\" in a ConfirmDialog (was a raw Modal with its own buttons); Draft with AI asks before it overwrites edits."
   },
   "MNY-128": {
     "name": "Choose report table columns and edit per-invoice usage text and attachment notes",
@@ -1834,7 +1834,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Report table columns and texts",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2257: leaving step 5 with edited texts asks \"Discard your edits?\" in a ConfirmDialog (was a raw Modal with its own buttons); Draft with AI asks before it overwrites edits."
   },
   "MNY-129": {
     "name": "Draft report usage texts and cover letter with AI",
@@ -1842,7 +1842,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > 'Draft with AI' (AI only)",
     "change": "same",
     "gate": "ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Button reads 'Draft with AI'."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Button reads 'Draft with AI'. #2257: Draft with AI over edited texts asks \"Overwrite your edits?\" in a ConfirmDialog (was a raw Modal with its own buttons)."
   },
   "MNY-130": {
     "name": "Preview the generated report PDF before exporting",
@@ -1917,7 +1917,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Companies › Company page › Delete; Companies › Companies list › row Delete (ConfirmDialog with counts). #2213: list row ⋯ (OverflowMenu) > Delete; Company page header ⋯ > Delete; both ConfirmDialog with counts."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Companies › Company page › Delete; Companies › Companies list › row Delete (ConfirmDialog with counts). #2213: list row ⋯ (OverflowMenu) > Delete; Company page header ⋯ > Delete; both ConfirmDialog with counts. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "MNY-139": {
     "name": "See a vendor's invoice count and outstanding balance",
@@ -2129,7 +2129,7 @@
     "to": "Purchases > Purchases list > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2246: row ⋯ › Open, Delete through the shared useListRowDelete (ConfirmDialog, blocked state on 409); the list and footer refresh after a delete."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2246: row ⋯ › Open, Delete through the shared useListRowDelete (ConfirmDialog, blocked state on 409); the list and footer refresh after a delete. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "HHI-032": {
     "name": "Create a household item with a name and description",
@@ -2446,7 +2446,7 @@
     "to": "Purchases > Purchase page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop. #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2249: header ⋯ > Delete opens the ConfirmDialog with impact counts; on success a toast and a replace navigation to the Purchases list; a 409 shows the blocked state."
+    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop. #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2249: header ⋯ > Delete opens the ConfirmDialog with impact counts; on success a toast and a replace navigation to the Purchases list; a 409 shows the blocked state. #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "HHI-094": {
     "name": "View the household item categories with colour and sort order",
@@ -2737,7 +2737,7 @@
     "to": "Site diary > Entry page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry page / entry edit › Delete (ConfirmDialog with counts). #2225: Delete moved into the entry page's ⋯ menu (ConfirmDialog unchanged)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry page / entry edit › Delete (ConfirmDialog with counts). #2225: Delete moved into the entry page's ⋯ menu (ConfirmDialog unchanged). #2257: one DeleteConfirmDialog — the same title and the same server counts (GET /api/delete-impact) from the list and the page; a 409 shows the blocked state."
   },
   "JRN-034": {
     "name": "Log work-item status changes to the diary automatically",
@@ -2863,7 +2863,7 @@
     "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > full screen, ‹ ›, keys",
     "change": "same",
     "gate": "none",
-    "note": "One viewer component everywhere. #2196: photo arrows no longer overlap the details panel or the open phone sheet. #2226: details in PhotoDetailsPanel (side column; 'Details' sheet below 768px)."
+    "note": "One viewer component everywhere. #2196: photo arrows no longer overlap the details panel or the open phone sheet. #2226: details in PhotoDetailsPanel (side column; 'Details' sheet below 768px). #2257: the viewer is a Modal dialog (variant \"viewer\": focus trap, Escape, focus restore, stacking); confirms opened from it stack above it."
   },
   "JRN-050": {
     "name": "Compare an annotated photo with its original",
@@ -2890,7 +2890,7 @@
     "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > ⋯ > Delete photo (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (monthly use). #2209: Photo viewer › Delete photo (ConfirmDialog)."
+    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (monthly use). #2209: Photo viewer › Delete photo (ConfirmDialog). #2257: the viewer is a Modal dialog; this ConfirmDialog stacks above it."
   },
   "JRN-053": {
     "name": "Open the annotation editor on a photo",
@@ -2990,7 +2990,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Photo viewer > ⋯ (1) > Clear annotations (2)",
-    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use). #2209: Photo viewer › Remove all markup (ConfirmDialog)."
+    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use). #2209: Photo viewer › Remove all markup (ConfirmDialog). #2257: the viewer is a Modal dialog; this ConfirmDialog stacks above it."
   },
   "JRN-063": {
     "name": "Browse all diary photos as an area × orientation \"spots\" matrix",
@@ -3827,7 +3827,7 @@
     "to": "Settings > Users (admin only) > filters Role, Status",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the Status filter gains Locked (Active / Locked / Deactivated; Active excludes locked accounts)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the Status filter gains Locked (Active / Locked / Deactivated; Active excludes locked accounts). #2257: the DataTable filter popover is an AnchoredPanel (no hand-rolled dialog)."
   },
   "PLT-075": {
     "name": "Sort users by name, email, role, member-since date or status",
@@ -4009,7 +4009,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index row ⋯ > Delete with the blocked/confirm dialog.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2218: Areas index row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo). #2251 (PO ruling 6): the Area page has no ⋯ Delete; delete stays on the Areas index."
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2218: Areas index row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo). #2251 (PO ruling 6): the Area page has no ⋯ Delete; delete stays on the Areas index. #2257: the blocked variant is unchanged; the non-blocked delete is the one DeleteConfirmDialog (same title and server counts), not marked irreversible because Undo follows."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
@@ -4154,7 +4154,7 @@
     "to": "All lists > ⋯ > Columns (show/hide, reorder, reset; per user)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ⋯ › Columns… on the table layout (ObjectList, a Columns dialog with the shared ColumnSettingsList; same per-user preference key as the page's DataTable). #2238: Invoices adopts ⋯ › Columns… on the ObjectList template; a column added after a user saved a layout follows its default visibility and is appended to the stored order (useColumnPreferences new-key rule)."
+    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ⋯ › Columns… on the table layout (ObjectList, a Columns dialog with the shared ColumnSettingsList; same per-user preference key as the page's DataTable). #2238: Invoices adopts ⋯ › Columns… on the ObjectList template; a column added after a user saved a layout follows its default visibility and is appended to the stored order (useColumnPreferences new-key rule). #2257: the DataTable column-settings popover is an AnchoredPanel (no hand-rolled dialog)."
   },
   "PLT-116": {
     "name": "Get short toast notifications for completed or failed actions",

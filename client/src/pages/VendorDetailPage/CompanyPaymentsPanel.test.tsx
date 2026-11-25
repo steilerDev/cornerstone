@@ -425,7 +425,7 @@ describe('CompanyPaymentsPanel delete', () => {
     renderPanel(result([rec('a', 'pending'), rec('b', 'pending')]));
 
     await openMenu(user, 'company-invoices', 'a');
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete R-a?');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete Sample Co · R-a?');
     expect(mockImpact).toHaveBeenCalledWith('invoice', 'a');
     expect(mockDeleteInvoice).not.toHaveBeenCalled();
     await confirm(user);
@@ -435,7 +435,7 @@ describe('CompanyPaymentsPanel delete', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('names an unnumbered invoice and an unnumbered offer generically', async () => {
+  it('names an unnumbered invoice and an unnumbered offer with the company and the noun', async () => {
     const user = userEvent.setup();
     renderPanel(
       result([
@@ -445,11 +445,50 @@ describe('CompanyPaymentsPanel delete', () => {
     );
 
     await openMenu(user, 'company-invoices', 'a');
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete this invoice?');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete Sample Co · Invoice?');
     await user.click(screen.getByTestId('company-invoice-delete-cancel'));
     await openMenu(user, 'company-offers', 'o');
 
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete this offer?');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Delete Sample Co · Offer?');
+  });
+
+  // AC1 (#2257): the Payments row and the invoice page ask with the same title (see the matching
+  // test in InvoiceDetailPage.test.tsx) and the counts come from the server's dry run.
+  it('titles the dialog "Delete <company> · <number>?" and lists the server counts', async () => {
+    const user = userEvent.setup();
+    mockImpact.mockResolvedValue({
+      entityType: 'invoice',
+      id: 'a',
+      effects: [
+        { kind: 'progressPayments', count: 2 },
+        { kind: 'documentLinks', count: 0 },
+      ],
+    });
+    render(
+      <ToastProvider>
+        <MemoryRouter>
+          <h1 tabIndex={-1}>Sample Roofing Ltd</h1>
+          <Panel.CompanyPaymentsPanel
+            vendor={{ ...VENDOR, name: 'Sample Roofing Ltd' } as VendorDetail}
+            payments={result([rec('a', 'pending', { invoiceNumber: 'SAMPLE-0042' })])}
+            originState={{ origin: { to: '/companies/v1', label: 'x' } } as never}
+            onChanged={onChanged}
+            headingRef={createRef<HTMLHeadingElement>()}
+          />
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+
+    await openMenu(user, 'company-invoices', 'a');
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Delete Sample Roofing Ltd · SAMPLE-0042?' }),
+    ).toBeInTheDocument();
+    expect(await screen.findByTestId('company-invoice-delete-consequences')).toHaveTextContent(
+      'Progress payments deleted with it: 2',
+    );
+    expect(screen.queryByText(/Linked documents/)).toBeNull();
+    expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
   });
 
   it('Cancel closes without deleting and returns focus to the row menu trigger', async () => {

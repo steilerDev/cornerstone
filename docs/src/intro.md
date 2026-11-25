@@ -59,6 +59,12 @@ Track [furniture, appliances, and fixtures](guides/household-items) alongside th
 
 **Also built in:** [single sign-on via OIDC](guides/users/oidc-setup), shared access for your household with [admin and member roles](guides/users/admin-panel), [calendar and contact feeds](guides/feeds) for your phone, [scheduled backups](guides/backup), English and German, and [dark mode](guides/appearance/dark-mode).
 
+## Deleting and Undoing
+
+Deleting a record asks first. The dialog names the record and lists what else is affected, with counts, such as cost lines or linked tasks. You see the same dialog whether you delete from a list or from the record's page. The exception is a payment row on an invoice, which is removed at once with Undo.
+
+Status changes, unlinks and payment row removals happen at once. An **Undo** message appears for 6 seconds. Select **Undo**, or press `Ctrl Z` (Windows, Linux) or `⌘Z` (Mac) while the message shows, to take the change back.
+
 ## Quick Links
 
 - [Getting Started](getting-started) -- Deploy Cornerstone with Docker in minutes

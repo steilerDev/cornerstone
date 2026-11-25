@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { SubsidyApplicationStatus, SubsidyProgramDetailResponse } from '@cornerstone/shared';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { DeleteConfirmDialog } from '../../components/ConfirmDialog/DeleteConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import {
@@ -22,7 +22,6 @@ import { grantTransitions } from '../../components/StatusMenu/statusVocabularies
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
@@ -134,7 +133,6 @@ function GrantLoaded({ id, record, state, h1Text, originState }: GrantLoadedProp
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('subsidy_program', showDelete ? id : null);
 
   const transitions = grantTransitions(tc, grant);
   const applyStatus = (to: SubsidyApplicationStatus) =>
@@ -340,15 +338,13 @@ function GrantLoaded({ id, record, state, h1Text, originState }: GrantLoadedProp
       {documents.panel}
 
       {showDelete && (
-        <ConfirmDialog
-          title={t('financing.delete.titleGrant', { object: t('financing.nouns.grant') })}
-          consequences={deleteConsequences}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
+        <DeleteConfirmDialog
+          entityType="subsidy_program"
+          id={id}
+          name={grant.name}
           busy={isDeleting}
-          blocked={deleteBlocked}
           error={deleteError || null}
+          blocked={deleteBlocked}
           onConfirm={() => void handleDelete()}
           onCancel={closeDelete}
           returnFocusRef={headingRef}
