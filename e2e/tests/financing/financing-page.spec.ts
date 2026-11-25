@@ -82,10 +82,14 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
       await expect(card).toContainText('Bank loan');
       await expect(card).toContainText('Active');
       await expect(card).toContainText('3.50%');
-      for (const label of ['Amount', 'Allocated', 'Paid', 'Submitted', 'Unallocated']) {
+      for (const label of ['Amount', 'Paid']) {
         await expect(
           card.locator('dt').filter({ hasText: new RegExp(`^${label}$`) }),
         ).toBeVisible();
+      }
+      // Hinted labels hold an always-in-DOM tooltip bubble, so their <dt> text is not just the label.
+      for (const label of ['Allocated', 'Submitted', 'Unallocated']) {
+        await expect(financing.termHint(sourceId, label)).toBeVisible();
       }
 
       // Ready to submit n · amount: the money service's answer
