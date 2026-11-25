@@ -155,7 +155,8 @@ export const PROJECT_SURFACES: ProjectSurface[] = [
       async stillToPayCount(page) {
         const home = new HomePage(page);
         const tile = await figureText(home.pulseTile('still-to-pay'));
-        return /(\d+)\s+open/.exec(tile) ? Number(/(\d+)\s+open/.exec(tile)![1]) : null;
+        const match = /(\d+)\s+invoices?\s+(?:is|are)\s+still\s+to\s+pay/i.exec(tile);
+        return match ? Number(match[1]) : null;
       },
     },
   },

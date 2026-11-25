@@ -51,7 +51,7 @@ async function loginThroughProxy(page: Page, baseUrl: string) {
     page.waitForResponse(
       (resp) => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST',
     ),
-    page.getByRole('button', { name: /sign in/i }).click(),
+    page.getByRole('button', { name: 'Sign In', exact: true }).click(),
   ]);
 
   if (!loginResponse.ok()) {

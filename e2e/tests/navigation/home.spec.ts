@@ -700,7 +700,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
 
     const toPay = home.pulseTile('still-to-pay');
     await expect(toPay).toContainText('3,400.50');
-    await expect(toPay).toContainText('4 open invoices');
+    await expect(toPay).toContainText('4 invoices are still to pay');
     await expect(toPay).toHaveAttribute('href', routeUrl('invoices'));
 
     const progress = home.pulseTile('progress');

@@ -100,6 +100,11 @@ export class CostLinesPanel {
     return row.getByRole('button', { name: /^Show the net amount and VAT for / });
   }
 
+  /** The net amount / VAT tooltip bubble (role `tooltip`), scoped by its own text. */
+  get netTooltip(): Locator {
+    return this.page.getByRole('tooltip').filter({ hasText: /Net amount/ });
+  }
+
   /** The open tooltip (role `tooltip`). */
   get tooltip(): Locator {
     return this.page.getByRole('tooltip');

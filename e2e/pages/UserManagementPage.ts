@@ -71,7 +71,7 @@ export class UserManagementPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'Users', exact: true });
-    // DataTable renders a search input with aria-label="Search items" and placeholder="Search..."
+    // DataTable renders a search input with aria-label="Search this list" and placeholder="Search..."
     this.searchInput = page.getByLabel('Search this list');
     this.table = page.locator('table');
     // DataTable EmptyState has two possible messages:

@@ -117,7 +117,7 @@ test.describe('Search Users', () => {
     // "Nothing matches the current filters" (not the page-specific "No users found." message)
     const emptyState = await userManagementPage.getEmptyState();
     expect(emptyState).toBeTruthy();
-    expect(emptyState?.toLowerCase()).toMatch(/no users|no items match/);
+    expect(emptyState?.toLowerCase()).toMatch(/no users|nothing matches the current filters/);
   });
 
   test('Search is case-insensitive', async ({ page }) => {

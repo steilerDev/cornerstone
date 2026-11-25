@@ -532,7 +532,7 @@ test.describe('Scenario 2 — Successful merge', () => {
       // ── Source rows removed immediately; one new (loading) row takes their place ──
       await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
       await expect(autoItemizePage.mergingRow).toBeVisible();
-      await expect(autoItemizePage.mergingRow).toContainText('Merging 2 items');
+      await expect(autoItemizePage.mergingRow).toContainText('Merging 2 lines');
 
       // ── Merge bar is dismissed once merge starts (selection cleared) ──────
       expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');

@@ -184,15 +184,15 @@ test.describe('Cost line table - gross with net in a tooltip (AC3)', { tag: '@re
     } else {
       await trigger.hover();
     }
-    await expect(panel.tooltip.first()).toHaveCSS('opacity', '1');
-    await expect(panel.tooltip.first()).toContainText('Net amount');
-    await expect(panel.tooltip.first()).toContainText('100.00');
-    await expect(panel.tooltip.first()).toContainText('19%');
+    await expect(panel.netTooltip).toHaveCSS('opacity', '1');
+    await expect(panel.netTooltip).toContainText('Net amount');
+    await expect(panel.netTooltip).toContainText('100.00');
+    await expect(panel.netTooltip).toContainText('19%');
 
     // Escape closes the tip without moving focus or the pointer
     await trigger.focus();
     await page.keyboard.press('Escape');
-    await expect(panel.tooltip.first()).toHaveCSS('opacity', '0');
+    await expect(panel.netTooltip).toHaveCSS('opacity', '0');
   });
 
   test('keyboard focus alone opens the tip', async ({ page, testPrefix }) => {
@@ -215,8 +215,8 @@ test.describe('Cost line table - gross with net in a tooltip (AC3)', { tag: '@re
     const row = panel.row(`${testPrefix} Sofa line`);
     await expect(panel.gross(row)).toHaveText(/238\.00/);
     await panel.netTipButton(row).focus();
-    await expect(panel.tooltip.first()).toHaveCSS('opacity', '1');
-    await expect(panel.tooltip.first()).toContainText('200.00');
+    await expect(panel.netTooltip).toHaveCSS('opacity', '1');
+    await expect(panel.netTooltip).toContainText('200.00');
   });
 });
 

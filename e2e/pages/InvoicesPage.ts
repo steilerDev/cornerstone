@@ -487,7 +487,11 @@ export class InvoicesPage {
       const count = await headers.count();
       index = -1;
       for (let i = 0; i < count; i++) {
-        const text = (await headers.nth(i).innerText()).trim().toUpperCase();
+        const text = (await headers.nth(i).innerText())
+          .replace(/ⓘ/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toUpperCase();
         if (text === wanted || text.startsWith(`${wanted} `)) {
           index = i;
           break;

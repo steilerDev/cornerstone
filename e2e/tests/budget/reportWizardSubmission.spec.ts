@@ -128,9 +128,7 @@ test.describe('Bank report: mark as submitted (B1-B2)', { tag: '@responsive' }, 
       await wizard.goNextFromStep4();
 
       await wizard.clickMarkClaimed();
-      await expect(wizard.markClaimedWarningBlock).toContainText(
-        '1 invoice has excluded line items',
-      );
+      await expect(wizard.markClaimedWarningBlock).toContainText('1 invoice has excluded lines');
       await wizard.confirmClaim();
 
       // The message sits in the dialog and the action is gone; only Cancel remains

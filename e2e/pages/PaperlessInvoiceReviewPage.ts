@@ -275,7 +275,7 @@ export class PaperlessInvoiceReviewPage {
     this.pageErrorBanner = page.locator('[class*="formColumn"]').locator('[role="alert"]').first();
 
     // Merge: the Merge button of the SelectionActionBar and the grid's notice rows
-    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
+    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected lines$/i });
     this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
     this.mergingRow = this.grid.grid.locator('[role="status"]').filter({ hasText: /^Merging / });
     this.mergeErrorRow = this.grid.grid.locator('[role="alert"]');

@@ -377,11 +377,12 @@ test.describe('Money overview — funding rows (AC2)', { tag: '@responsive' }, (
     const loan = overview.fundingRow(B.sources.loan.id);
     await expect(loan).toBeVisible();
     await expect(loan).toContainText(B.sources.loan.name);
-    await expect(loan).toContainText(`Allocated ${euro(14000)} of ${euro(15000)}`);
+    await expect(loan.getByText('Allocated', { exact: true })).toBeVisible();
+    await expect(loan).toContainText(`${euro(14000)} of ${euro(15000)}`);
     await expect(loan.getByRole('img')).toBeVisible();
-    await expect(overview.fundingRow(B.sources.savings.id)).toContainText(
-      `Allocated ${euro(4800)} of ${euro(10000)}`,
-    );
+    const savings = overview.fundingRow(B.sources.savings.id);
+    await expect(savings.getByText('Allocated', { exact: true })).toBeVisible();
+    await expect(savings).toContainText(`${euro(4800)} of ${euro(10000)}`);
 
     // Normal rows carry no remaining / unallocated text and no disclosure button
     await expect(loan).not.toContainText(/Unallocated|Remaining|Over-allocated/);
@@ -403,7 +404,8 @@ test.describe('Money overview — funding rows (AC2)', { tag: '@responsive' }, (
     await overview.waitForLoaded();
 
     const over = overview.fundingRow('mock-source-over');
-    await expect(over).toContainText(`Allocated ${euro(6000)} of ${euro(5000)}`);
+    await expect(over.getByText('Allocated', { exact: true })).toBeVisible();
+    await expect(over).toContainText(`${euro(6000)} of ${euro(5000)}`);
     await expect(over).toContainText(`Over-allocated by ${euro(1000)}`);
     await expect(overview.fundingRow('mock-source-ok')).not.toContainText('Over-allocated');
   });

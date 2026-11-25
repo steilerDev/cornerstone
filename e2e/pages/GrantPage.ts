@@ -173,7 +173,7 @@ export class GrantPage {
     await this.linkAction.click();
   }
 
-  /** Open the Link picker, pick the items by keyboard and submit ("Link n items"). */
+  /** Open the Link picker, pick the items by keyboard and submit ("Link n tasks and purchases"). */
   async linkItems(titles: readonly string[]): Promise<void> {
     await this.openLinkPicker();
     await this.linkPicker.waitFor({ state: 'visible' });
@@ -181,7 +181,9 @@ export class GrantPage {
     for (const title of titles) {
       await picker.pick(title);
     }
-    await expect(this.linkSubmit).toContainText(`Link ${titles.length} item`);
+    await expect(this.linkSubmit).toContainText(
+      titles.length === 1 ? 'Link 1 task or purchase' : `Link ${titles.length} tasks and purchases`,
+    );
     await this.linkSubmit.click();
     await this.linkPicker.waitFor({ state: 'hidden' });
   }

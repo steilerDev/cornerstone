@@ -244,7 +244,7 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
       await expect(card).toContainText('No cap');
       await expect(financing.grantExpected(grantId)).toContainText(/[\d.,]+/);
       // Covered items link to the Work tab of the grant
-      await expect(financing.grantCovered(grantId)).toHaveText('1 item');
+      await expect(financing.grantCovered(grantId)).toHaveText('1 task or purchase');
       await expect(financing.grantCovered(grantId)).toHaveAttribute(
         'href',
         routeUrl('grant', { id: grantId }, { tab: 'work' }),
@@ -298,7 +298,7 @@ test.describe('Financing: cards', { tag: '@responsive' }, () => {
         ],
       });
       await financing.goto();
-      await expect(financing.grantCovered(grantId)).toHaveText('2 items');
+      await expect(financing.grantCovered(grantId)).toHaveText('2 tasks and purchases');
     } finally {
       await runCleanup(cleanup);
     }
