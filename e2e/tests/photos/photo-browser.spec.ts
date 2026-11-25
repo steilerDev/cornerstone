@@ -269,7 +269,7 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
     // C x O1: count 3 (draft excluded), latest date 2026-08-20
     const cell = photos.cellByKey(s.childId, s.o1Id);
     await expect(cell).toBeVisible();
-    await expect(cell).toHaveAttribute('aria-label', /3 photos, latest August 20, 2026/);
+    await expect(cell).toHaveAccessibleName(/3 photos, latest Aug 20, 2026/);
     await expect(cell).toContainText('Aug 20, 2026');
 
     // C x O2: dashed placeholder, no link
@@ -526,7 +526,7 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
 
     const card = photos.cardByKey(s.childId, s.o1Id);
     await expect(card).toBeVisible();
-    await expect(card).toHaveAttribute('aria-label', /3 photos/);
+    await expect(card).toHaveAccessibleName(/3 photos/);
 
     await expectDashed(photos.cardByKey(s.childId, s.o2Id));
 

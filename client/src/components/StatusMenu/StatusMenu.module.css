@@ -15,7 +15,11 @@ button.chip {
 .chip::before {
   content: '';
   position: absolute;
-  inset: calc(-1 * var(--spacing-3)) calc(-1 * var(--spacing-2));
+  top: 50%;
+  left: 50%;
+  width: max(100%, var(--touch-target-min));
+  height: max(100%, var(--touch-target-min));
+  transform: translate(-50%, -50%);
 }
 
 @media (hover: hover) {

@@ -242,10 +242,7 @@ test.describe('Photos with no area: bulk tags and Edit tags', { tag: '@responsiv
     await expect(photos.selectionBar).toHaveCount(0);
 
     // The area's cell now counts the two photos (their orientation was kept)
-    await expect(photos.spotLink(s.roomAId, s.o1Id)).toHaveAttribute(
-      'aria-label',
-      /2 photos, latest/,
-    );
+    await expect(photos.spotLink(s.roomAId, s.o1Id)).toHaveAccessibleName(/2 photos, latest/);
 
     // Done leaves the mode: the toggle reads "Select photos" again, the tile grid is gone
     await photos.noAreaToggle.click();

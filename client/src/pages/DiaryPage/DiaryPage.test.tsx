@@ -379,7 +379,7 @@ describe('DiaryPage', () => {
     const loading = screen.getByTestId('diary-loading');
     expect(loading).toHaveAttribute('aria-busy', 'true');
     expect(within(loading).getAllByRole('status', { name: 'Loading entries...' })).toHaveLength(3);
-    expect(screen.queryByRole('feed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('diary-timeline')).not.toBeInTheDocument();
   });
 
   // ─── Entry display and grouping ─────────────────────────────────────────────
@@ -396,7 +396,8 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
     renderPage();
     await screen.findByTestId('diary-entry-de-1');
-    expect(screen.getByRole('feed', { name: 'Site diary entries' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Site diary entries' })).toBeInTheDocument();
+    expect(screen.queryByRole('feed')).toBeNull();
     expect(screen.queryByTestId('diary-photos-card')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /photos/i })).not.toBeInTheDocument();
   });
@@ -494,7 +495,7 @@ describe('DiaryPage', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByTestId('diary-filtered-empty')).not.toBeInTheDocument();
-    expect(screen.queryByRole('feed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('diary-timeline')).not.toBeInTheDocument();
   });
 
   it('the empty-state action is a date-free "Log today" link to /diary/new that pushes the origin on click', async () => {
@@ -894,7 +895,7 @@ describe('DiaryPage', () => {
       renderPage();
 
       // Initial load: entries.length === 0, so the timeline isn't rendered yet.
-      expect(screen.queryByRole('feed')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-timeline')).not.toBeInTheDocument();
 
       await act(async () => {
         resolveFirst?.({
@@ -907,7 +908,7 @@ describe('DiaryPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
-      const timeline = screen.getByRole('feed');
+      const timeline = screen.getByTestId('diary-timeline');
       expect(timeline).toHaveAttribute('aria-busy', 'false');
 
       const user = userEvent.setup();

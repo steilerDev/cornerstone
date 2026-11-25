@@ -207,7 +207,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
     await name();
     expect(screen.getByLabelText(/^name/i)).toHaveAttribute('aria-required', 'true');
     // The category chip has no input; clearing it brings the required input back.
-    await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+    await user.click(await screen.findByRole('button', { name: /^Clear selection/ }));
     expect(await screen.findByLabelText(/category/i)).toHaveAttribute('aria-required', 'true');
   });
 
@@ -216,7 +216,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
     renderForm();
     await name();
     await screen.findByText('Furniture');
-    await user.click(screen.getAllByRole('button', { name: 'Clear selection' })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /^Clear selection/ })[0]!);
     await user.click(await screen.findByLabelText(/category/i));
     const list = await screen.findByRole('listbox');
     expect(
@@ -267,7 +267,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       expect(await screen.findByText('Acme Supply')).toBeInTheDocument();
       expect(screen.getByText('Kitchen')).toBeInTheDocument();
       expect(
-        screen.getAllByRole('button', { name: 'Clear selection' }).length,
+        screen.getAllByRole('button', { name: /^Clear selection/ }).length,
       ).toBeGreaterThanOrEqual(2);
     });
 
@@ -486,7 +486,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       await name();
       await screen.findByText('Furniture');
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
-      await user.click(screen.getAllByRole('button', { name: 'Clear selection' })[0]!);
+      await user.click(screen.getAllByRole('button', { name: /^Clear selection/ })[0]!);
       await user.click(save());
       expect(await screen.findByText('Choose a category.')).toBeInTheDocument();
       expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
@@ -906,7 +906,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
           </MemoryRouter>,
         );
         expect(await screen.findByText('Known Supplies')).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+        await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
         await user.type(screen.getByRole('textbox'), 'Fresh');
         await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
         expect(screen.queryByRole('option', { name: /new company/i })).toBeNull();

@@ -251,7 +251,7 @@ function InvoiceDetailLoaded({
         to={routeUrl('company', { id: invoice.vendorId })}
         state={originState}
         data-testid="invoice-company-link"
-        {...userText()}
+        {...userText(styles.companyLink)}
       >
         {vendorName}
       </NavAnchor>

@@ -187,8 +187,11 @@ describe('WeekGrid', () => {
       // WEEK_DATE = Wednesday March 13 → week is Sun Mar 10 – Sat Mar 16
       renderGrid({});
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, March 10, 2024'); // Sunday
-      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, March 16, 2024'); // Saturday
+      expect(cells[0]!).toHaveAttribute('data-date', '2024-03-10'); // Sunday
+      expect(cells[6]!).toHaveAttribute('data-date', '2024-03-16'); // Saturday
+      expect(cells[0]!).not.toHaveAttribute('aria-label');
+      expect(cells[0]!).toHaveAccessibleName(/^Sunday, March 10, 2024/);
+      expect(cells[6]!).toHaveAccessibleName(/^Saturday, March 16, 2024/);
     });
 
     it('renders correct days for a different input weekDate', () => {
@@ -196,8 +199,10 @@ describe('WeekGrid', () => {
       // Week: Sun Jun 16 – Sat Jun 22
       renderGrid({ weekDate: satDate });
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, June 16, 2024');
-      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, June 22, 2024');
+      expect(cells[0]!).toHaveAttribute('data-date', '2024-06-16');
+      expect(cells[6]!).toHaveAttribute('data-date', '2024-06-22');
+      expect(cells[0]!).toHaveAccessibleName(/^Sunday, June 16, 2024/);
+      expect(cells[6]!).toHaveAccessibleName(/^Saturday, June 22, 2024/);
     });
 
     it('column header includes month name', () => {
@@ -223,10 +228,7 @@ describe('WeekGrid', () => {
       renderGrid({ workItems: [item] });
       const segments = screen.getAllByTestId('calendar-item');
       expect(segments).toHaveLength(1);
-      expect(segments[0]!.closest('[role="gridcell"]')).toHaveAttribute(
-        'aria-label',
-        'Monday, March 11, 2024',
-      );
+      expect(segments[0]!.closest('[role="gridcell"]')).toHaveAttribute('data-date', '2024-03-11');
       expect(segments[0]!.style.right).toBe('calc(-2 * (100% + 1px))');
     });
 
@@ -500,8 +502,10 @@ describe('WeekGrid', () => {
       const weekDate = new Date(Date.UTC(2024, 2, 31)); // March 31 (Sunday)
       renderGrid({ weekDate });
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, March 31, 2024');
-      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, April 6, 2024');
+      expect(cells[0]!).toHaveAttribute('data-date', '2024-03-31');
+      expect(cells[6]!).toHaveAttribute('data-date', '2024-04-06');
+      expect(cells[0]!).toHaveAccessibleName(/^Sunday, March 31, 2024/);
+      expect(cells[6]!).toHaveAccessibleName(/^Saturday, April 6, 2024/);
     });
 
     it('renders column header with correct month name for cross-month weeks', () => {

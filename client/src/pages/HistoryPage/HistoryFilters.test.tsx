@@ -286,7 +286,7 @@ describe('HistoryFilters: inputs', () => {
     });
     expect(screen.getByTestId('history-object-object')).toHaveTextContent('Object · Roof tiling');
     await user.click(screen.getByTestId('history-object-object'));
-    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
     expect(props.onChange).toHaveBeenCalledWith({ object: null });
   });
 });

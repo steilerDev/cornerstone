@@ -108,23 +108,19 @@ describe('SpotsGrid', () => {
     renderGrid();
     const card = screen.getByTestId('spot-card-kitchen:o1');
     expect(card).toHaveAttribute('href', '/photos/spot/kitchen/o1?photo=pK');
-    expect(card).toHaveAttribute(
-      'aria-label',
-      'Kitchen, Ceiling: 3 photos, latest September 11, 2026',
-    );
+    expect(card).not.toHaveAttribute('aria-label');
+    expect(card).toHaveAccessibleName('Kitchen, Ceiling: 3 photos, latest Sep 11, 2026');
     expect(within(card).getByText('Ceiling')).toBeInTheDocument();
     expect(within(card).getByText('Sep 11, 2026')).toBeInTheDocument();
   });
 
   it('renders the null-orientation card as "No orientation" and the no-area card with "No area"', () => {
     renderGrid();
-    expect(screen.getByTestId('spot-card-garden:none')).toHaveAttribute(
-      'aria-label',
-      'Garden, No orientation: 1 photo, latest September 11, 2026',
+    expect(screen.getByTestId('spot-card-garden:none')).toHaveAccessibleName(
+      'Garden, No orientation: 1 photo, latest Sep 11, 2026',
     );
-    expect(screen.getByTestId('spot-card-none:o2')).toHaveAttribute(
-      'aria-label',
-      'No area, Floor: 2 photos, latest September 11, 2026',
+    expect(screen.getByTestId('spot-card-none:o2')).toHaveAccessibleName(
+      'No area, Floor: 2 photos, latest Sep 11, 2026',
     );
   });
 

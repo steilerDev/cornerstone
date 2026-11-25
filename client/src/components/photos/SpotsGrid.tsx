@@ -142,7 +142,7 @@ export function SpotsGrid({ groups, linkState, noArea }: SpotsGridProps) {
                           area: areaName,
                           orientation: orientationName,
                           count: spot.photoCount,
-                          date: formatDate(spot.latestEntryDate, undefined, 'long'),
+                          date: formatDate(spot.latestEntryDate),
                         })}
                         emptyLabel={t('spots.noPhotos')}
                         imageUnavailableLabel={t('viewer.imageUnavailable')}

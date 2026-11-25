@@ -68,7 +68,7 @@
     "retry": "Erneut versuchen"
   },
   "aria": {
-    "goToHome": "Zum Start",
+    "logoHome": "{{appName}}, zum Start",
     "closeDialog": "Dialog schließen",
     "clearSelection": "Auswahl aufheben",
     "noArea": "Kein Bereich",
@@ -77,7 +77,9 @@
     "selectTrade": "Gewerk auswählen",
     "selectOrientation": "Ausrichtung auswählen",
     "mainNavigation": "Hauptnavigation",
-    "settingsNavigation": "Einstellungen"
+    "settingsNavigation": "Einstellungen",
+    "skipToContent": "Zum Inhalt springen",
+    "clearSelectionOf": "Auswahl aufheben: {{title}}"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",
@@ -105,7 +107,7 @@
     "attentionOpenHome": "Start öffnen",
     "attentionLoadFailed": "Braucht dich konnte nicht geladen werden.",
     "attentionRetry": "Erneut versuchen",
-    "accountMenu": "Kontomenü für {{name}}"
+    "accountMenu": "Kontomenü für {{name}}, {{initials}}"
   },
   "attention": {
     "tier": {

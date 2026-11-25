@@ -584,7 +584,7 @@ describe('SignatureCapture', () => {
       expect(screen.queryByPlaceholderText('Enter company name')).not.toBeInTheDocument();
       expect(screen.getByText('ACME Roofing')).toBeInTheDocument();
       await waitFor(() => expect(document.activeElement).not.toBe(document.body));
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Clear selection' }));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Clear selection/ }));
     });
 
     it('"Other..." reveals the free-text input, labelled by its aria-label, and accepts text', async () => {
@@ -605,7 +605,7 @@ describe('SignatureCapture', () => {
         target: { value: 'Pat' },
       });
 
-      await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await userEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       expect(screen.queryByPlaceholderText('Enter company name')).not.toBeInTheDocument();
       expect(
@@ -625,7 +625,7 @@ describe('SignatureCapture', () => {
         target: { value: 'Pat' },
       });
 
-      await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await userEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
       await chooseCompany('BuildCo');
 
       expect(

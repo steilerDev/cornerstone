@@ -326,6 +326,18 @@
   margin-top: var(--spacing-4);
 }
 
+.skipButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+@media (max-width: 1023px) {
+  .skipButton {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
+}
+
 /* ── Customize, notice, footer ──────────────────────────────────────────── */
 
 .customizeBody {
@@ -375,6 +387,13 @@
 .noticeText {
   margin: 0;
   min-width: 0;
+}
+
+/* The link sits on the translucent primary wash; the banner text colour passes there and the
+   underline marks the link (WCAG 1.4.1) */
+.noticeText a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 .footer {

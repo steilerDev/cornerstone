@@ -2,6 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import enBudget from './i18n/en/budget.json';
@@ -1314,5 +1317,46 @@ describe('App', () => {
       expect(screen.getAllByRole('dialog')).toHaveLength(1);
       await waitFor(() => expect(document.title).toContain('New task'));
     }, 15000);
+  });
+});
+
+/**
+ * The setup and login routes sit outside the shell, so they use the shared translated
+ * `RouteFallback` (introduced by #2260) like every other lazy route. #2261 pins it because it is
+ * the first thing a signed-out visitor sees. The fallback is not reachable with the lazy-route
+ * mocks (the module resolves before the first assertion), so the source is pinned instead; the
+ * rendered text is covered by the #2260 test above.
+ */
+describe('auth route Suspense fallback (#2261)', () => {
+  const appSource = fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'App.tsx'),
+    'utf8',
+  );
+
+  it('translates the fallback through the common loading key', () => {
+    const body = /function RouteFallback\(\) \{([\s\S]*?)\n\}/.exec(appSource)?.[1] ?? '';
+    expect(body).toContain("useTranslation('common')");
+    expect(body).toContain("t('loading')");
+    expect(appSource).not.toContain("'Loading...'");
+    expect(appSource).not.toMatch(/>\s*Loading\.\.\.\s*</);
+  });
+
+  it('uses the shared fallback for the setup and login routes', () => {
+    for (const route of ['setup', 'login']) {
+      const at = appSource.indexOf(`path={routePattern('${route}')}`);
+      expect(at).toBeGreaterThan(-1);
+      expect(appSource.slice(at, at + 400)).toContain('<Suspense fallback={<RouteFallback />}>');
+    }
+  });
+
+  it('the common loading key exists in both locales', () => {
+    const de = JSON.parse(
+      fs.readFileSync(
+        path.join(path.dirname(fileURLToPath(import.meta.url)), 'i18n/de/common.json'),
+        'utf8',
+      ),
+    ) as { loading?: string };
+    expect(enCommon.loading).toBe('Loading...');
+    expect(de.loading).toBeTruthy();
   });
 });

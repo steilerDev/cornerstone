@@ -504,7 +504,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       await renderReady({ suggestedVendorId: 'v-far' });
 
       expect((await screen.findAllByText('Far Away Co')).length).toBeGreaterThan(0);
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
       expect(mockFetchVendor).toHaveBeenCalledWith('v-far');
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
       await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1));
@@ -524,7 +524,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.click(screen.getByTestId('suggestion-apply'));
 
       expect(screen.getAllByText('Alpha Co').length).toBeGreaterThan(0);
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
     });
 
     it('shows no title for a suggested company that cannot be looked up, but keeps the id', async () => {
@@ -709,7 +709,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument();
       });
       expect(await screen.findByText('Neue Firma')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
       expect(document.querySelector('#vendor-error')).toBeNull();
       expect(document.querySelector('[role="status"]')).toHaveTextContent(
         'Company "Neue Firma" created and selected',
@@ -733,7 +733,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
         'Company "Typed Co" created and selected',
       );
       // The extracted name still has no company, so clearing offers its row again.
-      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
       const cleared = await screen.findByPlaceholderText('Search companies…');
       fireEvent.click(cleared);
       expect(await screen.findByRole('option', { name: createRowName })).toBeInTheDocument();
@@ -745,10 +745,10 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       saveCompany(await openCreateDialog(input));
       await screen.findByText('Neue Firma');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       expect(await screen.findByPlaceholderText('Search companies…')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
     });
 
     it('after creating the extracted company the empty-field row is gone and the server lists it', async () => {
@@ -764,9 +764,9 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       );
       const dialog = await openCreateDialog(input);
       saveCompany(dialog);
-      await screen.findByRole('button', { name: 'Clear selection' });
+      await screen.findByRole('button', { name: /^Clear selection/ });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Clear selection/ }));
       const freshInput = await screen.findByPlaceholderText('Search companies…');
       fireEvent.click(freshInput);
 
@@ -780,7 +780,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
       saveCompany(await openCreateDialog(input));
-      await screen.findByRole('button', { name: 'Clear selection' });
+      await screen.findByRole('button', { name: /^Clear selection/ });
 
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
 
@@ -799,7 +799,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
       const dialog = await openCreateDialog(input);
       saveCompany(dialog);
-      await screen.findByRole('button', { name: 'Clear selection' });
+      await screen.findByRole('button', { name: /^Clear selection/ });
 
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
 
@@ -849,7 +849,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
 
       const dialog = await openCreateDialog(input);
       saveCompany(dialog);
-      await screen.findByRole('button', { name: 'Clear selection' });
+      await screen.findByRole('button', { name: /^Clear selection/ });
 
       expectFormIntact(others);
     });
@@ -879,7 +879,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       });
 
       expect(mockCreateVendor).not.toHaveBeenCalled();
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
       await waitFor(() => {
         expect(document.querySelector('#vendor-error')).not.toBeNull();

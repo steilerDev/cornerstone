@@ -307,7 +307,7 @@
  */
 .input {
   padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
@@ -336,7 +336,7 @@
  */
 .select {
   padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
@@ -366,7 +366,7 @@
  */
 .textarea {
   padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
@@ -868,5 +868,26 @@
 @media (prefers-reduced-motion: reduce) {
   .segmentedButton {
     transition: none;
+  }
+}
+
+/* Phone: buttons and form controls reach the 44 px touch target (#2261). The flex centring keeps
+   the label centred when the class sits on an <a>, which does not centre text vertically. */
+@media (max-width: 767px) {
+  .btnPrimary,
+  .btnPrimaryCompact,
+  .btnSecondary,
+  .btnSecondaryCompact,
+  .btnDanger,
+  .btnConfirmDelete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .input,
+  .select {
+    min-height: var(--touch-target-min);
   }
 }

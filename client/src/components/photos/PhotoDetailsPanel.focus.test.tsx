@@ -68,7 +68,7 @@ describe('PhotoDetailsPanel Edit tags focus (real Area picker)', () => {
     setup(PHOTO);
     await userEvent.setup().click(screen.getByTestId('photo-details-edit-tags'));
 
-    const clear = await screen.findByRole('button', { name: 'Clear selection' });
+    const clear = await screen.findByRole('button', { name: /^Clear selection/ });
     await waitFor(() => expect(clear).toHaveFocus());
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });

@@ -68,7 +68,7 @@
     "retry": "Retry"
   },
   "aria": {
-    "goToHome": "Go to Home",
+    "logoHome": "{{appName}}, Go to Home",
     "closeDialog": "Close dialog",
     "clearSelection": "Clear selection",
     "noArea": "No area",
@@ -77,7 +77,9 @@
     "selectTrade": "Select a trade",
     "selectOrientation": "Select an orientation",
     "mainNavigation": "Main navigation",
-    "settingsNavigation": "Settings"
+    "settingsNavigation": "Settings",
+    "skipToContent": "Skip to content",
+    "clearSelectionOf": "Clear selection: {{title}}"
   },
   "loading": "Loading...",
   "searching": "Searching...",
@@ -105,7 +107,7 @@
     "attentionOpenHome": "Open Home",
     "attentionLoadFailed": "Couldn't load Needs attention.",
     "attentionRetry": "Try again",
-    "accountMenu": "Account menu for {{name}}"
+    "accountMenu": "Account menu for {{name}}, {{initials}}"
   },
   "attention": {
     "tier": {

@@ -149,7 +149,7 @@ describe('UserMenu', () => {
 
     it('is named "Account menu for ‹name›" and uses the e-mail when the name is empty', () => {
       renderMenu();
-      expect(screen.getByRole('button', { name: 'Account menu for Sam Jo Example' })).toBe(
+      expect(screen.getByRole('button', { name: 'Account menu for Sam Jo Example, SE' })).toBe(
         trigger(),
       );
     });
@@ -157,7 +157,7 @@ describe('UserMenu', () => {
     it('falls back to the e-mail in the accessible name for an empty display name', () => {
       mockUser = { id: 'u1', email: 'quinn@example.test', displayName: '  ', role: 'member' };
       renderMenu();
-      expect(trigger()).toHaveAccessibleName('Account menu for quinn@example.test');
+      expect(trigger()).toHaveAccessibleName('Account menu for quinn@example.test, Q');
     });
 
     it('announces a menu popup that is collapsed until opened', async () => {

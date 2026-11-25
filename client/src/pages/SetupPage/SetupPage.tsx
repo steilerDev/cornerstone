@@ -110,27 +110,27 @@ export function SetupPage() {
 
   if (status === 'error') {
     return (
-      <div className={sharedStyles.container}>
+      <main className={sharedStyles.container}>
         <div className={sharedStyles.card}>
           <AuthCheckFailed embedded />
         </div>
-      </div>
+      </main>
     );
   }
 
   if (status !== 'setupRequired') {
     return (
-      <div className={sharedStyles.container}>
+      <main className={sharedStyles.container}>
         <div className={sharedStyles.card}>
           <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
           <p>{tCommon('loading')}</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className={sharedStyles.container}>
+    <main className={sharedStyles.container}>
       <div className={sharedStyles.card}>
         <Logo size={72} variant="full" className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
@@ -241,7 +241,7 @@ export function SetupPage() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
 

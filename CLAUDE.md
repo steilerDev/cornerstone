@@ -584,7 +584,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Coverage**: `npm run test:coverage` — **95% unit test coverage target** on all new and modified code
 - Test files use `.test.ts` / `.test.tsx` extension
 - No separate `__tests__/` directories -- tests live next to the code they test
-- **E2E page coverage requirement**: Every page/route in the application must have E2E test coverage. Fully implemented pages need comprehensive tests (CRUD flows, validation, responsive layout, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading.
+- **E2E page coverage requirement**: Every page/route in the application must have E2E test coverage. Fully implemented pages need comprehensive tests (CRUD flows, validation, responsive layout, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading. Every page is also in the accessibility sweep (`e2e/fixtures/a11yPages.ts`: axe in both themes, 44 px targets, 320 px reflow).
 
 ### Coverage Enforcement
 

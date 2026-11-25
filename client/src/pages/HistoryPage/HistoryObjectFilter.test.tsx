@@ -297,7 +297,7 @@ describe('HistoryObjectFilter', () => {
       );
       await user.click(options[0]!);
       await user.click(chip());
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       expect(spy).toHaveBeenLastCalledWith(null);
       expect(chip()).toHaveTextContent(/^Object$/);

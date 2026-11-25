@@ -33,6 +33,7 @@ import {
   getMonthName,
   formatDateForAria,
 } from './calendarUtils.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './MonthGrid.module.css';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,7 @@ export function MonthGrid({
     <div
       className={styles.grid}
       role="grid"
+      data-testid="calendar-month-grid"
       aria-label={t('calendar.monthGridAriaLabel', {
         period: `${getMonthName(month, localeString)} ${year}`,
       })}
@@ -156,10 +158,15 @@ export function MonthGrid({
                     day.isToday ? styles.today : '',
                   ].join(' ')}
                   role="gridcell"
-                  aria-label={formatDateForAria(day.dateStr, localeString)}
+                  data-date={day.dateStr}
                 >
-                  {/* Date number */}
-                  <div className={styles.dateNumber}>{day.dayOfMonth}</div>
+                  {/* Date number: full date for assistive technology, digit for sighted users */}
+                  <div className={styles.dateNumber}>
+                    <span aria-hidden="true">{day.dayOfMonth}</span>
+                    <span className={sharedStyles.srOnly}>
+                      {formatDateForAria(day.dateStr, localeString)}
+                    </span>
+                  </div>
 
                   {/* Work item bars + milestone diamonds */}
                   <div

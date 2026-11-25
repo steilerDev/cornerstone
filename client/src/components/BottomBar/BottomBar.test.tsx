@@ -55,7 +55,7 @@ describe('BottomBar', () => {
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(nav).toBe(screen.getByTestId('bottom-bar'));
     const items = within(nav).getAllByRole('listitem');
-    expect(items.map((li) => li.textContent)).toEqual([
+    expect(items.map((li) => (li.textContent ?? '').trim())).toEqual([
       'Home',
       'Site diary',
       'New',
@@ -224,6 +224,14 @@ describe('BottomBar', () => {
       expect(screen.getByTestId('bottom-bar-home-badge')).toBe(badge);
     });
 
+    it('keeps the label and the count as separate words in the slot text', () => {
+      renderBar('/', { homeBadge: 3 });
+      const text = (screen.getByTestId('bottom-bar-home').textContent ?? '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      expect(text).toBe('Home 3');
+    });
+
     it('has no badge element at 0 and keeps the exact count in the name above the cap', () => {
       const { unmount } = renderBar('/', { homeBadge: 0 });
       expect(screen.queryByTestId('bottom-bar-home-badge')).toBeNull();
@@ -252,6 +260,15 @@ describe('BottomBar', () => {
       expect(
         screen.getByTestId('bottom-bar-home').querySelector('[class*="badge"]')?.textContent,
       ).toBe('99+');
+    });
+
+    it('places the visible label before the badge so the accessible name starts with the label', () => {
+      renderBar('/', { homeBadge: 3 });
+      const home = screen.getByTestId('bottom-bar-home');
+      const badge = screen.getByTestId('bottom-bar-home-badge');
+      const label = within(home).getByText('Home');
+      expect(label.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect((home.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith('Home')).toBe(true);
     });
 
     it('shows 99 as is', () => {

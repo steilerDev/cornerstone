@@ -74,7 +74,7 @@
 
 .input {
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   color: var(--color-text-primary);
@@ -140,5 +140,12 @@
 
   .title {
     font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .input,
+  .button {
+    min-height: var(--touch-target-min);
   }
 }

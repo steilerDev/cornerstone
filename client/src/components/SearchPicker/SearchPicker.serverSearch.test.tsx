@@ -176,7 +176,7 @@ describe('SearchPicker server search', () => {
 
       await waitFor(() => {
         expect(document.activeElement).toBe(
-          screen.getByRole('button', { name: 'Clear selection' }),
+          screen.getByRole('button', { name: /^Clear selection/ }),
         );
       });
     });
@@ -193,7 +193,7 @@ describe('SearchPicker server search', () => {
 
       await waitFor(() => {
         expect(document.activeElement).toBe(
-          screen.getByRole('button', { name: 'Clear selection' }),
+          screen.getByRole('button', { name: /^Clear selection/ }),
         );
       });
       expect(onChange).toHaveBeenCalledWith('item-1');
@@ -207,7 +207,7 @@ describe('SearchPicker server search', () => {
 
       await waitFor(() => {
         expect(document.activeElement).toBe(
-          screen.getByRole('button', { name: 'Clear selection' }),
+          screen.getByRole('button', { name: /^Clear selection/ }),
         );
       });
       expect(onChange).toHaveBeenCalledWith('__NONE__');
@@ -224,7 +224,7 @@ describe('SearchPicker server search', () => {
         expect(document.activeElement).toBe(input);
       });
       expect(document.activeElement).not.toBe(document.body);
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
@@ -247,7 +247,7 @@ describe('SearchPicker server search', () => {
     it('focuses the input after "Clear selection"; the list opens on ArrowDown, not by the app-driven focus', async () => {
       renderPicker({ initialTitle: 'Alpha Widget', value: 'item-1' });
 
-      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(screen.getByRole('button', { name: /^Clear selection/ }));
 
       const input = screen.getByPlaceholderText('Search...');
       await waitFor(() => expect(document.activeElement).toBe(input));
@@ -266,7 +266,7 @@ describe('SearchPicker server search', () => {
       });
       await user.click(await screen.findByRole('option', { name: 'Alpha Widget' }));
 
-      await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+      await user.click(await screen.findByRole('button', { name: /^Clear selection/ }));
 
       await waitFor(() =>
         expect(document.activeElement).toBe(screen.getByPlaceholderText('Search...')),
@@ -309,7 +309,7 @@ describe('SearchPicker server search', () => {
 
         await waitFor(() => {
           expect(document.activeElement).toBe(
-            screen.getByRole('button', { name: 'Clear selection' }),
+            screen.getByRole('button', { name: /^Clear selection/ }),
           );
         });
       });
@@ -329,7 +329,7 @@ describe('SearchPicker server search', () => {
           jest.advanceTimersByTime(1000);
         });
 
-        expect(await screen.findByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /^Clear selection/ })).toBeInTheDocument();
         expect(document.activeElement).toBe(elsewhere);
       });
     });
@@ -393,7 +393,7 @@ describe('SearchPicker server search', () => {
 
       expect(onChange).toHaveBeenCalledWith('item-1');
       expect(onSelectItem).toHaveBeenCalledWith({ id: 'item-1', label: 'Alpha Widget' });
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
       expect(screen.getByPlaceholderText('Search...')).toHaveValue('');
       expect(document.activeElement).toBe(screen.getByPlaceholderText('Search...'));
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
@@ -444,7 +444,7 @@ describe('SearchPicker server search', () => {
       });
       expect(onChange).toHaveBeenCalledWith('new-1');
       expect(onSelectItem).toHaveBeenCalledWith({ id: 'new-1', label: 'Fresh' });
-      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Clear selection/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
   });

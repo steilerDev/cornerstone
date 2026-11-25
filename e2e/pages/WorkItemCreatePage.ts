@@ -122,7 +122,7 @@ export class WorkItemCreatePage {
     // match every ancestor <div> of the label.
     this.areaClearButton = this.dialog
       .locator('div:has(> label[for="area"])')
-      .getByRole('button', { name: 'Clear selection', exact: true });
+      .getByRole('button', { name: /^Clear selection/ });
 
     this.submitButton = this.form.saveButton;
     this.cancelButton = this.form.cancelButton;

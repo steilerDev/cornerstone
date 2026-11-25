@@ -184,7 +184,7 @@ export class WorkItemDetailPage {
       whoWhereForm,
     );
     this.selectedWho = whoWhereForm.locator('[class*="selectedDisplay"]').first();
-    this.clearWho = whoWhereForm.getByRole('button', { name: 'Clear selection', exact: true });
+    this.clearWho = whoWhereForm.getByRole('button', { name: /^Clear selection/ });
     this.areaPicker = new EntityPickerControl(
       page,
       whoWhereForm.getByLabel('Area', { exact: true }),

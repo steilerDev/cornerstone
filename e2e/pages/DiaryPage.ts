@@ -16,7 +16,7 @@
  *   company picker `#diary-filter-company-input`, dates `diary-date-from` / `diary-date-to`).
  *   Filters apply live. Active filters show as chips (`diary-active-filter-<key>-remove`) with
  *   "Clear all" (`clear-filters-button`) under the toolbar.
- * - The feed (`role="feed"`): week groups `diary-week-<monday>` (FeedGroup, h2 "This week" /
+ * - The timeline (a named `<section>` region, data-testid `diary-timeline`): week groups `diary-week-<monday>` (FeedGroup, h2 "This week" /
  *   "Last week" / "Week of ...") holding rows `li[data-testid="diary-entry-<id>"]`. A row has the
  *   stretched title link `diary-entry-<id>-link`, type badge `diary-entry-<id>-type`, a thumbnail
  *   strip `diary-entry-<id>-thumbs` (up to 5 images + a "+n" tile), area chips
@@ -122,7 +122,7 @@ export class DiaryPage {
     this.discardConfirm = page.getByTestId('diary-draft-discard-confirm');
     this.discardCancel = page.getByTestId('diary-draft-discard-cancel');
 
-    this.timeline = page.getByRole('feed');
+    this.timeline = page.getByTestId('diary-timeline');
     this.loading = page.getByTestId('diary-loading');
     this.nothingAtAllState = page.getByTestId('diary-empty');
     this.filteredEmptyState = page.getByTestId('diary-filtered-empty');

@@ -634,7 +634,7 @@ describe('TradesManager', () => {
 
       expect(within(mergeDialog()).getAllByText('Mauerwerk Meier').length).toBeGreaterThan(0);
       expect(
-        within(mergeDialog()).getByRole('button', { name: 'Clear selection' }),
+        within(mergeDialog()).getByRole('button', { name: /^Clear selection/ }),
       ).toBeInTheDocument();
     });
 

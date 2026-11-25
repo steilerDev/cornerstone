@@ -111,8 +111,7 @@ export class InvoiceConvertPage {
     this.selectDocument = this.documentPicker.input;
     this.selectedDocument = this.documentPicker.selectedDisplay();
     this.removeDocument = this.document.getByRole('button', {
-      name: 'Clear selection',
-      exact: true,
+      name: /^Clear selection/,
     });
     this.readAmounts = page.getByTestId('convert-ai-prefill');
     this.readStatus = page.getByTestId('convert-read-status');

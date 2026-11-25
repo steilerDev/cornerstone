@@ -9,7 +9,7 @@
   width: 3rem;
   height: var(--touch-target-min);
   padding: var(--spacing-1);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-primary);
   cursor: pointer;

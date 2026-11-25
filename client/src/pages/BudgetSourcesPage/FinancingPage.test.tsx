@@ -539,6 +539,7 @@ describe('FinancingPage', () => {
       const covered = screen.getByTestId('financing-grant-covered-sp-1');
       expect(covered).toHaveTextContent('2 tasks and purchases');
       expect(covered).toHaveAttribute('href', '/budget/financing/grants/sp-1?tab=work');
+      expect(covered.className).toContain('figureLink');
       expect(screen.getByTestId('financing-grant-deadline-sp-1')).toHaveTextContent('Jan');
       expect(screen.queryByText('Overdue')).toBeNull();
     });

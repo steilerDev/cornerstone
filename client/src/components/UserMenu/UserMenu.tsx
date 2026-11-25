@@ -98,7 +98,7 @@ export function UserMenu() {
   return (
     <OverflowMenu
       items={entries}
-      triggerAriaLabel={t('topBar.accountMenu', { name: user.name })}
+      triggerAriaLabel={t('topBar.accountMenu', { name: user.name, initials: user.initials })}
       triggerIcon={<span aria-hidden="true">{user.initials}</span>}
       triggerClassName={styles.avatar}
       menuClassName={styles.panel}

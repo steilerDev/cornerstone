@@ -158,9 +158,38 @@ export function SearchPicker<T>({
       : null;
 
   const groupBaseId = useId();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
+  // Selected state: the visible field label names the selection group (#2261). The label is owned
+  // by the caller, so find it through `label[for=id]` and give it an id when it has none. The
+  // attribute is set on the DOM node directly (not through state) so no extra render is needed.
+  const fallbackAriaLabel = inputAriaProps?.['aria-label'];
+  // Intentionally no dependency array: re-syncs aria-labelledby every render because the caller owns the label.
+  useLayoutEffect(() => {
+    const group = containerRef.current?.querySelector<HTMLElement>(`.${styles.selectedDisplay}`);
+    if (!group) return;
+    let labelId: string | undefined;
+    if (id) {
+      const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id;
+      const label = document.querySelector<HTMLLabelElement>(`label[for="${escaped}"]`);
+      if (label) {
+        if (!label.id && !document.getElementById(`${id}-label`)) {
+          label.id = `${id}-label`; // React does not own the id of a label rendered without one
+        }
+        labelId = label.id || undefined;
+      }
+    }
+    if (labelId) {
+      group.setAttribute('aria-labelledby', labelId);
+      group.removeAttribute('aria-label');
+    } else {
+      group.removeAttribute('aria-labelledby');
+      if (fallbackAriaLabel) group.setAttribute('aria-label', fallbackAriaLabel);
+      else group.removeAttribute('aria-label');
+    }
+  });
   // Where focus is headed once the picker has re-rendered: the selection chip's Clear button
   // (after a selection) or the input (after Clear). Kept until that element has mounted, so a
   // parent that updates `value` asynchronously still gets the focus.
@@ -619,7 +648,7 @@ export function SearchPicker<T>({
   if (selectedSpecial) {
     return (
       <div className={styles.container} ref={containerRef}>
-        <div className={styles.selectedDisplay}>
+        <div className={styles.selectedDisplay} role="group">
           <span className={`${styles.selectedTitle} ${styles.selectedTitleSpecial}`}>
             {selectedSpecial.label}
           </span>
@@ -628,7 +657,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label={t('aria.clearSelection')}
+            aria-label={t('aria.clearSelectionOf', { title: selectedSpecial.label })}
             disabled={disabled}
           >
             &times;
@@ -643,7 +672,7 @@ export function SearchPicker<T>({
     const suffix = getSelectedSuffix?.(null);
     return (
       <div className={styles.container} ref={containerRef}>
-        <div className={styles.selectedDisplay}>
+        <div className={styles.selectedDisplay} role="group">
           <span className={styles.selectedTitle}>{initialTitle}</span>
           {suffix && <span className={styles.selectedSuffix}>{suffix}</span>}
           <button
@@ -651,7 +680,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label={t('aria.clearSelection')}
+            aria-label={t('aria.clearSelectionOf', { title: initialTitle })}
             disabled={disabled}
           >
             &times;
@@ -668,7 +697,7 @@ export function SearchPicker<T>({
       : renderItem(selectedItem).label;
     return (
       <div className={styles.container} ref={containerRef}>
-        <div className={styles.selectedDisplay}>
+        <div className={styles.selectedDisplay} role="group">
           <span className={styles.selectedTitle}>{label}</span>
           {suffix && <span className={styles.selectedSuffix}>{suffix}</span>}
           <button
@@ -676,7 +705,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label={t('aria.clearSelection')}
+            aria-label={t('aria.clearSelectionOf', { title: label })}
             disabled={disabled}
           >
             &times;

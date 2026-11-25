@@ -136,6 +136,28 @@ describe('SetupPage', () => {
     expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
   });
 
+  it('renders exactly one main landmark in the loading state (#2261)', () => {
+    mockGetAuthMe.mockReturnValue(new Promise(() => {}));
+    renderPage();
+
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('renders exactly one main landmark once the form shows (#2261)', async () => {
+    renderPage();
+
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('renders exactly one main landmark around the retry card (#2261)', async () => {
+    mockGetAuthMe.mockRejectedValue(new Error('boom'));
+    renderPage();
+
+    await screen.findByRole('heading', { level: 1, name: enCommon.authGuard.errorHeading });
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
   it('shows the retry card, not the form and not a redirect, when the session check fails', async () => {
     mockGetAuthMe.mockRejectedValue(new Error('boom'));
     renderPage();

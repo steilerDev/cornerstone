@@ -359,7 +359,7 @@
 .field {
   composes: input from '../../styles/shared.module.css';
   background-color: var(--color-bg-tertiary);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border-control);
   transition:
     background-color var(--transition-normal),
     border-color var(--transition-normal);
@@ -371,7 +371,7 @@
 .fieldTextarea {
   composes: textarea from '../../styles/shared.module.css';
   background-color: var(--color-bg-tertiary);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border-control);
   transition:
     background-color var(--transition-normal),
     border-color var(--transition-normal);

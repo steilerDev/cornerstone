@@ -228,6 +228,41 @@ describe('AppShell', () => {
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     });
 
+    it.each([false, true])(
+      'makes the skip link the first tab stop, and it focuses main without navigating (wide: %s)',
+      async (wide) => {
+        installMatchMedia(wide);
+        const user = userEvent.setup();
+        renderAt('/synthetic', <div>Test Content</div>);
+        const link = screen.getByRole('link', { name: 'Skip to content' });
+        const firstFocusable = document.body.querySelector<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        expect(firstFocusable).toBe(link);
+
+        await user.tab();
+        expect(link).toHaveFocus();
+        await user.keyboard('{Enter}');
+
+        expect(screen.getByRole('main')).toHaveFocus();
+        expect(window.location.hash).toBe('');
+      },
+    );
+
+    it.each([false, true])(
+      'renders exactly one main, id main-content, with no tabindex until the skip link is used (wide: %s)',
+      (wide) => {
+        installMatchMedia(wide);
+        renderAt('/', <div>Test Content</div>);
+
+        const mains = screen.getAllByRole('main');
+        expect(mains).toHaveLength(1);
+        expect(mains[0]).toHaveAttribute('id', 'main-content');
+        expect(mains[0]).not.toHaveAttribute('tabindex');
+        expect(document.querySelectorAll('main#main-content')).toHaveLength(1);
+      },
+    );
+
     it.each([false, true])('renders exactly one banner, the top bar (wide: %s)', (wide) => {
       installMatchMedia(wide);
       renderAt('/', <div>Test Content</div>);

@@ -392,11 +392,11 @@ function DiaryListPage() {
         ))}
 
       {entries.length > 0 && (
-        <div
+        <section
           className={styles.timeline}
-          role="feed"
           aria-label={t('page.timelineAriaLabel')}
           aria-busy={status === 'loading'}
+          data-testid="diary-timeline"
         >
           {weeks.map(([monday, rows]) => (
             <FeedGroup
@@ -411,7 +411,7 @@ function DiaryListPage() {
               ))}
             </FeedGroup>
           ))}
-        </div>
+        </section>
       )}
 
       {/* Live region for announcements */}

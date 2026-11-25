@@ -204,6 +204,20 @@ describe('AuthCheckFailed', () => {
       expect(page).toContainElement(screen.getByRole('status'));
     });
 
+    it('is the one main landmark by default, and adds none when embedded in a host (#2261)', async () => {
+      const { unmount } = renderPanel();
+      await screen.findByRole('heading', { level: 1 });
+      const mains = screen.getAllByRole('main');
+      expect(mains).toHaveLength(1);
+      expect(mains[0]).toContainElement(screen.getByRole('button', { name: retryName }));
+      unmount();
+
+      mockGetAuthMe.mockRejectedValueOnce(abortError());
+      renderPanel(true);
+      await screen.findByRole('heading', { level: 1 });
+      expect(screen.queryByRole('main')).toBeNull();
+    });
+
     it('renders without the page wrapper when embedded', async () => {
       const { container } = renderPanel(true);
       await screen.findByRole('heading', { level: 1 });

@@ -67,10 +67,11 @@ export function WizardStepper({
                     type="button"
                     className={styles.stepButton}
                     onClick={() => onStepClick?.(stepNum)}
-                    aria-label={step.label}
                     aria-current={isCurrent ? 'step' : undefined}
                   >
-                    <span className={styles.circle}>{stepNum}</span>
+                    <span className={styles.circle} aria-hidden="true">
+                      {stepNum}
+                    </span>
                     <span className={styles.label}>{step.label}</span>
                   </button>
                 ) : (
@@ -78,7 +79,9 @@ export function WizardStepper({
                     className={styles.stepButtonDisabled}
                     aria-current={isCurrent ? 'step' : undefined}
                   >
-                    <span className={styles.circle}>{stepNum}</span>
+                    <span className={styles.circle} aria-hidden="true">
+                      {stepNum}
+                    </span>
                     <span className={styles.label}>{step.label}</span>
                   </div>
                 )}

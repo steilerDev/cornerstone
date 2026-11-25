@@ -184,9 +184,9 @@ export function SpotThumbnail({
       to={to}
       state={linkState}
       className={`${styles.root} ${variantClass} ${styles.link}`}
-      aria-label={ariaLabel}
       data-testid={testId}
     >
+      <span className={sharedStyles.srOnly}>{ariaLabel}</span>
       <span className={styles.thumb}>
         <span className={styles.thumbImageWrap} key={src ?? ''}>
           <ThumbImage src={src} unavailableLabel={imageUnavailableLabel} />
@@ -198,8 +198,16 @@ export function SpotThumbnail({
         ) : null}
       </span>
       <span className={styles.body}>
-        {variant === 'card' && title ? <span className={styles.title}>{title}</span> : null}
-        {dateLabel ? <span className={styles.date}>{dateLabel}</span> : null}
+        {variant === 'card' && title ? (
+          <span className={styles.title} aria-hidden="true">
+            {title}
+          </span>
+        ) : null}
+        {dateLabel ? (
+          <span className={styles.date} aria-hidden="true">
+            {dateLabel}
+          </span>
+        ) : null}
       </span>
     </Link>
   );

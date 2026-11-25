@@ -13,6 +13,7 @@
     "screenshots": "npx playwright test tests/screenshots/ --project=desktop"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.1",
     "@playwright/test": "1.64.1",
     "@types/node": "26.6.5",
     "testcontainers": "12.2.1"

@@ -28,6 +28,14 @@
   transition: background-color 0.2s ease;
 }
 
+@media (max-width: 767px) {
+  .homeLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
+}
+
 .homeLink:hover {
   background-color: var(--color-primary-hover);
 }

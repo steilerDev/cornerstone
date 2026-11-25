@@ -64,5 +64,5 @@ export function AuthCheckFailed({ embedded = false }: AuthCheckFailedProps) {
     </>
   );
 
-  return embedded ? content : <div className={styles.page}>{content}</div>;
+  return embedded ? content : <main className={styles.page}>{content}</main>;
 }

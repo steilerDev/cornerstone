@@ -786,14 +786,22 @@ describe('PhotoAnnotator', () => {
   it('has live region element for accessibility announcements', async () => {
     await renderAnnotator({ width: 800, height: 600 });
 
-    // The live region uses role="status" aria-live="polite" aria-atomic
-    const liveRegion = document.querySelector(
-      '[role="status"][aria-live="polite"]',
-    ) as HTMLElement | null;
+    // The live region uses role="status" aria-atomic; role="status" already implies polite, so
+    // an explicit aria-live would be redundant (#2261).
+    const liveRegion = document.querySelector('[role="status"]') as HTMLElement | null;
 
     expect(liveRegion).toBeInTheDocument();
-    expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+    expect(liveRegion).not.toHaveAttribute('aria-live');
     expect(liveRegion).toHaveAttribute('aria-atomic');
+  });
+
+  it('exposes exactly one status region and it carries no aria-live attribute', async () => {
+    await renderAnnotator({ width: 800, height: 600 });
+
+    const regions = document.querySelectorAll('[role="status"]');
+    expect(regions).toHaveLength(1);
+    expect(regions[0]).not.toHaveAttribute('aria-live');
+    expect(screen.getByRole('status')).toBe(regions[0]);
   });
 
   // ─── Accessibility: Shape-added announcements ──────────────────────────────
@@ -806,9 +814,8 @@ describe('PhotoAnnotator', () => {
 
   function getLiveRegion(): HTMLElement {
     // In the Konva-based component, the live region uses role="status"
-    const el = document.querySelector('[role="status"][aria-live="polite"]') as
-      HTMLElement | undefined;
-    if (!el) throw new Error('Live region not found (role="status" aria-live="polite")');
+    const el = document.querySelector('[role="status"]') as HTMLElement | undefined;
+    if (!el) throw new Error('Live region not found (role="status")');
     return el;
   }
 

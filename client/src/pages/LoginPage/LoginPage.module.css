@@ -53,3 +53,9 @@
   color: var(--color-text-muted);
   font-size: 0.875rem;
 }
+
+@media (max-width: 767px) {
+  .ssoButton {
+    min-height: var(--touch-target-min);
+  }
+}

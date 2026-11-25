@@ -154,6 +154,12 @@ describe('SetupChecklist', () => {
     expect(onRefetch).not.toHaveBeenCalled();
   });
 
+  it('styles the Skip setup button with the page skipButton class', () => {
+    renderChecklist(setupOf());
+
+    expect(screen.getByRole('button', { name: 'Skip setup' }).className).toContain('skipButton');
+  });
+
   it('skips setup and moves focus to the page heading', async () => {
     renderChecklist(setupOf());
 

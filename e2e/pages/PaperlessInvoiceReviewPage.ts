@@ -217,7 +217,7 @@ export class PaperlessInvoiceReviewPage {
 
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
-    this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+    this.vendorClearButton = page.getByRole('button', { name: /^Clear selection/ });
 
     this.vendorPicker = new CompanyPickerControl(
       page,

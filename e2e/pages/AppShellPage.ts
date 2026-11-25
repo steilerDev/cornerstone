@@ -57,6 +57,10 @@ export class AppShellPage {
   readonly topBar: Locator;
   /** The compact bottom bar (`<nav>` "Main navigation"), < 1024px only. */
   readonly bottomBar: Locator;
+  /** The skip link, the first tab stop of every shell page (#2261). */
+  readonly skipLink: Locator;
+  /** The shell's one `<main>`, the skip link's target (#2261). */
+  readonly main: Locator;
   /** The More button (last slot of the bottom bar), < 1024px only. */
   readonly moreButton: Locator;
   /** The More sheet panel: always mounted below 1024px, `inert` and without a dialog role while closed. */
@@ -95,6 +99,8 @@ export class AppShellPage {
     this.nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
     this.topBar = page.getByTestId('top-bar');
     this.bottomBar = page.getByTestId('bottom-bar');
+    this.skipLink = page.getByRole('link', { name: 'Skip to content' });
+    this.main = page.locator('main#main-content');
     this.moreButton = page.getByTestId('bottom-bar-more');
     this.moreSheet = page.getByTestId('more-sheet');
     this.moreSheetBackdrop = page.getByTestId('more-sheet-backdrop');

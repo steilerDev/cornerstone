@@ -71,6 +71,13 @@ test.afterEach(async () => {
 
 const INVOICE_URL = /\/budget\/invoices\/[0-9a-f-]{8,}$/;
 
+/** Re-navigate home, tolerating a late same-URL commit from the post-save redirect. */
+async function gotoHomeAfterSave(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.goto(ROUTES.home);
+  }).toPass({ timeout: 10_000 });
+}
+
 interface InvoiceResponse {
   readonly status: string;
   readonly amount: number;
@@ -483,6 +490,7 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
     await createTask(page, cleanup, taskTitle);
     const menu = new CreateMenu(page);
     const dialog = new InvoiceFormDialog(page, 'invoice');
+    const detail = new InvoiceDetailPage(page);
 
     // 1 New, 2 Invoice, 3 the company (picked with the keyboard, counted), 4 Save
     await page.goto(ROUTES.home);
@@ -496,10 +504,11 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
     await dialog.saveButton.click();
     plain.clicks += 1;
     await expect(page).toHaveURL(INVOICE_URL);
+    await expect(detail.heading).toBeVisible();
     expect(plain.clicks, 'existing company').toBe(4);
 
     // With a task: the picker is the one extra click
-    await page.goto(ROUTES.home);
+    await gotoHomeAfterSave(page);
     const withTask = new ClickCounter();
     await withTask.click(menu.activeTrigger());
     await withTask.click(menu.row('invoice'));
@@ -512,10 +521,11 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
     await dialog.saveButton.click();
     withTask.clicks += 1;
     await expect(page).toHaveURL(INVOICE_URL);
+    await expect(detail.heading).toBeVisible();
     expect(withTask.clicks, 'with a task').toBe(5);
 
     // Due date (typed) and a status (one click)
-    await page.goto(ROUTES.home);
+    await gotoHomeAfterSave(page);
     const full = new ClickCounter();
     await full.click(menu.activeTrigger());
     await full.click(menu.row('invoice'));
@@ -529,6 +539,7 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
     await dialog.saveButton.click();
     full.clicks += 1;
     await expect(page).toHaveURL(INVOICE_URL);
+    await expect(detail.heading).toBeVisible();
     expect(full.clicks, 'with due date and status').toBeLessThanOrEqual(7);
   });
 
@@ -536,6 +547,7 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
     const typed = `${testPrefix} I8 Inline Co`;
     const menu = new CreateMenu(page);
     const dialog = new InvoiceFormDialog(page, 'invoice');
+    const detail = new InvoiceDetailPage(page);
 
     try {
       await page.goto(ROUTES.home);
@@ -552,6 +564,7 @@ test.describe('New invoice dialog - click budget (I8)', { tag: '@responsive' }, 
       await dialog.amount.fill('100');
       await clicks.click(dialog.saveButton);
       await expect(page).toHaveURL(INVOICE_URL);
+      await expect(detail.heading).toBeVisible();
       expect(clicks.clicks, 'new company inline').toBeLessThanOrEqual(9);
     } finally {
       // The company was created by the inline form: remove it (and its invoice)

@@ -42,6 +42,18 @@ describe('WizardStepper', () => {
   });
 
   describe('desktop nav/ol tree', () => {
+    it('names each step button after its label alone and hides the numbered circle from assistive tech', () => {
+      const { container } = render(
+        <WizardStepper steps={STEPS} currentStep={2} onStepClick={jest.fn()} />,
+      );
+      const button = screen.getByRole('button', { name: 'Use case' });
+      expect(button).toHaveAccessibleName('Use case');
+      expect(button).not.toHaveAttribute('aria-label');
+      const circles = container.querySelectorAll('.stepper .circle');
+      expect(circles.length).toBe(STEPS.length);
+      circles.forEach((circle) => expect(circle).toHaveAttribute('aria-hidden', 'true'));
+    });
+
     it('renders a nav with an ordered list of all steps', () => {
       render(<WizardStepper steps={STEPS} currentStep={2} onStepClick={jest.fn()} />);
       const nav = screen.getByRole('navigation');

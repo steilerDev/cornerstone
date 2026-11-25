@@ -66,11 +66,12 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 
 - [ ] **ARIA labels**: All interactive elements (buttons, links, inputs) must have accessible names via `aria-label`, `aria-labelledby`, or visible text content.
 - [ ] **Keyboard navigation**: All interactive elements must be reachable via Tab. Custom widgets must support arrow-key navigation. **Portaled dropdowns (`FloatingPortal`, e.g. SearchPicker) sit at the end of `<body>`, outside the Tab order** — any spec adding a focusable row to one must specify how the keyboard reaches it (ArrowDown/ArrowUp from the input), and E2E must reach it by keys, never by `.focus()` on the row (#2148).
-- [ ] **Focus-visible styling**: All custom buttons, toggles, and interactive elements must have `:focus-visible { outline: none; box-shadow: var(--shadow-focus); }` styling. This is a recurring review finding — never rely on browser defaults for custom interactive elements.
+- [ ] **Focus-visible styling**: All custom buttons, toggles, and interactive elements must have `:focus-visible { outline: none; box-shadow: var(--shadow-focus); }` styling. This is a recurring review finding — never rely on browser defaults for custom interactive elements. `--shadow-focus` is the solid two-ring indicator (≥ 3:1 on every surface, both themes); never build a translucent ring. `--shadow-focus-subtle` is allowed only when the same rule also sets a ≥ 3:1 `border-color` (`--color-primary`, `--color-border-focus` or `--color-danger`). Form-control borders use `--color-border-control`. `client/src/styles/a11yStatic.test.ts` guards these rules (#2261).
 - [ ] **Focus management**: Modals must trap focus. Dynamic content must manage focus appropriately.
 - [ ] **Reduced motion**: Any CSS with `transition` or `animation` must include a `@media (prefers-reduced-motion: reduce) { transition: none; animation: none; }` guard.
 - [ ] **ARIA role redundancy**: When using `role="status"`, do not also add `aria-live="polite"` (it is implicit). Use `role="status" aria-atomic="true"` instead.
-- [ ] **Touch targets**: All interactive elements must be at least 44x44px on mobile viewports.
+- [ ] **Touch targets**: All interactive elements must be at least 44x44px on mobile viewports. Use `min-width`/`min-height: var(--touch-target-min)`, or a centred `position: absolute` `::after` overlay of that size when the visible control must stay small (see `SearchPicker.module.css` `.clearButton::after`). The `e2e/tests/accessibility/touch-reflow.spec.ts` E2E measures both (#2261).
+- [ ] **Accessibility sweep row**: A new page adds a row to `e2e/fixtures/a11yPages.ts` (axe light/dark, touch targets, 320 px reflow), or an exemption with a reason.
 - [ ] **Responsive layout**: All pages must adapt to mobile, tablet, and desktop viewpoints using breakpoint tokens.
 
 ## Backend — API Conventions

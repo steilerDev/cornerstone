@@ -25,6 +25,7 @@
   --color-gray-200: #e5e7eb;
   --color-gray-300: #d1d5db;
   --color-gray-400: #9ca3af;
+  --color-gray-450: #868c96; /* control borders, >=3:1 on every surface */
   --color-gray-500: #6b7280;
   --color-gray-550: #5f6674;
   --color-gray-600: #4b5563;
@@ -75,6 +76,7 @@
   --color-slate-500: #334155;
   --color-slate-400: #475569;
   --color-slate-300: #64748b;
+  --color-slate-275: #7f8ca1; /* control borders, >=3:1 on every surface */
   --color-slate-200: #94a3b8;
   --color-slate-150: #cbd5e1;
   --color-slate-100: #e2e8f0;
@@ -129,6 +131,7 @@
   /* --- Borders --- */
   --color-border: var(--color-gray-200);
   --color-border-strong: var(--color-gray-300);
+  --color-border-control: var(--color-gray-450); /* form-control borders, WCAG 1.4.11 >=3:1 */
   --color-border-focus: var(--color-blue-600);
 
   /* --- Primary action (blue) --- */
@@ -179,12 +182,6 @@
   /* --- Navigation: active item (same in both themes) --- */
   --color-nav-active-bg: var(--color-blue-600);
   --color-nav-active-text: var(--color-white);
-
-  /* --- Focus ring --- */
-  --color-focus-ring: rgba(59, 130, 246, 0.3);
-  --color-focus-ring-subtle: rgba(59, 130, 246, 0.1);
-  --color-focus-ring-danger: rgba(220, 38, 38, 0.1);
-  --color-focus-ring-primary-alt: rgba(37, 99, 235, 0.1);
 
   /* --- Overlay / backdrop --- */
   --color-overlay: rgba(0, 0, 0, 0.5);
@@ -271,11 +268,11 @@
   --shadow-inset-deep: 0 10px 25px rgba(0, 0, 0, 0.2);
   --shadow-kbd: 0 1px 0 rgba(0, 0, 0, 0.05);
 
-  /* Focus rings (box-shadow form) */
-  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  /* Focus rings (box-shadow form). --shadow-focus and -danger are solid 3:1 indicators (#2261);
+     -subtle is a halo only and must be paired with a >=3:1 border-color in the same rule. */
+  --shadow-focus: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-border-focus);
   --shadow-focus-subtle: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  --shadow-focus-primary-alt: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  --shadow-focus-danger: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  --shadow-focus-danger: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-danger);
 
   /* Text overlay shadow */
   --shadow-text-overlay: 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -667,6 +664,7 @@
   /* --- Borders --- */
   --color-border: var(--color-slate-400);
   --color-border-strong: var(--color-slate-300);
+  --color-border-control: var(--color-slate-275);
   --color-border-focus: var(--color-blue-400);
 
   /* --- Primary action --- */
@@ -713,12 +711,6 @@
   --color-sidebar-hover: var(--color-slate-600);
   --color-sidebar-focus-ring: var(--color-blue-400);
   --color-sidebar-separator: var(--color-slate-500);
-
-  /* --- Focus rings --- */
-  --color-focus-ring: rgba(96, 165, 250, 0.4);
-  --color-focus-ring-subtle: rgba(96, 165, 250, 0.15);
-  --color-focus-ring-danger: rgba(239, 68, 68, 0.15);
-  --color-focus-ring-primary-alt: rgba(96, 165, 250, 0.15);
 
   /* --- Overlay / backdrop --- */
   --color-overlay: rgba(0, 0, 0, 0.7);
@@ -819,10 +811,9 @@
   --shadow-2xl: 0 20px 25px rgba(0, 0, 0, 0.5);
   --shadow-inset-deep: 0 10px 25px rgba(0, 0, 0, 0.4);
   --shadow-kbd: 0 1px 0 rgba(255, 255, 255, 0.1);
-  --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.4);
+  --shadow-focus: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-border-focus);
   --shadow-focus-subtle: 0 0 0 3px rgba(96, 165, 250, 0.15);
-  --shadow-focus-primary-alt: 0 0 0 3px rgba(96, 165, 250, 0.15);
-  --shadow-focus-danger: 0 0 0 3px rgba(239, 68, 68, 0.15);
+  --shadow-focus-danger: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-danger);
 
   /* --- Budget bar --- */
   --color-budget-claimed: var(--color-emerald-400);

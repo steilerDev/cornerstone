@@ -43,6 +43,11 @@ body {
   color: var(--color-text-primary);
 }
 
+/* base link colour; unstyled anchors otherwise get the UA #0000EE, which fails contrast in dark (#2261) */
+a {
+  color: var(--color-primary);
+}
+
 input,
 textarea,
 select,
@@ -54,4 +59,13 @@ button {
 
 #root {
   min-height: 100vh;
+}
+
+/* Windows high contrast / forced colours: components replace the outline with a box-shadow,
+   which forced-colors mode removes. Restore a system-colour outline on keyboard focus (#2261). */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px;
+  }
 }

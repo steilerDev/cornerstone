@@ -109,7 +109,11 @@ test.describe('Session check resilience', () => {
       await expect(page).toHaveURL(ROUTES.workItems);
       await expect(page).not.toHaveURL(/\/login/);
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-      await expect(page.getByRole('main')).toHaveCount(0);
+      await expect(page.getByRole('main')).toHaveCount(1);
+      await expect(
+        page.getByRole('main').getByRole('heading', { level: 1, name: ERROR_HEADING }),
+      ).toBeVisible();
+      await expect(page.getByRole('main').getByRole('button', { name: 'Try again' })).toBeVisible();
       await expect(page.getByRole('navigation')).toHaveCount(0);
       await expect(page).toHaveTitle(`${ERROR_HEADING} · Cornerstone`);
 
@@ -159,7 +163,11 @@ test.describe('Session check resilience', () => {
       const heading = page.getByRole('heading', { level: 1, name: ERROR_HEADING });
       await expect(heading).toBeVisible();
       await expect(page).toHaveURL(ROUTES.budget);
-      await expect(page.getByRole('main')).toHaveCount(0);
+      await expect(page.getByRole('main')).toHaveCount(1);
+      await expect(
+        page.getByRole('main').getByRole('heading', { level: 1, name: ERROR_HEADING }),
+      ).toBeVisible();
+      await expect(page.getByRole('main').getByRole('button', { name: 'Try again' })).toBeVisible();
 
       // First retry fails again: the button stays focused (never body) and the status says so
       const retry = page.getByRole('button', { name: 'Try again' });
