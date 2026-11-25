@@ -165,18 +165,13 @@ export function SearchPicker<T>({
   // Selected state: the visible field label names the selection group (#2261). The label is owned
   // by the caller, so find it through `label[for=id]` and give it an id when it has none. The
   // attribute is set on the DOM node directly (not through state) so no extra render is needed.
-  const isSelectedState = Boolean(
-    selectedSpecial ||
-    (initialTitle && value && !initialTitleCleared) ||
-    (selectedItem && value !== ''),
-  );
   const fallbackAriaLabel = inputAriaProps?.['aria-label'];
   // Intentionally no dependency array: re-syncs aria-labelledby every render because the caller owns the label.
   useLayoutEffect(() => {
     const group = containerRef.current?.querySelector<HTMLElement>(`.${styles.selectedDisplay}`);
     if (!group) return;
     let labelId: string | undefined;
-    if (isSelectedState && id) {
+    if (id) {
       const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id;
       const label = document.querySelector<HTMLLabelElement>(`label[for="${escaped}"]`);
       if (label) {
