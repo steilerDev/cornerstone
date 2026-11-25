@@ -1321,9 +1321,11 @@ describe('App', () => {
 });
 
 /**
- * The setup and login routes sit outside the shell, so their Suspense fallback is the first thing
- * a signed-out visitor can see (#2261). It is not reachable with the lazy-route mocks (the module
- * resolves before the first assertion), so the source is pinned instead.
+ * The setup and login routes sit outside the shell, so they use the shared translated
+ * `RouteFallback` (introduced by #2260) like every other lazy route. #2261 pins it because it is
+ * the first thing a signed-out visitor sees. The fallback is not reachable with the lazy-route
+ * mocks (the module resolves before the first assertion), so the source is pinned instead; the
+ * rendered text is covered by the #2260 test above.
  */
 describe('auth route Suspense fallback (#2261)', () => {
   const appSource = fs.readFileSync(
@@ -1332,18 +1334,18 @@ describe('auth route Suspense fallback (#2261)', () => {
   );
 
   it('translates the fallback through the common loading key', () => {
-    const body = /function AuthRouteFallback\(\) \{([\s\S]*?)\n\}/.exec(appSource)?.[1] ?? '';
+    const body = /function RouteFallback\(\) \{([\s\S]*?)\n\}/.exec(appSource)?.[1] ?? '';
     expect(body).toContain("useTranslation('common')");
     expect(body).toContain("t('loading')");
-    expect(body).not.toContain('Loading...');
+    expect(appSource).not.toContain("'Loading...'");
+    expect(appSource).not.toMatch(/>\s*Loading\.\.\.\s*</);
   });
 
-  it('uses it for exactly the setup and login routes', () => {
-    expect(appSource.match(/fallback=\{<AuthRouteFallback \/>\}/g)).toHaveLength(2);
+  it('uses the shared fallback for the setup and login routes', () => {
     for (const route of ['setup', 'login']) {
       const at = appSource.indexOf(`path={routePattern('${route}')}`);
       expect(at).toBeGreaterThan(-1);
-      expect(appSource.slice(at, at + 400)).toContain('<AuthRouteFallback />');
+      expect(appSource.slice(at, at + 400)).toContain('<Suspense fallback={<RouteFallback />}>');
     }
   });
 
