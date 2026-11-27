@@ -461,3 +461,97 @@ describe('buildContactVcard', () => {
     expect(output).not.toContain('KIND:org');
   });
 });
+
+// ─── control-character sanitising (vcard-creator >= 1.1) ──────────────────────
+
+describe('buildVendorVcard control-character sanitising', () => {
+  it('strips BEL and DEL from name, address and notes instead of throwing', () => {
+    let output = '';
+    expect(() => {
+      output = buildVendorVcard(
+        makeVendor({
+          name: 'Acme\u0007 Ltd',
+          address: '1 Main\u007f Street',
+          notes: 'Note\u0007 text\u007f',
+        }),
+      );
+    }).not.toThrow();
+    expect(output).toMatch(/^FN:Acme Ltd\r?$/m);
+    expect(output).toMatch(/^ORG:Acme Ltd\r?$/m);
+    expect(output).toContain('1 Main Street');
+    expect(output).toContain('Note text');
+    expect(output).not.toContain('\u0007');
+    expect(output).not.toContain('\u007f');
+  });
+
+  it('keeps a multi-line note as an escaped NOTE value', () => {
+    const output = buildVendorVcard(makeVendor({ notes: 'line1\nline2' }));
+    expect(output).toContain('NOTE:line1\\nline2');
+  });
+
+  it('collapses newline and BEL in a phone number into single spaces', () => {
+    let output = '';
+    expect(() => {
+      output = buildVendorVcard(makeVendor({ phone: '+49 30\n1234' }));
+    }).not.toThrow();
+    expect(output).toMatch(/^TEL;[^\r\n]*:\+49 30 1234\r?$/m);
+
+    const bel = buildVendorVcard(makeVendor({ phone: '+49\u000730' }));
+    expect(bel).toMatch(/^TEL;[^\r\n]*:\+49 30\r?$/m);
+  });
+
+  it('omits the TEL line when the phone contains only control characters', () => {
+    const output = buildVendorVcard(makeVendor({ phone: '\u0007\n' }));
+    expect(output).not.toContain('TEL');
+  });
+
+  it('omits the EMAIL line when the email contains only control characters', () => {
+    const output = buildVendorVcard(makeVendor({ email: '\u0007\u0008' }));
+    expect(output).not.toContain('EMAIL');
+  });
+
+  it('drops a trailing newline from the email', () => {
+    const output = buildVendorVcard(makeVendor({ email: 'info@acme.test\n' }));
+    expect(output).toMatch(/^EMAIL;[^\r\n]*:info@acme\.test\r?$/m);
+  });
+});
+
+describe('buildContactVcard control-character sanitising', () => {
+  it('does not throw with control characters in names, notes and vendor name', () => {
+    let output = '';
+    expect(() => {
+      output = buildContactVcard(
+        makeContact({
+          firstName: 'Al\u0007ice',
+          lastName: 'Sm\u007fith',
+          notes: 'No\u0007te',
+        }),
+        'Ac\u0007me',
+      );
+    }).not.toThrow();
+    expect(output).toContain('Smith;Alice');
+    expect(output).toContain('NOTE:Note');
+    expect(output).toMatch(/^ORG:Acme\r?$/m);
+    expect(output).not.toContain('\u0007');
+    expect(output).not.toContain('\u007f');
+  });
+
+  it('emits TITLE with control characters stripped from the role', () => {
+    const output = buildContactVcard(makeContact({ role: 'Site\u0007 Manager\u007f' }), 'Acme');
+    expect(output).toMatch(/^TITLE:Site Manager\r?$/m);
+  });
+
+  it('collapses control characters in contact phone and drops control-only email', () => {
+    const output = buildContactVcard(
+      makeContact({ phone: '+49 30\n1234', email: '\u0007\u0008' }),
+      'Acme',
+    );
+    expect(output).toMatch(/^TEL;[^\r\n]*:\+49 30 1234\r?$/m);
+    expect(output).not.toContain('EMAIL');
+  });
+
+  it('trims a trailing newline from the contact email', () => {
+    const output = buildContactVcard(makeContact({ email: 'alice@acme.test\n' }), 'Acme');
+    expect(output).toMatch(/^EMAIL;[^\r\n]*:alice@acme\.test\r?$/m);
+  });
+});

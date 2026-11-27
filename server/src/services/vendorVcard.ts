@@ -9,6 +9,21 @@ import VCardModule from 'vcard-creator';
 const VCardCreator =
   (VCardModule as unknown as { default: typeof VCardModule }).default ?? VCardModule;
 
+// Text values: vcard-creator >=1.1 rejects C0 controls (except tab/LF/VT/CR) and DEL.
+// eslint-disable-next-line no-control-regex
+const TEXT_CONTROL_CHARS = /[\u0000-\u0008\u000C\u000E-\u001F\u007F]/g;
+// Raw values (EMAIL, TEL) are written as-is, so every control/line-separator char is rejected.
+// eslint-disable-next-line no-control-regex
+const RAW_CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g;
+
+function cleanText(value: string): string {
+  return value.replace(TEXT_CONTROL_CHARS, '');
+}
+
+function cleanRaw(value: string): string {
+  return value.replace(RAW_CONTROL_CHARS, ' ').trim();
+}
+
 type DbType = BetterSQLite3Database<typeof schemaTypes> & { $client: Database.Database };
 
 /**
@@ -62,23 +77,26 @@ export function buildVendorVcard(
 ): string {
   const vcard = new VCardCreator();
   // For organizations: FN is the company name, N is minimal
-  vcard.addName({ familyName: vendor.name });
-  vcard.addCompany({ name: vendor.name });
+  const vendorName = cleanText(vendor.name);
+  vcard.addName({ familyName: vendorName });
+  vcard.addCompany({ name: vendorName });
 
-  if (vendor.email) {
-    vcard.addEmail({ address: vendor.email, type: ['work'] });
+  const email = vendor.email ? cleanRaw(vendor.email) : '';
+  if (email) {
+    vcard.addEmail({ address: email, type: ['work'] });
   }
 
-  if (vendor.phone) {
-    vcard.addPhoneNumber({ number: vendor.phone, type: ['work'] });
+  const phone = vendor.phone ? cleanRaw(vendor.phone) : '';
+  if (phone) {
+    vcard.addPhoneNumber({ number: phone, type: ['work'] });
   }
 
   if (vendor.address) {
-    vcard.addAddress({ street: vendor.address, type: ['work'] });
+    vcard.addAddress({ street: cleanText(vendor.address), type: ['work'] });
   }
 
   if (vendor.notes) {
-    vcard.addNote(vendor.notes);
+    vcard.addNote(cleanText(vendor.notes));
   }
 
   // Permanent URL (ADR-038 §3.4): lands on the company page in one hop.
@@ -120,26 +138,31 @@ export function buildContactVcard(
 ): string {
   const vcard = new VCardCreator();
   // addName({ familyName, givenName }) — maps to N:familyName;givenName;;;
-  vcard.addName({ familyName: contact.lastName ?? '', givenName: contact.firstName ?? '' });
+  vcard.addName({
+    familyName: cleanText(contact.lastName ?? ''),
+    givenName: cleanText(contact.firstName ?? ''),
+  });
 
   if (contact.role) {
-    vcard.addJobtitle(contact.role);
+    vcard.addJobTitle(cleanText(contact.role));
   }
 
-  if (contact.email) {
-    vcard.addEmail({ address: contact.email, type: ['work'] });
+  const email = contact.email ? cleanRaw(contact.email) : '';
+  if (email) {
+    vcard.addEmail({ address: email, type: ['work'] });
   }
 
-  if (contact.phone) {
-    vcard.addPhoneNumber({ number: contact.phone, type: ['work'] });
+  const phone = contact.phone ? cleanRaw(contact.phone) : '';
+  if (phone) {
+    vcard.addPhoneNumber({ number: phone, type: ['work'] });
   }
 
   if (contact.notes) {
-    vcard.addNote(contact.notes);
+    vcard.addNote(cleanText(contact.notes));
   }
 
   // Add organization (vendor name)
-  vcard.addCompany({ name: vendorName });
+  vcard.addCompany({ name: cleanText(vendorName) });
 
   if (baseUrl) {
     vcard.addUrl({
