@@ -1,7 +1,7 @@
 /**
  * Unit tests for client/src/lib/reportPdf/loader.ts
  *
- * Covers: loadPdfLibs() against the REAL installed packages (pdfmake@0.3.11 / pdf-lib per
+ * Covers: loadPdfLibs() against the REAL installed packages (pdfmake@0.3.14 / pdf-lib per
  * client/package.json) — this file deliberately does NOT mock 'pdfmake/build/pdfmake',
  * 'pdfmake/build/vfs_fonts', or 'pdf-lib', so it exercises the actual shape the app ships with,
  * not a hypothetical one.
@@ -13,14 +13,16 @@
  * extensible`. Production code now does `const pdfMake = pdfMakeModule.default;` (loader.ts),
  * which is the real, extensible CJS export.
  *
- * FIXED (Round 7 / frontend fix spec item 1): pdfmake@0.3.11 has NO `.vfs` setter at all — an
+ * FIXED (Round 7 / frontend fix spec item 1): pdfmake@0.3.14 has NO `.vfs` setter at all — an
  * earlier round's `pdfMake.vfs = vfsFontMap` direct-assignment approach was based on a
  * misunderstanding of the installed version's real API. Production code now uses the real 0.3.x
  * public API: `pdfMake.addVirtualFileSystem(vfsFontMap)` followed by
  * `pdfMake.addFonts({ Roboto: { normal, bold, italics, bolditalics } })`. Internally,
  * `addVirtualFileSystem` writes each font file into a module-level `VirtualFileSystem` instance
- * exposed as `pdfMake.virtualfs` (confirmed by reading node_modules/pdfmake/build/pdfmake.js) —
- * `pdfMake.virtualfs.existsSync(filename)` is the correct way to verify the vfs was populated,
+ * exposed as `pdfMake.sharedVirtualfs` (renamed from `virtualfs` in 0.3.14; confirmed by reading
+ * node_modules/pdfmake/build/pdfmake.js; createPdf builds a per-document
+ * `new VirtualFileSystem(this.sharedVirtualfs)`) —
+ * `pdfMake.sharedVirtualfs.existsSync(filename)` is the correct way to verify the vfs was populated,
  * not `Object.prototype.hasOwnProperty.call(pdfMake, 'vfs')` (there never was a `.vfs` own
  * property to check for on this pdfmake version).
  */
@@ -40,11 +42,18 @@ describe('loadPdfLibs', () => {
     const { loadPdfLibs } = await import('./loader.js');
     const { pdfMake } = await loadPdfLibs();
 
-    const virtualfs = (pdfMake as unknown as { virtualfs: { existsSync: (f: string) => boolean } })
-      .virtualfs;
+    const virtualfs = (
+      pdfMake as unknown as { sharedVirtualfs: { existsSync: (f: string) => boolean } }
+    ).sharedVirtualfs;
     expect(virtualfs).toBeDefined();
-    expect(virtualfs.existsSync('Roboto-Regular.ttf')).toBe(true);
-    expect(virtualfs.existsSync('Roboto-Medium.ttf')).toBe(true);
+    for (const file of [
+      'Roboto-Regular.ttf',
+      'Roboto-Medium.ttf',
+      'Roboto-Italic.ttf',
+      'Roboto-MediumItalic.ttf',
+    ]) {
+      expect(virtualfs.existsSync(file)).toBe(true);
+    }
   });
 
   it('registers the Roboto font family via addFonts()', async () => {
@@ -95,6 +104,22 @@ describe('loadPdfLibs', () => {
 
     const pdfDoc = pdfMake.createPdf({
       content: [{ text: 'test', bold: true }],
+      defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 },
+    });
+    const blob = await pdfDoc.getBlob();
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['italic', { italics: true }],
+    ['bold italic', { bold: true, italics: true }],
+  ])('createPdf() with %s Roboto text produces a non-empty PDF blob', async (_label, style) => {
+    const { loadPdfLibs } = await import('./loader.js');
+    const { pdfMake } = await loadPdfLibs();
+
+    const pdfDoc = pdfMake.createPdf({
+      content: [{ text: 'test', ...style }],
       defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 },
     });
     const blob = await pdfDoc.getBlob();

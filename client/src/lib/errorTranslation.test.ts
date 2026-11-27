@@ -161,7 +161,7 @@ describe('translateApiError', () => {
   describe('edge cases', () => {
     it('uses defaultValue empty string mechanism to detect missing keys', () => {
       // When t() returns empty string for defaultValue: '', fallback kicks in
-      const tEmpty = ((_key: string, _opts?: unknown) => '') as TFunction<'errors'>;
+      const tEmpty = ((_key: string, _opts?: unknown) => '') as unknown as TFunction<'errors'>;
       const result = translateApiError('NOT_FOUND', tEmpty);
       // Fallback: 'Not Found'
       expect(result).toBe('Not Found');

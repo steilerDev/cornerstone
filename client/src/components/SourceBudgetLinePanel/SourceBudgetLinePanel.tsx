@@ -239,7 +239,7 @@ function buildAreaTree(lines: TaggedLine[]): AreaNode[] {
 // Helper to get the localized invoice status label
 function getInvoiceStatusLabel(
   line: BudgetSourceBudgetLine,
-  t: (key: string, options?: { ns: string }) => string,
+  t: { (key: string): string; (key: string, options: { ns: string }): string },
 ): string {
   if (line.invoiceLink === null) {
     return t('sources.lines.invoiceStatus.none');

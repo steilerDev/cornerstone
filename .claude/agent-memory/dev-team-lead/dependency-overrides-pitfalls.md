@@ -20,5 +20,7 @@ Lessons from the 2026-09-30 `/dependabot` orphan-alert spec:
 - **A release outside a "no patched version" range is not necessarily a fix.** `http-cache-semantics@4.3.0` is outside GHSA-ch52's `<= 4.2.0` range, so scanners call it fixed, but a tarball diff showed the `max-stale` logic unchanged. Diff the tarballs before you call it fixed, and tell the owner it is a scanner fix only.
 - **Re-check the bundled-npm residual on every run.** npm 11.21.1 (2026-10-15) finally bundled fixed brace-expansion, ip-address, undici, http-cache-semantics and postcss-selector-parser. Moving the `npm@` override retired the CLAUDE.md residual.
 
+- **i18next 27 TFunction rejects hand-written callbacks with an optional 2nd param.** `(key, options?: X) => string` fails (no 1-arg tuple in the non-strict overload); `(key) => string`, required-options, `TFunction<string>`, and an overload interface `{ (key: string): string; (key: string, options: X): string }` all pass. Prefer the overload interface: plain test mocks still fit (TFunction is branded). Probe with tsc in a scratch dir symlinked to node_modules. pdfmake 0.3.14 renamed internal `virtualfs` to `sharedVirtualfs`.
+
 **Why:** these pitfalls turned a "bump 4 transitive deps" task into a cascade across 3 other override entries.
 **How to apply:** in any dependency or Dependabot spec, audit the full `overrides` block, not just the alerted package.
