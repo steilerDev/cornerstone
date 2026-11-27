@@ -26,7 +26,7 @@ const { InvoiceDepositFormModal, getEmptyForm } =
   (await import('./InvoiceDepositFormModal.js')) as typeof ModalTypes;
 const { ApiClientError } = await import('../../lib/apiClient.js');
 
-const tr = (key: string, options?: Record<string, unknown>) => i18n.t(key, options) as string;
+const tr = (key: string, options?: Record<string, unknown>) => i18n.t(key, options ?? {}) as string;
 
 function makeDeposit(overrides: Partial<InvoiceDeposit> = {}): InvoiceDeposit {
   return {

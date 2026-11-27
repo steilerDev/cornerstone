@@ -206,7 +206,10 @@ export function CommandSearchInputRow({ model, inputRef }: CommandSearchInputRow
   );
 }
 
-function liveMessage(model: CommandSearchPanelModel, t: (key: string, o?: object) => string) {
+function liveMessage(
+  model: CommandSearchPanelModel,
+  t: { (key: string): string; (key: string, o: object): string },
+) {
   const { state, built, liveQuery } = model;
   if (state.status !== 'ready' || state.response === null || liveQuery !== state.settledQuery) {
     return '';
@@ -379,7 +382,7 @@ export function CommandSearchResults({ model, deps }: CommandSearchResultsProps)
       )}
 
       <div role="status" className={sharedStyles.srOnly} data-testid="command-search-status">
-        {liveMessage(model, t as (key: string, o?: object) => string)}
+        {liveMessage(model, t)}
       </div>
     </div>
   );

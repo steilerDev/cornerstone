@@ -7,7 +7,10 @@ import type { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.
 
 export const FINAL_PAYMENT_ROW_ID = 'final-payment';
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+interface Translate {
+  (key: string): string;
+  (key: string, options: Record<string, unknown>): string;
+}
 
 export interface PaymentRowContext {
   readonly invoice: InvoiceDetail;

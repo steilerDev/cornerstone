@@ -32,7 +32,10 @@ import {
 } from '../../lib/orientationApi.js';
 
 type Changes = Partial<ReferenceListValues>;
-type Translate = (key: string, options?: { defaultValue: string }) => string;
+interface Translate {
+  (key: string): string;
+  (key: string, options: { defaultValue: string }): string;
+}
 
 /** Cost categories (budget categories): name, description and color. */
 export const costCategoryAdapter: ReferenceListAdapter<

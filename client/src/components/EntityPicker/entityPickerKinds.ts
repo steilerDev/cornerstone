@@ -46,7 +46,10 @@ export type WhoKind = (typeof WHO_KINDS)[number];
 export const ENTITY_CREATE_KINDS = ['area', 'orientation', 'trade', 'category'] as const;
 export type EntityCreateKind = (typeof ENTITY_CREATE_KINDS)[number];
 
-type Translate = (key: string, options?: { defaultValue: string }) => string;
+interface Translate {
+  (key: string): string;
+  (key: string, options: { defaultValue: string }): string;
+}
 
 /** The translators the per-kind searches need (`common` and `settings` namespaces). */
 export interface PickerTranslators {

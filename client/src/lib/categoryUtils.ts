@@ -5,8 +5,13 @@ import { useTranslation } from 'react-i18next';
  * If translationKey is present, returns the translated string from the 'settings' namespace.
  * Otherwise falls back to the raw name from the database.
  */
+export interface CategoryNameT {
+  (key: string): string;
+  (key: string, options: { defaultValue: string }): string;
+}
+
 export function getCategoryDisplayName(
-  t: (key: string, options?: { defaultValue: string }) => string,
+  t: CategoryNameT,
   name: string,
   translationKey: string | null,
 ): string {
