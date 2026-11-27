@@ -67,6 +67,7 @@ import {
 } from '../../fixtures/apiHelpers.js';
 import { expectLegibleInDark } from '../../fixtures/darkMode.js';
 import { mockPaperlessConfigured } from '../../fixtures/paperlessMocks.js';
+import { mockAutoItemizeGate } from '../../fixtures/autoItemizeGate.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers (mirrors existing invoice E2E patterns)
@@ -219,13 +220,17 @@ async function mockConfig(page: Page, autoItemizeEnabled: boolean): Promise<void
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled }),
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled, llmEnabled: autoItemizeEnabled }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled }),
+        body: JSON.stringify({
+          currency: 'EUR',
+          autoItemizeEnabled,
+          llmEnabled: autoItemizeEnabled,
+        }),
       });
     }
   });
@@ -405,6 +410,11 @@ async function mockAutoItemizeBothPhases(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCard
 // ─────────────────────────────────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  // The Split with AI page needs Paperless and AI on (#2262); per-test mocks override this.
+  await mockAutoItemizeGate(page);
+});
 
 test.describe(
   'Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCard',

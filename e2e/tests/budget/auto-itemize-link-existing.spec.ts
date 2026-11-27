@@ -41,6 +41,7 @@ import {
 } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
+import { mockAutoItemizeGate } from '../../fixtures/autoItemizeGate.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST helpers
@@ -352,6 +353,11 @@ async function cleanupSeed(page: Page, seed: Partial<Seed>): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1
 // ─────────────────────────────────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  // The Split with AI page needs Paperless and AI on (#2262); per-test mocks override this.
+  await mockAutoItemizeGate(page);
+});
 
 test(
   'Scenario 1 [smoke]: linking an existing work item budget line shows its original values read-only and Save links without modifying it',

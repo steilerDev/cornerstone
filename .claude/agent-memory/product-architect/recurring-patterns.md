@@ -2301,3 +2301,14 @@ cannot be tapped: `pointer-events: none` on the pseudo, or a host with `overflow
 that clips it (BudgetBar `.bar::after`, bar 16–32 px). **How to apply:** when a fix adds a
 `::before`/`::after` "hit area", check `pointer-events` and the host's `overflow`; ask the
 fixture to skip such pseudos so the check measures what a finger can hit.
+
+## Wiki tables copied from a curated record drift silently (#2262)
+
+`plan:check` compares `routemap.json` and `routeMap.ts` on routing fields only; it never reads the
+Route-Map wiki page. By the end of EPIC-21, 39 Note cells lagged their `routemap.json` notes and 11
+Query-carried cells lagged `carries` (list pages still showed retired `page`/`pageSize`). Stage counts
+also lagged by one story (#2252 never touched the page). Check these mechanically, not by eye: parse the
+wiki table rows, key them by `(from, to)`, and diff Note against the JSON and backticked carries against
+the code (`npx tsx` can import `routeMap.ts` directly). The same pass found two "Planned" API contracts
+whose stories had merged with a different design (12, 15). In a final or epic-close review, grep each
+contract heading's status word against `server/src/routes`, not only the banner list.

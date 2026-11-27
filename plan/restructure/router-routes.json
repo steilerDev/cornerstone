@@ -47,6 +47,7 @@
     {
       "path": "/budget/invoices/:id/auto-itemize/:documentId",
       "guard": "member",
+      "gated": true,
       "kind": "page",
       "element": "AutoItemizePage"
     },

@@ -134,6 +134,18 @@ describe('ROUTE_MAP invariants', () => {
     }
   });
 
+  it('has no planned entry left (#2262)', () => {
+    expect(ENTRIES.filter((e) => e.stage === 'planned')).toEqual([]);
+  });
+
+  it('serves every conditional entry other than not-admin', () => {
+    const conditional = ENTRIES.filter(
+      (e) => e.change === 'conditional' && e.match?.condition !== 'not-admin',
+    );
+    expect(conditional.length).toBeGreaterThan(0);
+    for (const entry of conditional) expect(entry.stage).toBe('done');
+  });
+
   it('uses only known stages', () => {
     for (const entry of ENTRIES) {
       expect(['done', 'interim', 'planned']).toContain(entry.stage);

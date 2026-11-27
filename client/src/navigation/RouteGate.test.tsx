@@ -268,4 +268,75 @@ describe('RouteGate', () => {
       expect(await screen.findByTestId('where')).toHaveTextContent('/second');
     });
   });
+
+  describe('auto-itemize page rule (#2262)', () => {
+    const AUTO_RULES = liveConditionalRules('invoiceAutoItemize');
+    const AUTO_URL = '/budget/invoices/inv-1/auto-itemize/42';
+
+    function renderAutoItemize() {
+      return render(
+        <MemoryRouter initialEntries={[AUTO_URL]}>
+          <Routes>
+            <Route element={<RouteGate rules={AUTO_RULES} />}>
+              <Route
+                path="/budget/invoices/:id/auto-itemize/:documentId"
+                element={<div>auto-itemize page</div>}
+              />
+            </Route>
+            <Route path="/budget/invoices/:id" element={<Where />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    }
+
+    it('redirects to the invoice cost tab when Paperless is not configured', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({ configured: false });
+      mockFetchConfig.mockResolvedValue({ llmEnabled: true });
+
+      renderAutoItemize();
+
+      expect(await screen.findByTestId('where')).toHaveTextContent(
+        '/budget/invoices/inv-1?tab=cost',
+      );
+      expect(screen.queryByText('auto-itemize page')).toBeNull();
+      expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+      expect(mockFetchConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('redirects to the invoice cost tab when the AI reader is off', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+      mockFetchConfig.mockResolvedValue({ llmEnabled: false });
+
+      renderAutoItemize();
+
+      expect(await screen.findByTestId('where')).toHaveTextContent(
+        '/budget/invoices/inv-1?tab=cost',
+      );
+      expect(screen.queryByText('auto-itemize page')).toBeNull();
+      expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+      expect(mockFetchConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the page when both Paperless and the AI reader are on', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+      mockFetchConfig.mockResolvedValue({ llmEnabled: true });
+
+      renderAutoItemize();
+
+      expect(await screen.findByText('auto-itemize page')).toBeInTheDocument();
+      expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+      expect(mockFetchConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails open and renders the page when the Paperless status rejects', async () => {
+      mockGetPaperlessStatus.mockRejectedValue(new Error('network'));
+      mockFetchConfig.mockResolvedValue({ llmEnabled: true });
+
+      renderAutoItemize();
+
+      expect(await screen.findByText('auto-itemize page')).toBeInTheDocument();
+      expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+      expect(mockFetchConfig).toHaveBeenCalledTimes(1);
+    });
+  });
 });

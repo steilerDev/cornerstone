@@ -32,6 +32,18 @@ jest.unstable_mockModule('./lib/settingsApi.js', () => ({
   updateHouseholdSettings: jest.fn(),
 }));
 
+// The route gate (#2262) reads both; the other consumers of these modules keep their real exports.
+const realPaperlessApi = await import('./lib/paperlessApi.js');
+const realConfigApi = await import('./lib/configApi.js');
+jest.unstable_mockModule('./lib/paperlessApi.js', () => ({
+  ...realPaperlessApi,
+  getPaperlessStatus: jest.fn(async () => ({ configured: true })),
+}));
+jest.unstable_mockModule('./lib/configApi.js', () => ({
+  ...realConfigApi,
+  fetchConfig: jest.fn(async () => ({ llmEnabled: true })),
+}));
+
 const PAGES = [
   ['setup', './pages/SetupPage/SetupPage.js'],
   ['workItem', './pages/WorkItemDetailPage/WorkItemDetailPage.js'],
@@ -88,7 +100,9 @@ beforeEach(async () => {
 
 describe('App lazy routes', () => {
   it.each(
-    PAGES.map(([id]) => id).filter((id) => id !== 'setup' && id !== 'invoicePaperlessReview'),
+    PAGES.map(([id]) => id).filter(
+      (id) => id !== 'setup' && id !== 'invoicePaperlessReview' && id !== 'invoiceAutoItemize',
+    ),
   )(
     'renders the %s page module at its route',
     async (id) => {
@@ -115,6 +129,14 @@ describe('App lazy routes', () => {
     render(<App />);
     expect(
       await screen.findByTestId('page-invoicePaperlessReview', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  }, 15000);
+
+  it('renders the auto-itemize page module at its route when Paperless and AI are on', async () => {
+    window.history.pushState({}, 'auto-itemize', url('invoiceAutoItemize'));
+    render(<App />);
+    expect(
+      await screen.findByTestId('page-invoiceAutoItemize', undefined, { timeout: 5000 }),
     ).toBeInTheDocument();
   }, 15000);
 });

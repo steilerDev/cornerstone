@@ -118,6 +118,9 @@ const PAPERLESS_REVIEW_RULES = liveConditionalRules('invoicePaperlessReview');
 /** Live conditional redirects (Paperless off) of the Documents page. */
 const DOCUMENTS_RULES = liveConditionalRules('documents');
 
+/** Live conditional redirect (Paperless or AI off) of the Split with AI page: opens the invoice's Cost tab. */
+const AUTO_ITEMIZE_RULES = liveConditionalRules('invoiceAutoItemize');
+
 /**
  * The routed tree. `<Routes>` renders the display location (the page behind a dialog route);
  * the dialog host renders after it and sees the real location.
@@ -217,14 +220,16 @@ function RoutedApp() {
                               </Suspense>
                             }
                           />
-                          <Route
-                            path={routePattern('invoiceAutoItemize')}
-                            element={
-                              <Suspense fallback={<RouteFallback />}>
-                                <AutoItemizePage />
-                              </Suspense>
-                            }
-                          />
+                          <Route element={<RouteGate rules={AUTO_ITEMIZE_RULES} />}>
+                            <Route
+                              path={routePattern('invoiceAutoItemize')}
+                              element={
+                                <Suspense fallback={<RouteFallback />}>
+                                  <AutoItemizePage />
+                                </Suspense>
+                              }
+                            />
+                          </Route>
                           <Route path={routePattern('bankReport')} element={<ReportWizardPage />} />
                           <Route path={routePattern('scheduleGantt')} element={<TimelinePage />} />
                           <Route

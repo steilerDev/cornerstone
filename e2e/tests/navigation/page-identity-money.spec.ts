@@ -169,6 +169,7 @@ async function mockInvoiceDocumentLink(page: Page, invoiceId: string): Promise<v
 
 /** Paperless document detail plus the auto-itemize dry-run for the Split with AI page. */
 async function mockSplitWithAi(page: Page, invoiceId: string): Promise<void> {
+  await mockPaperlessConfigured(page);
   await page.route(`**/paperless/documents/${SPLIT_DOC_ID}`, async (route: Route) => {
     const url = route.request().url();
     if (route.request().method() !== 'GET' || url.includes('/thumb') || url.includes('/preview')) {
