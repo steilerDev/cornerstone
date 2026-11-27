@@ -233,8 +233,19 @@ describe('liveConditionalRules', () => {
     expect(rules[0]).toMatchObject({ stage: 'done', match: { condition: 'paperless-off' } });
   });
 
-  it('returns nothing for the auto-itemize page (its rule is planned)', () => {
-    expect(liveConditionalRules('invoiceAutoItemize')).toEqual([]);
+  it('returns the live Paperless-or-AI-off rule for the auto-itemize page (#2262)', () => {
+    const rules = liveConditionalRules('invoiceAutoItemize');
+    expect(rules).toHaveLength(1);
+    const [rule] = rules;
+    expect(rule).toBe(
+      ROUTE_MAP.find(
+        (e) => e.from === '/budget/invoices/:id/auto-itemize/:documentId (Paperless or AI off)',
+      ),
+    );
+    expect(rule).toMatchObject({ stage: 'done', match: { condition: 'paperless-or-ai-off' } });
+    expect(resolveRedirect(rule.to, { id: 'inv-1', documentId: '42' }, '', '')).toBe(
+      '/budget/invoices/inv-1?tab=cost',
+    );
   });
 
   it('excludes the not-admin rule', () => {

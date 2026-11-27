@@ -45,6 +45,7 @@ import {
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
 import { defined } from '../../fixtures/assertions.js';
+import { mockAutoItemizeGate } from '../../fixtures/autoItemizeGate.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers
@@ -125,13 +126,13 @@ async function mockConfigEnabled(page: Page): Promise<void> {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true, llmEnabled: true }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true }),
+        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true, llmEnabled: true }),
       });
     }
   });
@@ -240,6 +241,11 @@ async function queueCreateNew(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Happy path — queue create-new, Save, verify API calls
 // ─────────────────────────────────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  // The Split with AI page needs Paperless and AI on (#2262); per-test mocks override this.
+  await mockAutoItemizeGate(page);
+});
 
 test(
   'Scenario 1 [smoke]: choosing a task under Belongs to; Save creates the WI cost line and the invoice link with correct amounts',

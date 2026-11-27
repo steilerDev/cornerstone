@@ -1372,7 +1372,7 @@
     "gate": "paperless+ai",
     "clicks": 2,
     "clickPath": "Invoice / Offer page > Cost tab (1) > 'Split with AI' (2) — Paperless + AI only",
-    "note": "Offered where the job happens, on the Cost tab (Routines placement, capability judge §3.1). #2203: the Split with AI page opens with its invoice as origin."
+    "note": "Offered where the job happens, on the Cost tab (Routines placement, capability judge §3.1). #2203: the Split with AI page opens with its invoice as origin. #2262: with Paperless or AI off the URL opens the invoice's Cost tab (RouteGate)."
   },
   "MNY-069": {
     "name": "Follow extraction progress and retry a failed analysis",
@@ -1380,7 +1380,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > progress / Retry",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Split with AI\"; breadcrumb \"Money › Invoices › ‹invoice›\"; error state keeps Retry and \"Back to ‹invoice›\"; Save/Cancel return without a duplicate history entry."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Split with AI\"; breadcrumb \"Money › Invoices › ‹invoice›\"; error state keeps Retry and \"Back to ‹invoice›\"; Save/Cancel return without a duplicate history entry. #2262: with Paperless or AI off the URL opens the invoice's Cost tab (RouteGate)."
   },
   "MNY-070": {
     "name": "Accept AI-suggested invoice metadata field by field",
@@ -4082,7 +4082,7 @@
     "to": "Settings > Project setup > Cost categories > New",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render the new `costCategoryForm` schema (ObjectForm). The cost line form's category is a select without inline create (unchanged)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2256: Project setup New and Edit render the new `costCategoryForm` schema (ObjectForm). The cost line form's category is a select without inline create (unchanged). Owner decision (#2262, 2026-11-27): cost categories are created only in Project setup; the cost line form keeps a category select without inline create."
   },
   "PLT-106": {
     "name": "Edit a budget category inline",

@@ -33,6 +33,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
+import { mockAutoItemizeGate } from '../../fixtures/autoItemizeGate.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers
@@ -143,13 +144,13 @@ async function mockConfigEnabled(page: Page): Promise<void> {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true, llmEnabled: true }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true }),
+        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true, llmEnabled: true }),
       });
     }
   });
@@ -251,6 +252,11 @@ async function mockAutoItemizeDryRun(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Discretionary note is visible (smoke)
 // ─────────────────────────────────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  // The Split with AI page needs Paperless and AI on (#2262); per-test mocks override this.
+  await mockAutoItemizeGate(page);
+});
 
 test(
   'Scenario 1 [smoke]: AutoItemizePage shows the discretionary note when lines use the discretionary source',

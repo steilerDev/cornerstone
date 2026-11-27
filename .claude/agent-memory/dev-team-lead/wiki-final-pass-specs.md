@@ -15,5 +15,6 @@ An epic-end "wiki final" story looks S but is a multi-page audit; spec it with a
 - For every "Planned" contract heading, grep `server/src/routes` for the endpoint; missing + story merged → "superseded by …" or escalate if an AC lacks it.
 - Renaming a heading (e.g. "Planned contracts") breaks `#anchor` links in ADRs — grep wiki/CLAUDE.md/.claude/plan first.
 - `scan-privacy.mjs --profile contact wiki/*.md` hits synthetic examples (`+1-555-…`, non-example.com emails, migration-number ranges, KiB sizes written as one big number); `--profile full` flags illustrative money in API examples that can't be distinguished — require contact-clean + no new figures + denylist run if a backup exists. Piping into `tail` hides the exit code.
-- The synced wiki submodule sits on a detached HEAD equal to origin/master — `git -C wiki checkout master` before committing.
+- The synced wiki submodule sits on a detached HEAD equal to origin/master — commit on the detached HEAD and push with `git -C wiki push origin HEAD:master` (or first `git -C wiki checkout -B master origin/master`). A plain `checkout master` can land on a stale local master.
+- Closing a story that leaves a route entry `planned` invites an owner decision to build it (#2262: auto-itemize redirect, D1) — present "build vs record" explicitly in the spec instead of documenting the gap as final.
 - Style Guide is ux-designer-owned; when routed to the architect, restrict it to describing shipped code.

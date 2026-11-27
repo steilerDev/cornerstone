@@ -60,6 +60,7 @@ import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import type { Page, Route } from '@playwright/test';
 import { API } from '../../fixtures/testData.js';
+import { mockAutoItemizeGate } from '../../fixtures/autoItemizeGate.js';
 import {
   createVendorViaApi,
   deleteVendorViaApi,
@@ -430,6 +431,11 @@ async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewP
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1 — Selection + merge bar appearance
 // ─────────────────────────────────────────────────────────────────────────────
+
+test.beforeEach(async ({ page }) => {
+  // The Split with AI page needs Paperless and AI on (#2262); per-test mocks override this.
+  await mockAutoItemizeGate(page);
+});
 
 test.describe('Scenario 1 — Selection + merge bar appearance', () => {
   test('No Merge bar with 0 selected; disabled with 1 selected; enabled with 2 selected', async ({

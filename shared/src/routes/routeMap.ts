@@ -1268,7 +1268,7 @@ export const ROUTE_MAP = [
     gate: 'paperless+ai',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'done',
     match: {
       condition: 'paperless-or-ai-off',
       appliesTo: ['invoiceAutoItemize'],
