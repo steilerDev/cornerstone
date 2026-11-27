@@ -236,7 +236,8 @@ describe('liveConditionalRules', () => {
   it('returns the live Paperless-or-AI-off rule for the auto-itemize page (#2262)', () => {
     const rules = liveConditionalRules('invoiceAutoItemize');
     expect(rules).toHaveLength(1);
-    const [rule] = rules;
+    const rule = rules[0];
+    if (!rule) throw new Error('expected one live conditional rule');
     expect(rule).toBe(
       ROUTE_MAP.find(
         (e) => e.from === '/budget/invoices/:id/auto-itemize/:documentId (Paperless or AI off)',

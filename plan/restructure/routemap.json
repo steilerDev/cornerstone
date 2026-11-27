@@ -1101,7 +1101,7 @@
     "gate": "paperless+ai",
     "permanent": false,
     "carries": ["*"],
-    "note": "When Paperless or AI is not configured: the record's Cost tab opens (grid entry is available there)."
+    "note": "When Paperless or AI is not configured: the record's Cost tab opens (grid entry is available there). Live since #2262 (client RouteGate)."
   },
   {
     "from": "/documents (Paperless off)",
